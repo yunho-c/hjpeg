@@ -22,9 +22,9 @@ RGB AXI stream
 The main core now emits valid baseline JPEG byte streams that decode with
 standard Java ImageIO tests. The datapath supports 4:4:4 and 4:2:0 component
 sampling, frame dimensions that are not multiples of 8/16 through edge
-replication, standard quantization/Huffman tables, byte stuffing, and marker
-assembly. Nonzero restart intervals emit DRI/RST markers and reset DC
-predictors at MCU boundaries.
+replication, standard quantization/Huffman tables, optional JFIF APP0 emission,
+byte stuffing, and marker assembly. Nonzero restart intervals emit DRI/RST
+markers and reset DC predictors at MCU boundaries.
 
 ## Source Layout
 

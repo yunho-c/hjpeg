@@ -15,13 +15,14 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       width: Int = 8,
       height: Int = 8,
       subsample: Boolean = false,
-      restartInterval: Int = 0): Unit = {
+      restartInterval: Int = 0,
+      emitJfif: Boolean = true): Unit = {
     dut.io.config.xsize.poke(width.U)
     dut.io.config.ysize.poke(height.U)
     dut.io.config.quality.poke(50.U)
     dut.io.config.restartInterval.poke(restartInterval.U)
     dut.io.config.enableChromaSubsample.poke(subsample.B)
-    dut.io.config.emitJfif.poke(true.B)
+    dut.io.config.emitJfif.poke(emitJfif.B)
   }
 
   private def pokePixel(dut: HjpegCore, index: Int, width: Int, r: Int, g: Int, b: Int): Unit = {
@@ -41,12 +42,13 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       g: Int,
       b: Int,
       subsample: Boolean = false,
-      restartInterval: Int = 0): Seq[Int] = {
+      restartInterval: Int = 0,
+      emitJfif: Boolean = true): Seq[Int] = {
     dut.reset.poke(true.B)
     dut.clock.step()
     dut.reset.poke(false.B)
 
-    pokeConfig(dut, width, height, subsample, restartInterval)
+    pokeConfig(dut, width, height, subsample, restartInterval, emitJfif)
     dut.io.clearProtocolError.poke(false.B)
     dut.io.output.ready.poke(true.B)
 
@@ -157,6 +159,22 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
       image must not be null
       image.getWidth mustBe 16
+      image.getHeight mustBe 8
+      dut.io.protocolError.expect(false.B)
+    }
+  }
+
+  "HjpegCore should emit decodable JPEGs without JFIF APP0" in {
+    simulate(new HjpegCore()) { dut =>
+      val bytes = emitFlatFrame(dut, width = 8, height = 8, r = 128, g = 128, b = 128, emitJfif = false)
+
+      bytes.take(2) mustBe Seq(0xff, 0xd8)
+      bytes.slice(2, 4) mustBe Seq(0xff, 0xdb)
+      bytes.sliding(2).exists(_ == Seq(0xff, 0xe0)) mustBe false
+      bytes.takeRight(2) mustBe Seq(0xff, 0xd9)
+      val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
+      image must not be null
+      image.getWidth mustBe 8
       image.getHeight mustBe 8
       dut.io.protocolError.expect(false.B)
     }

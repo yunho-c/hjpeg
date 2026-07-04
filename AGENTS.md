@@ -27,8 +27,9 @@ Important entry points:
 The current `HjpegCore` accepts raster RGB pixels and emits a complete baseline
 JPEG byte stream. It supports arbitrary nonzero frame dimensions within
 `HjpegConfig`, edge padding, 4:4:4, 4:2:0, standard quantization/Huffman tables,
-marker assembly, restart intervals, entropy packing, byte stuffing, ready/valid
-flow control, and sticky protocol-error reporting.
+optional JFIF APP0 emission, marker assembly, restart intervals, entropy
+packing, byte stuffing, ready/valid flow control, and sticky protocol-error
+reporting.
 
 `HjpegAxiStreamCore` is the current hardware-facing shell. It accepts raster RGB
 AXI4-Stream-shaped words, generates pixel coordinates, forwards bytes from

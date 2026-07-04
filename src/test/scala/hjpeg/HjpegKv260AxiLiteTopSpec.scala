@@ -65,12 +65,13 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
       width: Int,
       height: Int,
       subsample: Boolean,
-      restartInterval: Int = 0): Unit = {
+      restartInterval: Int = 0,
+      emitJfif: Boolean = true): Unit = {
     writeReg(dut, HjpegAxiLiteRegisters.XSize, width)
     writeReg(dut, HjpegAxiLiteRegisters.YSize, height)
     writeReg(dut, HjpegAxiLiteRegisters.Quality, 50)
     writeReg(dut, HjpegAxiLiteRegisters.RestartInterval, restartInterval)
-    val control = BigInt(1 << HjpegAxiLiteRegisters.ControlEmitJfifBit) |
+    val control = (if (emitJfif) BigInt(1 << HjpegAxiLiteRegisters.ControlEmitJfifBit) else BigInt(0)) |
       (if (subsample) BigInt(1 << HjpegAxiLiteRegisters.ControlEnableChromaSubsampleBit) else BigInt(0))
     writeReg(dut, HjpegAxiLiteRegisters.Control, control)
   }
@@ -145,6 +146,27 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
       image must not be null
       image.getWidth mustBe 17
       image.getHeight mustBe 13
+      readReg(dut, HjpegAxiLiteRegisters.Status) mustBe 0
+    }
+  }
+
+  "HjpegKv260AxiLiteTop should honor the emit JFIF control bit" in {
+    simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      init(dut)
+      configure(dut, width = 8, height = 8, subsample = false, emitJfif = false)
+
+      val bytes = emitFrame(dut, width = 8, height = 8)
+      bytes.take(2) mustBe Seq(0xff, 0xd8)
+      bytes.slice(2, 4) mustBe Seq(0xff, 0xdb)
+      bytes.sliding(2).exists(_ == Seq(0xff, 0xe0)) mustBe false
+      val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
+      image must not be null
+      image.getWidth mustBe 8
+      image.getHeight mustBe 8
+      readReg(dut, HjpegAxiLiteRegisters.Control) mustBe 0
       readReg(dut, HjpegAxiLiteRegisters.Status) mustBe 0
     }
   }

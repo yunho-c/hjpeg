@@ -56,6 +56,8 @@ object JpegHeaderBytes {
   val DqtLuminanceDataStart: Int = Soi.length + App0.length + 5
   val DqtChrominanceDataStart: Int = Soi.length + App0.length + DqtLuminancePrefix.length + 5
   val Sof0Start: Int = Soi.length + App0.length + DqtLuminancePrefix.length + DqtChrominancePrefix.length
+  val SoiLast: Int = Soi.length - 1
+  val App0Start: Int = Soi.length
   val Sof0HeightHigh: Int = Sof0Start + 5
   val Sof0HeightLow: Int = Sof0Start + 6
   val Sof0WidthHigh: Int = Sof0Start + 7
@@ -140,6 +142,8 @@ class JpegHeaderStage extends Module {
     when(io.output.bits.last) {
       active := false.B
       index := 0.U
+    }.elsewhen(!io.config.emitJfif && index === JpegHeaderBytes.SoiLast.U) {
+      index := (JpegHeaderBytes.App0Start + JpegHeaderBytes.App0.length).U
     }.elsewhen(io.config.restartInterval === 0.U && index === (JpegHeaderBytes.DriStart - 1).U) {
       index := (JpegHeaderBytes.DriStart + JpegHeaderBytes.Dri.length).U
     }.otherwise {

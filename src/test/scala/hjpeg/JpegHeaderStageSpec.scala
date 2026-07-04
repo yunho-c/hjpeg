@@ -14,7 +14,8 @@ class JpegHeaderStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
       height: Int,
       quality: Int,
       subsample: Boolean = false,
-      restartInterval: Int = 0): Seq[Int] = {
+      restartInterval: Int = 0,
+      emitJfif: Boolean = true): Seq[Int] = {
     dut.reset.poke(true.B)
     dut.clock.step()
     dut.reset.poke(false.B)
@@ -24,7 +25,7 @@ class JpegHeaderStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
     dut.io.config.quality.poke(quality.U)
     dut.io.config.restartInterval.poke(restartInterval.U)
     dut.io.config.enableChromaSubsample.poke(subsample.B)
-    dut.io.config.emitJfif.poke(true.B)
+    dut.io.config.emitJfif.poke(emitJfif.B)
     dut.io.output.ready.poke(true.B)
 
     dut.io.start.poke(true.B)
@@ -67,6 +68,17 @@ class JpegHeaderStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
       bytes(JpegHeaderBytes.Sof0HeightLow) mustBe 0xe0
       bytes(JpegHeaderBytes.Sof0WidthHigh) mustBe 0x02
       bytes(JpegHeaderBytes.Sof0WidthLow) mustBe 0x80
+    }
+  }
+
+  "JpegHeaderStage should omit JFIF APP0 when disabled" in {
+    simulate(new JpegHeaderStage()) { dut =>
+      val bytes = emitHeader(dut, width = 8, height = 8, quality = 50, emitJfif = false)
+
+      bytes.length mustBe JpegHeaderBytes.HeaderLength - JpegHeaderBytes.App0.length
+      bytes.take(2) mustBe Seq(0xff, 0xd8)
+      bytes.slice(2, 4) mustBe Seq(0xff, 0xdb)
+      bytes.sliding(2).exists(_ == Seq(0xff, 0xe0)) mustBe false
     }
   }
 
