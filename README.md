@@ -123,6 +123,9 @@ post-synthesis/post-implementation utilization and timing reports, copies the
 bitstream, and exports a hardware platform XSA. These scripts do not create a
 complete bootable KV260 image or prove on-board behavior.
 
+See `docs/kv260-bringup.md` for the end-to-end evidence checklist before calling
+the hardware path complete.
+
 ## Host Helpers
 
 The host utility prepares payloads and register writes for the KV260 AXI-Lite /
