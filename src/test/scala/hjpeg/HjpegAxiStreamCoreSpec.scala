@@ -86,4 +86,29 @@ class HjpegAxiStreamCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       dut.io.protocolError.expect(true.B)
     }
   }
+
+  "HjpegAxiStreamCore should report incomplete RGB input words" in {
+    simulate(new HjpegAxiStreamCore()) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      pokeConfig(dut, width = 1, height = 1)
+      dut.io.clearProtocolError.poke(false.B)
+      dut.io.output.ready.poke(true.B)
+      dut.io.input.valid.poke(true.B)
+      dut.io.input.bits.keep.poke("b011".U)
+      dut.io.input.bits.data.poke(0.U)
+      dut.io.input.bits.last.poke(true.B)
+      dut.io.input.ready.expect(true.B)
+      dut.clock.step()
+
+      dut.io.protocolError.expect(true.B)
+
+      dut.io.input.valid.poke(false.B)
+      dut.io.clearProtocolError.poke(true.B)
+      dut.clock.step()
+      dut.io.protocolError.expect(false.B)
+    }
+  }
 }

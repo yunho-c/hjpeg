@@ -35,6 +35,8 @@ reporting.
 AXI4-Stream-shaped words, generates pixel coordinates, forwards bytes from
 `HjpegCore`, and checks that input `last` matches the configured frame size.
 Input data packs R in bits `[7:0]`, G in `[15:8]`, and B in `[23:16]`.
+Input `keep` must be `0b111`; incomplete RGB words raise the sticky protocol
+error.
 
 `HjpegKv260Top` is a direct-config KV260-oriented elaboration target.
 `HjpegKv260AxiLiteTop` adds AXI-Lite control/status registers around the same
