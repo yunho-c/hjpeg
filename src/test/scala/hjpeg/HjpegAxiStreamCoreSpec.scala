@@ -20,10 +20,13 @@ class HjpegAxiStreamCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
   }
 
   private def pushPixel(dut: HjpegAxiStreamCore, index: Int, last: Boolean): Unit = {
-    val gray = BigInt(128) | (BigInt(128) << 8) | (BigInt(128) << 16)
+    pushRgbPixel(dut, r = 128, g = 128, b = 128, last)
+  }
+
+  private def pushRgbPixel(dut: HjpegAxiStreamCore, r: Int, g: Int, b: Int, last: Boolean): Unit = {
     dut.io.input.valid.poke(true.B)
     dut.io.input.bits.keep.poke(7.U)
-    dut.io.input.bits.data.poke(gray.U)
+    dut.io.input.bits.data.poke((BigInt(r) | (BigInt(g) << 8) | (BigInt(b) << 16)).U)
     dut.io.input.bits.last.poke(last.B)
     dut.io.input.ready.expect(true.B)
     dut.clock.step()
@@ -43,6 +46,60 @@ class HjpegAxiStreamCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       dut.clock.step()
       cycles += 1
     }
+    bytes.toSeq
+  }
+
+  private def pokeCoreConfig(dut: HjpegCore, width: Int, height: Int): Unit = {
+    dut.io.config.xsize.poke(width.U)
+    dut.io.config.ysize.poke(height.U)
+    dut.io.config.quality.poke(50.U)
+    dut.io.config.restartInterval.poke(0.U)
+    dut.io.config.enableChromaSubsample.poke(false.B)
+    dut.io.config.emitJfif.poke(true.B)
+  }
+
+  private def pokeCorePixel(dut: HjpegCore, index: Int, width: Int, r: Int, g: Int, b: Int): Unit = {
+    dut.io.input.valid.poke(true.B)
+    dut.io.input.bits.x.poke((index % width).U)
+    dut.io.input.bits.y.poke((index / width).U)
+    dut.io.input.bits.r.poke(r.U)
+    dut.io.input.bits.g.poke(g.U)
+    dut.io.input.bits.b.poke(b.U)
+  }
+
+  private def emitCoreFrame(dut: HjpegCore, width: Int, height: Int)(pixelAt: Int => (Int, Int, Int)): Seq[Int] = {
+    dut.reset.poke(true.B)
+    dut.clock.step()
+    dut.reset.poke(false.B)
+
+    pokeCoreConfig(dut, width, height)
+    dut.io.clearProtocolError.poke(false.B)
+    dut.io.output.ready.poke(true.B)
+
+    val bytes = scala.collection.mutable.ArrayBuffer.empty[Int]
+    val pixels = width * height
+    var nextPixel = 0
+    var sawLast = false
+    var cycles = 0
+    while (!sawLast) {
+      assert(cycles < pixels * 8 + JpegHeaderBytes.MaxHeaderLength + 512, "timeout waiting for HjpegCore output")
+      if (dut.io.output.valid.peek().litToBoolean) {
+        bytes += dut.io.output.bits.byte.peek().litValue.toInt
+        sawLast = dut.io.output.bits.last.peek().litToBoolean
+      }
+
+      if (nextPixel < pixels && dut.io.input.ready.peek().litToBoolean) {
+        val (r, g, b) = pixelAt(nextPixel)
+        pokeCorePixel(dut, nextPixel, width, r, g, b)
+        nextPixel += 1
+      } else {
+        dut.io.input.valid.poke(false.B)
+      }
+
+      dut.clock.step()
+      cycles += 1
+    }
+    dut.io.input.valid.poke(false.B)
     bytes.toSeq
   }
 
@@ -107,6 +164,47 @@ class HjpegAxiStreamCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       image must not be null
       image.getWidth mustBe 16
       image.getHeight mustBe 8
+      dut.io.protocolError.expect(false.B)
+    }
+  }
+
+  "HjpegAxiStreamCore should encode non-gray AXI RGB frames like direct HjpegCore input" in {
+    val width = 16
+    val height = 8
+    def pixelAt(index: Int): (Int, Int, Int) = {
+      val x = index % width
+      val y = index / width
+      if (((x + y) & 3) == 0) {
+        (240, 24, 80)
+      } else if (x < width / 2) {
+        (24, 200, 64)
+      } else {
+        (40, 56, 232)
+      }
+    }
+
+    var expected = Seq.empty[Int]
+    simulate(new HjpegCore()) { dut =>
+      expected = emitCoreFrame(dut, width, height)(pixelAt)
+      dut.io.protocolError.expect(false.B)
+    }
+
+    simulate(new HjpegAxiStreamCore()) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      pokeConfig(dut, width = width, height = height)
+      dut.io.clearProtocolError.poke(false.B)
+      dut.io.output.ready.poke(true.B)
+
+      for (index <- 0 until width * height) {
+        val (r, g, b) = pixelAt(index)
+        pushRgbPixel(dut, r, g, b, last = index == width * height - 1)
+      }
+      dut.io.input.valid.poke(false.B)
+
+      collectFrame(dut, JpegHeaderBytes.HeaderLength + 512) mustBe expected
       dut.io.protocolError.expect(false.B)
     }
   }
