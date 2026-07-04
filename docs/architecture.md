@@ -81,3 +81,12 @@ sbt 'runMain hjpeg.ElaborateKv260AxiLiteTop'
 
 They are not a replacement for board constraints, software drivers, timing
 closure, image packaging, or on-board validation.
+
+## Host-Side Flow
+
+`scripts/host/hjpeg_host.py` provides the first userspace helpers around the
+KV260 design. It packs binary P6 PPM files into raw RGB byte streams for the AXI
+DMA MM2S channel, writes the encoder AXI-Lite configuration/status registers via
+`/dev/mem`, and validates returned JPEG files by checking SOI/EOI markers and
+SOF0 dimensions. The script intentionally leaves DMA buffer allocation and
+transfer submission to the board image or driver stack used during bring-up.

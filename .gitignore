@@ -10,6 +10,8 @@ out/
 .ivy2/
 .sbt-boot/
 .sbt-global/
+__pycache__/
+*.py[cod]
 ### XilinxISE template
 # intermediate build files
 *.bgn

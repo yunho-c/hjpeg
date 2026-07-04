@@ -163,6 +163,18 @@ SmartConnect, reset, and interrupt plumbing in one reproducible TCL entry point.
 The scripts prove project/IP construction only when Vivado runs; they do not
 prove timing closure or hardware behavior on a KV260 board.
 
+Host-side helpers live under `scripts/host/`. Run their standard-library tests
+with:
+
+```sh
+python3 scripts/host/hjpeg_host_test.py
+```
+
+`hjpeg_host.py` packs binary P6 PPM files into RGB stream bytes, writes the
+AXI-Lite register map through `/dev/mem`, reads status, clears protocol errors,
+and validates JPEG output dimensions. It does not own board-specific DMA buffer
+allocation or transfer submission.
+
 For new encoder stages, add focused tests before frame-level tests. Good early
 fixtures are all-zero blocks, constant-color 8x8 images, one nonzero AC
 coefficient, long zero AC runs, dimensions that require padding, and data that

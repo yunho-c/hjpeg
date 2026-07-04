@@ -55,6 +55,7 @@ between frames.
 - JDK 21 or newer
 - sbt, or the checked-in Mill bootstrap script
 - Verilator for simulator-backed tests
+- Python 3 for host-side helper scripts
 
 ## Build
 
@@ -113,6 +114,24 @@ AXI-Lite register aperture. The block-design script consumes the packaged IP and
 wires it to Zynq UltraScale+ PS, AXI DMA, SmartConnect, and reset/interrupt
 plumbing. The scripts do not create a complete bootable KV260 image or prove
 timing closure.
+
+## Host Helpers
+
+The host utility prepares payloads and register writes for the KV260 AXI-Lite /
+AXI DMA design:
+
+```sh
+python3 scripts/host/hjpeg_host.py pack-ppm input.ppm input.rgb
+python3 scripts/host/hjpeg_host.py config --base-addr 0xa0000000 --width 640 --height 480
+python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000
+python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg --width 640 --height 480
+```
+
+`pack-ppm` accepts binary P6 PPM and writes raw RGB bytes in the same R, G, B
+order consumed by the AXI-stream input. DMA buffer allocation and transfer
+submission remain board-image-specific; the helper covers input packing,
+AXI-Lite configuration/status access through `/dev/mem`, and post-run JPEG
+dimension validation.
 
 ## Versions
 
