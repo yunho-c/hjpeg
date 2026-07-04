@@ -39,3 +39,15 @@ object ElaborateKv260Top extends App {
     )
   )
 }
+
+object ElaborateKv260AxiLiteTop extends App {
+  ChiselStage.emitSystemVerilogFile(
+    new HjpegKv260AxiLiteTop(),
+    args = Array("--target-dir", "generated-kv260-axi-lite-top"),
+    firtoolOpts = Array(
+      "-disable-all-randomization",
+      "-strip-debug-info",
+      "-default-layer-specialization=enable"
+    )
+  )
+}

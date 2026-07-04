@@ -19,7 +19,10 @@ case class HjpegConfig(
 
 object HjpegConstants {
   val BlockDim = 8
+  val BlockSize = BlockDim * BlockDim
   val Components = 3
+  val MaxBaselineDcCategory = 11
+  val MaxHuffmanCodeBits = 16
 }
 
 object JpegMarker {

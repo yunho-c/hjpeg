@@ -1,0 +1,138 @@
+// See README.md for license details.
+
+package hjpeg
+
+import chisel3._
+import chisel3.util._
+
+object HjpegAxiLiteRegisters {
+  val Control = 0x00
+  val Status = 0x04
+  val XSize = 0x08
+  val YSize = 0x0c
+  val Quality = 0x10
+  val RestartInterval = 0x14
+
+  val ControlClearProtocolErrorBit = 0
+  val ControlEnableChromaSubsampleBit = 1
+  val ControlEmitJfifBit = 2
+
+  val StatusBusyBit = 0
+  val StatusProtocolErrorBit = 1
+}
+
+/** KV260-oriented shell with AXI-Lite control and AXI-stream image ports.
+  *
+  * Register map, all 32-bit little-endian words:
+  *
+  *   0x00 control: bit0 clear protocol error (write-one pulse),
+  *                 bit1 enable 4:2:0 chroma subsampling,
+  *                 bit2 emit JFIF APP0 marker
+  *   0x04 status:  bit0 busy, bit1 protocol error
+  *   0x08 xsize
+  *   0x0c ysize
+  *   0x10 quality
+  *   0x14 restart interval (reserved by encoder datapath today)
+  */
+class HjpegKv260AxiLiteTop(c: HjpegConfig = HjpegConfig(), axiLiteAddrBits: Int = 12) extends Module {
+  val pixelDataBits = c.pixelBits * HjpegConstants.Components
+
+  val io = IO(new Bundle {
+    val sAxiLite = new AxiLiteSlave(axiLiteAddrBits, 32)
+    val sAxisRgb = Flipped(Decoupled(new AxiStreamWord(pixelDataBits)))
+    val mAxisJpeg = Decoupled(new AxiStreamWord(c.outputDataBits))
+    val busy = Output(Bool())
+    val protocolError = Output(Bool())
+  })
+
+  val xsize = RegInit(0.U(c.coordBits.W))
+  val ysize = RegInit(0.U(c.coordBits.W))
+  val quality = RegInit(50.U(7.W))
+  val restartInterval = RegInit(0.U(16.W))
+  val enableChromaSubsample = RegInit(false.B)
+  val emitJfif = RegInit(true.B)
+  val clearProtocolErrorPulse = RegInit(false.B)
+
+  clearProtocolErrorPulse := false.B
+
+  val core = Module(new HjpegAxiStreamCore(c))
+  core.io.config.xsize := xsize
+  core.io.config.ysize := ysize
+  core.io.config.quality := quality
+  core.io.config.restartInterval := restartInterval
+  core.io.config.enableChromaSubsample := enableChromaSubsample
+  core.io.config.emitJfif := emitJfif
+  core.io.clearProtocolError := clearProtocolErrorPulse
+  core.io.input <> io.sAxisRgb
+  io.mAxisJpeg <> core.io.output
+  io.busy := core.io.busy
+  io.protocolError := core.io.protocolError
+
+  val writeResponseValid = RegInit(false.B)
+  val readResponseValid = RegInit(false.B)
+  val readData = RegInit(0.U(32.W))
+
+  val canAcceptWrite = !writeResponseValid
+  val writeFire = io.sAxiLite.awvalid && io.sAxiLite.wvalid && canAcceptWrite
+  io.sAxiLite.awready := canAcceptWrite && io.sAxiLite.wvalid
+  io.sAxiLite.wready := canAcceptWrite && io.sAxiLite.awvalid
+  io.sAxiLite.bresp := 0.U
+  io.sAxiLite.bvalid := writeResponseValid
+
+  when(writeFire) {
+    switch(io.sAxiLite.awaddr) {
+      is(HjpegAxiLiteRegisters.Control.U) {
+        clearProtocolErrorPulse := io.sAxiLite.wdata(HjpegAxiLiteRegisters.ControlClearProtocolErrorBit)
+        enableChromaSubsample := io.sAxiLite.wdata(HjpegAxiLiteRegisters.ControlEnableChromaSubsampleBit)
+        emitJfif := io.sAxiLite.wdata(HjpegAxiLiteRegisters.ControlEmitJfifBit)
+      }
+      is(HjpegAxiLiteRegisters.XSize.U) {
+        xsize := io.sAxiLite.wdata(c.coordBits - 1, 0)
+      }
+      is(HjpegAxiLiteRegisters.YSize.U) {
+        ysize := io.sAxiLite.wdata(c.coordBits - 1, 0)
+      }
+      is(HjpegAxiLiteRegisters.Quality.U) {
+        quality := io.sAxiLite.wdata(6, 0)
+      }
+      is(HjpegAxiLiteRegisters.RestartInterval.U) {
+        restartInterval := io.sAxiLite.wdata(15, 0)
+      }
+    }
+    writeResponseValid := true.B
+  }.elsewhen(io.sAxiLite.bvalid && io.sAxiLite.bready) {
+    writeResponseValid := false.B
+  }
+
+  val canAcceptRead = !readResponseValid
+  val readFire = io.sAxiLite.arvalid && canAcceptRead
+  io.sAxiLite.arready := canAcceptRead
+  io.sAxiLite.rresp := 0.U
+  io.sAxiLite.rvalid := readResponseValid
+  io.sAxiLite.rdata := readData
+
+  when(readFire) {
+    readData := MuxLookup(io.sAxiLite.araddr, 0.U(32.W))(
+      Seq(
+        HjpegAxiLiteRegisters.Control.U -> Cat(
+          0.U(29.W),
+          emitJfif,
+          enableChromaSubsample,
+          0.U(1.W)
+        ),
+        HjpegAxiLiteRegisters.Status.U -> Cat(
+          0.U(30.W),
+          core.io.protocolError,
+          core.io.busy
+        ),
+        HjpegAxiLiteRegisters.XSize.U -> xsize.pad(32),
+        HjpegAxiLiteRegisters.YSize.U -> ysize.pad(32),
+        HjpegAxiLiteRegisters.Quality.U -> quality.pad(32),
+        HjpegAxiLiteRegisters.RestartInterval.U -> restartInterval.pad(32)
+      )
+    )
+    readResponseValid := true.B
+  }.elsewhen(io.sAxiLite.rvalid && io.sAxiLite.rready) {
+    readResponseValid := false.B
+  }
+}

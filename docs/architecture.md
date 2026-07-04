@@ -1,8 +1,8 @@
 # hjpeg Architecture
 
-`hjpeg` is intended to become a complete hardware JPEG encoder. The first
-scaffold keeps the boundaries stable while the compression stages are built
-incrementally.
+`hjpeg` is intended to become a complete hardware JPEG encoder. The current RTL
+implements a baseline JPEG datapath and keeps the hardware boundaries stable for
+KV260 integration.
 
 ## Top-Level Flow
 
@@ -19,26 +19,49 @@ RGB AXI stream
   -> byte AXI stream
 ```
 
-Only the stream shell and smoke-test payload path exist today. The placeholder
-payload emits one luma-like byte per input pixel; it is not a valid JPEG
-bitstream.
+The main core now emits valid baseline JPEG byte streams that decode with
+standard Java ImageIO tests. The datapath supports 4:4:4 and 4:2:0 component
+sampling, frame dimensions that are not multiples of 8/16 through edge
+replication, standard quantization/Huffman tables, byte stuffing, and marker
+assembly.
 
 ## Source Layout
 
 - `HjpegConfig.scala`: static widths and JPEG/KV260-facing constants
 - `HjpegBundles.scala`: frame, pixel, byte, and AXI stream bundles
-- `HjpegCore.scala`: initial flow-control shell
+- `HjpegCore.scala`: raster RGB to JPEG byte-stream core
 - `HjpegAxiStreamCore.scala`: raster RGB AXI stream wrapper
 - `HjpegKv260Top.scala`: KV260-oriented elaboration wrapper
+- `HjpegKv260AxiLiteTop.scala`: KV260-oriented AXI-Lite control/status wrapper
 - `Elaborate.scala`: SystemVerilog generation entry points
 
 ## KV260 Integration Direction
 
-The first hardware-facing boundary is an AXI4-Stream-shaped RGB input and byte
-output. This matches the handoff style used by small PL accelerators on Zynq
-UltraScale+ MPSoC boards and leaves room for a future AXI-Lite control/status
-wrapper around `FrameConfig`.
+The hardware-facing boundary is an AXI4-Stream-shaped RGB input and byte output.
+`HjpegKv260AxiLiteTop` adds a small AXI-Lite register map for frame dimensions,
+quality, chroma mode, JFIF marker emission, and status.
 
-The current `HjpegKv260Top` is not a Vivado block design. It is a named RTL top
-that can be elaborated and then wrapped in platform-specific IP packaging once
-the encoder pipeline has enough stable behavior to integrate.
+The current tops are not full Vivado block designs. They are named RTL tops that
+can be elaborated and wrapped in platform-specific IP packaging. Board-level
+clocking, reset synchronization, DMA connection, interrupts, and bitstream
+validation still need Vivado/KV260 work.
+
+## Vivado Collateral
+
+Tracked scripts under `scripts/vivado/` provide the first reproducible
+hardware-tool entry points:
+
+- `synth_kv260_axi_lite.tcl` creates a Vivado project for
+  `HjpegKv260AxiLiteTop`, reads `generated-kv260-axi-lite-top/filelist.f`, runs
+  synthesis for `xck26-sfvc784-2LV-c`, and writes utilization/timing reports.
+- `package_kv260_axi_lite_ip.tcl` packages the same RTL as reusable Vivado IP
+  with AXI-Lite and AXI-stream bus-interface metadata.
+
+These scripts are intended to be run after:
+
+```sh
+sbt 'runMain hjpeg.ElaborateKv260AxiLiteTop'
+```
+
+They are not a replacement for board-level block-design integration, software
+drivers, DMA setup, or on-board validation.

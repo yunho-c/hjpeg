@@ -2,9 +2,9 @@
 
 Hardware-accelerated JPEG encoder in Chisel.
 
-The initial target platform is the AMD/Xilinx Kria KV260. The current tree is a
-scaffold modeled after the early `hjxl` Chisel setup: Scala/Chisel build files,
-CI, a streaming RTL shell, elaboration entry points, and simulator tests.
+The initial target platform is the AMD/Xilinx Kria KV260. The current tree
+contains a functional baseline JPEG encoder datapath with Scala/Chisel build
+files, streaming RTL shells, elaboration entry points, and simulator tests.
 
 ## Goals
 
@@ -16,22 +16,24 @@ CI, a streaming RTL shell, elaboration entry points, and simulator tests.
 
 ## Current RTL Shape
 
-The first checked-in core is intentionally small. It defines the frame
-configuration, RGB pixel stream, encoded byte stream, AXI4-Stream-shaped shell,
-and KV260 top-level wrapper. The payload path currently emits a simple luma byte
-for each accepted RGB pixel so that flow control, frame boundaries, and
-elaboration are testable before the JPEG stages land.
+`HjpegCore` accepts raster RGB pixels and emits a complete baseline JPEG byte
+stream. It supports:
 
-Planned pipeline stages:
+- arbitrary nonzero frame dimensions up to `HjpegConfig.maxFrameWidth` /
+  `maxFrameHeight`
+- edge padding by replicating the last valid row or column
+- 4:4:4 encoding
+- 4:2:0 encoding when `enableChromaSubsample` is set
+- quality-scaled standard quantization tables
+- standard baseline Huffman tables
+- JFIF/SOI/DQT/SOF0/DHT/SOS/EOI markers
+- entropy bit packing and `0xff` byte stuffing
 
-1. RGB to YCbCr conversion
-2. MCU/block buffering and chroma subsampling
-3. 8x8 DCT
-4. Quantization
-5. Zig-zag ordering and run-length coding
-6. Huffman entropy coding
-7. JFIF/JPEG marker and scan assembly
-8. AXI stream and KV260 host handoff
+The KV260-oriented wrappers are:
+
+- `HjpegKv260Top`: direct `FrameConfig` plus AXI-stream RGB/JPEG ports
+- `HjpegKv260AxiLiteTop`: AXI-Lite control/status plus AXI-stream RGB/JPEG
+  ports for easier IP packaging
 
 ## Requirements
 
@@ -64,6 +66,28 @@ Generate the KV260-oriented top:
 ```sh
 sbt 'runMain hjpeg.ElaborateKv260Top'
 ```
+
+Generate the KV260 AXI-Lite control top:
+
+```sh
+sbt 'runMain hjpeg.ElaborateKv260AxiLiteTop'
+```
+
+Run a Vivado synthesis project for the AXI-Lite top, when Vivado is installed:
+
+```sh
+vivado -mode batch -source scripts/vivado/synth_kv260_axi_lite.tcl
+```
+
+Package reusable RTL IP for Vivado:
+
+```sh
+vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl
+```
+
+These Vivado scripts consume `generated-kv260-axi-lite-top/filelist.f`. Generate
+the AXI-Lite top first. They do not create a complete KV260 block design or
+bitstream.
 
 ## Versions
 

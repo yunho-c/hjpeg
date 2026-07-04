@@ -1,0 +1,66 @@
+// See README.md for license details.
+
+package hjpeg
+
+import chisel3._
+import chisel3.simulator.scalatest.ChiselSim
+import org.scalatest.freespec.AnyFreeSpec
+import org.scalatest.matchers.must.Matchers
+
+class JpegRasterToSubsampledMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
+  private val testConfig = HjpegConfig(maxFrameWidth = 20, maxFrameHeight = 20)
+
+  private def pokeConfig(dut: JpegRasterToSubsampledMcuStage, width: Int, height: Int): Unit = {
+    dut.io.config.xsize.poke(width.U)
+    dut.io.config.ysize.poke(height.U)
+    dut.io.config.quality.poke(50.U)
+    dut.io.config.restartInterval.poke(0.U)
+    dut.io.config.enableChromaSubsample.poke(true.B)
+    dut.io.config.emitJfif.poke(true.B)
+  }
+
+  private def pushPixel(dut: JpegRasterToSubsampledMcuStage, index: Int, width: Int, gray: Int = 128): Unit = {
+    dut.io.input.valid.poke(true.B)
+    dut.io.input.bits.x.poke((index % width).U)
+    dut.io.input.bits.y.poke((index / width).U)
+    dut.io.input.bits.r.poke(gray.U)
+    dut.io.input.bits.g.poke(gray.U)
+    dut.io.input.bits.b.poke(gray.U)
+    dut.io.input.ready.expect(true.B)
+    dut.clock.step()
+  }
+
+  private def expectFlatMcu(dut: JpegRasterToSubsampledMcuStage, last: Boolean): Unit = {
+    dut.io.output.valid.expect(true.B)
+    dut.io.output.bits.last.expect(last.B)
+    dut.io.output.bits.mcu.yBlockCount.expect(4.U)
+    for (index <- 0 until HjpegConstants.BlockSize) {
+      dut.io.output.bits.mcu.y.coefficients(index).expect(0.S)
+      dut.io.output.bits.mcu.y1.coefficients(index).expect(0.S)
+      dut.io.output.bits.mcu.y2.coefficients(index).expect(0.S)
+      dut.io.output.bits.mcu.y3.coefficients(index).expect(0.S)
+      dut.io.output.bits.mcu.cb.coefficients(index).expect(0.S)
+      dut.io.output.bits.mcu.cr.coefficients(index).expect(0.S)
+    }
+  }
+
+  "JpegRasterToSubsampledMcuStage should emit padded 4:2:0 MCUs" in {
+    simulate(new JpegRasterToSubsampledMcuStage(testConfig)) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      pokeConfig(dut, width = 17, height = 13)
+      dut.io.output.ready.poke(true.B)
+
+      for (index <- 0 until 17 * 13) {
+        pushPixel(dut, index, width = 17)
+      }
+      dut.io.input.valid.poke(false.B)
+
+      expectFlatMcu(dut, last = false)
+      dut.clock.step()
+      expectFlatMcu(dut, last = true)
+    }
+  }
+}

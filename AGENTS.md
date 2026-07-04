@@ -18,26 +18,28 @@ correctly with ordinary JPEG decoders.
 
 ## Current RTL State
 
-The repository is currently an initial Chisel scaffold. Important entry points:
+Important entry points:
 
 - `README.md` and `docs/architecture.md` describe the intended shape.
 - `src/main/scala/hjpeg` contains the Chisel modules.
 - `src/test/scala/hjpeg` contains ChiselSim and elaboration smoke tests.
 
-The current `HjpegCore` establishes frame configuration, RGB pixel input, byte
-output, ready/valid flow control, and sticky protocol-error reporting. Its
-payload path emits one luma-like byte per accepted RGB pixel. That path is only
-a smoke-test stand-in and is not a JPEG bitstream.
+The current `HjpegCore` accepts raster RGB pixels and emits a complete baseline
+JPEG byte stream. It supports arbitrary nonzero frame dimensions within
+`HjpegConfig`, edge padding, 4:4:4, 4:2:0, standard quantization/Huffman tables,
+marker assembly, entropy packing, byte stuffing, ready/valid flow control, and
+sticky protocol-error reporting.
 
 `HjpegAxiStreamCore` is the current hardware-facing shell. It accepts raster RGB
 AXI4-Stream-shaped words, generates pixel coordinates, forwards bytes from
 `HjpegCore`, and checks that input `last` matches the configured frame size.
 Input data packs R in bits `[7:0]`, G in `[15:8]`, and B in `[23:16]`.
 
-`HjpegKv260Top` is a named KV260-oriented elaboration target, not a finished
-Vivado block design. Board clocking, reset synchronization, DMA, AXI-Lite
-control, and IP packaging should wrap this core once the encoder behavior is
-stable enough to integrate.
+`HjpegKv260Top` is a direct-config KV260-oriented elaboration target.
+`HjpegKv260AxiLiteTop` adds AXI-Lite control/status registers around the same
+AXI-stream RGB/JPEG datapath. Neither is a finished Vivado block design; board
+clocking, reset synchronization, DMA connection, interrupts, IP packaging, and
+hardware validation still need platform work.
 
 ## Intended JPEG Pipeline
 
@@ -126,6 +128,23 @@ Generate the KV260-oriented top with:
 ```sh
 sbt 'runMain hjpeg.ElaborateKv260Top'
 ```
+
+Generate the KV260 AXI-Lite control top with:
+
+```sh
+sbt 'runMain hjpeg.ElaborateKv260AxiLiteTop'
+```
+
+When Vivado is available, run the synthesis/IP packaging entry points with:
+
+```sh
+vivado -mode batch -source scripts/vivado/synth_kv260_axi_lite.tcl
+vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl
+```
+
+The scripts expect `generated-kv260-axi-lite-top/filelist.f`, so elaborate the
+AXI-Lite top first. They prove project/IP construction only when Vivado runs;
+they do not prove timing closure or hardware behavior on a KV260 board.
 
 For new encoder stages, add focused tests before frame-level tests. Good early
 fixtures are all-zero blocks, constant-color 8x8 images, one nonzero AC
