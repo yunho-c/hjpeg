@@ -34,15 +34,16 @@ class HjpegCore(c: HjpegConfig = HjpegConfig()) extends Module {
       io.config.ysize =/= 0.U &&
       io.config.xsize <= c.maxFrameWidth.U &&
       io.config.ysize <= c.maxFrameHeight.U
+  val inputInFrame = supportedFrame && xInRange && yInRange
 
   val rasterToMcu = Module(new JpegRasterToMcuStage(c))
   val rasterToSubsampledMcu = Module(new JpegRasterToSubsampledMcuStage(c))
   val encoder = Module(new JpegMcuStreamEncoderStage())
   rasterToMcu.io.config := io.config
-  rasterToMcu.io.input.valid := io.input.valid && supportedFrame && !io.config.enableChromaSubsample
+  rasterToMcu.io.input.valid := io.input.valid && inputInFrame && !io.config.enableChromaSubsample
   rasterToMcu.io.input.bits := io.input.bits
   rasterToSubsampledMcu.io.config := io.config
-  rasterToSubsampledMcu.io.input.valid := io.input.valid && supportedFrame && io.config.enableChromaSubsample
+  rasterToSubsampledMcu.io.input.valid := io.input.valid && inputInFrame && io.config.enableChromaSubsample
   rasterToSubsampledMcu.io.input.bits := io.input.bits
 
   encoder.io.config := io.config
@@ -55,7 +56,7 @@ class HjpegCore(c: HjpegConfig = HjpegConfig()) extends Module {
   encoder.io.output.ready := io.output.ready
 
   io.input.ready := Mux(
-    supportedFrame,
+    inputInFrame,
     Mux(io.config.enableChromaSubsample, rasterToSubsampledMcu.io.input.ready, rasterToMcu.io.input.ready),
     true.B
   )
@@ -67,8 +68,8 @@ class HjpegCore(c: HjpegConfig = HjpegConfig()) extends Module {
   }
 
   when(io.input.fire) {
-    inFrame := !isLastPixel
-    when(!supportedFrame || !xInRange || !yInRange || io.config.xsize === 0.U || io.config.ysize === 0.U) {
+    inFrame := inputInFrame && !isLastPixel
+    when(!inputInFrame) {
       protocolError := true.B
     }
   }

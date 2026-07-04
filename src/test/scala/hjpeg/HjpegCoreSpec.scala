@@ -199,10 +199,14 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       dut.clock.step()
 
       dut.io.protocolError.expect(true.B)
+      dut.io.output.valid.expect(false.B)
       dut.io.input.valid.poke(false.B)
+      dut.clock.step()
+      dut.io.busy.expect(false.B)
       dut.io.clearProtocolError.poke(true.B)
       dut.clock.step()
       dut.io.protocolError.expect(false.B)
+      dut.io.busy.expect(false.B)
     }
   }
 
@@ -227,6 +231,9 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
 
       dut.io.protocolError.expect(true.B)
       dut.io.output.valid.expect(false.B)
+      dut.io.input.valid.poke(false.B)
+      dut.clock.step()
+      dut.io.busy.expect(false.B)
     }
   }
 }
