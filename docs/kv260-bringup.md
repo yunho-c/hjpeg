@@ -76,16 +76,25 @@ Expected evidence:
 ## 6. Configure and Run Hardware
 
 Program the KV260 with the generated bitstream and load a board image or driver
-stack that can submit AXI DMA MM2S/S2MM transfers. Then configure the encoder:
+stack that exposes AXI DMA MM2S/S2MM transfers as byte-stream device files.
+Then run:
 
 ```sh
-python3 scripts/host/hjpeg_host.py config --base-addr 0xa0000000 --width WIDTH --height HEIGHT
+python3 scripts/host/hjpeg_host.py run-stream-devices \
+  --base-addr 0xa0000000 \
+  --tx-device /dev/hjpeg-mm2s \
+  --rx-device /dev/hjpeg-s2mm \
+  --input-rgb input.rgb \
+  --output-jpeg output.jpg \
+  --width WIDTH \
+  --height HEIGHT
 python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000
 ```
 
-Submit `input.rgb` to the DMA MM2S channel and capture the S2MM output to
-`output.jpg`. The concrete DMA command is board-image-specific until this repo
-owns a driver or runtime.
+Adjust the `--tx-device` and `--rx-device` paths to match the loaded board
+image. Drivers that expose AXI DMA through ioctls or descriptor queues need a
+small adapter, but should reuse the same packing, register, and validation
+helpers.
 
 Expected evidence:
 

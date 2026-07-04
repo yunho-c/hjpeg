@@ -92,5 +92,7 @@ packaging, or on-board validation.
 KV260 design. It packs binary P6 PPM files into raw RGB byte streams for the AXI
 DMA MM2S channel, writes the encoder AXI-Lite configuration/status registers via
 `/dev/mem`, and validates returned JPEG files by checking SOI/EOI markers and
-SOF0 dimensions. The script intentionally leaves DMA buffer allocation and
-transfer submission to the board image or driver stack used during bring-up.
+SOF0 dimensions. The `run-stream-devices` command also supports Linux board
+images that expose DMA MM2S/S2MM endpoints as byte-stream device files by
+writing RGB bytes to the TX device and reading JPEG bytes from the RX device
+until EOI.

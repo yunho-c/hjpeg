@@ -177,8 +177,10 @@ python3 scripts/host/hjpeg_host_test.py
 
 `hjpeg_host.py` packs binary P6 PPM files into RGB stream bytes, writes the
 AXI-Lite register map through `/dev/mem`, reads status, clears protocol errors,
-and validates JPEG output dimensions. It does not own board-specific DMA buffer
-allocation or transfer submission.
+validates JPEG output dimensions, and has a `run-stream-devices` command for
+Linux board images that expose AXI DMA MM2S/S2MM endpoints as byte-stream device
+files. Drivers that use ioctls or descriptor queues should reuse the same
+packing/register/validation helpers and add a separate backend.
 
 For new encoder stages, add focused tests before frame-level tests. Good early
 fixtures are all-zero blocks, constant-color 8x8 images, one nonzero AC

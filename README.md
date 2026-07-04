@@ -135,14 +135,24 @@ AXI DMA design:
 python3 scripts/host/hjpeg_host.py pack-ppm input.ppm input.rgb
 python3 scripts/host/hjpeg_host.py config --base-addr 0xa0000000 --width 640 --height 480
 python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000
+python3 scripts/host/hjpeg_host.py run-stream-devices \
+  --base-addr 0xa0000000 \
+  --tx-device /dev/hjpeg-mm2s \
+  --rx-device /dev/hjpeg-s2mm \
+  --input-rgb input.rgb \
+  --output-jpeg output.jpg \
+  --width 640 \
+  --height 480
 python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg --width 640 --height 480
 ```
 
 `pack-ppm` accepts binary P6 PPM and writes raw RGB bytes in the same R, G, B
-order consumed by the AXI-stream input. DMA buffer allocation and transfer
-submission remain board-image-specific; the helper covers input packing,
-AXI-Lite configuration/status access through `/dev/mem`, and post-run JPEG
-dimension validation.
+order consumed by the AXI-stream input. `run-stream-devices` targets Linux board
+images that expose AXI DMA MM2S/S2MM endpoints as byte-stream device files: it
+configures AXI-Lite registers through `/dev/mem`, writes the RGB stream to the
+TX device, captures bytes from the RX device until JPEG EOI, and validates the
+resulting dimensions. DMA drivers that use ioctls or buffer queues still need a
+small adapter around the same host-side packing and validation helpers.
 
 ## Versions
 

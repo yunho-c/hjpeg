@@ -19,9 +19,10 @@ import mmap
 import os
 import struct
 import sys
+import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import BinaryIO
+from typing import BinaryIO, Callable
 
 
 AXI_LITE_APERTURE_BYTES = 0x1000
@@ -154,6 +155,78 @@ def validate_jpeg(path: Path, expected_width: int, expected_height: int) -> None
         raise ValueError(
             f"JPEG dimensions are {width}x{height}, expected {expected_width}x{expected_height}"
         )
+
+
+def read_until_jpeg_eoi(stream: BinaryIO, max_bytes: int) -> bytes:
+    if max_bytes <= 0:
+        raise ValueError("max output bytes must be positive")
+
+    output = bytearray()
+    while len(output) < max_bytes:
+        chunk = stream.read(min(4096, max_bytes - len(output)))
+        if chunk == b"":
+            break
+        output.extend(chunk)
+        eoi_offset = output.find(b"\xff\xd9")
+        if eoi_offset >= 0:
+            return bytes(output[: eoi_offset + 2])
+
+    raise ValueError(f"JPEG EOI not found within {max_bytes} output bytes")
+
+
+def run_stream_devices(
+    input_rgb: Path,
+    output_jpeg: Path,
+    tx_device: Path,
+    rx_device: Path,
+    max_output_bytes: int,
+    expected_width: int,
+    expected_height: int,
+    timeout_seconds: float | None = 30.0,
+    configure: Callable[[], None] | None = None,
+) -> None:
+    rgb = input_rgb.read_bytes()
+    expected_input_bytes = expected_width * expected_height * 3
+    if len(rgb) != expected_input_bytes:
+        raise ValueError(
+            f"{input_rgb}: expected {expected_input_bytes} RGB bytes for "
+            f"{expected_width}x{expected_height}, found {len(rgb)}"
+        )
+
+    if configure is not None:
+        configure()
+
+    read_result: list[bytes] = []
+    read_errors: list[BaseException] = []
+
+    with rx_device.open("rb", buffering=0) as rx_stream, tx_device.open(
+        "wb", buffering=0
+    ) as tx_stream:
+        def read_rx() -> None:
+            try:
+                read_result.append(read_until_jpeg_eoi(rx_stream, max_output_bytes))
+            except BaseException as exc:
+                read_errors.append(exc)
+
+        rx_thread = threading.Thread(target=read_rx, daemon=True)
+        rx_thread.start()
+        tx_stream.write(rgb)
+        if hasattr(tx_stream, "flush"):
+            tx_stream.flush()
+        rx_thread.join(timeout_seconds)
+        if rx_thread.is_alive():
+            raise TimeoutError(
+                f"RX device did not produce JPEG EOI within {timeout_seconds} seconds"
+            )
+
+    if read_errors:
+        raise read_errors[0]
+    if not read_result:
+        raise ValueError("RX device produced no JPEG output")
+
+    jpeg = read_result[0]
+    output_jpeg.write_bytes(jpeg)
+    validate_jpeg(output_jpeg, expected_width, expected_height)
 
 
 class AxiLiteWindow:
@@ -289,6 +362,26 @@ def build_parser() -> argparse.ArgumentParser:
     clear.add_argument("--dev", type=Path, default=Path("/dev/mem"))
     clear.add_argument("--base-addr", type=_parse_int, required=True)
 
+    run = subparsers.add_parser(
+        "run-stream-devices",
+        help="configure hjpeg, stream RGB to a TX device, and capture JPEG from an RX device",
+    )
+    run.add_argument("--dev", type=Path, default=Path("/dev/mem"))
+    run.add_argument("--base-addr", type=_parse_int, required=True)
+    run.add_argument("--tx-device", type=Path, required=True)
+    run.add_argument("--rx-device", type=Path, required=True)
+    run.add_argument("--input-rgb", type=Path, required=True)
+    run.add_argument("--output-jpeg", type=Path, required=True)
+    run.add_argument("--width", type=int, required=True)
+    run.add_argument("--height", type=int, required=True)
+    run.add_argument("--quality", type=int, default=50)
+    run.add_argument("--restart-interval", type=int, default=0)
+    run.add_argument("--chroma-subsample", action="store_true")
+    run.add_argument("--no-jfif", action="store_true")
+    run.add_argument("--clear-error", action="store_true")
+    run.add_argument("--max-output-bytes", type=int, default=16 * 1024 * 1024)
+    run.add_argument("--timeout-seconds", type=float, default=30.0)
+
     return parser
 
 
@@ -336,6 +429,34 @@ def main(argv: list[str] | None = None) -> int:
         with AxiLiteWindow(args.dev, args.base_addr) as regs:
             clear_protocol_error(regs)
         print(f"cleared hjpeg protocol error at 0x{args.base_addr:x}")
+        return 0
+
+    if args.command == "run-stream-devices":
+        def configure() -> None:
+            with AxiLiteWindow(args.dev, args.base_addr) as regs:
+                configure_registers(
+                    regs=regs,
+                    width=args.width,
+                    height=args.height,
+                    quality=args.quality,
+                    restart_interval=args.restart_interval,
+                    chroma_subsample=args.chroma_subsample,
+                    emit_jfif=not args.no_jfif,
+                    clear_error=args.clear_error,
+                )
+
+        run_stream_devices(
+            input_rgb=args.input_rgb,
+            output_jpeg=args.output_jpeg,
+            tx_device=args.tx_device,
+            rx_device=args.rx_device,
+            max_output_bytes=args.max_output_bytes,
+            expected_width=args.width,
+            expected_height=args.height,
+            timeout_seconds=args.timeout_seconds,
+            configure=configure,
+        )
+        print(f"captured validated JPEG to {args.output_jpeg}")
         return 0
 
     raise AssertionError(f"unhandled command {args.command}")
