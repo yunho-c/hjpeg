@@ -43,6 +43,8 @@ The hardware-facing boundary is an AXI4-Stream-shaped RGB input and byte output.
 quality, restart interval, chroma mode, JFIF marker emission, and status.
 RGB input words use one byte per component and require all three `keep` bits set
 for every pixel; malformed input words raise the sticky protocol-error status.
+Frames that start with unsupported dimensions are drained to input TLAST without
+feeding the JPEG core, then a clear pulse permits the next valid frame to start.
 The AXI-Lite control wrapper captures write address and data independently and
 applies byte write strobes for host register updates.
 The AXI stream wrapper snapshots the full frame configuration on the first input

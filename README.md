@@ -39,6 +39,9 @@ The KV260-oriented wrappers are:
 RGB AXI-stream input words pack R, G, and B in the low three bytes and must
 present `keep = 0b111` for every pixel. A partial input word is accepted to
 avoid wedging the stream, but raises the sticky protocol-error flag.
+Frames that start with unsupported dimensions are discarded through input TLAST
+without entering the JPEG core, so clearing the error lets the next valid frame
+start cleanly.
 
 The AXI-Lite control wrapper accepts independent AW and W channel handshakes and
 honors byte write strobes on writable registers.

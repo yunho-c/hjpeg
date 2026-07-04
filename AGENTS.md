@@ -99,6 +99,8 @@ If using that reference, the most relevant files are:
 - Keep `FrameConfig` small and explicit. Add fields only when a stage consumes
   them.
 - Keep protocol faults sticky and clearable through `clearProtocolError`.
+- Unsupported AXI input frames should be drained to input TLAST without feeding
+  the JPEG core, so a clear pulse can recover before the next valid frame.
 - Make stage modules independently simulatable before wiring them into
   `HjpegCore`.
 - Prefer deterministic fixed-point arithmetic over floating point in RTL.

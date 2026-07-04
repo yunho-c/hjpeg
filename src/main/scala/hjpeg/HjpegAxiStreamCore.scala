@@ -39,6 +39,7 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
   val x = RegInit(0.U(c.coordBits.W))
   val y = RegInit(0.U(c.coordBits.W))
   val inputFrameActive = RegInit(false.B)
+  val inputFrameSupported = RegInit(false.B)
   val inputWidth = RegInit(0.U(c.coordBits.W))
   val inputHeight = RegInit(0.U(c.coordBits.W))
   val protocolError = RegInit(false.B)
@@ -50,14 +51,16 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
       io.config.ysize =/= 0.U &&
       io.config.xsize <= c.maxFrameWidth.U &&
       io.config.ysize <= c.maxFrameHeight.U
+  val activeInputSupported = Mux(inputFrameActive, inputFrameSupported, inputConfigSupported)
   val lastX = Mux(activeInputWidth === 0.U, 0.U, activeInputWidth - 1.U)
   val lastY = Mux(activeInputHeight === 0.U, 0.U, activeInputHeight - 1.U)
   val expectedLast = x === lastX && y === lastY
+  val inputFrameDone = Mux(activeInputSupported, expectedLast, io.input.bits.last)
   val expectedKeep = Fill(pixelDataBits / 8, 1.U(1.W))
   val inputKeepValid = io.input.bits.keep === expectedKeep
 
-  core.io.input.valid := io.input.valid
-  io.input.ready := core.io.input.ready
+  core.io.input.valid := io.input.valid && activeInputSupported
+  io.input.ready := Mux(activeInputSupported, core.io.input.ready, true.B)
   core.io.input.bits.x := x
   core.io.input.bits.y := y
   core.io.input.bits.r := io.input.bits.data(c.pixelBits - 1, 0)
@@ -72,31 +75,40 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
 
   when(io.clearProtocolError) {
     protocolError := false.B
+    x := 0.U
+    y := 0.U
+    inputFrameActive := false.B
+    inputFrameSupported := false.B
     frameConfigActive := false.B
   }
 
   when(io.input.fire) {
     when(!inputFrameActive) {
       inputFrameActive := true.B
+      inputFrameSupported := inputConfigSupported
       inputWidth := io.config.xsize
       inputHeight := io.config.ysize
       frameConfig := io.config
       frameConfigActive := inputConfigSupported
     }
-    when(io.input.bits.last =/= expectedLast) {
+    when(!activeInputSupported) {
+      protocolError := true.B
+    }
+    when(activeInputSupported && io.input.bits.last =/= expectedLast) {
       protocolError := true.B
     }
     when(!inputKeepValid) {
       protocolError := true.B
     }
-    when(expectedLast) {
+    when(inputFrameDone) {
       x := 0.U
       y := 0.U
       inputFrameActive := false.B
-    }.elsewhen(x === lastX) {
+      inputFrameSupported := false.B
+    }.elsewhen(activeInputSupported && x === lastX) {
       x := 0.U
       y := y + 1.U
-    }.otherwise {
+    }.elsewhen(activeInputSupported) {
       x := x + 1.U
     }
   }
