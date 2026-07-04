@@ -41,6 +41,7 @@ object JpegHeaderBytes {
       dhtSegment(0x01, JpegTables.StandardDcChrominanceBits, 0 to HjpegConstants.MaxBaselineDcCategory) ++
       dhtSegment(0x10, JpegTables.StandardAcLuminanceBits, JpegTables.StandardAcLuminanceSymbols) ++
       dhtSegment(0x11, JpegTables.StandardAcChrominanceBits, JpegTables.StandardAcChrominanceSymbols)
+  val Dri: Seq[Int] = Seq(0xff, 0xdd, 0x00, 0x04, 0x00, 0x00)
   val Sos: Seq[Int] = segment(
     0xda,
     Seq(
@@ -60,8 +61,13 @@ object JpegHeaderBytes {
   val Sof0WidthHigh: Int = Sof0Start + 7
   val Sof0WidthLow: Int = Sof0Start + 8
   val Sof0LuminanceSamplingFactor: Int = Sof0Start + 11
+  val DriStart: Int = Soi.length + App0.length + DqtLuminancePrefix.length + DqtChrominancePrefix.length + Sof0Prefix.length + Dht.length
+  val DriRestartIntervalHigh: Int = DriStart + 4
+  val DriRestartIntervalLow: Int = DriStart + 5
   val Header: Seq[Int] = Soi ++ App0 ++ DqtLuminancePrefix ++ DqtChrominancePrefix ++ Sof0Prefix ++ Dht ++ Sos
   val HeaderLength: Int = Header.length
+  val HeaderWithDri: Seq[Int] = Soi ++ App0 ++ DqtLuminancePrefix ++ DqtChrominancePrefix ++ Sof0Prefix ++ Dht ++ Dri ++ Sos
+  val MaxHeaderLength: Int = HeaderWithDri.length
 }
 
 /** Emits the baseline JPEG header through the start-of-scan marker.
@@ -78,9 +84,9 @@ class JpegHeaderStage extends Module {
     val done = Output(Bool())
   })
 
-  val index = RegInit(0.U(log2Ceil(JpegHeaderBytes.HeaderLength).W))
+  val index = RegInit(0.U(log2Ceil(JpegHeaderBytes.MaxHeaderLength).W))
   val active = RegInit(false.B)
-  val staticBytes = VecInit(JpegHeaderBytes.Header.map(_.U(8.W)))
+  val staticBytes = VecInit(JpegHeaderBytes.HeaderWithDri.map(_.U(8.W)))
   val zigZag = VecInit(JpegTables.ZigZagOrder.map(_.U(6.W)))
 
   val inLuminanceDqt =
@@ -113,7 +119,9 @@ class JpegHeaderStage extends Module {
       (index === JpegHeaderBytes.Sof0WidthHigh.U) -> widthHigh,
       (index === JpegHeaderBytes.Sof0WidthLow.U) -> widthLow,
       (index === JpegHeaderBytes.Sof0LuminanceSamplingFactor.U) ->
-        Mux(io.config.enableChromaSubsample, 0x22.U, 0x11.U)
+        Mux(io.config.enableChromaSubsample, 0x22.U, 0x11.U),
+      (index === JpegHeaderBytes.DriRestartIntervalHigh.U) -> io.config.restartInterval(15, 8),
+      (index === JpegHeaderBytes.DriRestartIntervalLow.U) -> io.config.restartInterval(7, 0)
     )
   )
 
@@ -124,7 +132,7 @@ class JpegHeaderStage extends Module {
 
   io.output.valid := active
   io.output.bits.byte := dynamicByte
-  io.output.bits.last := index === (JpegHeaderBytes.HeaderLength - 1).U
+  io.output.bits.last := index === (JpegHeaderBytes.MaxHeaderLength - 1).U
   io.busy := active
   io.done := io.output.fire && io.output.bits.last
 
@@ -132,6 +140,8 @@ class JpegHeaderStage extends Module {
     when(io.output.bits.last) {
       active := false.B
       index := 0.U
+    }.elsewhen(io.config.restartInterval === 0.U && index === (JpegHeaderBytes.DriStart - 1).U) {
+      index := (JpegHeaderBytes.DriStart + JpegHeaderBytes.Dri.length).U
     }.otherwise {
       index := index + 1.U
     }

@@ -26,7 +26,8 @@ stream. It supports:
 - 4:2:0 encoding when `enableChromaSubsample` is set
 - quality-scaled standard quantization tables
 - standard baseline Huffman tables
-- JFIF/SOI/DQT/SOF0/DHT/SOS/EOI markers
+- JFIF/SOI/DQT/SOF0/DHT/DRI/SOS/EOI markers
+- configurable JPEG restart intervals
 - entropy bit packing and `0xff` byte stuffing
 
 The KV260-oriented wrappers are:

@@ -10,11 +10,16 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
 class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
-  private def pokeConfig(dut: HjpegCore, width: Int = 8, height: Int = 8, subsample: Boolean = false): Unit = {
+  private def pokeConfig(
+      dut: HjpegCore,
+      width: Int = 8,
+      height: Int = 8,
+      subsample: Boolean = false,
+      restartInterval: Int = 0): Unit = {
     dut.io.config.xsize.poke(width.U)
     dut.io.config.ysize.poke(height.U)
     dut.io.config.quality.poke(50.U)
-    dut.io.config.restartInterval.poke(0.U)
+    dut.io.config.restartInterval.poke(restartInterval.U)
     dut.io.config.enableChromaSubsample.poke(subsample.B)
     dut.io.config.emitJfif.poke(true.B)
   }
@@ -35,12 +40,13 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       r: Int,
       g: Int,
       b: Int,
-      subsample: Boolean = false): Seq[Int] = {
+      subsample: Boolean = false,
+      restartInterval: Int = 0): Seq[Int] = {
     dut.reset.poke(true.B)
     dut.clock.step()
     dut.reset.poke(false.B)
 
-    pokeConfig(dut, width, height, subsample)
+    pokeConfig(dut, width, height, subsample, restartInterval)
     dut.io.clearProtocolError.poke(false.B)
     dut.io.output.ready.poke(true.B)
 
@@ -50,7 +56,7 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
     var sawLast = false
     var cycles = 0
     while (!sawLast) {
-      assert(cycles < pixels * 8 + JpegHeaderBytes.HeaderLength + 256, "timeout waiting for HjpegCore output")
+      assert(cycles < pixels * 8 + JpegHeaderBytes.MaxHeaderLength + 512, "timeout waiting for HjpegCore output")
       if (dut.io.output.valid.peek().litToBoolean) {
         bytes += dut.io.output.bits.byte.peek().litValue.toInt
         sawLast = dut.io.output.bits.last.peek().litToBoolean
@@ -135,6 +141,23 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       image must not be null
       image.getWidth mustBe 17
       image.getHeight mustBe 13
+      dut.io.protocolError.expect(false.B)
+    }
+  }
+
+  "HjpegCore should emit decodable restart-marked JPEGs" in {
+    simulate(new HjpegCore()) { dut =>
+      val bytes = emitFlatFrame(dut, width = 16, height = 8, r = 128, g = 128, b = 128, restartInterval = 1)
+
+      bytes.take(2) mustBe Seq(0xff, 0xd8)
+      bytes.slice(JpegHeaderBytes.DriStart, JpegHeaderBytes.DriStart + JpegHeaderBytes.Dri.length) mustBe
+        Seq(0xff, 0xdd, 0x00, 0x04, 0x00, 0x01)
+      bytes.sliding(2).count(_ == Seq(0xff, 0xd0)) mustBe 1
+      bytes.takeRight(2) mustBe Seq(0xff, 0xd9)
+      val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
+      image must not be null
+      image.getWidth mustBe 16
+      image.getHeight mustBe 8
       dut.io.protocolError.expect(false.B)
     }
   }

@@ -20,15 +20,20 @@ class JpegMcuStreamEncoderStage(coefficientBits: Int = 16) extends Module {
     val busy = Output(Bool())
   })
 
-  val sIdle :: sHeader :: sWaitMcu :: sStartBlock :: sBlock :: sFlush :: sEoiHigh :: sEoiLow :: Nil = Enum(8)
+  val sIdle :: sHeader :: sWaitMcu :: sStartBlock :: sBlock :: sRestartFlush :: sRestartHigh :: sRestartLow :: sFlush :: sEoiHigh :: sEoiLow :: Nil = Enum(11)
   val state = RegInit(sIdle)
   val component = RegInit(0.U(3.W))
   val currentMcuLast = RegInit(false.B)
   val currentMcu = Reg(new ZigZagMinimumCodedUnit(coefficientBits))
   val previousDc = RegInit(VecInit(Seq.fill(HjpegConstants.Components)(0.S(coefficientBits.W))))
+  val restartMcuCount = RegInit(0.U(16.W))
+  val restartMarker = RegInit(0.U(3.W))
   val yBlockCount = Mux(currentMcu.yBlockCount === 0.U, 1.U, currentMcu.yBlockCount)
   val cbComponent = yBlockCount
   val crComponent = yBlockCount + 1.U
+  val restartEnabled = io.config.restartInterval =/= 0.U
+  val nextRestartMcuCount = restartMcuCount + 1.U
+  val restartDueAfterCurrentMcu = restartEnabled && nextRestartMcuCount >= io.config.restartInterval
 
   val acceptingFirstMcu = state === sIdle && io.input.valid
   io.input.ready := state === sIdle || state === sWaitMcu
@@ -39,6 +44,8 @@ class JpegMcuStreamEncoderStage(coefficientBits: Int = 16) extends Module {
     component := 0.U
     when(state === sIdle) {
       previousDc.foreach(_ := 0.S)
+      restartMcuCount := 0.U
+      restartMarker := 0.U
       state := sHeader
     }.otherwise {
       state := sStartBlock
@@ -69,7 +76,7 @@ class JpegMcuStreamEncoderStage(coefficientBits: Int = 16) extends Module {
   val packer = Module(new JpegBitRunPacker())
   packer.io.input.valid := state === sBlock && blockEncoder.io.output.valid
   packer.io.input.bits := blockEncoder.io.output.bits
-  packer.io.flush := state === sFlush
+  packer.io.flush := state === sFlush || state === sRestartFlush
   blockEncoder.io.output.ready := state === sBlock && packer.io.input.ready
 
   val outputValid = WireDefault(false.B)
@@ -85,10 +92,18 @@ class JpegMcuStreamEncoderStage(coefficientBits: Int = 16) extends Module {
       outputByte := header.io.output.bits.byte
       header.io.output.ready := io.output.ready
     }
-    is(sBlock, sFlush) {
+    is(sBlock, sRestartFlush, sFlush) {
       outputValid := packer.io.output.valid
       outputByte := packer.io.output.bits.byte
       packer.io.output.ready := io.output.ready
+    }
+    is(sRestartHigh) {
+      outputValid := true.B
+      outputByte := 0xff.U
+    }
+    is(sRestartLow) {
+      outputValid := true.B
+      outputByte := 0xd0.U | restartMarker
     }
     is(sEoiHigh) {
       outputValid := true.B
@@ -114,13 +129,25 @@ class JpegMcuStreamEncoderStage(coefficientBits: Int = 16) extends Module {
     when(component === crComponent) {
       when(currentMcuLast) {
         state := sFlush
+      }.elsewhen(restartDueAfterCurrentMcu) {
+        state := sRestartFlush
       }.otherwise {
+        restartMcuCount := nextRestartMcuCount
         state := sWaitMcu
       }
     }.otherwise {
       component := component + 1.U
       state := sStartBlock
     }
+  }.elsewhen(state === sRestartFlush && packer.io.idle) {
+    state := sRestartHigh
+  }.elsewhen(state === sRestartHigh && io.output.fire) {
+    state := sRestartLow
+  }.elsewhen(state === sRestartLow && io.output.fire) {
+    previousDc.foreach(_ := 0.S)
+    restartMcuCount := 0.U
+    restartMarker := restartMarker + 1.U
+    state := sWaitMcu
   }.elsewhen(state === sFlush && packer.io.idle) {
     state := sEoiHigh
   }.elsewhen(state === sEoiHigh && io.output.fire) {

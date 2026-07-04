@@ -23,7 +23,8 @@ The main core now emits valid baseline JPEG byte streams that decode with
 standard Java ImageIO tests. The datapath supports 4:4:4 and 4:2:0 component
 sampling, frame dimensions that are not multiples of 8/16 through edge
 replication, standard quantization/Huffman tables, byte stuffing, and marker
-assembly.
+assembly. Nonzero restart intervals emit DRI/RST markers and reset DC
+predictors at MCU boundaries.
 
 ## Source Layout
 
@@ -39,7 +40,7 @@ assembly.
 
 The hardware-facing boundary is an AXI4-Stream-shaped RGB input and byte output.
 `HjpegKv260AxiLiteTop` adds a small AXI-Lite register map for frame dimensions,
-quality, chroma mode, JFIF marker emission, and status.
+quality, restart interval, chroma mode, JFIF marker emission, and status.
 
 The current tops are not full Vivado block designs. They are named RTL tops that
 can be elaborated and wrapped in platform-specific IP packaging. Board-level

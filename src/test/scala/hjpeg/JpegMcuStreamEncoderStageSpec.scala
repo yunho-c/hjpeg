@@ -8,11 +8,15 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
 class JpegMcuStreamEncoderStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
-  private def pokeConfig(dut: JpegMcuStreamEncoderStage, width: Int = 16, height: Int = 8): Unit = {
+  private def pokeConfig(
+      dut: JpegMcuStreamEncoderStage,
+      width: Int = 16,
+      height: Int = 8,
+      restartInterval: Int = 0): Unit = {
     dut.io.config.xsize.poke(width.U)
     dut.io.config.ysize.poke(height.U)
     dut.io.config.quality.poke(50.U)
-    dut.io.config.restartInterval.poke(0.U)
+    dut.io.config.restartInterval.poke(restartInterval.U)
     dut.io.config.enableChromaSubsample.poke(false.B)
     dut.io.config.emitJfif.poke(true.B)
   }
@@ -31,12 +35,12 @@ class JpegMcuStreamEncoderStageSpec extends AnyFreeSpec with Matchers with Chise
     dut.io.input.bits.mcu.y.coefficients(0).poke(yDc.S)
   }
 
-  private def emitMcus(dut: JpegMcuStreamEncoderStage, yDcs: Seq[Int]): Seq[Int] = {
+  private def emitMcus(dut: JpegMcuStreamEncoderStage, yDcs: Seq[Int], restartInterval: Int = 0): Seq[Int] = {
     dut.reset.poke(true.B)
     dut.clock.step()
     dut.reset.poke(false.B)
 
-    pokeConfig(dut)
+    pokeConfig(dut, restartInterval = restartInterval)
     dut.io.output.ready.poke(true.B)
     dut.io.input.valid.poke(false.B)
 
@@ -46,7 +50,7 @@ class JpegMcuStreamEncoderStageSpec extends AnyFreeSpec with Matchers with Chise
     var cycles = 0
 
     while (!sawLast) {
-      assert(cycles < JpegHeaderBytes.HeaderLength + 256, "timeout waiting for MCU stream JPEG output")
+      assert(cycles < JpegHeaderBytes.MaxHeaderLength + 384, "timeout waiting for MCU stream JPEG output")
 
       if (dut.io.output.valid.peek().litToBoolean) {
         bytes += dut.io.output.bits.byte.peek().litValue.toInt
@@ -89,6 +93,25 @@ class JpegMcuStreamEncoderStageSpec extends AnyFreeSpec with Matchers with Chise
       repeatedDcBytes.slice(JpegHeaderBytes.HeaderLength, JpegHeaderBytes.HeaderLength + 4) mustBe
         Seq(0x92, 0x80, 0x0a, 0x00)
       repeatedDcBytes.takeRight(2) mustBe Seq(0xff, 0xd9)
+    }
+  }
+
+  "JpegMcuStreamEncoderStage should emit restart markers and reset DC predictors" in {
+    simulate(new JpegMcuStreamEncoderStage()) { dut =>
+      val bytes = emitMcus(dut, Seq(4, 4), restartInterval = 1)
+
+      bytes.slice(JpegHeaderBytes.DriStart, JpegHeaderBytes.DriStart + JpegHeaderBytes.Dri.length) mustBe
+        Seq(0xff, 0xdd, 0x00, 0x04, 0x00, 0x01)
+      bytes.sliding(2).count(_ == Seq(0xff, 0xd0)) mustBe 1
+      bytes.takeRight(2) mustBe Seq(0xff, 0xd9)
+
+      val entropyStart = JpegHeaderBytes.MaxHeaderLength
+      val restartIndex = bytes.sliding(2).indexWhere(_ == Seq(0xff, 0xd0))
+      restartIndex must be > entropyStart
+
+      val firstEntropyChunk = bytes.slice(entropyStart, restartIndex)
+      val secondEntropyChunk = bytes.slice(restartIndex + 2, bytes.length - 2)
+      firstEntropyChunk mustBe secondEntropyChunk
     }
   }
 

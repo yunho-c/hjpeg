@@ -13,7 +13,8 @@ class JpegHeaderStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
       width: Int,
       height: Int,
       quality: Int,
-      subsample: Boolean = false): Seq[Int] = {
+      subsample: Boolean = false,
+      restartInterval: Int = 0): Seq[Int] = {
     dut.reset.poke(true.B)
     dut.clock.step()
     dut.reset.poke(false.B)
@@ -21,7 +22,7 @@ class JpegHeaderStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
     dut.io.config.xsize.poke(width.U)
     dut.io.config.ysize.poke(height.U)
     dut.io.config.quality.poke(quality.U)
-    dut.io.config.restartInterval.poke(0.U)
+    dut.io.config.restartInterval.poke(restartInterval.U)
     dut.io.config.enableChromaSubsample.poke(subsample.B)
     dut.io.config.emitJfif.poke(true.B)
     dut.io.output.ready.poke(true.B)
@@ -35,7 +36,7 @@ class JpegHeaderStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
     var cycles = 0
 
     while (!sawLast) {
-      assert(cycles <= JpegHeaderBytes.HeaderLength + 4, "timeout waiting for JPEG header")
+      assert(cycles <= JpegHeaderBytes.MaxHeaderLength + 4, "timeout waiting for JPEG header")
       dut.io.output.valid.expect(true.B)
       bytes += dut.io.output.bits.byte.peek().litValue.toInt
       sawLast = dut.io.output.bits.last.peek().litToBoolean
@@ -107,6 +108,20 @@ class JpegHeaderStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
       bytes.slice(acLuminanceStart, acLuminanceStart + 5) mustBe Seq(0xff, 0xc4, 0x00, 0xb5, 0x10)
       val acChrominanceStart = acLuminanceStart + 183
       bytes.slice(acChrominanceStart, acChrominanceStart + 5) mustBe Seq(0xff, 0xc4, 0x00, 0xb5, 0x11)
+    }
+  }
+
+  "JpegHeaderStage should emit DRI before SOS when restart intervals are enabled" in {
+    simulate(new JpegHeaderStage()) { dut =>
+      val bytes = emitHeader(dut, width = 16, height = 8, quality = 50, restartInterval = 2)
+
+      bytes.length mustBe JpegHeaderBytes.MaxHeaderLength
+      bytes.slice(JpegHeaderBytes.DriStart, JpegHeaderBytes.DriStart + JpegHeaderBytes.Dri.length) mustBe
+        Seq(0xff, 0xdd, 0x00, 0x04, 0x00, 0x02)
+      bytes.slice(
+        JpegHeaderBytes.DriStart + JpegHeaderBytes.Dri.length,
+        JpegHeaderBytes.DriStart + JpegHeaderBytes.Dri.length + JpegHeaderBytes.Sos.length
+      ) mustBe JpegHeaderBytes.Sos
     }
   }
 

@@ -60,10 +60,16 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
     data
   }
 
-  private def configure(dut: HjpegKv260AxiLiteTop, width: Int, height: Int, subsample: Boolean): Unit = {
+  private def configure(
+      dut: HjpegKv260AxiLiteTop,
+      width: Int,
+      height: Int,
+      subsample: Boolean,
+      restartInterval: Int = 0): Unit = {
     writeReg(dut, HjpegAxiLiteRegisters.XSize, width)
     writeReg(dut, HjpegAxiLiteRegisters.YSize, height)
     writeReg(dut, HjpegAxiLiteRegisters.Quality, 50)
+    writeReg(dut, HjpegAxiLiteRegisters.RestartInterval, restartInterval)
     val control = BigInt(1 << HjpegAxiLiteRegisters.ControlEmitJfifBit) |
       (if (subsample) BigInt(1 << HjpegAxiLiteRegisters.ControlEnableChromaSubsampleBit) else BigInt(0))
     writeReg(dut, HjpegAxiLiteRegisters.Control, control)
@@ -114,6 +120,7 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
       readReg(dut, HjpegAxiLiteRegisters.XSize) mustBe 17
       readReg(dut, HjpegAxiLiteRegisters.YSize) mustBe 13
       readReg(dut, HjpegAxiLiteRegisters.Quality) mustBe 50
+      readReg(dut, HjpegAxiLiteRegisters.RestartInterval) mustBe 0
       readReg(dut, HjpegAxiLiteRegisters.Control) mustBe 0x6
       readReg(dut, HjpegAxiLiteRegisters.Status) mustBe 0
     }
@@ -125,11 +132,14 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
       dut.clock.step()
       dut.reset.poke(false.B)
       init(dut)
-      configure(dut, width = 17, height = 13, subsample = true)
+      configure(dut, width = 17, height = 13, subsample = true, restartInterval = 1)
 
       val bytes = emitFrame(dut, width = 17, height = 13)
       bytes.take(2) mustBe Seq(0xff, 0xd8)
       bytes(JpegHeaderBytes.Sof0LuminanceSamplingFactor) mustBe 0x22
+      bytes.slice(JpegHeaderBytes.DriStart, JpegHeaderBytes.DriStart + JpegHeaderBytes.Dri.length) mustBe
+        Seq(0xff, 0xdd, 0x00, 0x04, 0x00, 0x01)
+      bytes.sliding(2).count(_ == Seq(0xff, 0xd0)) mustBe 1
       bytes.takeRight(2) mustBe Seq(0xff, 0xd9)
       val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
       image must not be null

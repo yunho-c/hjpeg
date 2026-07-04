@@ -32,7 +32,7 @@ object HjpegAxiLiteRegisters {
   *   0x08 xsize
   *   0x0c ysize
   *   0x10 quality
-  *   0x14 restart interval (reserved by encoder datapath today)
+  *   0x14 restart interval in MCUs, or zero to disable restart markers
   */
 class HjpegKv260AxiLiteTop(c: HjpegConfig = HjpegConfig(), axiLiteAddrBits: Int = 12) extends Module {
   val pixelDataBits = c.pixelBits * HjpegConstants.Components

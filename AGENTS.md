@@ -27,8 +27,8 @@ Important entry points:
 The current `HjpegCore` accepts raster RGB pixels and emits a complete baseline
 JPEG byte stream. It supports arbitrary nonzero frame dimensions within
 `HjpegConfig`, edge padding, 4:4:4, 4:2:0, standard quantization/Huffman tables,
-marker assembly, entropy packing, byte stuffing, ready/valid flow control, and
-sticky protocol-error reporting.
+marker assembly, restart intervals, entropy packing, byte stuffing, ready/valid
+flow control, and sticky protocol-error reporting.
 
 `HjpegAxiStreamCore` is the current hardware-facing shell. It accepts raster RGB
 AXI4-Stream-shaped words, generates pixel coordinates, forwards bytes from
@@ -55,12 +55,13 @@ Build the encoder incrementally in this order:
 8. DC coefficient differencing per component.
 9. AC run-length coding with EOB and ZRL handling.
 10. Baseline Huffman coding.
-11. JFIF/SOI/DQT/SOF0/DHT/SOS/EOI marker and scan assembly.
+11. JFIF/SOI/DQT/SOF0/DHT/DRI/SOS/EOI marker and scan assembly.
 12. Entropy byte packing with `0x00` stuffing after emitted `0xff` bytes.
-13. AXI stream output and KV260 host handoff.
+13. Restart marker insertion and DC predictor reset at MCU boundaries.
+14. AXI stream output and KV260 host handoff.
 
 Prefer correctness for one small image and one simple chroma mode before adding
-more input formats, subsampling modes, restart markers, or host integration.
+more input formats, subsampling modes, or host integration.
 
 ## Reference Material
 
