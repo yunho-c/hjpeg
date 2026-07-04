@@ -65,7 +65,9 @@ hardware-tool entry points:
   `HjpegKv260AxiLiteTop`, reads `generated-kv260-axi-lite-top/filelist.f`, runs
   synthesis for `xck26-sfvc784-2LV-c`, and writes utilization/timing reports.
 - `package_kv260_axi_lite_ip.tcl` packages the same RTL as reusable Vivado IP
-  with AXI-Lite and AXI-stream bus-interface metadata.
+  with explicit clock, reset, AXI-Lite, and AXI-stream bus-interface port maps.
+  The packaged AXI-Lite interface exposes a 4 KiB register aperture for the
+  control/status map.
 
 These scripts are intended to be run after:
 

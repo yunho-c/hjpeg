@@ -36,5 +36,49 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
     packageIp must include("hjpeg_kv260_axi_lite")
     packageIp must include("xilinx.com:interface:aximm")
     packageIp must include("xilinx.com:interface:axis")
+    packageIp must include("xilinx.com:signal:clock")
+    packageIp must include("xilinx.com:signal:reset")
+    packageIp must include("ASSOCIATED_BUSIF")
+    packageIp must include("ASSOCIATED_RESET")
+    packageIp must include("ipx::add_memory_map s_axi_lite")
+    packageIp must include("set_property slave_memory_map_ref s_axi_lite")
+    packageIp must include("set_property base_address 0x00000000")
+    packageIp must include("set_property range 0x00001000")
+    packageIp must include("set_property width 32")
+
+    val requiredPortMaps = Seq(
+      ("clock_bus", "CLK", "clock"),
+      ("reset_bus", "RST", "reset"),
+      ("s_axi_lite_bus", "AWADDR", "io_sAxiLite_awaddr"),
+      ("s_axi_lite_bus", "AWVALID", "io_sAxiLite_awvalid"),
+      ("s_axi_lite_bus", "AWREADY", "io_sAxiLite_awready"),
+      ("s_axi_lite_bus", "WDATA", "io_sAxiLite_wdata"),
+      ("s_axi_lite_bus", "WSTRB", "io_sAxiLite_wstrb"),
+      ("s_axi_lite_bus", "WVALID", "io_sAxiLite_wvalid"),
+      ("s_axi_lite_bus", "WREADY", "io_sAxiLite_wready"),
+      ("s_axi_lite_bus", "BRESP", "io_sAxiLite_bresp"),
+      ("s_axi_lite_bus", "BVALID", "io_sAxiLite_bvalid"),
+      ("s_axi_lite_bus", "BREADY", "io_sAxiLite_bready"),
+      ("s_axi_lite_bus", "ARADDR", "io_sAxiLite_araddr"),
+      ("s_axi_lite_bus", "ARVALID", "io_sAxiLite_arvalid"),
+      ("s_axi_lite_bus", "ARREADY", "io_sAxiLite_arready"),
+      ("s_axi_lite_bus", "RDATA", "io_sAxiLite_rdata"),
+      ("s_axi_lite_bus", "RRESP", "io_sAxiLite_rresp"),
+      ("s_axi_lite_bus", "RVALID", "io_sAxiLite_rvalid"),
+      ("s_axi_lite_bus", "RREADY", "io_sAxiLite_rready"),
+      ("s_axis_rgb_bus", "TREADY", "io_sAxisRgb_ready"),
+      ("s_axis_rgb_bus", "TVALID", "io_sAxisRgb_valid"),
+      ("s_axis_rgb_bus", "TDATA", "io_sAxisRgb_bits_data"),
+      ("s_axis_rgb_bus", "TKEEP", "io_sAxisRgb_bits_keep"),
+      ("s_axis_rgb_bus", "TLAST", "io_sAxisRgb_bits_last"),
+      ("m_axis_jpeg_bus", "TREADY", "io_mAxisJpeg_ready"),
+      ("m_axis_jpeg_bus", "TVALID", "io_mAxisJpeg_valid"),
+      ("m_axis_jpeg_bus", "TDATA", "io_mAxisJpeg_bits_data"),
+      ("m_axis_jpeg_bus", "TKEEP", "io_mAxisJpeg_bits_keep"),
+      ("m_axis_jpeg_bus", "TLAST", "io_mAxisJpeg_bits_last")
+    )
+    for ((bus, logical, physical) <- requiredPortMaps) {
+      packageIp must include(s"map_bus_port $$$bus $logical $physical")
+    }
   }
 }

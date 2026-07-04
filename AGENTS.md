@@ -155,8 +155,10 @@ vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl
 ```
 
 The scripts expect `generated-kv260-axi-lite-top/filelist.f`, so elaborate the
-AXI-Lite top first. They prove project/IP construction only when Vivado runs;
-they do not prove timing closure or hardware behavior on a KV260 board.
+AXI-Lite top first. The IP packager should preserve explicit clock, reset,
+AXI-Lite, and AXI-stream port maps plus the AXI-Lite register aperture. The
+scripts prove project/IP construction only when Vivado runs; they do not prove
+timing closure or hardware behavior on a KV260 board.
 
 For new encoder stages, add focused tests before frame-level tests. Good early
 fixtures are all-zero blocks, constant-color 8x8 images, one nonzero AC

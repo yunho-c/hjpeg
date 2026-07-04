@@ -101,8 +101,10 @@ vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl
 ```
 
 These Vivado scripts consume `generated-kv260-axi-lite-top/filelist.f`. Generate
-the AXI-Lite top first. They do not create a complete KV260 block design or
-bitstream.
+the AXI-Lite top first. The IP packaging script maps the generated clock, reset,
+AXI-Lite, and AXI-stream ports onto Vivado bus interfaces and exposes a 4 KiB
+AXI-Lite register aperture. The scripts do not create a complete KV260 block
+design or bitstream.
 
 ## Versions
 
