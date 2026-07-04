@@ -44,6 +44,18 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       subsample: Boolean = false,
       restartInterval: Int = 0,
       emitJfif: Boolean = true): Seq[Int] = {
+    emitFrame(dut, width, height, subsample, restartInterval, emitJfif) { _ =>
+      (r, g, b)
+    }
+  }
+
+  private def emitFrame(
+      dut: HjpegCore,
+      width: Int,
+      height: Int,
+      subsample: Boolean = false,
+      restartInterval: Int = 0,
+      emitJfif: Boolean = true)(pixelAt: Int => (Int, Int, Int)): Seq[Int] = {
     dut.reset.poke(true.B)
     dut.clock.step()
     dut.reset.poke(false.B)
@@ -65,6 +77,7 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       }
 
       if (nextPixel < pixels && dut.io.input.ready.peek().litToBoolean) {
+        val (r, g, b) = pixelAt(nextPixel)
         pokePixel(dut, nextPixel, width, r, g, b)
         nextPixel += 1
       } else {
@@ -76,6 +89,23 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
     }
     dut.io.input.valid.poke(false.B)
     bytes.toSeq
+  }
+
+  private def averageLuma(image: java.awt.image.BufferedImage, xStart: Int, xEnd: Int): Double = {
+    var total = 0.0
+    var count = 0
+    for {
+      y <- 0 until image.getHeight
+      x <- xStart until xEnd
+    } {
+      val rgb = image.getRGB(x, y)
+      val r = (rgb >> 16) & 0xff
+      val g = (rgb >> 8) & 0xff
+      val b = rgb & 0xff
+      total += 0.299 * r + 0.587 * g + 0.114 * b
+      count += 1
+    }
+    total / count
   }
 
   "HjpegCore should emit a complete JPEG for one supported 8x8 RGB frame" in {
@@ -114,6 +144,27 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       image must not be null
       image.getWidth mustBe 16
       image.getHeight mustBe 16
+      dut.io.protocolError.expect(false.B)
+    }
+  }
+
+  "HjpegCore should preserve recognizable non-flat image content" in {
+    simulate(new HjpegCore()) { dut =>
+      val width = 16
+      val height = 16
+      val bytes = emitFrame(dut, width = width, height = height) { index =>
+        val x = index % width
+        val gray = if (x < width / 2) 32 else 224
+        (gray, gray, gray)
+      }
+
+      bytes.take(2) mustBe Seq(0xff, 0xd8)
+      bytes.takeRight(2) mustBe Seq(0xff, 0xd9)
+      val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
+      image must not be null
+      image.getWidth mustBe width
+      image.getHeight mustBe height
+      averageLuma(image, width / 2, width) - averageLuma(image, 0, width / 2) must be > 80.0
       dut.io.protocolError.expect(false.B)
     }
   }
