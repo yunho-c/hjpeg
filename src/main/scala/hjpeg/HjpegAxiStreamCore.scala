@@ -25,8 +25,16 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
   })
 
   val core = Module(new HjpegCore(c))
-  core.io.config := io.config
   core.io.clearProtocolError := io.clearProtocolError
+
+  val frameConfig = Reg(new FrameConfig(c))
+  val frameConfigActive = RegInit(false.B)
+  val activeConfig = Wire(new FrameConfig(c))
+  activeConfig := io.config
+  when(frameConfigActive) {
+    activeConfig := frameConfig
+  }
+  core.io.config := activeConfig
 
   val x = RegInit(0.U(c.coordBits.W))
   val y = RegInit(0.U(c.coordBits.W))
@@ -37,6 +45,11 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
 
   val activeInputWidth = Mux(inputFrameActive, inputWidth, io.config.xsize)
   val activeInputHeight = Mux(inputFrameActive, inputHeight, io.config.ysize)
+  val inputConfigSupported =
+    io.config.xsize =/= 0.U &&
+      io.config.ysize =/= 0.U &&
+      io.config.xsize <= c.maxFrameWidth.U &&
+      io.config.ysize <= c.maxFrameHeight.U
   val lastX = Mux(activeInputWidth === 0.U, 0.U, activeInputWidth - 1.U)
   val lastY = Mux(activeInputHeight === 0.U, 0.U, activeInputHeight - 1.U)
   val expectedLast = x === lastX && y === lastY
@@ -59,6 +72,7 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
 
   when(io.clearProtocolError) {
     protocolError := false.B
+    frameConfigActive := false.B
   }
 
   when(io.input.fire) {
@@ -66,6 +80,8 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
       inputFrameActive := true.B
       inputWidth := io.config.xsize
       inputHeight := io.config.ysize
+      frameConfig := io.config
+      frameConfigActive := inputConfigSupported
     }
     when(io.input.bits.last =/= expectedLast) {
       protocolError := true.B
@@ -83,6 +99,10 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
     }.otherwise {
       x := x + 1.U
     }
+  }
+
+  when(io.output.fire && io.output.bits.last) {
+    frameConfigActive := false.B
   }
 
   io.busy := core.io.busy || inputFrameActive

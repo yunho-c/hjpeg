@@ -45,6 +45,9 @@ RGB input words use one byte per component and require all three `keep` bits set
 for every pixel; malformed input words raise the sticky protocol-error status.
 The AXI-Lite control wrapper captures write address and data independently and
 applies byte write strobes for host register updates.
+The AXI stream wrapper snapshots the full frame configuration on the first input
+pixel and holds it through the matching JPEG output frame, so register writes
+take effect on the next frame.
 
 The current tops are not full Vivado block designs. They are named RTL tops that
 can be elaborated and wrapped in platform-specific IP packaging. Board-level

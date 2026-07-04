@@ -46,6 +46,10 @@ Vivado block design; board
 clocking, reset synchronization, DMA connection, interrupts, IP packaging, and
 hardware validation still need platform work.
 
+The AXI-stream wrapper snapshots `FrameConfig` on the first accepted input pixel
+and holds it until the JPEG output frame completes. Mid-frame AXI-Lite register
+writes are for the next frame, not the active one.
+
 ## Intended JPEG Pipeline
 
 Build the encoder incrementally in this order:

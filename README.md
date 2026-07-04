@@ -43,6 +43,10 @@ avoid wedging the stream, but raises the sticky protocol-error flag.
 The AXI-Lite control wrapper accepts independent AW and W channel handshakes and
 honors byte write strobes on writable registers.
 
+Frame configuration is sampled on the first accepted input pixel and held until
+the encoded JPEG frame completes. Host software should update control registers
+between frames.
+
 ## Requirements
 
 - JDK 21 or newer
