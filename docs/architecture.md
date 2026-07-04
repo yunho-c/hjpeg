@@ -68,6 +68,10 @@ hardware-tool entry points:
   with explicit clock, reset, AXI-Lite, and AXI-stream bus-interface port maps.
   The packaged AXI-Lite interface exposes a 4 KiB register aperture for the
   control/status map.
+- `create_kv260_block_design.tcl` creates a first Vivado block design that
+  instantiates the Zynq UltraScale+ PS, AXI DMA, SmartConnect, reset logic, and
+  packaged `hjpeg_kv260_axi_lite` IP. DMA MM2S drives the RGB input stream and
+  DMA S2MM receives the JPEG byte stream.
 
 These scripts are intended to be run after:
 
@@ -75,5 +79,5 @@ These scripts are intended to be run after:
 sbt 'runMain hjpeg.ElaborateKv260AxiLiteTop'
 ```
 
-They are not a replacement for board-level block-design integration, software
-drivers, DMA setup, or on-board validation.
+They are not a replacement for board constraints, software drivers, timing
+closure, image packaging, or on-board validation.

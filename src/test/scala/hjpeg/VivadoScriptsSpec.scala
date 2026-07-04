@@ -24,6 +24,7 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
   "Vivado scripts should target the generated KV260 AXI-Lite top" in {
     val synth = read("scripts/vivado/synth_kv260_axi_lite.tcl")
     val packageIp = read("scripts/vivado/package_kv260_axi_lite_ip.tcl")
+    val blockDesign = read("scripts/vivado/create_kv260_block_design.tcl")
 
     for (script <- Seq(synth, packageIp)) {
       script must include("HjpegKv260AxiLiteTop")
@@ -80,5 +81,24 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
     for ((bus, logical, physical) <- requiredPortMaps) {
       packageIp must include(s"map_bus_port $$$bus $logical $physical")
     }
+
+    blockDesign must include("hjpeg_kv260_axi_lite_1_0")
+    blockDesign must include("component.xml")
+    blockDesign must include("xilinx.com:ip:zynq_ultra_ps_e")
+    blockDesign must include("xilinx.com:ip:axi_dma")
+    blockDesign must include("xilinx.com:ip:smartconnect")
+    blockDesign must include("xilinx.com:ip:proc_sys_reset")
+    blockDesign must include("CONFIG.C_EXT_RESET_HIGH {0}")
+    blockDesign must include("xilinx.com:ip:xlconcat")
+    blockDesign must include("user.org:user:hjpeg_kv260_axi_lite:1.0")
+    blockDesign must include("CONFIG.c_m_axis_mm2s_tdata_width {24}")
+    blockDesign must include("CONFIG.c_s_axis_s2mm_tdata_width {8}")
+    blockDesign must include("hjpeg_0/s_axis_rgb")
+    blockDesign must include("hjpeg_0/m_axis_jpeg")
+    blockDesign must include("hjpeg_0/s_axi_lite")
+    blockDesign must include("ps/M_AXI_HPM0_FPD")
+    blockDesign must include("ps/S_AXI_HP0_FPD")
+    blockDesign must include("dma_irq_concat")
+    blockDesign must include("validate_bd_design")
   }
 }

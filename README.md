@@ -100,11 +100,19 @@ Package reusable RTL IP for Vivado:
 vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl
 ```
 
+Create the first KV260 block-design project around the packaged IP:
+
+```sh
+vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl
+```
+
 These Vivado scripts consume `generated-kv260-axi-lite-top/filelist.f`. Generate
 the AXI-Lite top first. The IP packaging script maps the generated clock, reset,
 AXI-Lite, and AXI-stream ports onto Vivado bus interfaces and exposes a 4 KiB
-AXI-Lite register aperture. The scripts do not create a complete KV260 block
-design or bitstream.
+AXI-Lite register aperture. The block-design script consumes the packaged IP and
+wires it to Zynq UltraScale+ PS, AXI DMA, SmartConnect, and reset/interrupt
+plumbing. The scripts do not create a complete bootable KV260 image or prove
+timing closure.
 
 ## Versions
 
