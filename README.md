@@ -113,6 +113,14 @@ Build the block design through bitstream generation and export an XSA:
 vivado -mode batch -source scripts/vivado/build_kv260_bitstream.tcl
 ```
 
+Check generated timing and utilization reports:
+
+```sh
+python3 scripts/vivado/check_reports.py \
+  --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
+  --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt
+```
+
 These Vivado scripts consume `generated-kv260-axi-lite-top/filelist.f`. Generate
 the AXI-Lite top first. The IP packaging script maps the generated clock, reset,
 AXI-Lite, and AXI-stream ports onto Vivado bus interfaces and exposes a 4 KiB

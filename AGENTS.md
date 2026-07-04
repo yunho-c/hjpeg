@@ -165,6 +165,9 @@ The bitstream script should run synthesis/implementation, write timing and
 utilization reports, copy the `.bit`, and export an XSA with the bitstream
 included. The scripts prove project/IP/bitstream construction only when Vivado
 runs; they do not prove hardware behavior on a KV260 board.
+Use `scripts/vivado/check_reports.py` to gate generated timing/utilization
+reports, and run `python3 scripts/vivado/check_reports_test.py` after changing
+the parser.
 Use `docs/kv260-bringup.md` as the evidence checklist for Vivado, timing,
 bitstream, DMA, and hardware-produced JPEG validation.
 

@@ -44,6 +44,11 @@ Expected evidence:
 
 ```sh
 vivado -mode batch -source scripts/vivado/build_kv260_bitstream.tcl
+python3 scripts/vivado/check_reports.py \
+  --timing build/vivado/hjpeg-kv260-artifacts/post_synth_timing_summary.rpt \
+  --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
+  --utilization build/vivado/hjpeg-kv260-artifacts/post_synth_utilization.rpt \
+  --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt
 ```
 
 Expected evidence:
@@ -61,6 +66,8 @@ Pass criteria:
 - Post-implementation timing has nonnegative worst negative slack for the
   target clock.
 - Resource use leaves enough headroom for the intended KV260 platform shell.
+- `check_reports.py` exits successfully for the generated timing/utilization
+  reports.
 
 ## 5. Prepare Host Input
 
