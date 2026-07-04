@@ -72,6 +72,10 @@ hardware-tool entry points:
   instantiates the Zynq UltraScale+ PS, AXI DMA, SmartConnect, reset logic, and
   packaged `hjpeg_kv260_axi_lite` IP. DMA MM2S drives the RGB input stream and
   DMA S2MM receives the JPEG byte stream.
+- `build_kv260_bitstream.tcl` opens that block-design project, runs synthesis
+  and implementation through `write_bitstream`, emits timing/utilization
+  reports, copies `hjpeg_kv260.bit`, and exports `hjpeg_kv260.xsa` with the
+  bitstream included.
 
 These scripts are intended to be run after:
 
@@ -79,8 +83,8 @@ These scripts are intended to be run after:
 sbt 'runMain hjpeg.ElaborateKv260AxiLiteTop'
 ```
 
-They are not a replacement for board constraints, software drivers, timing
-closure, image packaging, or on-board validation.
+They are not a replacement for board constraints, software drivers, boot-image
+packaging, or on-board validation.
 
 ## Host-Side Flow
 

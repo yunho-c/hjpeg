@@ -25,6 +25,7 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
     val synth = read("scripts/vivado/synth_kv260_axi_lite.tcl")
     val packageIp = read("scripts/vivado/package_kv260_axi_lite_ip.tcl")
     val blockDesign = read("scripts/vivado/create_kv260_block_design.tcl")
+    val bitstream = read("scripts/vivado/build_kv260_bitstream.tcl")
 
     for (script <- Seq(synth, packageIp)) {
       script must include("HjpegKv260AxiLiteTop")
@@ -100,5 +101,20 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
     blockDesign must include("ps/S_AXI_HP0_FPD")
     blockDesign must include("dma_irq_concat")
     blockDesign must include("validate_bd_design")
+
+    bitstream must include("hjpeg_kv260_bd.xpr")
+    bitstream must include("open_project")
+    bitstream must include("set_property top hjpeg_kv260_wrapper")
+    bitstream must include("launch_runs synth_1")
+    bitstream must include("wait_on_run synth_1")
+    bitstream must include("launch_runs impl_1 -to_step write_bitstream")
+    bitstream must include("wait_on_run impl_1")
+    bitstream must include("post_synth_utilization.rpt")
+    bitstream must include("post_synth_timing_summary.rpt")
+    bitstream must include("post_impl_utilization.rpt")
+    bitstream must include("post_impl_timing_summary.rpt")
+    bitstream must include("hjpeg_kv260.bit")
+    bitstream must include("write_hw_platform -fixed -include_bit")
+    bitstream must include("hjpeg_kv260.xsa")
   }
 }

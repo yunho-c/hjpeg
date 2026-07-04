@@ -107,13 +107,21 @@ Create the first KV260 block-design project around the packaged IP:
 vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl
 ```
 
+Build the block design through bitstream generation and export an XSA:
+
+```sh
+vivado -mode batch -source scripts/vivado/build_kv260_bitstream.tcl
+```
+
 These Vivado scripts consume `generated-kv260-axi-lite-top/filelist.f`. Generate
 the AXI-Lite top first. The IP packaging script maps the generated clock, reset,
 AXI-Lite, and AXI-stream ports onto Vivado bus interfaces and exposes a 4 KiB
 AXI-Lite register aperture. The block-design script consumes the packaged IP and
 wires it to Zynq UltraScale+ PS, AXI DMA, SmartConnect, and reset/interrupt
-plumbing. The scripts do not create a complete bootable KV260 image or prove
-timing closure.
+plumbing. The bitstream script runs synthesis and implementation, writes
+post-synthesis/post-implementation utilization and timing reports, copies the
+bitstream, and exports a hardware platform XSA. These scripts do not create a
+complete bootable KV260 image or prove on-board behavior.
 
 ## Host Helpers
 

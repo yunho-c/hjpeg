@@ -153,6 +153,7 @@ When Vivado is available, run the synthesis/IP packaging entry points with:
 vivado -mode batch -source scripts/vivado/synth_kv260_axi_lite.tcl
 vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl
 vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl
+vivado -mode batch -source scripts/vivado/build_kv260_bitstream.tcl
 ```
 
 The scripts expect `generated-kv260-axi-lite-top/filelist.f`, so elaborate the
@@ -160,8 +161,10 @@ AXI-Lite top first. The IP packager should preserve explicit clock, reset,
 AXI-Lite, and AXI-stream port maps plus the AXI-Lite register aperture. The
 block-design script should consume that packaged IP and keep the PS, AXI DMA,
 SmartConnect, reset, and interrupt plumbing in one reproducible TCL entry point.
-The scripts prove project/IP construction only when Vivado runs; they do not
-prove timing closure or hardware behavior on a KV260 board.
+The bitstream script should run synthesis/implementation, write timing and
+utilization reports, copy the `.bit`, and export an XSA with the bitstream
+included. The scripts prove project/IP/bitstream construction only when Vivado
+runs; they do not prove hardware behavior on a KV260 board.
 
 Host-side helpers live under `scripts/host/`. Run their standard-library tests
 with:
