@@ -68,37 +68,70 @@ class HjpegKv260AxiLiteTop(c: HjpegConfig = HjpegConfig(), axiLiteAddrBits: Int 
   io.busy := core.io.busy
   io.protocolError := core.io.protocolError
 
+  def applyWriteStrobes(current: UInt, data: UInt, strobe: UInt): UInt =
+    Cat((0 until 4).reverse.map { byte =>
+      Mux(strobe(byte), data(8 * byte + 7, 8 * byte), current(8 * byte + 7, 8 * byte))
+    })
+
   val writeResponseValid = RegInit(false.B)
+  val writeAddressPending = RegInit(false.B)
+  val writeAddress = Reg(UInt(axiLiteAddrBits.W))
+  val writeDataPending = RegInit(false.B)
+  val writeData = Reg(UInt(32.W))
+  val writeStrobe = Reg(UInt(4.W))
   val readResponseValid = RegInit(false.B)
   val readData = RegInit(0.U(32.W))
 
   val canAcceptWrite = !writeResponseValid
-  val writeFire = io.sAxiLite.awvalid && io.sAxiLite.wvalid && canAcceptWrite
-  io.sAxiLite.awready := canAcceptWrite && io.sAxiLite.wvalid
-  io.sAxiLite.wready := canAcceptWrite && io.sAxiLite.awvalid
+  io.sAxiLite.awready := canAcceptWrite && !writeAddressPending
+  io.sAxiLite.wready := canAcceptWrite && !writeDataPending
   io.sAxiLite.bresp := 0.U
   io.sAxiLite.bvalid := writeResponseValid
 
+  val writeAddressFire = io.sAxiLite.awvalid && io.sAxiLite.awready
+  val writeDataFire = io.sAxiLite.wvalid && io.sAxiLite.wready
+  val effectiveWriteAddress = Mux(writeAddressFire, io.sAxiLite.awaddr, writeAddress)
+  val effectiveWriteData = Mux(writeDataFire, io.sAxiLite.wdata, writeData)
+  val effectiveWriteStrobe = Mux(writeDataFire, io.sAxiLite.wstrb, writeStrobe)
+  val writeFire =
+    canAcceptWrite &&
+      (writeAddressPending || writeAddressFire) &&
+      (writeDataPending || writeDataFire)
+
+  when(writeAddressFire && !writeFire) {
+    writeAddress := io.sAxiLite.awaddr
+    writeAddressPending := true.B
+  }
+  when(writeDataFire && !writeFire) {
+    writeData := io.sAxiLite.wdata
+    writeStrobe := io.sAxiLite.wstrb
+    writeDataPending := true.B
+  }
+
   when(writeFire) {
-    switch(io.sAxiLite.awaddr) {
+    switch(effectiveWriteAddress) {
       is(HjpegAxiLiteRegisters.Control.U) {
-        clearProtocolErrorPulse := io.sAxiLite.wdata(HjpegAxiLiteRegisters.ControlClearProtocolErrorBit)
-        enableChromaSubsample := io.sAxiLite.wdata(HjpegAxiLiteRegisters.ControlEnableChromaSubsampleBit)
-        emitJfif := io.sAxiLite.wdata(HjpegAxiLiteRegisters.ControlEmitJfifBit)
+        val control = Cat(0.U(29.W), emitJfif, enableChromaSubsample, 0.U(1.W))
+        val nextControl = applyWriteStrobes(control, effectiveWriteData, effectiveWriteStrobe)
+        clearProtocolErrorPulse := nextControl(HjpegAxiLiteRegisters.ControlClearProtocolErrorBit)
+        enableChromaSubsample := nextControl(HjpegAxiLiteRegisters.ControlEnableChromaSubsampleBit)
+        emitJfif := nextControl(HjpegAxiLiteRegisters.ControlEmitJfifBit)
       }
       is(HjpegAxiLiteRegisters.XSize.U) {
-        xsize := io.sAxiLite.wdata(c.coordBits - 1, 0)
+        xsize := applyWriteStrobes(xsize.pad(32), effectiveWriteData, effectiveWriteStrobe)(c.coordBits - 1, 0)
       }
       is(HjpegAxiLiteRegisters.YSize.U) {
-        ysize := io.sAxiLite.wdata(c.coordBits - 1, 0)
+        ysize := applyWriteStrobes(ysize.pad(32), effectiveWriteData, effectiveWriteStrobe)(c.coordBits - 1, 0)
       }
       is(HjpegAxiLiteRegisters.Quality.U) {
-        quality := io.sAxiLite.wdata(6, 0)
+        quality := applyWriteStrobes(quality.pad(32), effectiveWriteData, effectiveWriteStrobe)(6, 0)
       }
       is(HjpegAxiLiteRegisters.RestartInterval.U) {
-        restartInterval := io.sAxiLite.wdata(15, 0)
+        restartInterval := applyWriteStrobes(restartInterval.pad(32), effectiveWriteData, effectiveWriteStrobe)(15, 0)
       }
     }
+    writeAddressPending := false.B
+    writeDataPending := false.B
     writeResponseValid := true.B
   }.elsewhen(io.sAxiLite.bvalid && io.sAxiLite.bready) {
     writeResponseValid := false.B

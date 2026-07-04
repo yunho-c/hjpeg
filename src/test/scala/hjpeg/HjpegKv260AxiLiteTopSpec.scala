@@ -45,6 +45,50 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
     dut.io.sAxiLite.bready.poke(false.B)
   }
 
+  private def writeRegAddressFirst(dut: HjpegKv260AxiLiteTop, addr: Int, data: BigInt): Unit = {
+    dut.io.sAxiLite.awaddr.poke(addr.U)
+    dut.io.sAxiLite.awvalid.poke(true.B)
+    dut.io.sAxiLite.wvalid.poke(false.B)
+    dut.io.sAxiLite.bready.poke(true.B)
+    dut.io.sAxiLite.awready.expect(true.B)
+    dut.clock.step()
+
+    dut.io.sAxiLite.awvalid.poke(false.B)
+    dut.io.sAxiLite.wdata.poke(data.U)
+    dut.io.sAxiLite.wstrb.poke("b1111".U)
+    dut.io.sAxiLite.wvalid.poke(true.B)
+    dut.io.sAxiLite.wready.expect(true.B)
+    dut.clock.step()
+
+    dut.io.sAxiLite.wvalid.poke(false.B)
+    dut.io.sAxiLite.bvalid.expect(true.B)
+    dut.io.sAxiLite.bresp.expect(0.U)
+    dut.clock.step()
+    dut.io.sAxiLite.bready.poke(false.B)
+  }
+
+  private def writeRegDataFirst(dut: HjpegKv260AxiLiteTop, addr: Int, data: BigInt, strobe: Int = 0xf): Unit = {
+    dut.io.sAxiLite.awvalid.poke(false.B)
+    dut.io.sAxiLite.wdata.poke(data.U)
+    dut.io.sAxiLite.wstrb.poke(strobe.U)
+    dut.io.sAxiLite.wvalid.poke(true.B)
+    dut.io.sAxiLite.bready.poke(true.B)
+    dut.io.sAxiLite.wready.expect(true.B)
+    dut.clock.step()
+
+    dut.io.sAxiLite.wvalid.poke(false.B)
+    dut.io.sAxiLite.awaddr.poke(addr.U)
+    dut.io.sAxiLite.awvalid.poke(true.B)
+    dut.io.sAxiLite.awready.expect(true.B)
+    dut.clock.step()
+
+    dut.io.sAxiLite.awvalid.poke(false.B)
+    dut.io.sAxiLite.bvalid.expect(true.B)
+    dut.io.sAxiLite.bresp.expect(0.U)
+    dut.clock.step()
+    dut.io.sAxiLite.bready.poke(false.B)
+  }
+
   private def readReg(dut: HjpegKv260AxiLiteTop, addr: Int): BigInt = {
     dut.io.sAxiLite.araddr.poke(addr.U)
     dut.io.sAxiLite.arvalid.poke(true.B)
@@ -124,6 +168,37 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
       readReg(dut, HjpegAxiLiteRegisters.RestartInterval) mustBe 0
       readReg(dut, HjpegAxiLiteRegisters.Control) mustBe 0x6
       readReg(dut, HjpegAxiLiteRegisters.Status) mustBe 0
+    }
+  }
+
+  "HjpegKv260AxiLiteTop should accept independent AXI-Lite write address and data channels" in {
+    simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      init(dut)
+
+      writeRegAddressFirst(dut, HjpegAxiLiteRegisters.XSize, 23)
+      writeRegDataFirst(dut, HjpegAxiLiteRegisters.YSize, 19)
+
+      readReg(dut, HjpegAxiLiteRegisters.XSize) mustBe 23
+      readReg(dut, HjpegAxiLiteRegisters.YSize) mustBe 19
+    }
+  }
+
+  "HjpegKv260AxiLiteTop should honor AXI-Lite write strobes" in {
+    simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 512, maxFrameHeight = 512))) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      init(dut)
+
+      writeReg(dut, HjpegAxiLiteRegisters.XSize, 0x1234)
+      writeRegDataFirst(dut, HjpegAxiLiteRegisters.XSize, 0x00ab, strobe = 0x1)
+      readReg(dut, HjpegAxiLiteRegisters.XSize) mustBe 0x12ab
+
+      writeRegDataFirst(dut, HjpegAxiLiteRegisters.XSize, 0xcd00, strobe = 0x2)
+      readReg(dut, HjpegAxiLiteRegisters.XSize) mustBe 0xcdab
     }
   }
 

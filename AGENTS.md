@@ -40,7 +40,9 @@ error.
 
 `HjpegKv260Top` is a direct-config KV260-oriented elaboration target.
 `HjpegKv260AxiLiteTop` adds AXI-Lite control/status registers around the same
-AXI-stream RGB/JPEG datapath. Neither is a finished Vivado block design; board
+AXI-stream RGB/JPEG datapath. Its write address/data channels are independently
+handshaked and writable registers honor byte strobes. Neither is a finished
+Vivado block design; board
 clocking, reset synchronization, DMA connection, interrupts, IP packaging, and
 hardware validation still need platform work.
 

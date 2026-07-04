@@ -43,6 +43,8 @@ The hardware-facing boundary is an AXI4-Stream-shaped RGB input and byte output.
 quality, restart interval, chroma mode, JFIF marker emission, and status.
 RGB input words use one byte per component and require all three `keep` bits set
 for every pixel; malformed input words raise the sticky protocol-error status.
+The AXI-Lite control wrapper captures write address and data independently and
+applies byte write strobes for host register updates.
 
 The current tops are not full Vivado block designs. They are named RTL tops that
 can be elaborated and wrapped in platform-specific IP packaging. Board-level

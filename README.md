@@ -40,6 +40,9 @@ RGB AXI-stream input words pack R, G, and B in the low three bytes and must
 present `keep = 0b111` for every pixel. A partial input word is accepted to
 avoid wedging the stream, but raises the sticky protocol-error flag.
 
+The AXI-Lite control wrapper accepts independent AW and W channel handshakes and
+honors byte write strobes on writable registers.
+
 ## Requirements
 
 - JDK 21 or newer
