@@ -778,6 +778,14 @@ def jpeg_info(data: bytes) -> JpegInfo:
                 f"JPEG SOF0 component {component.component_id} references missing DQT table "
                 f"{component.quantization_table}"
             )
+    component_quantization_tables = tuple(
+        component.quantization_table for component in components
+    )
+    if component_quantization_tables != (0, 1, 1):
+        raise ValueError(
+            f"JPEG SOF0 quantization table selectors are {component_quantization_tables}, "
+            "expected Y=0 and Cb/Cr=1"
+        )
     for scan_component in scan_components:
         if scan_component.component_id not in component_ids:
             raise ValueError(

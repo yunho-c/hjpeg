@@ -148,11 +148,12 @@ also records SOF0 component sampling factors, APP0 and JFIF APP0 counts, DQT/DHT
 table IDs, table payload byte counts and SHA-256 hashes, SOS component table
 selectors, and parsed JFIF APP0 version/density/thumbnail fields, requires SOF0
 and SOS component IDs to be `[1, 2, 3]`, requires the SOS component list to match
-SOF0 exactly, requires SOS table selectors to be Y `0/0` and Cb/Cr `1/1`,
-requires nonzero SOF0 dimensions, requires baseline SOS spectral fields
-`0/63/0`, requires DQT IDs `{0, 1}` with 8-bit precision and exact DQT/DHT
-segment counts, rejects nonstandard DHT table sets and duplicate DQT/DHT table
-definitions, rejects zero-valued DQT entries, rejects empty, oversized,
+SOF0 exactly, requires SOF0 quantization table selectors to be Y `0` and Cb/Cr
+`1`, requires SOS table selectors to be Y `0/0` and Cb/Cr `1/1`, requires
+nonzero SOF0 dimensions, requires baseline SOS spectral fields `0/63/0`,
+requires DQT IDs `{0, 1}` with 8-bit precision and exact DQT/DHT segment counts,
+rejects nonstandard DHT table sets and duplicate DQT/DHT table definitions,
+rejects zero-valued DQT entries, rejects empty, oversized,
 oversubscribed, or invalid baseline DHT tables and dangling table references,
 rejects unsupported header markers, rejects malformed, non-JFIF, or duplicate
 APP0 markers, requires the encoder's baseline marker order of optional

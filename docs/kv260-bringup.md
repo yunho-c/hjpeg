@@ -264,8 +264,9 @@ Expected evidence:
   mode, records the parsed MCU count, rejects zero SOF0 sampling factors,
   requires supported 4:4:4 or 4:2:0 sampling factors, and requires SOF0/SOS
   component IDs in `[1, 2, 3]` order with the SOS component list covering the
-  same three SOF0 components exactly once, SOS table selectors set to Y `0/0`
-  and Cb/Cr `1/1`, and SOS spectral fields `Ss=0`, `Se=63`, `Ah/Al=0`. Pass
+  same three SOF0 components exactly once, SOF0 quantization table selectors set
+  to Y `0` and Cb/Cr `1`, SOS table selectors set to Y `0/0` and Cb/Cr `1/1`,
+  and SOS spectral fields `Ss=0`, `Se=63`, `Ah/Al=0`. Pass
   `--check-chroma-mode` to standalone `validate-jpeg`; `run-stream-devices`
   checks this automatically against the configured chroma mode.
 - The helper records APP0 marker count, JFIF APP0 signature count, and parsed

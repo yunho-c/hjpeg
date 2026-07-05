@@ -449,6 +449,16 @@ def with_sof0_sampling_factors(jpeg: bytes, factors: tuple[int, int, int]) -> by
     return bytes(mutated)
 
 
+def with_sof0_quantization_tables(jpeg: bytes, tables: tuple[int, int, int]) -> bytes:
+    sof0 = jpeg.find(b"\xff\xc0\x00\x11")
+    if sof0 < 0:
+        raise AssertionError("SOF0 marker not found")
+    mutated = bytearray(jpeg)
+    for index, table in enumerate(tables):
+        mutated[sof0 + 12 + index * 3] = table
+    return bytes(mutated)
+
+
 def with_16bit_dqt(jpeg: bytes) -> bytes:
     dqt = jpeg.find(b"\xff\xdb\x00\x43\x00")
     if dqt < 0:
@@ -2247,6 +2257,19 @@ class HjpegHostTest(unittest.TestCase):
                     expected_width=17,
                     expected_height=13,
                 )
+
+    def test_validate_jpeg_rejects_nonstandard_sof0_quantization_selectors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "sof0-quant-selectors.jpg"
+            jpeg.write_bytes(
+                with_sof0_quantization_tables(
+                    minimal_jpeg(width=17, height=13),
+                    (1, 1, 1),
+                )
+            )
+
+            with self.assertRaisesRegex(ValueError, "SOF0 quantization table selectors"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_rejects_sos_component_shape_mismatches(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
