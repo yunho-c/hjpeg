@@ -16,6 +16,7 @@ specific, so this script prepares and validates the payloads around that layer.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import mmap
 import os
@@ -58,6 +59,8 @@ class JpegInfo:
     width: int
     height: int
     scan_data_bytes: int
+    byte_length: int
+    sha256: str
 
 
 def make_test_image(width: int, height: int) -> PpmImage:
@@ -210,7 +213,13 @@ def jpeg_info(data: bytes) -> JpegInfo:
         raise ValueError("JPEG output does not contain an SOS segment")
     if scan_data_bytes == 0:
         raise ValueError("JPEG output does not contain entropy-coded scan data")
-    return JpegInfo(width=dimensions[0], height=dimensions[1], scan_data_bytes=scan_data_bytes)
+    return JpegInfo(
+        width=dimensions[0],
+        height=dimensions[1],
+        scan_data_bytes=scan_data_bytes,
+        byte_length=len(data),
+        sha256=hashlib.sha256(data).hexdigest(),
+    )
 
 
 def jpeg_dimensions(data: bytes) -> tuple[int, int]:
@@ -281,6 +290,8 @@ def jpeg_info_record(jpeg: Path, info: JpegInfo, decoder_passed: bool | None = N
         "width": info.width,
         "height": info.height,
         "scan_data_bytes": info.scan_data_bytes,
+        "byte_length": info.byte_length,
+        "sha256": info.sha256,
     }
     if decoder_passed is not None:
         record["decoder_passed"] = decoder_passed
@@ -585,7 +596,9 @@ def main(argv: list[str] | None = None) -> int:
             decoder_text = ""
         print(
             f"{args.jpeg}: valid baseline JPEG dimensions {info.width}x{info.height}; "
-            f"scan_data_bytes={info.scan_data_bytes}{decoder_text}"
+            f"scan_data_bytes={info.scan_data_bytes} "
+            f"byte_length={info.byte_length} "
+            f"sha256={info.sha256}{decoder_text}"
         )
         return 0
 
@@ -656,7 +669,9 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"captured validated JPEG to {args.output_jpeg}: "
             f"dimensions={info.width}x{info.height} "
-            f"scan_data_bytes={info.scan_data_bytes}{decoder_text}"
+            f"scan_data_bytes={info.scan_data_bytes} "
+            f"byte_length={info.byte_length} "
+            f"sha256={info.sha256}{decoder_text}"
         )
         return 0
 

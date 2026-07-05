@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import contextlib
+import hashlib
 import io
 import json
 import sys
@@ -56,6 +57,17 @@ def header_only_jpeg(width: int, height: int) -> bytes:
     return minimal_jpeg(width, height).split(b"\xff\xda", maxsplit=1)[0] + b"\xff\xd9"
 
 
+def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
+    data = minimal_jpeg(width, height)
+    return hjpeg_host.JpegInfo(
+        width=width,
+        height=height,
+        scan_data_bytes=1,
+        byte_length=len(data),
+        sha256=hashlib.sha256(data).hexdigest(),
+    )
+
+
 class HjpegHostTest(unittest.TestCase):
     def test_make_test_image_writes_non_flat_ppm(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -107,7 +119,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(hjpeg_host.jpeg_info(jpeg.read_bytes()).scan_data_bytes, 1)
             self.assertEqual(
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13),
-                hjpeg_host.JpegInfo(width=17, height=13, scan_data_bytes=1),
+                minimal_jpeg_info(width=17, height=13),
             )
             hjpeg_host.run_decoder_command(
                 jpeg,
@@ -145,6 +157,8 @@ class HjpegHostTest(unittest.TestCase):
                 )
             self.assertEqual(marker.read_text(), "ffd8")
             self.assertIn("scan_data_bytes=1", stdout.getvalue())
+            self.assertIn("byte_length=", stdout.getvalue())
+            self.assertIn("sha256=", stdout.getvalue())
             self.assertIn("decoder=pass", stdout.getvalue())
 
     def test_validate_jpeg_cli_can_print_json_evidence(self) -> None:
@@ -174,6 +188,11 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["width"], 17)
             self.assertEqual(record["height"], 13)
             self.assertEqual(record["scan_data_bytes"], 1)
+            self.assertEqual(record["byte_length"], len(minimal_jpeg(width=17, height=13)))
+            self.assertEqual(
+                record["sha256"],
+                hashlib.sha256(minimal_jpeg(width=17, height=13)).hexdigest(),
+            )
             self.assertNotIn("decoder_passed", record)
 
     def test_decoder_command_supports_placeholder_and_reports_failure(self) -> None:
@@ -311,7 +330,7 @@ class HjpegHostTest(unittest.TestCase):
             )
 
             self.assertEqual(configured, [True])
-            self.assertEqual(info, hjpeg_host.JpegInfo(width=2, height=1, scan_data_bytes=1))
+            self.assertEqual(info, minimal_jpeg_info(width=2, height=1))
             self.assertEqual(status_checks, ["before transfer", "after transfer"])
             self.assertEqual(tx_device.read_bytes(), bytes([1, 2, 3, 0, 4, 5, 6, 0]))
             self.assertEqual(output_jpeg.read_bytes(), minimal_jpeg(width=2, height=1))
@@ -362,6 +381,11 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["width"], 2)
             self.assertEqual(record["height"], 1)
             self.assertEqual(record["scan_data_bytes"], 1)
+            self.assertEqual(record["byte_length"], len(minimal_jpeg(width=2, height=1)))
+            self.assertEqual(
+                record["sha256"],
+                hashlib.sha256(minimal_jpeg(width=2, height=1)).hexdigest(),
+            )
 
     def test_run_stream_devices_rejects_wrong_input_size(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

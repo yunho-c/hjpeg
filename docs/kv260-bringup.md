@@ -155,6 +155,8 @@ Expected evidence:
 - The helper reports valid baseline JPEG dimensions and the number of
   entropy-coded scan data bytes, proving the file contains an SOS marker with
   non-empty scan payload.
+- The helper reports the total JPEG byte length and SHA-256 so the captured
+  artifact can be matched against saved files and logs.
 - A standard JPEG decoder can open `output.jpg`; when `--decoder-command` is
   used, that decoder check is part of the command transcript.
 - The decoded dimensions match the input.
