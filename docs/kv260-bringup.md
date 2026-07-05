@@ -223,7 +223,9 @@ Expected evidence:
   nonnegative base address, and matching hexadecimal base-address text. Encoder
   configuration evidence must include supported dimensions, quality/restart
   values in range, boolean control flags, and a control word/hex string matching
-  those flags.
+  those flags. Validation expectations evidence must include the baseline shape,
+  marker order, table order, SOS spectral fields, and standard-Huffman
+  requirement.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after

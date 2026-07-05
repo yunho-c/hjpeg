@@ -662,6 +662,8 @@ Hardware completion evidence should include:
   address, and matching hexadecimal base-address text. Encoder configuration
   evidence must include supported dimensions, quality/restart values in range,
   boolean control flags, and a control word/hex string matching those flags.
+  Validation expectations evidence must include the baseline shape, marker
+  order, table order, SOS spectral fields, and standard-Huffman requirement.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 

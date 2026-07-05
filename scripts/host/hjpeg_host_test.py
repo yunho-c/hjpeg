@@ -1635,6 +1635,62 @@ class HjpegHostTest(unittest.TestCase):
         self.assertTrue(valid_summary["checks"]["encoder_flags_valid"])
         self.assertTrue(valid_summary["checks"]["encoder_control_matches_flags"])
 
+    def test_hardware_summary_requires_valid_validation_expectations(self) -> None:
+        invalid = {
+            "validation_expectations": {
+                "width": 2,
+                "height": 1,
+                "expected_sample_precision": 12,
+                "expected_component_count": 3,
+                "expected_scan_data_min_bytes": 0,
+                "expected_marker_order": {"through_sos": [], "terminal_marker": "SOS"},
+                "expected_quantization_tables": [0],
+                "expected_quantization_table_order": [0],
+                "expected_huffman_table_order": [],
+                "expected_sos_spectral": {
+                    "spectral_start": 1,
+                    "spectral_end": 63,
+                    "successive_approximation": 0,
+                },
+                "require_standard_huffman": False,
+            }
+        }
+        valid = {
+            "validation_expectations": hjpeg_host.validation_expectations_record(
+                minimal_jpeg_info(width=2, height=1),
+                width=2,
+                height=1,
+                restart_interval=0,
+                check_chroma_mode=True,
+                chroma_subsample=False,
+                expect_jfif="present",
+                quality=80,
+                require_standard_huffman=True,
+            )
+        }
+
+        invalid_summary = hjpeg_host.hardware_run_summary_record(invalid)
+        valid_summary = hjpeg_host.hardware_run_summary_record(valid)
+
+        self.assertFalse(
+            invalid_summary["evidence_present"]["validation_expectations"]
+        )
+        self.assertFalse(invalid_summary["checks"]["validation_baseline_shape"])
+        self.assertFalse(invalid_summary["checks"]["validation_marker_order_present"])
+        self.assertFalse(invalid_summary["checks"]["validation_table_order_present"])
+        self.assertFalse(
+            invalid_summary["checks"]["validation_sos_spectral_baseline"]
+        )
+        self.assertFalse(
+            invalid_summary["checks"]["validation_requires_standard_huffman"]
+        )
+        self.assertTrue(valid_summary["evidence_present"]["validation_expectations"])
+        self.assertTrue(valid_summary["checks"]["validation_baseline_shape"])
+        self.assertTrue(valid_summary["checks"]["validation_marker_order_present"])
+        self.assertTrue(valid_summary["checks"]["validation_table_order_present"])
+        self.assertTrue(valid_summary["checks"]["validation_sos_spectral_baseline"])
+        self.assertTrue(valid_summary["checks"]["validation_requires_standard_huffman"])
+
     def test_run_evidence_record_summarizes_status_checks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -3767,6 +3823,11 @@ class HjpegHostTest(unittest.TestCase):
                         "encoder_flags_valid": True,
                         "encoder_control_matches_flags": True,
                         "validation_expectations_match_jpeg_dimensions": True,
+                        "validation_baseline_shape": True,
+                        "validation_marker_order_present": True,
+                        "validation_table_order_present": True,
+                        "validation_sos_spectral_baseline": True,
+                        "validation_requires_standard_huffman": True,
                         "input_ppm_dimensions_match_jpeg": True,
                         "input_rgb_expected_length_matches_dimensions": True,
                         "input_rgb_byte_length_positive": True,

@@ -1563,7 +1563,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         "encoder_config": False,
         "capture_config": False,
         "status_checks": "status_checks" in record,
-        "validation_expectations": "validation_expectations" in record,
+        "validation_expectations": False,
         "input_ppm": False,
         "transfer_timing": False,
         "decoder": False,
@@ -1691,6 +1691,63 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         checks["encoder_restart_interval_valid"] = encoder_restart_interval_valid
         checks["encoder_flags_valid"] = encoder_flags_valid
         checks["encoder_control_matches_flags"] = encoder_control_matches_flags
+
+    if isinstance(validation_expectations, dict):
+        expected_marker_order = validation_expectations.get("expected_marker_order")
+        expected_sos_spectral = validation_expectations.get("expected_sos_spectral")
+        expected_through_sos = (
+            expected_marker_order.get("through_sos")
+            if isinstance(expected_marker_order, dict)
+            else None
+        )
+        validation_baseline_shape = (
+            validation_expectations.get("expected_sample_precision") == 8
+            and validation_expectations.get("expected_component_count") == 3
+            and validation_expectations.get("expected_scan_data_min_bytes") == 1
+        )
+        validation_marker_order_present = (
+            isinstance(expected_marker_order, dict)
+            and isinstance(expected_through_sos, list)
+            and len(expected_through_sos) > 0
+            and expected_through_sos[0] == "SOI"
+            and expected_through_sos[-1] == "SOS"
+            and expected_marker_order.get("terminal_marker") == "EOI"
+        )
+        validation_table_order_present = (
+            validation_expectations.get("expected_quantization_tables") == [0, 1]
+            and validation_expectations.get("expected_quantization_table_order")
+            == [0, 1]
+            and validation_expectations.get("expected_huffman_table_order")
+            == [
+                {"table_class": 0, "table_id": 0},
+                {"table_class": 0, "table_id": 1},
+                {"table_class": 1, "table_id": 0},
+                {"table_class": 1, "table_id": 1},
+            ]
+        )
+        validation_sos_spectral_baseline = (
+            isinstance(expected_sos_spectral, dict)
+            and expected_sos_spectral.get("spectral_start") == 0
+            and expected_sos_spectral.get("spectral_end") == 63
+            and expected_sos_spectral.get("successive_approximation") == 0
+        )
+        validation_requires_standard_huffman = bool(
+            validation_expectations.get("require_standard_huffman", False)
+        )
+        evidence_present["validation_expectations"] = (
+            validation_baseline_shape
+            and validation_marker_order_present
+            and validation_table_order_present
+            and validation_sos_spectral_baseline
+            and validation_requires_standard_huffman
+        )
+        checks["validation_baseline_shape"] = validation_baseline_shape
+        checks["validation_marker_order_present"] = validation_marker_order_present
+        checks["validation_table_order_present"] = validation_table_order_present
+        checks["validation_sos_spectral_baseline"] = validation_sos_spectral_baseline
+        checks["validation_requires_standard_huffman"] = (
+            validation_requires_standard_huffman
+        )
 
     input_rgb = record.get("input_rgb")
     if isinstance(input_rgb, dict):

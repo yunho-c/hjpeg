@@ -214,7 +214,8 @@ positive timeout. AXI-Lite target evidence must include a device path,
 nonnegative base address, and matching hexadecimal base-address text. Encoder
 configuration evidence must include supported dimensions, quality/restart values
 in range, boolean control flags, and a control word/hex string matching those
-flags.
+flags. Validation expectations evidence must include the baseline shape, marker
+order, table order, SOS spectral fields, and standard-Huffman requirement.
 The `run-stream-devices` command supports Linux board images that expose DMA
 MM2S/S2MM endpoints as byte-stream device files by writing padded RGB bytes to
 the TX device and reading JPEG bytes from the RX device until EOI, while
