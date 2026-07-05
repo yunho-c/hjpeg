@@ -782,7 +782,8 @@ If the new PC has Vivado:
 1. Run `sbt test` and the Python helper tests to establish a software baseline.
 2. Regenerate `generated-kv260-axi-lite-top/`.
 3. Run IP packaging.
-4. Run block design creation and confirm `validate_bd_design`.
+4. Run block design creation and confirm `validate_bd_design` plus the generated
+   `build/vivado/hjpeg-kv260-bd/hjpeg_kv260_address_map.rpt`.
 5. Run bitstream/XSA generation.
 6. Run `check_reports.py` with `--artifact`, timing/utilization/DRC,
    route-status, clock-utilization report paths, `--hold-timing` for
@@ -792,7 +793,8 @@ If the new PC has Vivado:
 If the new PC has KV260 access too:
 
 1. Use the bitstream/XSA from the Vivado flow.
-2. Confirm the AXI-Lite base address and DMA device model.
+2. Confirm the AXI-Lite base address from the Vivado address-map report and the
+   DMA device model.
 3. Run a small PPM through `hjpeg_host.py` using the JSON evidence options.
 4. Validate the captured JPEG with `--json`, marker/chroma/JFIF/restart
    expectations, a standard decoder command, and a decoder timeout.

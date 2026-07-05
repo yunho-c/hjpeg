@@ -105,8 +105,8 @@ hardware-tool entry points:
   instantiates the Zynq UltraScale+ PS, AXI DMA, SmartConnect, reset logic, and
   packaged `hjpeg_kv260_axi_lite` IP. DMA MM2S drives the RGB input stream and
   DMA S2MM receives the JPEG byte stream. The script assigns addresses,
-  validates and saves the block design, generates the HDL wrapper, and refreshes
-  compile order.
+  writes an address-map report, validates and saves the block design, generates
+  the HDL wrapper, and refreshes compile order.
 - `build_kv260_bitstream.tcl` opens that block-design project, runs synthesis
   and implementation through `write_bitstream`, emits timing/utilization
   reports, copies `hjpeg_kv260.bit`, and exports `hjpeg_kv260.xsa` with the

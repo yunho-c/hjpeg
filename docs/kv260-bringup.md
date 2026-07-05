@@ -55,6 +55,7 @@ vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl
 Expected evidence:
 
 - `build/vivado/hjpeg-kv260-bd/hjpeg_kv260_bd.xpr`
+- `build/vivado/hjpeg-kv260-bd/hjpeg_kv260_address_map.rpt`
 - Address assignment completes.
 - `validate_bd_design` completes successfully.
 - The generated HDL wrapper is added to the project and compile order is

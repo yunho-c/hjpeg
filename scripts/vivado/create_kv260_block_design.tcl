@@ -109,6 +109,7 @@ connect_bd_net [get_bd_pins axi_dma_0/s2mm_introut] [get_bd_pins dma_irq_concat/
 connect_bd_net [get_bd_pins dma_irq_concat/dout] [get_bd_pins ps/pl_ps_irq0]
 
 assign_bd_address
+report_bd_address -file [file join $project_dir hjpeg_kv260_address_map.rpt]
 validate_bd_design
 save_bd_design
 make_wrapper -files [get_files [file join $project_dir hjpeg_kv260_bd.srcs sources_1 bd $design_name ${design_name}.bd]] -top
