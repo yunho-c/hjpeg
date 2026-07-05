@@ -211,12 +211,13 @@ checked frame limits, quality, restart interval, chroma mode, JFIF setting, and
 control word. JPEG validation evidence includes dimensions, SOF0 8-bit sample
 precision, three-component frame shape, scan-data byte count, SOF0 component
 ID order, sampling factors, decoded chroma mode, exact SOS component order and
-coverage, SOS component table selectors, DQT/DHT table IDs, APP0 and JFIF APP0
-counts, DQT/DHT/DRI/restart marker counts, parsed DRI restart interval, total
-JPEG byte length, SHA-256, and decoder command when one was provided. The
-validator rejects non-8-bit or non-three-component SOF0 frames, nonstandard
-SOF0/SOS component IDs, mismatched SOS component lists, and SOF0 or SOS
-references to missing DQT/DHT tables. Pass
+coverage, baseline SOS spectral fields, SOS component table selectors, DQT/DHT
+table IDs, APP0 and JFIF APP0 counts, DQT/DHT/DRI/restart marker counts, parsed
+DRI restart interval, total JPEG byte length, SHA-256, and decoder command when
+one was provided. The validator rejects non-8-bit or non-three-component SOF0
+frames, nonstandard SOF0/SOS component IDs, mismatched SOS component lists,
+non-baseline SOS spectral fields, and SOF0 or SOS references to missing DQT/DHT
+tables. Pass
 `validate-jpeg --restart-interval N` to require the parsed DRI interval to match
 `N`, or `0` to require no DRI/RST markers. Pass
 `--check-chroma-mode` with `--chroma-subsample` when validating a standalone

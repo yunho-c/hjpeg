@@ -278,6 +278,17 @@ def with_reordered_sos_components(jpeg: bytes) -> bytes:
     return bytes(mutated)
 
 
+def with_sos_spectral_fields(jpeg: bytes, start: int, end: int, successive: int) -> bytes:
+    sos = jpeg.find(b"\xff\xda\x00\x0c\x03")
+    if sos < 0:
+        raise AssertionError("SOS marker not found")
+    mutated = bytearray(jpeg)
+    mutated[sos + 11] = start
+    mutated[sos + 12] = end
+    mutated[sos + 13] = successive
+    return bytes(mutated)
+
+
 def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
     data = minimal_jpeg(width, height)
     return hjpeg_host.JpegInfo(
@@ -294,6 +305,9 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
             hjpeg_host.JpegScanComponent(2, 1, 1),
             hjpeg_host.JpegScanComponent(3, 1, 1),
         ),
+        spectral_start=0,
+        spectral_end=63,
+        successive_approximation=0,
         quantization_tables=(0, 1),
         huffman_tables=(
             hjpeg_host.JpegHuffmanTable(0, 0),
@@ -520,6 +534,9 @@ class HjpegHostTest(unittest.TestCase):
                     hjpeg_host.JpegScanComponent(3, 1, 1),
                 ),
             )
+            self.assertEqual(parsed.spectral_start, 0)
+            self.assertEqual(parsed.spectral_end, 63)
+            self.assertEqual(parsed.successive_approximation, 0)
             self.assertEqual(parsed.quantization_tables, (0, 1))
             self.assertEqual(
                 parsed.huffman_tables,
@@ -637,6 +654,9 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["scan_components"][1]["component_id"], 2)
             self.assertEqual(record["scan_components"][1]["dc_table"], 1)
             self.assertEqual(record["scan_components"][1]["ac_table"], 1)
+            self.assertEqual(record["spectral_start"], 0)
+            self.assertEqual(record["spectral_end"], 63)
+            self.assertEqual(record["successive_approximation"], 0)
             self.assertEqual(record["quantization_tables"], [0, 1])
             self.assertEqual(
                 record["huffman_tables"],
@@ -1035,6 +1055,32 @@ class HjpegHostTest(unittest.TestCase):
                     expected_width=17,
                     expected_height=13,
                 )
+
+    def test_validate_jpeg_rejects_non_baseline_sos_spectral_fields(self) -> None:
+        cases = (
+            ("bad-start.jpg", 1, 63, 0),
+            ("bad-end.jpg", 0, 62, 0),
+            ("bad-successive.jpg", 0, 63, 1),
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name, start, end, successive in cases:
+                jpeg = root / name
+                jpeg.write_bytes(
+                    with_sos_spectral_fields(
+                        minimal_jpeg(width=17, height=13),
+                        start,
+                        end,
+                        successive,
+                    )
+                )
+
+                with self.assertRaisesRegex(ValueError, "spectral selection"):
+                    hjpeg_host.validate_jpeg(
+                        jpeg,
+                        expected_width=17,
+                        expected_height=13,
+                    )
 
     def test_jpeg_info_counts_restart_markers_in_scan_data(self) -> None:
         jpeg = with_dri_segment(

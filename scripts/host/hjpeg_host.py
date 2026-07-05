@@ -86,6 +86,9 @@ class JpegInfo:
     sample_precision: int
     components: tuple[JpegComponent, ...]
     scan_components: tuple[JpegScanComponent, ...]
+    spectral_start: int
+    spectral_end: int
+    successive_approximation: int
     quantization_tables: tuple[int, ...]
     huffman_tables: tuple[JpegHuffmanTable, ...]
     scan_data_bytes: int
@@ -213,6 +216,9 @@ def jpeg_info(data: bytes) -> JpegInfo:
     sample_precision: int | None = None
     components: tuple[JpegComponent, ...] = ()
     scan_components: tuple[JpegScanComponent, ...] = ()
+    spectral_start: int | None = None
+    spectral_end: int | None = None
+    successive_approximation: int | None = None
     quantization_tables: set[int] = set()
     huffman_tables: set[tuple[int, int]] = set()
     scan_data_bytes = 0
@@ -331,6 +337,10 @@ def jpeg_info(data: bytes) -> JpegInfo:
                     )
                 )
             scan_components = tuple(parsed_scan_components)
+            spectral_offset = offset + 3 + scan_component_count * 2
+            spectral_start = data[spectral_offset]
+            spectral_end = data[spectral_offset + 1]
+            successive_approximation = data[spectral_offset + 2]
             offset += segment_length
             while offset + 1 < len(data):
                 if data[offset] != 0xFF:
@@ -376,6 +386,11 @@ def jpeg_info(data: bytes) -> JpegInfo:
         raise ValueError("JPEG output does not contain a DHT segment")
     if not saw_sos:
         raise ValueError("JPEG output does not contain an SOS segment")
+    if (spectral_start, spectral_end, successive_approximation) != (0, 63, 0):
+        raise ValueError(
+            "JPEG SOS spectral selection/successive approximation is "
+            f"{spectral_start}/{spectral_end}/{successive_approximation}, expected 0/63/0"
+        )
     if scan_data_bytes == 0:
         raise ValueError("JPEG output does not contain entropy-coded scan data")
     component_ids = {component.component_id for component in components}
@@ -419,6 +434,9 @@ def jpeg_info(data: bytes) -> JpegInfo:
         sample_precision=sample_precision,
         components=components,
         scan_components=scan_components,
+        spectral_start=spectral_start,
+        spectral_end=spectral_end,
+        successive_approximation=successive_approximation,
         quantization_tables=tuple(sorted(quantization_tables)),
         huffman_tables=tuple(
             JpegHuffmanTable(table_class=table_class, table_id=table_id)
@@ -595,6 +613,9 @@ def jpeg_info_record(
             }
             for component in info.scan_components
         ],
+        "spectral_start": info.spectral_start,
+        "spectral_end": info.spectral_end,
+        "successive_approximation": info.successive_approximation,
         "quantization_tables": list(info.quantization_tables),
         "huffman_tables": [
             {

@@ -190,9 +190,10 @@ Expected evidence:
   register value.
 - The helper records SOF0 component sampling factors and the inferred chroma
   mode, and requires SOF0/SOS component IDs in `[1, 2, 3]` order with the SOS
-  component list covering the same three SOF0 components exactly once. Pass
-  `--check-chroma-mode` to standalone `validate-jpeg`; `run-stream-devices`
-  checks this automatically against the configured chroma mode.
+  component list covering the same three SOF0 components exactly once and SOS
+  spectral fields `Ss=0`, `Se=63`, `Ah/Al=0`. Pass `--check-chroma-mode` to
+  standalone `validate-jpeg`; `run-stream-devices` checks this automatically
+  against the configured chroma mode.
 - The helper records APP0 marker count and JFIF APP0 signature count, and can
   enforce the JFIF signature with `--expect-jfif present` or `absent`;
   `run-stream-devices` checks this automatically against the configured JFIF
