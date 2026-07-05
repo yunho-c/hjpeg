@@ -2527,6 +2527,8 @@ def vivado_required_artifact_suffixes_present(record: object) -> bool:
         and required_suffixes_present.get(".bit") is True
         and required_suffixes_present.get(".xsa") is True
         and required_suffixes_present.get(".dcp") is True
+        and artifact_suffixes.get("missing_required_suffixes", []) == []
+        and artifact_suffixes.get("failing_required_suffixes", []) == []
     )
 
 
@@ -2543,6 +2545,8 @@ def vivado_required_artifact_filenames_present(record: object) -> bool:
         and required_filenames_present.get("hjpeg_kv260.bit") is True
         and required_filenames_present.get("hjpeg_kv260.xsa") is True
         and required_filenames_present.get("post_impl.dcp") is True
+        and artifact_filenames.get("missing_required_filenames", []) == []
+        and artifact_filenames.get("failing_required_filenames", []) == []
     )
 
 
@@ -2557,6 +2561,8 @@ def vivado_required_address_map_filenames_present(record: object) -> bool:
         address_map_filenames.get("all_required_filenames_present") is True
         and isinstance(required_filenames_present, dict)
         and required_filenames_present.get("hjpeg_kv260_address_map.rpt") is True
+        and address_map_filenames.get("missing_required_filenames", []) == []
+        and address_map_filenames.get("failing_required_filenames", []) == []
     )
 
 
@@ -2574,6 +2580,8 @@ def vivado_required_report_filenames_present(record: object) -> bool:
         if (
             category_record.get("all_required_filenames_present") is not True
             or not isinstance(required_filenames_present, dict)
+            or category_record.get("missing_required_filenames", []) != []
+            or category_record.get("failing_required_filenames", []) != []
         ):
             return False
         for filename in required_filenames:
