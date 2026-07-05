@@ -1564,6 +1564,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         "status_checks": "status_checks" in record,
         "validation_expectations": "validation_expectations" in record,
         "input_ppm": False,
+        "transfer_timing": False,
         "decoder": bool(record.get("decoder_passed", False)),
     }
     checks = {"jpeg_validation_passed": True}
@@ -1602,6 +1603,16 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
 
     if "decoder_passed" in record:
         checks["decoder_passed"] = bool(record.get("decoder_passed", False))
+
+    transfer_elapsed = record.get("transfer_elapsed_seconds")
+    if isinstance(transfer_elapsed, (int, float)):
+        transfer_elapsed_positive = math.isfinite(transfer_elapsed) and transfer_elapsed > 0
+        host_transfer_rates_present = "host_transfer_rates" in record
+        evidence_present["transfer_timing"] = (
+            transfer_elapsed_positive and host_transfer_rates_present
+        )
+        checks["transfer_elapsed_seconds_positive"] = transfer_elapsed_positive
+        checks["host_transfer_rates_present"] = host_transfer_rates_present
 
     all_recorded_checks_passed = all(checks.values())
     return {

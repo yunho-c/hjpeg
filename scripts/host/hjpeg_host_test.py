@@ -1448,6 +1448,18 @@ class HjpegHostTest(unittest.TestCase):
 
             self.assertEqual(record["transfer_elapsed_seconds"], 0.0)
             self.assertNotIn("host_transfer_rates", record)
+            self.assertFalse(
+                record["hardware_run_summary"]["evidence_present"]["transfer_timing"]
+            )
+            self.assertFalse(
+                record["hardware_run_summary"]["checks"][
+                    "transfer_elapsed_seconds_positive"
+                ]
+            )
+            self.assertFalse(
+                record["hardware_run_summary"]["checks"]["host_transfer_rates_present"]
+            )
+            self.assertFalse(record["hardware_run_summary"]["all_recorded_checks_passed"])
 
     def test_run_evidence_record_reports_input_length_match(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1614,6 +1626,17 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(
                 record["host_transfer_rates"]["output_jpeg_bytes_per_second"],
                 len(minimal_jpeg(width=2, height=1)) / 2.0,
+            )
+            self.assertTrue(
+                record["hardware_run_summary"]["evidence_present"]["transfer_timing"]
+            )
+            self.assertTrue(
+                record["hardware_run_summary"]["checks"][
+                    "transfer_elapsed_seconds_positive"
+                ]
+            )
+            self.assertTrue(
+                record["hardware_run_summary"]["checks"]["host_transfer_rates_present"]
             )
 
     def test_run_evidence_record_rejects_invalid_elapsed_time(self) -> None:
@@ -3503,6 +3526,7 @@ class HjpegHostTest(unittest.TestCase):
                         "status_checks": True,
                         "validation_expectations": True,
                         "input_ppm": True,
+                        "transfer_timing": True,
                         "decoder": True,
                     },
                     "checks": {
@@ -3516,6 +3540,8 @@ class HjpegHostTest(unittest.TestCase):
                         "status_checks_no_protocol_error": True,
                         "status_checks_no_busy": True,
                         "decoder_passed": True,
+                        "transfer_elapsed_seconds_positive": True,
+                        "host_transfer_rates_present": True,
                     },
                     "all_recorded_checks_passed": True,
                     "complete_hardware_run_evidence": True,

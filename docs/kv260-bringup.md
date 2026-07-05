@@ -209,7 +209,8 @@ Expected evidence:
   `complete_hardware_run_evidence`. A valid final board transcript should have
   `all_recorded_checks_passed` and `complete_hardware_run_evidence` true,
   which requires `--input-ppm` source evidence with non-flat/color stats and a
-  passing `--decoder-command` check.
+  passing `--decoder-command` check, plus positive transfer timing with derived
+  byte rates.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after
@@ -320,8 +321,9 @@ Expected evidence:
   and AXI-Lite base addresses must be nonnegative.
 - JSON evidence records host-observed transfer elapsed seconds and derived byte
   rates only when elapsed time is positive. Elapsed-time evidence must be finite
-  and nonnegative. Use hardware counters or driver timestamps before making
-  final throughput claims.
+  and nonnegative. `complete_hardware_run_evidence` requires positive elapsed
+  time and derived rates. Use hardware counters or driver timestamps before
+  making final throughput claims.
 - For `run-stream-devices --json`, the helper records the AXI-Lite status
   checkpoints enforced after configuration, before transfer, and after
   transfer, including the AXI-Lite target sampled for each checkpoint, the
