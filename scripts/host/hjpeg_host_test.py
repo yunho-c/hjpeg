@@ -1537,6 +1537,32 @@ class HjpegHostTest(unittest.TestCase):
         )
         self.assertTrue(complete_summary["checks"]["input_rgb_length_matches_expected"])
 
+    def test_hardware_summary_requires_valid_capture_config(self) -> None:
+        invalid = {
+            "capture_config": {
+                "max_output_bytes": 0,
+                "timeout_seconds": 30.0,
+            }
+        }
+        valid = {
+            "capture_config": {
+                "max_output_bytes": 1024,
+                "timeout_seconds": None,
+            }
+        }
+
+        invalid_summary = hjpeg_host.hardware_run_summary_record(invalid)
+        valid_summary = hjpeg_host.hardware_run_summary_record(valid)
+
+        self.assertFalse(invalid_summary["evidence_present"]["capture_config"])
+        self.assertFalse(
+            invalid_summary["checks"]["capture_max_output_bytes_positive"]
+        )
+        self.assertTrue(invalid_summary["checks"]["capture_timeout_valid"])
+        self.assertTrue(valid_summary["evidence_present"]["capture_config"])
+        self.assertTrue(valid_summary["checks"]["capture_max_output_bytes_positive"])
+        self.assertTrue(valid_summary["checks"]["capture_timeout_valid"])
+
     def test_run_evidence_record_summarizes_status_checks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -3670,6 +3696,8 @@ class HjpegHostTest(unittest.TestCase):
                         "input_rgb_sha256_present": True,
                         "input_rgb_expected_byte_length_positive": True,
                         "input_rgb_length_matches_expected": True,
+                        "capture_max_output_bytes_positive": True,
+                        "capture_timeout_valid": True,
                         "input_ppm_matches_input": True,
                         "input_ppm_non_flat": True,
                         "input_ppm_has_color_pixels": True,

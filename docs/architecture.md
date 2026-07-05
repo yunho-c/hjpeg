@@ -208,7 +208,9 @@ are cross-checked across the output JPEG, encoder configuration, validation
 expectations, source PPM, and expected RGB stream byte length, and the parsed
 marker sequence must begin with SOI and end with EOI. Input RGB evidence must
 include positive byte length, a SHA-256 hash, a positive expected byte length,
-and an actual-vs-expected length match.
+and an actual-vs-expected length match. Capture configuration evidence must
+include a positive maximum output byte count and either no timeout or a finite
+positive timeout.
 The `run-stream-devices` command supports Linux board images that expose DMA
 MM2S/S2MM endpoints as byte-stream device files by writing padded RGB bytes to
 the TX device and reading JPEG bytes from the RX device until EOI, while

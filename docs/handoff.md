@@ -656,7 +656,9 @@ Hardware completion evidence should include:
   and expected RGB stream byte length, and requires the parsed marker sequence
   to begin with SOI and end with EOI. Input RGB evidence must include positive
   byte length, a SHA-256 hash, a positive expected byte length, and an
-  actual-vs-expected length match.
+  actual-vs-expected length match. Capture configuration evidence must include a
+  positive maximum output byte count and either no timeout or a finite positive
+  timeout.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 

@@ -1561,7 +1561,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         "input_rgb": False,
         "axi_lite": "axi_lite" in record,
         "encoder_config": "encoder_config" in record,
-        "capture_config": "capture_config" in record,
+        "capture_config": False,
         "status_checks": "status_checks" in record,
         "validation_expectations": "validation_expectations" in record,
         "input_ppm": False,
@@ -1664,6 +1664,26 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             input_rgb_expected_byte_length_positive
         )
         checks["input_rgb_length_matches_expected"] = input_rgb_length_matches_expected
+
+    capture_config = record.get("capture_config")
+    if isinstance(capture_config, dict):
+        max_output_bytes = capture_config.get("max_output_bytes")
+        timeout_seconds = capture_config.get("timeout_seconds")
+        capture_max_output_bytes_positive = (
+            isinstance(max_output_bytes, int) and max_output_bytes > 0
+        )
+        capture_timeout_valid = timeout_seconds is None or (
+            isinstance(timeout_seconds, (int, float))
+            and math.isfinite(timeout_seconds)
+            and timeout_seconds > 0
+        )
+        evidence_present["capture_config"] = (
+            capture_max_output_bytes_positive and capture_timeout_valid
+        )
+        checks["capture_max_output_bytes_positive"] = (
+            capture_max_output_bytes_positive
+        )
+        checks["capture_timeout_valid"] = capture_timeout_valid
 
     input_ppm = record.get("input_ppm")
     if isinstance(input_ppm, dict) and "packed_rgb_matches_input" in input_ppm:
