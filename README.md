@@ -208,7 +208,8 @@ endpoints as byte-stream device files: it configures AXI-Lite registers through
 `/dev/mem`, writes the padded RGB stream to the TX device, captures bytes from
 the RX device until JPEG EOI, rejects trailing bytes already returned after that
 EOI, checks status for `busy` / `protocol_error`, and validates the resulting
-dimensions, quantization/Huffman table markers, and non-empty scan data. DMA
+dimensions, quality-matched DQT payloads, standard DHT payloads, and non-empty
+scan data. DMA
 drivers that use ioctls or buffer queues still need a small adapter around the
 same host-side packing and validation helpers.
 
@@ -227,6 +228,8 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
   --restart-interval 0 \
   --check-chroma-mode \
   --expect-jfif present \
+  --quality 50 \
+  --require-standard-huffman \
   --decoder-command 'magick identify {jpeg}' \
   --decoder-timeout-seconds 30
 ```
@@ -267,12 +270,14 @@ time out. Pass
 MCU count, or `0` to require no DRI/RST markers. Pass
 `--check-chroma-mode` with `--chroma-subsample` when validating a standalone
 4:2:0 file. Pass `--expect-jfif present` or `absent` to check optional JFIF APP0
-signature emission. For `run-stream-devices`, the configured restart interval,
-chroma mode, and JFIF setting are checked against the captured JPEG
-automatically; the run evidence also includes the input RGB stream byte length,
-expected byte length, and SHA-256, host capture limits, plus the AXI-Lite target
-and status checkpoints enforced during the run. Maximum output bytes must be
-positive, and RX timeout values must be finite and positive when present. It
+signature emission. Pass `--quality N` and `--require-standard-huffman` to
+check standalone JPEG table payloads. For `run-stream-devices`, the configured
+restart interval, chroma mode, JFIF setting, quality-scaled DQT payloads, and
+standard DHT payloads are checked against the captured JPEG automatically; the
+run evidence also includes the input RGB stream byte length, expected byte
+length, and SHA-256, host capture limits, plus the AXI-Lite target and status
+checkpoints enforced during the run. Maximum output bytes must be positive, and
+RX timeout values must be finite and positive when present. It
 also records host-observed transfer elapsed seconds and derived byte rates when
 elapsed time is positive. Elapsed-time evidence must be finite and nonnegative.
 Use hardware counters or driver timestamps for final throughput claims.

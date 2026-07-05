@@ -12,111 +12,114 @@ from pathlib import Path
 import hjpeg_host
 
 
-def minimal_jpeg(width: int, height: int, chroma_subsample: bool = False) -> bytes:
+def jpeg_segment(marker: int, payload: bytes) -> bytes:
+    length = len(payload) + 2
+    return bytes([0xFF, marker, (length >> 8) & 0xFF, length & 0xFF]) + payload
+
+
+def standard_dqt_segments(quality: int) -> bytes:
+    return b"".join(
+        (
+            jpeg_segment(
+                0xDB,
+                bytes([0x00])
+                + hjpeg_host.scaled_quantization_payload(
+                    hjpeg_host.STANDARD_LUMINANCE_QUANT,
+                    quality,
+                ),
+            ),
+            jpeg_segment(
+                0xDB,
+                bytes([0x01])
+                + hjpeg_host.scaled_quantization_payload(
+                    hjpeg_host.STANDARD_CHROMINANCE_QUANT,
+                    quality,
+                ),
+            ),
+        )
+    )
+
+
+def standard_dht_segments() -> bytes:
+    table_infos = {
+        (0, 0): 0x00,
+        (0, 1): 0x01,
+        (1, 0): 0x10,
+        (1, 1): 0x11,
+    }
+    return b"".join(
+        jpeg_segment(0xC4, bytes([table_infos[table]]) + payload)
+        for table, payload in hjpeg_host.standard_huffman_payloads().items()
+    )
+
+
+def minimal_jpeg(width: int, height: int, chroma_subsample: bool = False, quality: int = 50) -> bytes:
     y_sampling = 0x22 if chroma_subsample else 0x11
-    return bytes(
-        [
-            0xFF,
-            0xD8,
-            0xFF,
+    return (
+        bytes([0xFF, 0xD8])
+        + jpeg_segment(
             0xE0,
-            0x00,
-            0x10,
-            0x4A,
-            0x46,
-            0x49,
-            0x46,
-            0x00,
-            0x01,
-            0x01,
-            0x00,
-            0x00,
-            0x01,
-            0x00,
-            0x01,
-            0x00,
-            0x00,
-            0xFF,
-            0xDB,
-            0x00,
-            0x43,
-            0x00,
-            *([0x10] * 64),
-            0xFF,
-            0xDB,
-            0x00,
-            0x43,
-            0x01,
-            *([0x11] * 64),
-            0xFF,
+            bytes(
+                [
+                    0x4A,
+                    0x46,
+                    0x49,
+                    0x46,
+                    0x00,
+                    0x01,
+                    0x01,
+                    0x00,
+                    0x00,
+                    0x01,
+                    0x00,
+                    0x01,
+                    0x00,
+                    0x00,
+                ]
+            ),
+        )
+        + standard_dqt_segments(quality)
+        + jpeg_segment(
             0xC0,
-            0x00,
-            0x11,
-            0x08,
-            (height >> 8) & 0xFF,
-            height & 0xFF,
-            (width >> 8) & 0xFF,
-            width & 0xFF,
-            0x03,
-            0x01,
-            y_sampling,
-            0x00,
-            0x02,
-            0x11,
-            0x01,
-            0x03,
-            0x11,
-            0x01,
-            0xFF,
-            0xC4,
-            0x00,
-            0x14,
-            0x00,
-            *([0x00] * 15),
-            0x01,
-            0x00,
-            0xFF,
-            0xC4,
-            0x00,
-            0x14,
-            0x01,
-            *([0x00] * 15),
-            0x01,
-            0x00,
-            0xFF,
-            0xC4,
-            0x00,
-            0x14,
-            0x10,
-            *([0x00] * 15),
-            0x01,
-            0x00,
-            0xFF,
-            0xC4,
-            0x00,
-            0x14,
-            0x11,
-            *([0x00] * 15),
-            0x01,
-            0x00,
-            0xFF,
+            bytes(
+                [
+                    0x08,
+                    (height >> 8) & 0xFF,
+                    height & 0xFF,
+                    (width >> 8) & 0xFF,
+                    width & 0xFF,
+                    0x03,
+                    0x01,
+                    y_sampling,
+                    0x00,
+                    0x02,
+                    0x11,
+                    0x01,
+                    0x03,
+                    0x11,
+                    0x01,
+                ]
+            ),
+        )
+        + standard_dht_segments()
+        + jpeg_segment(
             0xDA,
-            0x00,
-            0x0C,
-            0x03,
-            0x01,
-            0x00,
-            0x02,
-            0x11,
-            0x03,
-            0x11,
-            0x00,
-            0x3F,
-            0x00,
-            0x7F,
-            0xFF,
-            0xD9,
-        ]
+            bytes(
+                [
+                    0x03,
+                    0x01,
+                    0x00,
+                    0x02,
+                    0x11,
+                    0x03,
+                    0x11,
+                    0x00,
+                    0x3F,
+                    0x00,
+                ]
+            ),
+        )
+        + bytes([0x7F, 0xFF, 0xD9])
     )
 
 
@@ -442,12 +445,30 @@ def with_duplicate_dht(jpeg: bytes) -> bytes:
     return jpeg[:dht] + segment + jpeg[dht:]
 
 
-def minimal_dht_payload_sha256() -> str:
-    return hashlib.sha256(bytes([*([0x00] * 15), 0x01, 0x00])).hexdigest()
+def with_mutated_first_dqt_payload(jpeg: bytes) -> bytes:
+    dqt = jpeg.find(b"\xff\xdb")
+    if dqt < 0:
+        raise AssertionError("DQT marker not found")
+    mutated = bytearray(jpeg)
+    mutated[dqt + 5] ^= 0x01
+    return bytes(mutated)
 
 
-def minimal_dqt_payload_sha256(value: int) -> str:
-    return hashlib.sha256(bytes([value] * 64)).hexdigest()
+def with_mutated_first_dht_payload(jpeg: bytes) -> bytes:
+    dht = jpeg.find(b"\xff\xc4")
+    if dht < 0:
+        raise AssertionError("DHT marker not found")
+    mutated = bytearray(jpeg)
+    mutated[dht + 21] ^= 0x01
+    return bytes(mutated)
+
+
+def standard_dht_payload_sha256(table_class: int, table_id: int) -> str:
+    return hjpeg_host.expected_huffman_payload_hashes()[(table_class, table_id)][1]
+
+
+def standard_dqt_payload_sha256(table_id: int, quality: int = 50) -> str:
+    return hjpeg_host.expected_quantization_payload_hashes(quality)[table_id]
 
 
 def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
@@ -476,20 +497,20 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
                 0,
                 0,
                 64,
-                minimal_dqt_payload_sha256(0x10),
+                standard_dqt_payload_sha256(0),
             ),
             hjpeg_host.JpegQuantizationTable(
                 1,
                 0,
                 64,
-                minimal_dqt_payload_sha256(0x11),
+                standard_dqt_payload_sha256(1),
             ),
         ),
         huffman_tables=(
-            hjpeg_host.JpegHuffmanTable(0, 0, 1, minimal_dht_payload_sha256()),
-            hjpeg_host.JpegHuffmanTable(0, 1, 1, minimal_dht_payload_sha256()),
-            hjpeg_host.JpegHuffmanTable(1, 0, 1, minimal_dht_payload_sha256()),
-            hjpeg_host.JpegHuffmanTable(1, 1, 1, minimal_dht_payload_sha256()),
+            hjpeg_host.JpegHuffmanTable(0, 0, 12, standard_dht_payload_sha256(0, 0)),
+            hjpeg_host.JpegHuffmanTable(0, 1, 12, standard_dht_payload_sha256(0, 1)),
+            hjpeg_host.JpegHuffmanTable(1, 0, 162, standard_dht_payload_sha256(1, 0)),
+            hjpeg_host.JpegHuffmanTable(1, 1, 162, standard_dht_payload_sha256(1, 1)),
         ),
         scan_data_bytes=1,
         stuffed_ff_bytes=0,
@@ -765,23 +786,23 @@ class HjpegHostTest(unittest.TestCase):
                         0,
                         0,
                         64,
-                        minimal_dqt_payload_sha256(0x10),
+                        standard_dqt_payload_sha256(0),
                     ),
                     hjpeg_host.JpegQuantizationTable(
                         1,
                         0,
                         64,
-                        minimal_dqt_payload_sha256(0x11),
+                        standard_dqt_payload_sha256(1),
                     ),
                 ),
             )
             self.assertEqual(
                 parsed.huffman_tables,
                 (
-                    hjpeg_host.JpegHuffmanTable(0, 0, 1, minimal_dht_payload_sha256()),
-                    hjpeg_host.JpegHuffmanTable(0, 1, 1, minimal_dht_payload_sha256()),
-                    hjpeg_host.JpegHuffmanTable(1, 0, 1, minimal_dht_payload_sha256()),
-                    hjpeg_host.JpegHuffmanTable(1, 1, 1, minimal_dht_payload_sha256()),
+                    hjpeg_host.JpegHuffmanTable(0, 0, 12, standard_dht_payload_sha256(0, 0)),
+                    hjpeg_host.JpegHuffmanTable(0, 1, 12, standard_dht_payload_sha256(0, 1)),
+                    hjpeg_host.JpegHuffmanTable(1, 0, 162, standard_dht_payload_sha256(1, 0)),
+                    hjpeg_host.JpegHuffmanTable(1, 1, 162, standard_dht_payload_sha256(1, 1)),
                 ),
             )
             self.assertEqual(parsed.scan_data_bytes, 1)
@@ -924,13 +945,13 @@ class HjpegHostTest(unittest.TestCase):
                         "table_id": 0,
                         "precision": 0,
                         "byte_length": 64,
-                        "payload_sha256": minimal_dqt_payload_sha256(0x10),
+                        "payload_sha256": standard_dqt_payload_sha256(0),
                     },
                     {
                         "table_id": 1,
                         "precision": 0,
                         "byte_length": 64,
-                        "payload_sha256": minimal_dqt_payload_sha256(0x11),
+                        "payload_sha256": standard_dqt_payload_sha256(1),
                     },
                 ],
             )
@@ -940,26 +961,26 @@ class HjpegHostTest(unittest.TestCase):
                     {
                         "table_class": 0,
                         "table_id": 0,
-                        "symbol_count": 1,
-                        "payload_sha256": minimal_dht_payload_sha256(),
+                        "symbol_count": 12,
+                        "payload_sha256": standard_dht_payload_sha256(0, 0),
                     },
                     {
                         "table_class": 0,
                         "table_id": 1,
-                        "symbol_count": 1,
-                        "payload_sha256": minimal_dht_payload_sha256(),
+                        "symbol_count": 12,
+                        "payload_sha256": standard_dht_payload_sha256(0, 1),
                     },
                     {
                         "table_class": 1,
                         "table_id": 0,
-                        "symbol_count": 1,
-                        "payload_sha256": minimal_dht_payload_sha256(),
+                        "symbol_count": 162,
+                        "payload_sha256": standard_dht_payload_sha256(1, 0),
                     },
                     {
                         "table_class": 1,
                         "table_id": 1,
-                        "symbol_count": 1,
-                        "payload_sha256": minimal_dht_payload_sha256(),
+                        "symbol_count": 162,
+                        "payload_sha256": standard_dht_payload_sha256(1, 1),
                     },
                 ],
             )
@@ -1149,6 +1170,22 @@ class HjpegHostTest(unittest.TestCase):
                             "--height",
                             "1",
                             f"--restart-interval={restart_interval}",
+                        ]
+                    )
+
+    def test_validate_jpeg_cli_rejects_invalid_quality(self) -> None:
+        for quality in ("0", "101"):
+            with self.subTest(quality=quality):
+                with self.assertRaises(SystemExit):
+                    hjpeg_host.main(
+                        [
+                            "validate-jpeg",
+                            "missing.jpg",
+                            "--width",
+                            "2",
+                            "--height",
+                            "1",
+                            f"--quality={quality}",
                         ]
                     )
 
@@ -1686,6 +1723,46 @@ class HjpegHostTest(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "DHT segment count"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_can_require_standard_table_payloads(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            standard = root / "standard.jpg"
+            bad_dqt = root / "bad-dqt-payload.jpg"
+            bad_dht = root / "bad-dht-payload.jpg"
+            standard.write_bytes(minimal_jpeg(width=17, height=13, quality=80))
+            bad_dqt.write_bytes(
+                with_mutated_first_dqt_payload(
+                    minimal_jpeg(width=17, height=13, quality=80)
+                )
+            )
+            bad_dht.write_bytes(
+                with_mutated_first_dht_payload(
+                    minimal_jpeg(width=17, height=13, quality=80)
+                )
+            )
+
+            hjpeg_host.validate_jpeg(
+                standard,
+                expected_width=17,
+                expected_height=13,
+                expected_quality=80,
+                require_standard_huffman=True,
+            )
+            with self.assertRaisesRegex(ValueError, "DQT table 0 payload"):
+                hjpeg_host.validate_jpeg(
+                    bad_dqt,
+                    expected_width=17,
+                    expected_height=13,
+                    expected_quality=80,
+                )
+            with self.assertRaisesRegex(ValueError, "DC DHT table 0 payload"):
+                hjpeg_host.validate_jpeg(
+                    bad_dht,
+                    expected_width=17,
+                    expected_height=13,
+                    require_standard_huffman=True,
+                )
 
     def test_validate_jpeg_rejects_out_of_order_header_markers(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2288,7 +2365,7 @@ class HjpegHostTest(unittest.TestCase):
             decoder_marker = root / "decoder.txt"
             input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
             captured_jpeg = with_dri_segment(
-                minimal_jpeg(width=2, height=1, chroma_subsample=True),
+                minimal_jpeg(width=2, height=1, chroma_subsample=True, quality=80),
                 2,
             )
             rx_device.write_bytes(captured_jpeg)

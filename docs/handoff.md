@@ -172,6 +172,7 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `3292d43 fix: reject empty vivado evidence files`
 - `f56dedd fix: reject empty vivado packaging filelist`
 - `e3b3b7f test: verify vivado block design handoff`
 - `9168c8d docs: require vivado checkpoint evidence`
@@ -340,10 +341,11 @@ Huffman table set, records parsed marker sequence, stuffed entropy `0xff` byte
 count, RST marker sequence, and JFIF APP0 signature count, rejects RST markers
 without DRI, out-of-sequence RST markers, unexpected non-RST/non-EOI markers
 after SOS, and trailing bytes after EOI, and can enforce expected restart
-interval, exact RST marker count for the parsed MCU count, chroma mode, and
-JFIF APP0 signature presence.
+interval, exact RST marker count for the parsed MCU count, chroma mode, JFIF
+APP0 signature presence, quality-matched standard DQT payloads, and standard
+DHT payloads.
 `run-stream-devices` enforces those expectations automatically from the
-configured AXI-Lite control fields.
+configured AXI-Lite control fields and quality setting.
 
 The host helper defaults input-prep and hardware-run dimensions to the current
 KV260 top's `1920x1080` limit. Use `--max-width` and `--max-height` only for a

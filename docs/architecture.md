@@ -158,9 +158,10 @@ can also run an external JPEG decoder command with a configurable timeout and
 bounded stdout/stderr capture so decoder-open evidence is captured in the same
 transcript without risking a hung or oversized validation run. Standalone
 validation can require an expected restart interval, exact RST marker count for
-the parsed MCU count, and chroma/JFIF mode, and `run-stream-devices` checks the
-configured restart interval, chroma mode, and JFIF setting against the captured
-JPEG automatically.
+the parsed MCU count, chroma/JFIF mode, quality-matched standard DQT payloads,
+and standard DHT payloads. `run-stream-devices` checks the configured restart
+interval, chroma mode, JFIF setting, quality-scaled DQT payloads, and standard
+DHT payloads against the captured JPEG automatically.
 The `run-stream-devices` command supports Linux board images that expose DMA
 MM2S/S2MM endpoints as byte-stream device files by writing padded RGB bytes to
 the TX device and reading JPEG bytes from the RX device until EOI, while

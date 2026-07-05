@@ -62,6 +62,91 @@ JPEG_HEADER_MARKER_ORDER = {
     0xDA: (5, "SOS"),
 }
 
+ZIG_ZAG_ORDER = (
+    0, 1, 8, 16, 9, 2, 3, 10,
+    17, 24, 32, 25, 18, 11, 4, 5,
+    12, 19, 26, 33, 40, 48, 41, 34,
+    27, 20, 13, 6, 7, 14, 21, 28,
+    35, 42, 49, 56, 57, 50, 43, 36,
+    29, 22, 15, 23, 30, 37, 44, 51,
+    58, 59, 52, 45, 38, 31, 39, 46,
+    53, 60, 61, 54, 47, 55, 62, 63,
+)
+
+STANDARD_LUMINANCE_QUANT = (
+    16, 11, 10, 16, 24, 40, 51, 61,
+    12, 12, 14, 19, 26, 58, 60, 55,
+    14, 13, 16, 24, 40, 57, 69, 56,
+    14, 17, 22, 29, 51, 87, 80, 62,
+    18, 22, 37, 56, 68, 109, 103, 77,
+    24, 35, 55, 64, 81, 104, 113, 92,
+    49, 64, 78, 87, 103, 121, 120, 101,
+    72, 92, 95, 98, 112, 100, 103, 99,
+)
+
+STANDARD_CHROMINANCE_QUANT = (
+    17, 18, 24, 47, 99, 99, 99, 99,
+    18, 21, 26, 66, 99, 99, 99, 99,
+    24, 26, 56, 99, 99, 99, 99, 99,
+    47, 66, 99, 99, 99, 99, 99, 99,
+    99, 99, 99, 99, 99, 99, 99, 99,
+    99, 99, 99, 99, 99, 99, 99, 99,
+    99, 99, 99, 99, 99, 99, 99, 99,
+    99, 99, 99, 99, 99, 99, 99, 99,
+)
+
+STANDARD_DC_LUMINANCE_BITS = (0, 1, 5, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0)
+STANDARD_DC_CHROMINANCE_BITS = (0, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0)
+STANDARD_AC_LUMINANCE_BITS = (0, 2, 1, 3, 3, 2, 4, 3, 5, 5, 4, 4, 0, 0, 1, 125)
+STANDARD_AC_CHROMINANCE_BITS = (0, 2, 1, 2, 4, 4, 3, 4, 7, 5, 4, 4, 0, 1, 2, 119)
+STANDARD_DC_SYMBOLS = tuple(range(12))
+STANDARD_AC_LUMINANCE_SYMBOLS = (
+    0x01, 0x02, 0x03, 0x00, 0x04, 0x11, 0x05, 0x12,
+    0x21, 0x31, 0x41, 0x06, 0x13, 0x51, 0x61, 0x07,
+    0x22, 0x71, 0x14, 0x32, 0x81, 0x91, 0xA1, 0x08,
+    0x23, 0x42, 0xB1, 0xC1, 0x15, 0x52, 0xD1, 0xF0,
+    0x24, 0x33, 0x62, 0x72, 0x82, 0x09, 0x0A, 0x16,
+    0x17, 0x18, 0x19, 0x1A, 0x25, 0x26, 0x27, 0x28,
+    0x29, 0x2A, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39,
+    0x3A, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49,
+    0x4A, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59,
+    0x5A, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69,
+    0x6A, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79,
+    0x7A, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89,
+    0x8A, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98,
+    0x99, 0x9A, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7,
+    0xA8, 0xA9, 0xAA, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6,
+    0xB7, 0xB8, 0xB9, 0xBA, 0xC2, 0xC3, 0xC4, 0xC5,
+    0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xD2, 0xD3, 0xD4,
+    0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xE1, 0xE2,
+    0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA,
+    0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8,
+    0xF9, 0xFA,
+)
+STANDARD_AC_CHROMINANCE_SYMBOLS = (
+    0x00, 0x01, 0x02, 0x03, 0x11, 0x04, 0x05, 0x21,
+    0x31, 0x06, 0x12, 0x41, 0x51, 0x07, 0x61, 0x71,
+    0x13, 0x22, 0x32, 0x81, 0x08, 0x14, 0x42, 0x91,
+    0xA1, 0xB1, 0xC1, 0x09, 0x23, 0x33, 0x52, 0xF0,
+    0x15, 0x62, 0x72, 0xD1, 0x0A, 0x16, 0x24, 0x34,
+    0xE1, 0x25, 0xF1, 0x17, 0x18, 0x19, 0x1A, 0x26,
+    0x27, 0x28, 0x29, 0x2A, 0x35, 0x36, 0x37, 0x38,
+    0x39, 0x3A, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48,
+    0x49, 0x4A, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58,
+    0x59, 0x5A, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68,
+    0x69, 0x6A, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78,
+    0x79, 0x7A, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
+    0x88, 0x89, 0x8A, 0x92, 0x93, 0x94, 0x95, 0x96,
+    0x97, 0x98, 0x99, 0x9A, 0xA2, 0xA3, 0xA4, 0xA5,
+    0xA6, 0xA7, 0xA8, 0xA9, 0xAA, 0xB2, 0xB3, 0xB4,
+    0xB5, 0xB6, 0xB7, 0xB8, 0xB9, 0xBA, 0xC2, 0xC3,
+    0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xD2,
+    0xD3, 0xD4, 0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA,
+    0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9,
+    0xEA, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8,
+    0xF9, 0xFA,
+)
+
 
 def jpeg_marker_name(marker: int) -> str:
     if 0xD0 <= marker <= 0xD7:
@@ -709,6 +794,74 @@ def require_jfif(info: JpegInfo, expected_emit_jfif: bool) -> None:
         raise ValueError("JPEG contains APP0/JFIF, but JFIF emission was disabled")
 
 
+def scaled_quantization_payload(base_table: tuple[int, ...], quality: int) -> bytes:
+    if not 1 <= quality <= 100:
+        raise ValueError("quality must be in 1..100")
+    scale = 5000 // quality if quality < 50 else 200 - quality * 2
+    values = []
+    for index in ZIG_ZAG_ORDER:
+        scaled = (base_table[index] * scale + 50) // 100
+        values.append(max(1, min(255, scaled)))
+    return bytes(values)
+
+
+def expected_quantization_payload_hashes(quality: int) -> dict[int, str]:
+    return {
+        0: hashlib.sha256(scaled_quantization_payload(STANDARD_LUMINANCE_QUANT, quality)).hexdigest(),
+        1: hashlib.sha256(scaled_quantization_payload(STANDARD_CHROMINANCE_QUANT, quality)).hexdigest(),
+    }
+
+
+def standard_huffman_payloads() -> dict[tuple[int, int], bytes]:
+    return {
+        (0, 0): bytes(STANDARD_DC_LUMINANCE_BITS + STANDARD_DC_SYMBOLS),
+        (0, 1): bytes(STANDARD_DC_CHROMINANCE_BITS + STANDARD_DC_SYMBOLS),
+        (1, 0): bytes(STANDARD_AC_LUMINANCE_BITS + STANDARD_AC_LUMINANCE_SYMBOLS),
+        (1, 1): bytes(STANDARD_AC_CHROMINANCE_BITS + STANDARD_AC_CHROMINANCE_SYMBOLS),
+    }
+
+
+def expected_huffman_payload_hashes() -> dict[tuple[int, int], tuple[int, str]]:
+    return {
+        table: (len(payload) - 16, hashlib.sha256(payload).hexdigest())
+        for table, payload in standard_huffman_payloads().items()
+    }
+
+
+def require_standard_table_payloads(
+    info: JpegInfo,
+    expected_quality: int | None = None,
+    require_standard_huffman: bool = False,
+) -> None:
+    if expected_quality is not None:
+        expected_dqt_hashes = expected_quantization_payload_hashes(expected_quality)
+        actual_dqt_hashes = {
+            table.table_id: table.payload_sha256 for table in info.quantization_table_details
+        }
+        for table_id, expected_hash in expected_dqt_hashes.items():
+            actual_hash = actual_dqt_hashes.get(table_id)
+            if actual_hash != expected_hash:
+                raise ValueError(
+                    f"JPEG DQT table {table_id} payload does not match "
+                    f"standard quality {expected_quality}"
+                )
+
+    if require_standard_huffman:
+        expected_dht_hashes = expected_huffman_payload_hashes()
+        actual_dht = {
+            (table.table_class, table.table_id): (table.symbol_count, table.payload_sha256)
+            for table in info.huffman_tables
+        }
+        for table, expected in expected_dht_hashes.items():
+            if actual_dht.get(table) != expected:
+                table_class, table_id = table
+                class_name = "DC" if table_class == 0 else "AC"
+                raise ValueError(
+                    f"JPEG {class_name} DHT table {table_id} payload does not match "
+                    "the standard baseline table"
+                )
+
+
 def jpeg_mcu_count(info: JpegInfo) -> int:
     return info.mcu_count
 
@@ -752,6 +905,8 @@ def validate_jpeg(
     expected_restart_interval: int | None = None,
     expected_chroma_subsample: bool | None = None,
     expected_emit_jfif: bool | None = None,
+    expected_quality: int | None = None,
+    require_standard_huffman: bool = False,
 ) -> JpegInfo:
     data = path.read_bytes()
     if len(data) < 4:
@@ -772,6 +927,11 @@ def validate_jpeg(
         require_chroma_mode(info, expected_chroma_subsample)
     if expected_emit_jfif is not None:
         require_jfif(info, expected_emit_jfif)
+    require_standard_table_payloads(
+        info,
+        expected_quality=expected_quality,
+        require_standard_huffman=require_standard_huffman,
+    )
     return info
 
 
@@ -1089,6 +1249,7 @@ def run_stream_devices(
     expected_restart_interval: int | None = None,
     expected_chroma_subsample: bool | None = None,
     expected_emit_jfif: bool | None = None,
+    quality: int = 50,
     max_width: int = DEFAULT_MAX_FRAME_WIDTH,
     max_height: int = DEFAULT_MAX_FRAME_HEIGHT,
     timeout_seconds: float | None = 30.0,
@@ -1156,6 +1317,8 @@ def run_stream_devices(
         expected_restart_interval=expected_restart_interval,
         expected_chroma_subsample=expected_chroma_subsample,
         expected_emit_jfif=expected_emit_jfif,
+        expected_quality=quality,
+        require_standard_huffman=True,
     )
     if decoder_command is not None:
         decoder_result = run_decoder_command(
@@ -1428,6 +1591,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional external decoder command; {jpeg} is replaced with the JPEG path, otherwise the path is appended",
     )
     validate.add_argument(
+        "--quality",
+        type=_quality_value,
+        help="optional expected quality for standard DQT payload validation",
+    )
+    validate.add_argument(
+        "--require-standard-huffman",
+        action="store_true",
+        help="require the four standard baseline JPEG DHT payloads",
+    )
+    validate.add_argument(
         "--decoder-timeout-seconds",
         type=_positive_float,
         default=30.0,
@@ -1552,6 +1725,8 @@ def main(argv: list[str] | None = None) -> int:
             expected_restart_interval=args.restart_interval,
             expected_chroma_subsample=args.chroma_subsample if args.check_chroma_mode else None,
             expected_emit_jfif=expected_emit_jfif,
+            expected_quality=args.quality,
+            require_standard_huffman=args.require_standard_huffman,
         )
         decoder_passed = None
         decoder_result = None
@@ -1704,6 +1879,7 @@ def main(argv: list[str] | None = None) -> int:
             expected_restart_interval=args.restart_interval,
             expected_chroma_subsample=args.chroma_subsample,
             expected_emit_jfif=not args.no_jfif,
+            quality=args.quality,
             max_width=args.max_width,
             max_height=args.max_height,
             timeout_seconds=args.timeout_seconds,

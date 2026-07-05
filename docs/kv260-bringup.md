@@ -212,6 +212,8 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
   --restart-interval RESTART_INTERVAL \
   --check-chroma-mode \
   --expect-jfif present \
+  --quality QUALITY \
+  --require-standard-huffman \
   --decoder-command 'magick identify {jpeg}' \
   --decoder-timeout-seconds 30
 ```
@@ -235,14 +237,17 @@ Expected evidence:
   counts and SHA-256 hashes, DHT table class/ID pairs, and SOS component table
   selectors, and rejects non-8-bit or non-three-component SOF0 frames,
   nonstandard DQT/DHT table sets or segment counts, non-8-bit DQT tables, plus
-  SOF0 or SOS references to missing DQT/DHT tables. Pass `--restart-interval`
-  to standalone `validate-jpeg` to check the expected DRI value and exact RST
-  marker count for the parsed MCU count;
+  SOF0 or SOS references to missing DQT/DHT tables. Pass `--quality` and
+  `--require-standard-huffman` to standalone `validate-jpeg` to check
+  quality-scaled standard DQT payloads and standard DHT payloads. Pass
+  `--restart-interval` to standalone `validate-jpeg` to check the expected DRI
+  value and exact RST marker count for the parsed MCU count;
   `run-stream-devices` checks this automatically against the configured
-  register value. Host CLI restart interval values must be in `0..65535`, and
-  configuration quality values must be in `1..100`. The helper records the RST
-  marker sequence and rejects RST markers without DRI or sequences that do not
-  increment modulo 8 from RST0.
+  register value and also checks captured DQT/DHT payloads against the
+  configured quality and standard Huffman tables. Host CLI restart interval
+  values must be in `0..65535`, and configuration quality values must be in
+  `1..100`. The helper records the RST marker sequence and rejects RST markers
+  without DRI or sequences that do not increment modulo 8 from RST0.
 - The helper rejects baseline header markers that move out of the encoder's
   expected order: optional APP0/JFIF, DQT, SOF0, DHT, optional DRI, SOS, entropy
   data, then EOI. JSON evidence includes the parsed `marker_sequence`.
