@@ -304,8 +304,10 @@ Expected evidence:
   `post_impl_route_status.rpt`, and `post_impl_clock_utilization.rpt` filename
   evidence, with `post_impl_timing_summary.rpt` also present as passing
   hold-timing evidence and matching missing/failing filename, hold-timing, and
-  suffix lists empty, a required evidence-category summary showing every
-  required category present and passing, zero diagnostic failures and failed paths in the Vivado summary, plus
+  suffix lists empty, finite positive `clock_period_ns` and
+  `clock_frequency_mhz` values that match each other, a required
+  evidence-category summary showing every required category present and passing,
+  zero diagnostic failures and failed paths in the Vivado summary, plus
   a passing route-status record with zero unrouted nets and zero nets with
   routing errors. The
   checker fails if the run transcript's AXI-Lite base address does not match the

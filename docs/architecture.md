@@ -300,8 +300,9 @@ artifact suffix evidence, and the required `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`,
 `post_impl_drc.rpt`, `post_impl_route_status.rpt`, and
 `post_impl_clock_utilization.rpt` filename evidence true, with
 `post_impl_timing_summary.rpt` also present as passing hold-timing evidence and
-matching missing/failing filename, hold-timing, and suffix lists empty, a
-required evidence-category summary showing every required category present and passing, zero diagnostic
+matching missing/failing filename, hold-timing, and suffix lists empty, finite
+positive `clock_period_ns` and `clock_frequency_mhz` values that match each
+other, a required evidence-category summary showing every required category present and passing, zero diagnostic
 failures and failed paths in the Vivado summary, and a passing route-status
 record with zero unrouted nets and zero nets with routing errors. It fails run transcripts whose
 AXI-Lite base address does not match the Vivado build evidence, or whose

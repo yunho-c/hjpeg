@@ -2650,6 +2650,23 @@ def vivado_required_hold_timing_filenames_present(record: object) -> bool:
     return True
 
 
+def vivado_clock_target_present(record: object) -> bool:
+    if not isinstance(record, dict):
+        return False
+    clock_period_ns = record.get("clock_period_ns")
+    clock_frequency_mhz = record.get("clock_frequency_mhz")
+    if not (
+        isinstance(clock_period_ns, (int, float))
+        and isinstance(clock_frequency_mhz, (int, float))
+        and math.isfinite(clock_period_ns)
+        and math.isfinite(clock_frequency_mhz)
+        and clock_period_ns > 0
+        and clock_frequency_mhz > 0
+    ):
+        return False
+    return math.isclose(clock_frequency_mhz, 1000.0 / clock_period_ns, rel_tol=1e-12)
+
+
 def vivado_evidence_categories_present(record: object) -> bool:
     if not isinstance(record, dict):
         return False
@@ -2762,6 +2779,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     vivado_hold_timing_filenames_present = (
         vivado_required_hold_timing_filenames_present(parsed)
     )
+    clock_target_present = vivado_clock_target_present(parsed)
     evidence_categories_present = vivado_evidence_categories_present(parsed)
     summary_counts_consistent = vivado_summary_counts_consistent(parsed)
     route_status_counts_present = vivado_route_status_counts_present(parsed)
@@ -2775,6 +2793,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
             "vivado_address_map_filenames_present": vivado_address_map_filenames_present,
             "vivado_report_filenames_present": vivado_report_filenames_present,
             "vivado_hold_timing_filenames_present": vivado_hold_timing_filenames_present,
+            "vivado_clock_target_present": clock_target_present,
             "vivado_evidence_categories_present": evidence_categories_present,
             "vivado_summary_counts_consistent": summary_counts_consistent,
             "vivado_route_status_counts_present": route_status_counts_present,
@@ -2789,6 +2808,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
                 and vivado_address_map_filenames_present
                 and vivado_report_filenames_present
                 and vivado_hold_timing_filenames_present
+                and clock_target_present
                 and evidence_categories_present
                 and summary_counts_consistent
                 and route_status_counts_present
@@ -2817,6 +2837,10 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     if not vivado_hold_timing_filenames_present:
         failures.append(
             f"{path}: Vivado evidence missing required post-implementation hold-timing filename"
+        )
+    if not clock_target_present:
+        failures.append(
+            f"{path}: Vivado evidence missing finite positive clock target"
         )
     if not evidence_categories_present:
         failures.append(

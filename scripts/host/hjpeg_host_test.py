@@ -975,6 +975,8 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
             "post_impl_clock_utilization.rpt",
         ],
         "failed_paths": [],
+        "clock_period_ns": 10.0,
+        "clock_frequency_mhz": 100.0,
         "complete_vivado_flow_evidence": True,
         "evidence_categories": {
             "all_required_present": True,
@@ -3258,6 +3260,9 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(
                 record["vivado_evidence"][0]["vivado_hold_timing_filenames_present"]
             )
+            self.assertTrue(
+                record["vivado_evidence"][0]["vivado_clock_target_present"]
+            )
             self.assertEqual(record["vivado_hjpeg_base_addresses"], [0])
             self.assertEqual(record["vivado_hjpeg_base_addresses_hex"], ["0x0"])
             self.assertTrue(
@@ -3456,6 +3461,23 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(record["passed"])
             self.assertTrue(
                 any("hold-timing filename" in failure for failure in failures)
+            )
+
+    def test_vivado_evidence_file_record_rejects_inconsistent_clock_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["clock_frequency_mhz"] = 125.0
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertTrue(record["vivado_passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertFalse(record["vivado_clock_target_present"])
+            self.assertFalse(record["passed"])
+            self.assertTrue(
+                any("clock target" in failure for failure in failures)
             )
 
     def test_check_run_evidence_cli_rejects_bad_vivado_evidence(self) -> None:
@@ -3825,6 +3847,49 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(record["vivado_evidence"][0]["passed"])
             self.assertTrue(
                 any("hold-timing filename" in failure for failure in record["failures"])
+            )
+
+    def test_check_run_evidence_cli_rejects_vivado_evidence_without_clock_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run = root / "run.json"
+            vivado = root / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            del vivado_record["clock_period_ns"]
+            run.write_text(json.dumps(complete_run_evidence_record(root)))
+            vivado.write_text(json.dumps(vivado_record))
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "check-run-evidence",
+                            str(run),
+                            "--vivado-evidence",
+                            str(vivado),
+                            "--json",
+                        ]
+                    ),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertEqual(record["vivado_evidence_checked_count"], 1)
+            self.assertEqual(record["vivado_evidence_passed_count"], 0)
+            self.assertEqual(record["vivado_evidence_failed_count"], 1)
+            self.assertEqual(record["vivado_hjpeg_base_addresses"], [0])
+            self.assertTrue(record["vivado_evidence"][0]["vivado_passed"])
+            self.assertTrue(
+                record["vivado_evidence"][0]["complete_vivado_flow_evidence"]
+            )
+            self.assertFalse(
+                record["vivado_evidence"][0]["vivado_clock_target_present"]
+            )
+            self.assertFalse(record["vivado_evidence"][0]["passed"])
+            self.assertTrue(
+                any("clock target" in failure for failure in record["failures"])
             )
 
     def test_check_run_evidence_cli_rejects_conflicting_vivado_addresses(self) -> None:
