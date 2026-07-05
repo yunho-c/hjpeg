@@ -1371,6 +1371,7 @@ def run_evidence_record(
     decoder_command: str | None = None,
     decoder_timeout_seconds: float | None = None,
     decoder_result: DecoderCommandResult | None = None,
+    validation_expectations: dict[str, object] | None = None,
     transfer_elapsed_seconds: float | None = None,
 ) -> dict[str, object]:
     record = jpeg_info_record(
@@ -1380,6 +1381,7 @@ def run_evidence_record(
         decoder_command,
         decoder_timeout_seconds,
         decoder_result,
+        validation_expectations,
     )
     if input_info is not None:
         input_record: dict[str, object] = {
@@ -2160,6 +2162,16 @@ def main(argv: list[str] | None = None) -> int:
                         args.decoder_command,
                         decoder_timeout,
                         decoder_result,
+                        {
+                            "width": args.width,
+                            "height": args.height,
+                            "restart_interval": args.restart_interval,
+                            "check_chroma_mode": True,
+                            "chroma_subsample": args.chroma_subsample,
+                            "expect_jfif": "absent" if args.no_jfif else "present",
+                            "quality": args.quality,
+                            "require_standard_huffman": True,
+                        },
                         transfer_elapsed,
                     ),
                     sort_keys=True,

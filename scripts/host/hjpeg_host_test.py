@@ -3032,6 +3032,19 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["jpeg"], str(output_jpeg))
             self.assertEqual(record["width"], 2)
             self.assertEqual(record["height"], 1)
+            self.assertEqual(
+                record["validation_expectations"],
+                {
+                    "width": 2,
+                    "height": 1,
+                    "restart_interval": 2,
+                    "check_chroma_mode": True,
+                    "chroma_subsample": True,
+                    "expect_jfif": "present",
+                    "quality": 80,
+                    "require_standard_huffman": True,
+                },
+            )
             self.assertEqual(record["chroma_mode"], "4:2:0")
             self.assertEqual(record["dri_segments"], 1)
             self.assertEqual(record["restart_interval"], 2)

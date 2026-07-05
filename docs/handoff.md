@@ -172,7 +172,8 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
-- current commit: `feat: record jpeg validation expectations`
+- current commit: `feat: record run validation expectations`
+- `9ea42be feat: record jpeg validation expectations`
 - `e63b094 feat: record vivado checked count`
 - `dbddfb0 feat: record vivado checker arguments`
 - `4c03938 feat: record decoder elapsed evidence`
@@ -389,7 +390,8 @@ payloads, and standard DHT payloads. Standalone validation JSON records the
 requested dimensions and optional restart/chroma/JFIF/quality/Huffman
 expectations that were enforced.
 `run-stream-devices` enforces those expectations automatically from the
-configured AXI-Lite control fields and quality setting.
+configured AXI-Lite control fields and quality setting and records the same
+expectation object in run JSON evidence.
 
 The host helper defaults input-prep and hardware-run dimensions to the current
 KV260 top's `1920x1080` limit. Use `--max-width` and `--max-height` only for a
@@ -632,7 +634,9 @@ captured JPEG. It fails if the encoder reports `busy` or `protocol_error` at
 any of those points, or if the captured JPEG metadata contradicts the configured
 restart interval, chroma mode, or JFIF setting. It also rejects trailing bytes
 already returned after the first JPEG EOI instead of writing a truncated
-artifact. `make-test-ppm` can generate a deterministic non-flat/color P6 PPM
+artifact, and its JSON evidence records the dimensions, restart interval,
+chroma mode, JFIF setting, quality, and standard Huffman expectations that were
+checked against the captured JPEG. `make-test-ppm` can generate a deterministic non-flat/color P6 PPM
 fixture for repeatable visual checks when no external image is available; PPM
 JSON evidence records channel min/max values plus non-flat/color flags. Pass
 `--decoder-command 'magick identify {jpeg}'` or an equivalent installed decoder

@@ -288,10 +288,12 @@ Expected evidence:
   RGB stream byte lengths plus SHA-256 so the output can be tied to the exact
   input payload, and rejects trailing bytes already returned after the first
   JPEG EOI instead of writing a truncated artifact. JSON evidence records the
-  host capture limits used for maximum output bytes and RX timeout. RX timeout
-  values must be finite and positive when present, and maximum output bytes
-  must be positive. Frame dimensions and frame limits must be positive, and
-  AXI-Lite base addresses must be nonnegative.
+  validation expectations enforced from the configured dimensions, restart
+  interval, chroma mode, JFIF setting, quality, and standard Huffman contract,
+  plus the host capture limits used for maximum output bytes and RX timeout. RX
+  timeout values must be finite and positive when present, and maximum output
+  bytes must be positive. Frame dimensions and frame limits must be positive,
+  and AXI-Lite base addresses must be nonnegative.
 - JSON evidence records host-observed transfer elapsed seconds and derived byte
   rates only when elapsed time is positive. Elapsed-time evidence must be finite
   and nonnegative. Use hardware counters or driver timestamps before making

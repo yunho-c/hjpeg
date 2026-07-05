@@ -294,10 +294,11 @@ signature emission. Pass `--quality N` and `--require-standard-huffman` to
 check standalone JPEG table payloads. For `run-stream-devices`, the configured
 restart interval, chroma mode, JFIF setting, quality-scaled DQT payloads, and
 standard DHT payloads are checked against the captured JPEG automatically; the
-run evidence also includes the input RGB stream byte length, expected byte
-length, and SHA-256, host capture limits, plus the AXI-Lite target and status
-checkpoints enforced during the run. Maximum output bytes must be positive, and
-RX timeout values must be finite and positive when present. It
+run evidence also records those validation expectations, the input RGB stream
+byte length, expected byte length, and SHA-256, host capture limits, plus the
+AXI-Lite target and status checkpoints enforced during the run. Maximum output
+bytes must be positive, and RX timeout values must be finite and positive when
+present. It
 also records host-observed transfer elapsed seconds and derived byte rates when
 elapsed time is positive. Elapsed-time evidence must be finite and nonnegative.
 Use hardware counters or driver timestamps for final throughput claims.
