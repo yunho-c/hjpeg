@@ -202,6 +202,27 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
     }
   }
 
+  "HjpegKv260AxiLiteTop should honor AXI-Lite control write strobes" in {
+    simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      init(dut)
+
+      val persistentControl =
+        BigInt(1 << HjpegAxiLiteRegisters.ControlEnableChromaSubsampleBit) |
+          BigInt(1 << HjpegAxiLiteRegisters.ControlEmitJfifBit)
+      writeReg(dut, HjpegAxiLiteRegisters.Control, persistentControl)
+      readReg(dut, HjpegAxiLiteRegisters.Control) mustBe persistentControl
+
+      writeRegDataFirst(dut, HjpegAxiLiteRegisters.Control, 0x00000000, strobe = 0x8)
+      readReg(dut, HjpegAxiLiteRegisters.Control) mustBe persistentControl
+
+      writeRegDataFirst(dut, HjpegAxiLiteRegisters.Control, 0x00000000, strobe = 0x1)
+      readReg(dut, HjpegAxiLiteRegisters.Control) mustBe 0
+    }
+  }
+
   "HjpegKv260AxiLiteTop should clear protocol errors through AXI-Lite control" in {
     simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
       dut.reset.poke(true.B)
