@@ -1789,6 +1789,7 @@ class HjpegHostTest(unittest.TestCase):
                 hjpeg_host.CONTROL_CLEAR_PROTOCOL_ERROR
                 | hjpeg_host.CONTROL_ENABLE_CHROMA_SUBSAMPLE,
             )
+            self.assertEqual(record["encoder_config"]["control_hex"], "0x00000003")
 
     def test_status_text(self) -> None:
         self.assertEqual(hjpeg_host.status_text(0), "idle")
@@ -2056,6 +2057,11 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["encoder_config"]["chroma_subsample"])
             self.assertTrue(record["encoder_config"]["emit_jfif"])
             self.assertFalse(record["encoder_config"]["clear_error"])
+            self.assertEqual(
+                record["encoder_config"]["control"],
+                hjpeg_host.CONTROL_ENABLE_CHROMA_SUBSAMPLE | hjpeg_host.CONTROL_EMIT_JFIF,
+            )
+            self.assertEqual(record["encoder_config"]["control_hex"], "0x00000006")
             self.assertEqual(record["capture_config"]["max_output_bytes"], 16777216)
             self.assertEqual(record["capture_config"]["timeout_seconds"], 30.0)
             self.assertGreaterEqual(record["transfer_elapsed_seconds"], 0.0)
