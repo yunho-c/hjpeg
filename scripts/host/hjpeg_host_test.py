@@ -105,7 +105,7 @@ class HjpegHostTest(unittest.TestCase):
             hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
             hjpeg_host.run_decoder_command(
                 jpeg,
-                f'"{sys.executable}" -c "import sys; assert open(sys.argv[1], \'rb\').read(2) == b\'\\\\xff\\\\xd8\'"',
+                f'"{sys.executable}" -c "import sys; assert open(sys.argv[1], \'rb\').read(2) == bytes([0xff, 0xd8])"',
             )
             with self.assertRaisesRegex(ValueError, "expected 16x13"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=16, expected_height=13)
@@ -155,6 +155,18 @@ class HjpegHostTest(unittest.TestCase):
                     jpeg,
                     f'"{sys.executable}" -c "import sys; print(\'bad\', file=sys.stderr); sys.exit(3)"',
                 )
+
+    def test_decoder_command_argv_appends_or_replaces_jpeg_path(self) -> None:
+        jpeg = Path("captured output.jpg")
+
+        self.assertEqual(
+            hjpeg_host.decoder_command_argv(jpeg, "decoder --check"),
+            ["decoder", "--check", str(jpeg)],
+        )
+        self.assertEqual(
+            hjpeg_host.decoder_command_argv(jpeg, "decoder --input={jpeg}"),
+            ["decoder", f"--input={jpeg}"],
+        )
 
     def test_validate_jpeg_requires_scan_data(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

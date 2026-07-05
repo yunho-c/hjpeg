@@ -120,10 +120,13 @@ packaging, or on-board validation.
 ## Host-Side Flow
 
 `scripts/host/hjpeg_host.py` provides the first userspace helpers around the
-KV260 design. It packs binary P6 PPM files into 32-bit-per-pixel RGB stream
-beats for the AXI DMA MM2S channel, writes the encoder AXI-Lite
-configuration/status registers via `/dev/mem`, and validates returned JPEG files
-by checking SOI/EOI markers and SOF0 dimensions. The `run-stream-devices`
-command also supports Linux board images that expose DMA MM2S/S2MM endpoints as
-byte-stream device files by writing padded RGB bytes to the TX device and
-reading JPEG bytes from the RX device until EOI.
+KV260 design. It can generate deterministic non-flat P6 PPM fixtures, packs
+binary P6 PPM files into 32-bit-per-pixel RGB stream beats for the AXI DMA MM2S
+channel, writes the encoder AXI-Lite configuration/status registers via
+`/dev/mem`, and validates returned JPEG files by checking SOI/EOI markers, SOF0
+dimensions, SOS, and non-empty entropy-coded scan data. The helper can also run
+an external JPEG decoder command so decoder-open evidence is captured in the
+same transcript. The `run-stream-devices` command supports Linux board images
+that expose DMA MM2S/S2MM endpoints as byte-stream device files by writing
+padded RGB bytes to the TX device and reading JPEG bytes from the RX device
+until EOI.

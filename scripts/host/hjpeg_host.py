@@ -233,11 +233,16 @@ def validate_jpeg(path: Path, expected_width: int, expected_height: int) -> None
         )
 
 
-def run_decoder_command(jpeg: Path, command: str) -> None:
+def decoder_command_argv(jpeg: Path, command: str) -> list[str]:
     if not command:
         raise ValueError("decoder command must be non-empty")
 
-    argv = shlex.split(command)
+    argv = shlex.split(command, posix=(os.name != "nt"))
+    if os.name == "nt":
+        argv = [
+            arg[1:-1] if len(arg) >= 2 and arg[0] == arg[-1] and arg[0] in ("'", '"') else arg
+            for arg in argv
+        ]
     if not argv:
         raise ValueError("decoder command must be non-empty")
     jpeg_arg = str(jpeg)
@@ -245,6 +250,11 @@ def run_decoder_command(jpeg: Path, command: str) -> None:
         argv = [arg.replace("{jpeg}", jpeg_arg) for arg in argv]
     else:
         argv.append(jpeg_arg)
+    return argv
+
+
+def run_decoder_command(jpeg: Path, command: str) -> None:
+    argv = decoder_command_argv(jpeg, command)
 
     try:
         completed = subprocess.run(
