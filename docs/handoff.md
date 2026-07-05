@@ -717,7 +717,8 @@ decoder evidence. Run JSON records whether complete evidence was required and
 which evidence groups were missing. Saved run JSON can be checked later with
 `check-run-evidence`, which fails on malformed JSON, missing
 `hardware_run_summary`, a stored summary that does not match recomputed
-evidence, failed recorded checks, or incomplete hardware evidence.
+evidence, failed recorded checks, or incomplete hardware evidence. JSON output
+includes the recomputed summary for each object-shaped transcript.
 
 ## Known Blockers And Bottlenecks
 

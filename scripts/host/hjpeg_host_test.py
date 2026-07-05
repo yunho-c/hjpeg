@@ -2207,6 +2207,10 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["complete_hardware_run_evidence"])
             self.assertTrue(record["all_recorded_checks_passed"])
             self.assertTrue(record["hardware_run_summary_matches_computed"])
+            self.assertEqual(
+                record["computed_hardware_run_summary"],
+                complete_run_evidence_record(root)["hardware_run_summary"],
+            )
             self.assertEqual(record["missing_evidence"], [])
 
     def test_check_run_evidence_file_rejects_tampered_summary(self) -> None:
@@ -2223,6 +2227,10 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["complete_hardware_run_evidence"])
             self.assertTrue(record["all_recorded_checks_passed"])
             self.assertFalse(record["hardware_run_summary_matches_computed"])
+            self.assertEqual(
+                record["computed_hardware_run_summary"],
+                hjpeg_host.hardware_run_summary_record(evidence),
+            )
             self.assertEqual(record["missing_evidence"], [])
             self.assertTrue(
                 any(
@@ -2264,6 +2272,10 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(record["complete_hardware_run_evidence"])
             self.assertTrue(record["all_recorded_checks_passed"])
             self.assertTrue(record["hardware_run_summary_matches_computed"])
+            self.assertEqual(
+                record["computed_hardware_run_summary"],
+                evidence["hardware_run_summary"],
+            )
             self.assertEqual(record["missing_evidence"], ["input_ppm", "decoder"])
             self.assertTrue(
                 any(
@@ -2310,6 +2322,10 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["checked_count"], 4)
             self.assertTrue(record["records"][0]["passed"])
             self.assertFalse(record["records"][1]["passed"])
+            self.assertIn(
+                "computed_hardware_run_summary",
+                record["records"][1],
+            )
             self.assertFalse(record["records"][2]["passed"])
             self.assertFalse(record["records"][3]["exists"])
             self.assertTrue(

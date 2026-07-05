@@ -2172,13 +2172,15 @@ def check_run_evidence_record(
         result["error"] = "root is not an object"
         return result, failures
 
+    computed_summary = hardware_run_summary_record(record)
+    result["computed_hardware_run_summary"] = computed_summary
+
     summary = record.get("hardware_run_summary")
     if not isinstance(summary, dict):
         failures.append(f"{path}: missing hardware_run_summary object")
         result["error"] = "missing hardware_run_summary"
         return result, failures
 
-    computed_summary = hardware_run_summary_record(record)
     summary_matches_computed = summary == computed_summary
     if not summary_matches_computed:
         failures.append(
