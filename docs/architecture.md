@@ -153,4 +153,5 @@ exact RST marker count for the parsed MCU count, and chroma/JFIF mode, and
 JFIF setting against the captured JPEG automatically.
 The `run-stream-devices` command supports Linux board images that expose DMA
 MM2S/S2MM endpoints as byte-stream device files by writing padded RGB bytes to
-the TX device and reading JPEG bytes from the RX device until EOI.
+the TX device and reading JPEG bytes from the RX device until EOI, while
+rejecting trailing bytes already returned after that EOI.

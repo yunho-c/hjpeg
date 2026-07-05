@@ -956,6 +956,8 @@ def read_until_jpeg_eoi(stream: BinaryIO, max_bytes: int) -> bytes:
         output.extend(chunk)
         eoi_offset = output.find(b"\xff\xd9")
         if eoi_offset >= 0:
+            if eoi_offset + 2 != len(output):
+                raise ValueError("RX device produced trailing data after JPEG EOI")
             return bytes(output[: eoi_offset + 2])
 
     raise ValueError(f"JPEG EOI not found within {max_bytes} output bytes")

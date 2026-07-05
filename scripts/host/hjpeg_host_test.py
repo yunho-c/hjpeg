@@ -1806,12 +1806,20 @@ class HjpegHostTest(unittest.TestCase):
 
     def test_read_until_jpeg_eoi_stops_at_marker(self) -> None:
         with tempfile.TemporaryFile() as stream:
-            stream.write(b"\xff\xd8payload\xff\xd9trailing")
+            stream.write(b"\xff\xd8payload\xff\xd9")
             stream.seek(0)
             self.assertEqual(
                 hjpeg_host.read_until_jpeg_eoi(stream, max_bytes=64),
                 b"\xff\xd8payload\xff\xd9",
             )
+
+    def test_read_until_jpeg_eoi_rejects_trailing_data(self) -> None:
+        with tempfile.TemporaryFile() as stream:
+            stream.write(b"\xff\xd8payload\xff\xd9trailing")
+            stream.seek(0)
+
+            with self.assertRaisesRegex(ValueError, "trailing data after JPEG EOI"):
+                hjpeg_host.read_until_jpeg_eoi(stream, max_bytes=64)
 
     def test_run_stream_devices_writes_rgb_and_validates_output(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1821,7 +1829,7 @@ class HjpegHostTest(unittest.TestCase):
             tx_device = root / "tx.dev"
             rx_device = root / "rx.dev"
             input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
-            rx_device.write_bytes(minimal_jpeg(width=2, height=1) + b"ignored")
+            rx_device.write_bytes(minimal_jpeg(width=2, height=1))
 
             configured = []
             status_checks = []
@@ -1977,6 +1985,29 @@ class HjpegHostTest(unittest.TestCase):
                     expected_height=1,
                     timeout_seconds=1.0,
                 )
+
+    def test_run_stream_devices_rejects_trailing_rx_data_after_eoi(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_rgb = root / "input.rgb"
+            output_jpeg = root / "output.jpg"
+            tx_device = root / "tx.dev"
+            rx_device = root / "rx.dev"
+            input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
+            rx_device.write_bytes(minimal_jpeg(width=2, height=1) + b"trailing")
+
+            with self.assertRaisesRegex(ValueError, "trailing data after JPEG EOI"):
+                hjpeg_host.run_stream_devices(
+                    input_rgb=input_rgb,
+                    output_jpeg=output_jpeg,
+                    tx_device=tx_device,
+                    rx_device=rx_device,
+                    max_output_bytes=1024,
+                    expected_width=2,
+                    expected_height=1,
+                    timeout_seconds=1.0,
+                )
+            self.assertFalse(output_jpeg.exists())
 
     def test_run_stream_devices_rejects_restart_interval_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

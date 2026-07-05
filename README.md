@@ -189,10 +189,11 @@ outside the default RTL top's `1920x1080` limit; pass `--max-width` and
 `run-stream-devices` targets Linux board images that expose AXI DMA MM2S/S2MM
 endpoints as byte-stream device files: it configures AXI-Lite registers through
 `/dev/mem`, writes the padded RGB stream to the TX device, captures bytes from
-the RX device until JPEG EOI, checks status for `busy` / `protocol_error`, and
-validates the resulting dimensions, quantization/Huffman table markers, and
-non-empty scan data. DMA drivers that use ioctls or buffer queues still need a
-small adapter around the same host-side packing and validation helpers.
+the RX device until JPEG EOI, rejects trailing bytes already returned after that
+EOI, checks status for `busy` / `protocol_error`, and validates the resulting
+dimensions, quantization/Huffman table markers, and non-empty scan data. DMA
+drivers that use ioctls or buffer queues still need a small adapter around the
+same host-side packing and validation helpers.
 
 To fold a standard decoder into the validation transcript, pass a command with
 `--decoder-command`. The helper replaces `{jpeg}` with the output path, or
