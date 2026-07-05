@@ -1607,8 +1607,12 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     jpeg_sha256 = record.get("sha256")
     scan_data_sha256 = record.get("scan_data_sha256")
     marker_sequence = record.get("marker_sequence")
-    jpeg_byte_length_positive = isinstance(jpeg_byte_length, int) and jpeg_byte_length > 0
-    scan_data_bytes_positive = isinstance(scan_data_bytes, int) and scan_data_bytes > 0
+    jpeg_byte_length_positive = (
+        is_strict_int(jpeg_byte_length) and jpeg_byte_length > 0
+    )
+    scan_data_bytes_positive = (
+        is_strict_int(scan_data_bytes) and scan_data_bytes > 0
+    )
     jpeg_sha256_present = is_sha256_hex(jpeg_sha256)
     scan_data_sha256_present = is_sha256_hex(scan_data_sha256)
     marker_sequence_values = (
@@ -1643,7 +1647,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     validation_expectations = record.get("validation_expectations")
     input_rgb = record.get("input_rgb")
     input_ppm = record.get("input_ppm")
-    if isinstance(width, int) and isinstance(height, int):
+    if is_strict_int(width) and is_strict_int(height):
         if isinstance(encoder_config, dict):
             checks["encoder_config_matches_jpeg_dimensions"] = (
                 encoder_config.get("width") == width
@@ -1677,18 +1681,18 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         encoder_control = encoder_config.get("control")
         encoder_control_hex = encoder_config.get("control_hex")
         encoder_dimensions_supported = (
-            isinstance(encoder_width, int)
-            and isinstance(encoder_height, int)
-            and isinstance(encoder_max_width, int)
-            and isinstance(encoder_max_height, int)
+            is_strict_int(encoder_width)
+            and is_strict_int(encoder_height)
+            and is_strict_int(encoder_max_width)
+            and is_strict_int(encoder_max_height)
             and 0 < encoder_width <= encoder_max_width
             and 0 < encoder_height <= encoder_max_height
         )
         encoder_quality_valid = (
-            isinstance(encoder_quality, int) and 1 <= encoder_quality <= 100
+            is_strict_int(encoder_quality) and 1 <= encoder_quality <= 100
         )
         encoder_restart_interval_valid = (
-            isinstance(encoder_restart_interval, int)
+            is_strict_int(encoder_restart_interval)
             and 0 <= encoder_restart_interval <= 0xFFFF
         )
         encoder_flags_valid = all(
@@ -1733,6 +1737,9 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         validation_baseline_shape = (
             validation_expectations.get("expected_sample_precision") == 8
             and validation_expectations.get("expected_component_count") == 3
+            and is_strict_int(
+                validation_expectations.get("expected_scan_data_min_bytes")
+            )
             and validation_expectations.get("expected_scan_data_min_bytes") == 1
         )
         validation_marker_order_present = (
@@ -1785,16 +1792,16 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         input_rgb_sha256 = input_rgb.get("sha256")
         input_rgb_expected_byte_length = input_rgb.get("expected_byte_length")
         input_rgb_byte_length_positive = (
-            isinstance(input_rgb_byte_length, int) and input_rgb_byte_length > 0
+            is_strict_int(input_rgb_byte_length) and input_rgb_byte_length > 0
         )
         input_rgb_sha256_present = is_sha256_hex(input_rgb_sha256)
         input_rgb_expected_byte_length_positive = (
-            isinstance(input_rgb_expected_byte_length, int)
+            is_strict_int(input_rgb_expected_byte_length)
             and input_rgb_expected_byte_length > 0
         )
         input_rgb_length_matches_expected = (
-            isinstance(input_rgb_byte_length, int)
-            and isinstance(input_rgb_expected_byte_length, int)
+            is_strict_int(input_rgb_byte_length)
+            and is_strict_int(input_rgb_expected_byte_length)
             and input_rgb_byte_length == input_rgb_expected_byte_length
         )
         input_rgb_length_match_flag_matches = (
@@ -1823,7 +1830,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         max_output_bytes = capture_config.get("max_output_bytes")
         timeout_seconds = capture_config.get("timeout_seconds")
         capture_max_output_bytes_positive = (
-            isinstance(max_output_bytes, int) and max_output_bytes > 0
+            is_strict_int(max_output_bytes) and max_output_bytes > 0
         )
         capture_timeout_valid = timeout_seconds is None or (
             isinstance(timeout_seconds, (int, float))
@@ -1843,7 +1850,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         axi_lite_device_present = bool(axi_lite.get("device"))
         axi_lite_base_addr = axi_lite.get("base_addr")
         axi_lite_base_addr_nonnegative = (
-            isinstance(axi_lite_base_addr, int) and axi_lite_base_addr >= 0
+            is_strict_int(axi_lite_base_addr) and axi_lite_base_addr >= 0
         )
         axi_lite_base_addr_hex_matches = (
             axi_lite_base_addr_nonnegative
@@ -1869,12 +1876,12 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         input_ppm_packed_rgb_sha256 = input_ppm.get("packed_rgb_sha256")
         input_ppm_matches = input_ppm["packed_rgb_matches_input"] is True
         input_ppm_byte_length_positive = (
-            isinstance(input_ppm_byte_length, int) and input_ppm_byte_length > 0
+            is_strict_int(input_ppm_byte_length) and input_ppm_byte_length > 0
         )
         input_ppm_sha256_present = is_sha256_hex(input_ppm_sha256)
         input_ppm_dimensions_positive = (
-            isinstance(input_ppm_width, int)
-            and isinstance(input_ppm_height, int)
+            is_strict_int(input_ppm_width)
+            and is_strict_int(input_ppm_height)
             and input_ppm_width > 0
             and input_ppm_height > 0
         )
@@ -1979,12 +1986,12 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
         status_checks_have_status_words = status_checks_list_present and all(
             isinstance(status_check, dict)
-            and isinstance(status_check.get("status"), int)
+            and is_strict_int(status_check.get("status"))
             for status_check in status_checks
         )
         status_checks_status_hex_matches = status_checks_list_present and all(
             isinstance(status_check, dict)
-            and isinstance(status_check.get("status"), int)
+            and is_strict_int(status_check.get("status"))
             and status_check.get("status_hex")
             == f"0x{status_check.get('status') & 0xFFFFFFFF:08x}"
             for status_check in status_checks
@@ -2006,6 +2013,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
         status_checks_each_idle = status_checks_list_present and all(
             isinstance(status_check, dict)
+            and is_strict_int(status_check.get("status"))
             and status_check.get("status") == 0
             and status_check.get("text") == "idle"
             and status_check.get("busy") is False
@@ -2226,7 +2234,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
         jpeg_byte_length = record.get("byte_length")
         host_input_rgb_rate_matches_elapsed = (
-            isinstance(input_rgb_byte_length, int)
+            is_strict_int(input_rgb_byte_length)
             and isinstance(input_rgb_rate, (int, float))
             and transfer_elapsed_positive
             and math.isclose(
@@ -2237,7 +2245,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             )
         )
         host_output_jpeg_rate_matches_elapsed = (
-            isinstance(jpeg_byte_length, int)
+            is_strict_int(jpeg_byte_length)
             and isinstance(output_jpeg_rate, (int, float))
             and transfer_elapsed_positive
             and math.isclose(

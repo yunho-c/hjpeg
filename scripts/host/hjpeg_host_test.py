@@ -2850,6 +2850,45 @@ class HjpegHostTest(unittest.TestCase):
                 summary["checks"]["decoder_output_capture_chars_positive"]
             )
 
+    def test_hardware_summary_rejects_boolean_numeric_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            record = complete_run_evidence_record(Path(tmp))
+            record["byte_length"] = True
+            record["scan_data_bytes"] = True
+            record["encoder_config"]["quality"] = True
+            record["encoder_config"]["restart_interval"] = False
+            record["validation_expectations"]["expected_scan_data_min_bytes"] = True
+            record["input_rgb"]["byte_length"] = True
+            record["input_rgb"]["expected_byte_length"] = True
+            record["capture_config"]["max_output_bytes"] = True
+            record["axi_lite"]["base_addr"] = False
+            record["input_ppm"]["byte_length"] = True
+            record["input_ppm"]["width"] = True
+            record["input_ppm"]["height"] = True
+            record["status_checks"][0]["status"] = False
+
+            summary = hjpeg_host.hardware_run_summary_record(record)
+
+            self.assertFalse(summary["all_recorded_checks_passed"])
+            self.assertFalse(summary["checks"]["jpeg_byte_length_positive"])
+            self.assertFalse(summary["checks"]["jpeg_scan_data_bytes_positive"])
+            self.assertFalse(summary["checks"]["encoder_quality_valid"])
+            self.assertFalse(summary["checks"]["encoder_restart_interval_valid"])
+            self.assertFalse(summary["checks"]["validation_baseline_shape"])
+            self.assertFalse(summary["checks"]["input_rgb_byte_length_positive"])
+            self.assertFalse(
+                summary["checks"]["input_rgb_expected_byte_length_positive"]
+            )
+            self.assertFalse(summary["checks"]["input_rgb_length_matches_expected"])
+            self.assertFalse(summary["checks"]["capture_max_output_bytes_positive"])
+            self.assertFalse(summary["checks"]["axi_lite_base_addr_nonnegative"])
+            self.assertFalse(summary["checks"]["axi_lite_base_addr_hex_matches"])
+            self.assertFalse(summary["checks"]["input_ppm_byte_length_positive"])
+            self.assertFalse(summary["checks"]["input_ppm_dimensions_positive"])
+            self.assertFalse(summary["checks"]["status_checks_have_status_words"])
+            self.assertFalse(summary["checks"]["status_checks_status_hex_matches"])
+            self.assertFalse(summary["checks"]["status_checks_each_idle"])
+
     def test_hardware_summary_requires_output_hash_and_scan_evidence(self) -> None:
         record = {
             "byte_length": 16,
