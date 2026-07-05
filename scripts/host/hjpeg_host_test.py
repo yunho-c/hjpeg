@@ -3323,6 +3323,11 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["input_ppm"]["path"], str(input_ppm))
             self.assertEqual(record["input_ppm"]["width"], 2)
             self.assertEqual(record["input_ppm"]["height"], 1)
+            self.assertEqual(record["input_ppm"]["packed_rgb_byte_length"], 8)
+            self.assertEqual(
+                record["input_ppm"]["packed_rgb_sha256"],
+                hashlib.sha256(input_rgb.read_bytes()).hexdigest(),
+            )
             self.assertTrue(record["input_ppm"]["packed_rgb_matches_input"])
             self.assertEqual(
                 record["input_ppm"]["image_stats"],

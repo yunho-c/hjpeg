@@ -252,7 +252,8 @@ frame limits, byte lengths, SHA-256 hashes for generated files, and PPM
 per-channel min/max values plus non-flat/color flags. `run-stream-devices`
 accepts `--input-ppm` to validate that the saved source PPM dimensions match
 the configured frame and that its packed RGB bytes exactly match `--input-rgb`;
-JSON evidence then records the PPM stats and packed-RGB match result.
+JSON evidence then records the PPM stats, PPM-derived packed RGB byte length
+and SHA-256, and packed-RGB match result.
 Configuration evidence
 includes the AXI-Lite target, frame settings,
 checked frame limits, quality, restart interval, chroma mode, JFIF setting, and

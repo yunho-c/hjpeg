@@ -196,8 +196,9 @@ Expected evidence:
 - JSON evidence records the AXI-Lite target and encoder configuration used for
   the run, including the frame limits checked by the host helper.
 - If `--input-ppm` is provided, JSON evidence records the source PPM dimensions,
-  SHA-256, non-flat/color stats, and that its packed RGB bytes match
-  `--input-rgb`; mismatches fail before device I/O.
+  SHA-256, non-flat/color stats, PPM-derived packed RGB byte length and
+  SHA-256, and that its packed RGB bytes match `--input-rgb`; mismatches fail
+  before device I/O.
 - Standalone `status --json` evidence records the AXI-Lite target, raw status
   word, decoded `busy` and `protocol_error` flags, and text state.
 - Standalone `clear-error --json` evidence records the AXI-Lite target and

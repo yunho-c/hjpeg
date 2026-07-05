@@ -1544,6 +1544,8 @@ def run_input_ppm_record(
         raise ValueError(f"{path}: packed PPM bytes do not match input RGB stream")
 
     record = ppm_evidence_record(path, image)
+    record["packed_rgb_byte_length"] = len(expected_rgb)
+    record["packed_rgb_sha256"] = hashlib.sha256(expected_rgb).hexdigest()
     record["packed_rgb_matches_input"] = True
     return record
 

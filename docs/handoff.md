@@ -665,7 +665,8 @@ fixture for repeatable visual checks when no external image is available; PPM
 JSON evidence records channel min/max values plus non-flat/color flags.
 `run-stream-devices --input-ppm` validates the source PPM dimensions and packed
 RGB bytes against the configured frame and `--input-rgb` before device I/O, then
-records the PPM stats and packed-RGB match result in run JSON evidence. Pass
+records the PPM stats, PPM-derived packed RGB byte length and SHA-256, and
+packed-RGB match result in run JSON evidence. Pass
 `--decoder-command 'magick identify {jpeg}'` or an equivalent installed decoder
 command to `validate-jpeg` or `run-stream-devices` when you want the standard
 decoder-open check captured in JSON evidence. The evidence records the resolved
