@@ -35,6 +35,10 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
       script must include("sbt 'runMain hjpeg.ElaborateKv260AxiLiteTop'")
     }
     synth must include("create_clock -period 10.000 -name pl_clk [get_ports clock]")
+    synth must include("post_synth_utilization.rpt")
+    synth must include("post_synth_timing_summary.rpt")
+    synth must include("write_checkpoint -force")
+    synth must include("post_synth.dcp")
 
     packageIp must include("hjpeg_kv260_axi_lite")
     packageIp must include("xilinx.com:interface:aximm")

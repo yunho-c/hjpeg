@@ -172,7 +172,10 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `e3b3b7f test: verify vivado block design handoff`
+- `9168c8d docs: require vivado checkpoint evidence`
 - `9e11948 fix: check ppm limits before payload`
+- `855aa2f fix: reject invalid host dimensions`
 - `7302552 fix: reject invalid host config ranges`
 - `68138d1 fix: reject invalid host cli limits`
 - `ec235dd fix: validate host capture limits`
@@ -383,6 +386,11 @@ git diff --check
 vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl
 vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl
 vivado -mode batch -source scripts/vivado/synth_kv260_axi_lite.tcl
+python3 scripts/vivado/check_reports.py \
+  --artifact build/vivado/hjpeg-kv260-axi-lite/post_synth.dcp \
+  --timing build/vivado/hjpeg-kv260-axi-lite/post_synth_timing_summary.rpt \
+  --utilization build/vivado/hjpeg-kv260-axi-lite/post_synth_utilization.rpt \
+  --json
 vivado -mode batch -source scripts/vivado/build_kv260_bitstream.tcl
 python3 scripts/vivado/check_reports.py \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit \
@@ -414,7 +422,8 @@ Known local limitations:
   path/shell incompatibility above; it does not validate the new cycle-budget
   regression until run on a compatible simulator setup.
 - The current block-design Vivado reports pass the default 100 MHz
-  setup/hold/utilization gates. Latest artifact reports include the bitstream,
+  setup/hold/utilization gates. The standalone synthesis smoke evidence hashes
+  `post_synth.dcp`. Latest block-design artifact reports include the bitstream,
   XSA, and post-implementation checkpoint, and show post-synthesis setup WNS
   `+0.807 ns` and post-implementation setup WNS `+0.131 ns`;
   post-implementation hold WHS is `+0.010 ns`. Post-implementation utilization is approximately

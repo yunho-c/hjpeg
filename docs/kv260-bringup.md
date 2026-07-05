@@ -15,7 +15,26 @@ Expected evidence:
 - `generated-kv260-axi-lite-top/filelist.f`
 - `generated-kv260-axi-lite-top/HjpegKv260AxiLiteTop.sv`
 
-## 2. Package IP
+## 2. Synthesis Smoke Check
+
+```sh
+vivado -mode batch -source scripts/vivado/synth_kv260_axi_lite.tcl
+python3 scripts/vivado/check_reports.py \
+  --artifact build/vivado/hjpeg-kv260-axi-lite/post_synth.dcp \
+  --timing build/vivado/hjpeg-kv260-axi-lite/post_synth_timing_summary.rpt \
+  --utilization build/vivado/hjpeg-kv260-axi-lite/post_synth_utilization.rpt \
+  --json
+```
+
+Expected evidence:
+
+- `build/vivado/hjpeg-kv260-axi-lite/post_synth.dcp`
+- `build/vivado/hjpeg-kv260-axi-lite/post_synth_timing_summary.rpt`
+- `build/vivado/hjpeg-kv260-axi-lite/post_synth_utilization.rpt`
+- `check_reports.py` records the checkpoint/report hashes and passes the
+  requested timing/utilization gates.
+
+## 3. Package IP
 
 ```sh
 vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl
@@ -27,7 +46,7 @@ Expected evidence:
 - Vivado IP packager completes without critical warnings about unmapped clock,
   reset, AXI-Lite, or AXI-stream interfaces.
 
-## 3. Create Block Design
+## 4. Create Block Design
 
 ```sh
 vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl
@@ -43,7 +62,7 @@ Expected evidence:
 - The design contains Zynq UltraScale+ PS, AXI DMA, SmartConnect, reset logic,
   interrupt concat, and one `hjpeg_kv260_axi_lite` instance.
 
-## 4. Build Bitstream and XSA
+## 5. Build Bitstream and XSA
 
 ```sh
 vivado -mode batch -source scripts/vivado/build_kv260_bitstream.tcl
@@ -112,7 +131,7 @@ Latest local Vivado 2026.1 evidence:
   (43.26%), 25,619 LUTRAMs (44.48%), 2 BRAM tiles (1.39%), and 17 DSPs
   (1.36%).
 
-## 5. Prepare Host Input
+## 6. Prepare Host Input
 
 ```sh
 python3 scripts/host/hjpeg_host.py make-test-ppm input.ppm --width WIDTH --height HEIGHT --json
@@ -134,7 +153,7 @@ Expected evidence:
   limits, and keep those values in the saved JSON evidence. `pack-ppm` checks
   these limits from the PPM header before reading the RGB payload.
 
-## 6. Configure and Run Hardware
+## 7. Configure and Run Hardware
 
 Program the KV260 with the generated bitstream and load a board image or driver
 stack that exposes AXI DMA MM2S/S2MM transfers as byte-stream device files.
@@ -177,7 +196,7 @@ configuration, immediately before streaming input, and after validating the
 captured JPEG. It exits with an error if `busy` or `protocol_error` is set at
 any of those points.
 
-## 7. Validate JPEG Output
+## 8. Validate JPEG Output
 
 ```sh
 python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg --width WIDTH --height HEIGHT

@@ -96,6 +96,11 @@ Run a Vivado synthesis project for the AXI-Lite top, when Vivado is installed:
 
 ```sh
 vivado -mode batch -source scripts/vivado/synth_kv260_axi_lite.tcl
+python3 scripts/vivado/check_reports.py \
+  --artifact build/vivado/hjpeg-kv260-axi-lite/post_synth.dcp \
+  --timing build/vivado/hjpeg-kv260-axi-lite/post_synth_timing_summary.rpt \
+  --utilization build/vivado/hjpeg-kv260-axi-lite/post_synth_utilization.rpt \
+  --json
 ```
 
 Package reusable RTL IP for Vivado:

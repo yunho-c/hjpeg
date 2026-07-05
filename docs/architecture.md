@@ -91,7 +91,8 @@ hardware-tool entry points:
 
 - `synth_kv260_axi_lite.tcl` creates a Vivado project for
   `HjpegKv260AxiLiteTop`, reads `generated-kv260-axi-lite-top/filelist.f`, runs
-  synthesis for `xck26-sfvc784-2LV-c`, and writes utilization/timing reports.
+  synthesis for `xck26-sfvc784-2LV-c`, and writes utilization/timing reports
+  plus `post_synth.dcp`.
 - `package_kv260_axi_lite_ip.tcl` packages the same RTL as reusable Vivado IP
   with explicit clock, reset, AXI-Lite, and AXI-stream bus-interface port maps.
   The packaged AXI-Lite interface exposes a 4 KiB register aperture for the
