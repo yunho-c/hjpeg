@@ -268,10 +268,11 @@ encoder configuration, status checkpoints, and optional decoder command. Host
 JPEG validation now checks more than dimensions: it requires DQT and DHT
 markers, records DQT/DHT table IDs and SOS component table selectors, rejects
 dangling table references, records APP0/DQT/DHT/DRI/RST marker counts, parses
-DRI restart intervals, records SOF0 component sampling factors, infers 4:4:4
-versus 4:2:0, and can enforce expected restart interval, chroma mode, and JFIF
-APP0 presence. `run-stream-devices` enforces those expectations automatically
-from the configured AXI-Lite control fields.
+DRI restart intervals, requires 8-bit three-component SOF0 shape, records SOF0
+component sampling factors, infers 4:4:4 versus 4:2:0, and can enforce expected
+restart interval, chroma mode, and JFIF APP0 presence. `run-stream-devices`
+enforces those expectations automatically from the configured AXI-Lite control
+fields.
 
 The host helper defaults input-prep and hardware-run dimensions to the current
 KV260 top's `1920x1080` limit. Use `--max-width` and `--max-height` only for a
@@ -449,15 +450,16 @@ Hardware completion evidence should include:
 - Status is idle before and after the transfer.
 - No protocol error is reported for a valid frame.
 - Captured output starts with SOI and ends with EOI.
-- `validate-jpeg` confirms the expected dimensions, DQT/DHT presence, non-empty
+- `validate-jpeg` confirms the expected dimensions, 8-bit SOF0 sample
+  precision, three-component SOF0 frame shape, DQT/DHT presence, non-empty
   entropy-coded scan data, SOF0 component sampling factors, chroma mode, DRI
-  restart interval, restart markers, APP0/JFIF presence, and valid DQT/DHT
-  table references from SOF0/SOS.
+  restart interval, restart markers, APP0/JFIF presence, and valid DQT/DHT table
+  references from SOF0/SOS.
 - JSON evidence records the bitstream/XSA/report hashes, PPM/RGB input hashes,
   AXI-Lite target, encoder configuration, status checkpoints, output JPEG hash,
-  scan payload length, component sampling factors, marker counts, restart
-  interval evidence, DQT/DHT table IDs, SOS table selectors, chroma mode, JFIF
-  evidence, and decoder command.
+  scan payload length, SOF0 sample precision, component sampling factors, marker
+  counts, restart interval evidence, DQT/DHT table IDs, SOS table selectors,
+  chroma mode, JFIF evidence, and decoder command.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 

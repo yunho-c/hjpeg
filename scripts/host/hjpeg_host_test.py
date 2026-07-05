@@ -108,6 +108,63 @@ def minimal_jpeg(width: int, height: int, chroma_subsample: bool = False) -> byt
     )
 
 
+def single_component_jpeg(width: int, height: int) -> bytes:
+    return bytes(
+        [
+            0xFF,
+            0xD8,
+            0xFF,
+            0xDB,
+            0x00,
+            0x43,
+            0x00,
+            *([0x10] * 64),
+            0xFF,
+            0xC0,
+            0x00,
+            0x0B,
+            0x08,
+            (height >> 8) & 0xFF,
+            height & 0xFF,
+            (width >> 8) & 0xFF,
+            width & 0xFF,
+            0x01,
+            0x01,
+            0x11,
+            0x00,
+            0xFF,
+            0xC4,
+            0x00,
+            0x14,
+            0x00,
+            *([0x00] * 15),
+            0x01,
+            0x00,
+            0xFF,
+            0xC4,
+            0x00,
+            0x14,
+            0x10,
+            *([0x00] * 15),
+            0x01,
+            0x00,
+            0xFF,
+            0xDA,
+            0x00,
+            0x08,
+            0x01,
+            0x01,
+            0x00,
+            0x00,
+            0x3F,
+            0x00,
+            0x7F,
+            0xFF,
+            0xD9,
+        ]
+    )
+
+
 def header_only_jpeg(width: int, height: int) -> bytes:
     return minimal_jpeg(width, height).split(b"\xff\xda", maxsplit=1)[0] + b"\xff\xd9"
 
@@ -150,6 +207,7 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
     return hjpeg_host.JpegInfo(
         width=width,
         height=height,
+        sample_precision=8,
         components=(
             hjpeg_host.JpegComponent(1, 1, 1, 0),
             hjpeg_host.JpegComponent(2, 1, 1, 1),
@@ -371,6 +429,7 @@ class HjpegHostTest(unittest.TestCase):
 
             self.assertEqual(hjpeg_host.jpeg_dimensions(jpeg.read_bytes()), (17, 13))
             parsed = hjpeg_host.jpeg_info(jpeg.read_bytes())
+            self.assertEqual(parsed.sample_precision, 8)
             self.assertEqual(len(parsed.components), 3)
             self.assertEqual(parsed.components[0], hjpeg_host.JpegComponent(1, 1, 1, 0))
             self.assertEqual(parsed.components[1], hjpeg_host.JpegComponent(2, 1, 1, 1))
@@ -411,6 +470,25 @@ class HjpegHostTest(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "expected 16x13"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=16, expected_height=13)
+
+    def test_validate_jpeg_rejects_non_eight_bit_sof0_precision(self) -> None:
+        data = minimal_jpeg(width=17, height=13).replace(
+            b"\xff\xc0\x00\x11\x08", b"\xff\xc0\x00\x11\x0c", 1
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "bad-precision.jpg"
+            jpeg.write_bytes(data)
+
+            with self.assertRaisesRegex(ValueError, "sample precision"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_non_three_component_sof0(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "single-component.jpg"
+            jpeg.write_bytes(single_component_jpeg(width=17, height=13))
+
+            with self.assertRaisesRegex(ValueError, "component count"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_cli_can_run_decoder_command(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -471,6 +549,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["jpeg"], str(jpeg))
             self.assertEqual(record["width"], 17)
             self.assertEqual(record["height"], 13)
+            self.assertEqual(record["sample_precision"], 8)
             self.assertEqual(record["component_count"], 3)
             self.assertEqual(record["chroma_mode"], "4:4:4")
             self.assertEqual(record["components"][0]["component_id"], 1)

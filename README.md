@@ -208,13 +208,15 @@ machine-readable form for logs. Input-prep evidence includes dimensions, checked
 frame limits, byte lengths, and SHA-256 hashes for the generated PPM and packed
 RGB stream. Configuration evidence includes the AXI-Lite target, frame settings,
 checked frame limits, quality, restart interval, chroma mode, JFIF setting, and
-control word. JPEG validation evidence includes dimensions, scan-data byte
-count, SOF0 component sampling factors, decoded chroma mode, SOS component
-table selectors, DQT/DHT table IDs, APP0/DQT/DHT/DRI/restart marker counts,
-parsed DRI restart interval, total JPEG byte length, SHA-256, and decoder
-command when one was provided. The validator rejects SOF0 or SOS references to
-missing DQT/DHT tables. Pass `validate-jpeg --restart-interval N` to require the
-parsed DRI interval to match `N`, or `0` to require no DRI/RST markers. Pass
+control word. JPEG validation evidence includes dimensions, SOF0 8-bit sample
+precision, three-component frame shape, scan-data byte count, SOF0 component
+sampling factors, decoded chroma mode, SOS component table selectors, DQT/DHT
+table IDs, APP0/DQT/DHT/DRI/restart marker counts, parsed DRI restart interval,
+total JPEG byte length, SHA-256, and decoder command when one was provided. The
+validator rejects non-8-bit or non-three-component SOF0 frames and rejects SOF0
+or SOS references to missing DQT/DHT tables. Pass
+`validate-jpeg --restart-interval N` to require the parsed DRI interval to match
+`N`, or `0` to require no DRI/RST markers. Pass
 `--check-chroma-mode` with `--chroma-subsample` when validating a standalone
 4:2:0 file. Pass `--expect-jfif present` or `absent` to check optional
 APP0/JFIF emission. For `run-stream-devices`, the configured restart interval,

@@ -6,8 +6,9 @@ This utility keeps the software contract close to the RTL register map:
 * P6 PPM input is packed as one 32-bit AXI-stream beat per RGB pixel, with byte
   order R, G, B, unused. The unused byte is ignored by the KV260 RTL wrapper.
 * AXI-Lite register writes configure `HjpegKv260AxiLiteTop`.
-* JPEG output validation checks SOI/EOI, SOF0 dimensions, DQT/DHT table
-  markers, SOS, and non-empty entropy-coded scan data after a hardware run.
+* JPEG output validation checks SOI/EOI, SOF0 dimensions and baseline shape,
+  DQT/DHT table markers, SOS, and non-empty entropy-coded scan data after a
+  hardware run.
 
 DMA buffer allocation and transfer submission are intentionally board-image
 specific, so this script prepares and validates the payloads around that layer.
@@ -82,6 +83,7 @@ class JpegScanComponent:
 class JpegInfo:
     width: int
     height: int
+    sample_precision: int
     components: tuple[JpegComponent, ...]
     scan_components: tuple[JpegScanComponent, ...]
     quantization_tables: tuple[int, ...]
@@ -207,6 +209,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
 
     offset = 2
     dimensions: tuple[int, int] | None = None
+    sample_precision: int | None = None
     components: tuple[JpegComponent, ...] = ()
     scan_components: tuple[JpegScanComponent, ...] = ()
     quantization_tables: set[int] = set()
@@ -266,6 +269,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
         if marker == 0xC0:
             if segment_length < 8:
                 raise ValueError("SOF0 segment is too short")
+            sample_precision = data[offset + 2]
             height = _read_be16(data, offset + 3)
             width = _read_be16(data, offset + 5)
             component_count = data[offset + 7]
@@ -349,6 +353,14 @@ def jpeg_info(data: bytes) -> JpegInfo:
         raise ValueError("JPEG output does not contain EOI")
     if dimensions is None:
         raise ValueError("JPEG output does not contain a baseline SOF0 segment")
+    if sample_precision != 8:
+        raise ValueError(
+            f"JPEG SOF0 sample precision is {sample_precision}, expected 8"
+        )
+    if len(components) != 3:
+        raise ValueError(
+            f"JPEG SOF0 component count is {len(components)}, expected 3"
+        )
     if dqt_segments == 0:
         raise ValueError("JPEG output does not contain a DQT segment")
     if dht_segments == 0:
@@ -382,6 +394,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
     return JpegInfo(
         width=dimensions[0],
         height=dimensions[1],
+        sample_precision=sample_precision,
         components=components,
         scan_components=scan_components,
         quantization_tables=tuple(sorted(quantization_tables)),
@@ -540,6 +553,7 @@ def jpeg_info_record(
         "jpeg": str(jpeg),
         "width": info.width,
         "height": info.height,
+        "sample_precision": info.sample_precision,
         "component_count": len(info.components),
         "components": [
             {
