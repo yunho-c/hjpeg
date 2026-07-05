@@ -30,6 +30,17 @@ UTILIZATION_TABLE = """
 | Block RAM Tile | 12 | 0 | 144 | 8.33 |
 """
 
+VIVADO_UTILIZATION_TABLE = """
+1. CLB Logic
+------------
+
+| Site Type | Used | Fixed | Prohibited | Available | Util% |
+| LUT as Logic | 26291 | 0 | 0 | 117120 | 22.45 |
+| Register as Flip Flop | 25859 | 0 | 0 | 234240 | 11.04 |
+| Block RAM Tile | 2 | 0 | 0 | 144 | 1.39 |
+| PS8 | 1 | 0 | 0 | 1 | 100.00 |
+"""
+
 
 class CheckReportsTest(unittest.TestCase):
     def test_parse_wns_from_timing_table(self) -> None:
@@ -49,7 +60,31 @@ class CheckReportsTest(unittest.TestCase):
             ["LUT as Logic", "Register as Flip Flop", "Block RAM Tile"],
         )
         self.assertEqual(rows[0].used, 1234)
+        self.assertEqual(rows[0].prohibited, 0)
         self.assertEqual(rows[2].percent, 8.33)
+
+    def test_parse_vivado_utilization_rows_with_prohibited_column(self) -> None:
+        rows = check_reports.parse_utilization_rows(VIVADO_UTILIZATION_TABLE)
+        self.assertEqual(
+            [row.name for row in rows],
+            ["LUT as Logic", "Register as Flip Flop", "Block RAM Tile", "PS8"],
+        )
+        self.assertEqual(rows[0].used, 26291)
+        self.assertEqual(rows[0].fixed, 0)
+        self.assertEqual(rows[0].prohibited, 0)
+        self.assertEqual(rows[0].available, 117120)
+        self.assertEqual(rows[0].percent, 22.45)
+        self.assertEqual(rows[3].available, 1)
+        self.assertEqual(rows[3].percent, 100.0)
+
+    def test_check_utilization_ignores_expected_hard_system_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "util.rpt"
+            report.write_text(
+                "| Site Type | Used | Fixed | Prohibited | Available | Util% |\n"
+                "| PS8 | 1 | 0 | 0 | 1 | 100.00 |\n"
+            )
+            self.assertEqual(check_reports.check_utilization(report, max_percent=90.0), [])
 
     def test_check_timing_reports_negative_slack(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -74,9 +109,9 @@ class CheckReportsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             report = Path(tmp) / "util.rpt"
             report.write_text(
-                "| Site Type | Used | Fixed | Available | Util% |\n"
-                "| LUT as Logic | 95 | 0 | 100 | 95.00 |\n"
-                "| Register as Flip Flop | 10 | 0 | 100 | 10.00 |\n"
+                "| Site Type | Used | Fixed | Prohibited | Available | Util% |\n"
+                "| LUT as Logic | 95 | 0 | 0 | 100 | 95.00 |\n"
+                "| Register as Flip Flop | 10 | 0 | 0 | 100 | 10.00 |\n"
             )
             self.assertEqual(
                 check_reports.check_utilization(report, max_percent=90.0),
@@ -117,7 +152,7 @@ class CheckReportsTest(unittest.TestCase):
             utilization = root / "util.rpt"
             artifact.write_bytes(b"bitstream")
             timing.write_text(TIMING_TABLE)
-            utilization.write_text(UTILIZATION_TABLE)
+            utilization.write_text(VIVADO_UTILIZATION_TABLE)
 
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
@@ -162,7 +197,13 @@ class CheckReportsTest(unittest.TestCase):
             )
             self.assertEqual(record["utilization"][0]["path"], str(utilization))
             self.assertEqual(record["utilization"][0]["rows"][0]["name"], "LUT as Logic")
+            self.assertEqual(record["utilization"][0]["rows"][0]["prohibited"], 0)
+            self.assertEqual(record["utilization"][0]["rows"][0]["available"], 117120)
+            self.assertEqual(record["utilization"][0]["rows"][0]["percent"], 22.45)
+            self.assertTrue(record["utilization"][0]["rows"][0]["checked"])
             self.assertTrue(record["utilization"][0]["rows"][0]["passed"])
+            self.assertFalse(record["utilization"][0]["rows"][3]["checked"])
+            self.assertTrue(record["utilization"][0]["rows"][3]["passed"])
 
     def test_cli_json_records_failures(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

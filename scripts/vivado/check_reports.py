@@ -17,8 +17,10 @@ NUMBER_RE = re.compile(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)")
 UTIL_ROW_RE = re.compile(
     r"^\|\s*(?P<name>[A-Za-z0-9_./ +()-]+?)\s*\|\s*"
     r"(?P<used>\d+)\s*\|\s*(?P<fixed>\d+)\s*\|\s*"
+    r"(?:(?P<prohibited>\d+)\s*\|\s*)?"
     r"(?P<available>\d+)\s*\|\s*(?P<percent>[0-9.]+)\s*\|"
 )
+IGNORED_UTILIZATION_ROWS = {"PS8"}
 
 
 @dataclass(frozen=True)
@@ -26,6 +28,7 @@ class UtilizationRow:
     name: str
     used: int
     fixed: int
+    prohibited: int
     available: int
     percent: float
 
@@ -75,6 +78,7 @@ def parse_utilization_rows(report: str) -> list[UtilizationRow]:
                 name=" ".join(match.group("name").split()),
                 used=int(match.group("used")),
                 fixed=int(match.group("fixed")),
+                prohibited=int(match.group("prohibited") or 0),
                 available=int(match.group("available")),
                 percent=float(match.group("percent")),
             )
@@ -101,6 +105,8 @@ def check_utilization(path: Path, max_percent: float) -> list[str]:
 
     failures = []
     for row in rows:
+        if row.name in IGNORED_UTILIZATION_ROWS:
+            continue
         if row.available > 0 and row.percent > max_percent:
             failures.append(
                 f"{path}: {row.name} utilization {row.percent:.2f}% exceeds {max_percent:.2f}%"
@@ -166,13 +172,17 @@ def utilization_record(path: Path, max_percent: float) -> tuple[dict[str, object
 
     row_records = []
     for row in rows:
+        checked = row.name not in IGNORED_UTILIZATION_ROWS
+        passed = not checked or row.available == 0 or row.percent <= max_percent
         row_record = {
             "name": row.name,
             "used": row.used,
             "fixed": row.fixed,
+            "prohibited": row.prohibited,
             "available": row.available,
             "percent": row.percent,
-            "passed": row.available == 0 or row.percent <= max_percent,
+            "checked": checked,
+            "passed": passed,
         }
         row_records.append(row_record)
         if not row_record["passed"]:
