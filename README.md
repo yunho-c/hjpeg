@@ -251,8 +251,8 @@ MCU count, or `0` to require no DRI/RST markers. Pass
 signature emission. For `run-stream-devices`, the configured restart interval,
 chroma mode, and JFIF setting are checked against the captured JPEG
 automatically; the run evidence also includes the input RGB stream byte length
-and SHA-256, host capture limits, plus the AXI-Lite status checkpoints enforced
-during the run.
+and SHA-256, host capture limits, plus the AXI-Lite target and status
+checkpoints enforced during the run.
 
 ## Versions
 

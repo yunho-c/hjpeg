@@ -2067,6 +2067,9 @@ class HjpegHostTest(unittest.TestCase):
                 ["after configuration", "before transfer", "after transfer"],
             )
             for status in record["status_checks"]:
+                self.assertEqual(status["axi_lite"]["device"], str(mem))
+                self.assertEqual(status["axi_lite"]["base_addr"], 0)
+                self.assertEqual(status["axi_lite"]["base_addr_hex"], "0x0")
                 self.assertEqual(status["status"], 0)
                 self.assertEqual(status["status_hex"], "0x00000000")
                 self.assertFalse(status["busy"])

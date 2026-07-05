@@ -223,7 +223,7 @@ Expected evidence:
   maximum output bytes and RX timeout.
 - For `run-stream-devices --json`, the helper records the AXI-Lite status
   checkpoints enforced after configuration, before transfer, and after
-  transfer.
+  transfer, including the AXI-Lite target sampled for each checkpoint.
 - A standard JPEG decoder can open `output.jpg`; when `--decoder-command` is
   used, that decoder check, command string, timeout, return code, and bounded
   stdout/stderr are part of the JSON evidence, and decoder failure or timeout

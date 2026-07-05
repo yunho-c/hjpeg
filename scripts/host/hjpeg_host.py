@@ -1596,7 +1596,7 @@ def main(argv: list[str] | None = None) -> int:
         status_checks: list[dict[str, object]] = []
 
         def record_status(context: str, status: int) -> None:
-            record = status_record(status)
+            record = status_evidence_record(args.dev, args.base_addr, status)
             record["context"] = context
             status_checks.append(record)
 
