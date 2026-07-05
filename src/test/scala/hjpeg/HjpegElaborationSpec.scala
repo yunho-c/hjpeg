@@ -6,6 +6,8 @@ import _root_.circt.stage.ChiselStage
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
+import java.nio.file.Files
+
 class HjpegElaborationSpec extends AnyFreeSpec with Matchers {
   "Hjpeg top levels should elaborate" in {
     ChiselStage.emitSystemVerilog(new RgbToYCbCrStage()) must include("module RgbToYCbCrStage")
@@ -36,5 +38,33 @@ class HjpegElaborationSpec extends AnyFreeSpec with Matchers {
     ChiselStage.emitSystemVerilog(new HjpegAxiStreamCore()) must include("module HjpegAxiStreamCore")
     ChiselStage.emitSystemVerilog(new HjpegKv260Top()) must include("module HjpegKv260Top")
     ChiselStage.emitSystemVerilog(new HjpegKv260AxiLiteTop()) must include("module HjpegKv260AxiLiteTop")
+  }
+
+  "KV260 AXI-Lite elaboration should emit a Vivado filelist" in {
+    val targetDir = Files.createTempDirectory("hjpeg-kv260-axi-lite-elab-")
+    HjpegElaboration.emitSystemVerilogFile(new HjpegKv260AxiLiteTop(), targetDir.toString)
+
+    val filelist = targetDir.resolve("filelist.f")
+    Files.exists(filelist) mustBe true
+
+    val listedFiles = Files
+      .readString(filelist)
+      .linesIterator
+      .map(_.trim)
+      .filter(_.nonEmpty)
+      .toSeq
+
+    listedFiles must contain("HjpegKv260AxiLiteTop.sv")
+    listedFiles must contain("HjpegAxiStreamCore.sv")
+    listedFiles must contain("HjpegCore.sv")
+    listedFiles must contain("mem_15360x9.sv")
+    listedFiles must contain("mem_30720x9.sv")
+    listedFiles.last mustBe "HjpegKv260AxiLiteTop.sv"
+
+    for (rtl <- listedFiles) {
+      rtl must endWith(".sv")
+      targetDir.resolve(rtl).normalize().startsWith(targetDir) mustBe true
+      Files.isRegularFile(targetDir.resolve(rtl)) mustBe true
+    }
   }
 }

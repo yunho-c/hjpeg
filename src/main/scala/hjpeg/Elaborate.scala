@@ -2,52 +2,37 @@
 
 package hjpeg
 
+import chisel3.RawModule
 import _root_.circt.stage.ChiselStage
 
-object Elaborate extends App {
-  ChiselStage.emitSystemVerilogFile(
-    new HjpegCore(),
-    args = Array("--target-dir", "generated"),
-    firtoolOpts = Array(
-      "-disable-all-randomization",
-      "-strip-debug-info",
-      "-default-layer-specialization=enable"
-    )
+private[hjpeg] object HjpegElaboration {
+  val FirtoolOptions: Array[String] = Array(
+    "-disable-all-randomization",
+    "-strip-debug-info",
+    "-default-layer-specialization=enable"
   )
+
+  def emitSystemVerilogFile(gen: => RawModule, targetDir: String): Unit = {
+    ChiselStage.emitSystemVerilogFile(
+      gen,
+      args = Array("--target-dir", targetDir),
+      firtoolOpts = FirtoolOptions
+    )
+  }
+}
+
+object Elaborate extends App {
+  HjpegElaboration.emitSystemVerilogFile(new HjpegCore(), "generated")
 }
 
 object ElaborateAxiStream extends App {
-  ChiselStage.emitSystemVerilogFile(
-    new HjpegAxiStreamCore(),
-    args = Array("--target-dir", "generated-axi-stream"),
-    firtoolOpts = Array(
-      "-disable-all-randomization",
-      "-strip-debug-info",
-      "-default-layer-specialization=enable"
-    )
-  )
+  HjpegElaboration.emitSystemVerilogFile(new HjpegAxiStreamCore(), "generated-axi-stream")
 }
 
 object ElaborateKv260Top extends App {
-  ChiselStage.emitSystemVerilogFile(
-    new HjpegKv260Top(),
-    args = Array("--target-dir", "generated-kv260-top"),
-    firtoolOpts = Array(
-      "-disable-all-randomization",
-      "-strip-debug-info",
-      "-default-layer-specialization=enable"
-    )
-  )
+  HjpegElaboration.emitSystemVerilogFile(new HjpegKv260Top(), "generated-kv260-top")
 }
 
 object ElaborateKv260AxiLiteTop extends App {
-  ChiselStage.emitSystemVerilogFile(
-    new HjpegKv260AxiLiteTop(),
-    args = Array("--target-dir", "generated-kv260-axi-lite-top"),
-    firtoolOpts = Array(
-      "-disable-all-randomization",
-      "-strip-debug-info",
-      "-default-layer-specialization=enable"
-    )
-  )
+  HjpegElaboration.emitSystemVerilogFile(new HjpegKv260AxiLiteTop(), "generated-kv260-axi-lite-top")
 }
