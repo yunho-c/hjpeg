@@ -378,6 +378,50 @@ class CheckReportsTest(unittest.TestCase):
             self.assertTrue(any("below required" in failure for failure in record["failures"]))
             self.assertTrue(any("WHS" in failure for failure in record["failures"]))
 
+    def test_cli_json_records_drc_and_route_failures(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            drc = root / "post_impl_drc.rpt"
+            route_status = root / "post_impl_route_status.rpt"
+            drc.write_text(DRC_VIOLATION_TABLE)
+            route_status.write_text(ROUTE_STATUS_BAD_REPORT)
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    check_reports.main(
+                        [
+                            "--drc",
+                            str(drc),
+                            "--route-status",
+                            str(route_status),
+                            "--json",
+                        ]
+                    ),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertEqual(record["drc"][0]["path"], str(drc))
+            self.assertFalse(record["drc"][0]["passed"])
+            self.assertEqual(record["drc"][0]["violations"][0]["rule"], "UCIO-1")
+            self.assertTrue(record["drc"][0]["violations"][0]["blocking"])
+            self.assertFalse(record["drc"][0]["violations"][1]["blocking"])
+            self.assertEqual(
+                record["route_status"][0]["counts"],
+                {
+                    "number_of_unrouted_nets": 2,
+                    "number_of_nets_with_routing_errors": 1,
+                },
+            )
+            self.assertFalse(record["route_status"][0]["passed"])
+            self.assertTrue(any("DRC critical warning" in failure for failure in record["failures"]))
+            self.assertTrue(any("number_of_unrouted_nets" in failure for failure in record["failures"]))
+            self.assertTrue(
+                any("number_of_nets_with_routing_errors" in failure for failure in record["failures"])
+            )
+
     def test_cli_json_records_missing_reports(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
