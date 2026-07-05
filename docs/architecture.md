@@ -197,7 +197,9 @@ expectations in the run JSON evidence. Run JSON evidence also records detailed
 input RGB byte-length expectations, whether the actual byte length matched,
 AXI-Lite status checkpoints, the checkpoint count, the ordered checkpoint
 context list, expected context list, context-list match result, and run-level
-all-idle/any-busy/any-protocol-error summaries.
+all-idle/any-busy/any-protocol-error summaries. It also records a
+`hardware_run_summary` with evidence-presence bits and consolidated pass/fail
+checks for board-run transcripts.
 The `run-stream-devices` command supports Linux board images that expose DMA
 MM2S/S2MM endpoints as byte-stream device files by writing padded RGB bytes to
 the TX device and reading JPEG bytes from the RX device until EOI, while

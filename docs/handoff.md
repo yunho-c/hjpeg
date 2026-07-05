@@ -645,7 +645,8 @@ Hardware completion evidence should include:
   component selectors, expected SOS spectral fields, expected minimum scan-data
   length, expected DQT/DHT table order, expected JFIF APP0 baseline fields when
   JFIF is required, expected chroma mode when checked, and expected DQT/DHT
-  payload hashes,
+  payload hashes, hardware-run evidence-presence bits, consolidated run-check
+  booleans, `all_recorded_checks_passed`, `complete_hardware_run_evidence`,
   decoder command, resolved decoder argv, decoder timeout, decoder elapsed
   seconds, bounded decoder stdout/stderr, captured decoder output lengths, and
   decoder output capture limit.

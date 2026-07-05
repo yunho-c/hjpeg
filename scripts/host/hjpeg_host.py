@@ -1555,6 +1555,55 @@ def run_input_ppm_record(
     return record
 
 
+def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
+    evidence_present = {
+        "input_rgb": "input_rgb" in record,
+        "axi_lite": "axi_lite" in record,
+        "encoder_config": "encoder_config" in record,
+        "capture_config": "capture_config" in record,
+        "status_checks": "status_checks" in record,
+        "validation_expectations": "validation_expectations" in record,
+    }
+    checks = {"jpeg_validation_passed": True}
+
+    input_rgb = record.get("input_rgb")
+    if isinstance(input_rgb, dict) and "byte_length_matches_expected" in input_rgb:
+        checks["input_rgb_length_matches_expected"] = bool(
+            input_rgb["byte_length_matches_expected"]
+        )
+
+    input_ppm = record.get("input_ppm")
+    if isinstance(input_ppm, dict) and "packed_rgb_matches_input" in input_ppm:
+        checks["input_ppm_matches_input"] = bool(input_ppm["packed_rgb_matches_input"])
+
+    if "status_checks" in record:
+        checks["status_check_contexts_match_expected"] = bool(
+            record.get("status_check_contexts_match_expected", False)
+        )
+        checks["status_checks_all_idle"] = bool(
+            record.get("status_checks_all_idle", False)
+        )
+        checks["status_checks_no_protocol_error"] = not bool(
+            record.get("status_checks_any_protocol_error", True)
+        )
+        checks["status_checks_no_busy"] = not bool(
+            record.get("status_checks_any_busy", True)
+        )
+
+    if "decoder_command" in record:
+        evidence_present["decoder"] = "decoder_passed" in record
+        checks["decoder_passed"] = bool(record.get("decoder_passed", False))
+
+    all_recorded_checks_passed = all(checks.values())
+    return {
+        "evidence_present": evidence_present,
+        "checks": checks,
+        "all_recorded_checks_passed": all_recorded_checks_passed,
+        "complete_hardware_run_evidence": all(evidence_present.values())
+        and all_recorded_checks_passed,
+    }
+
+
 def run_evidence_record(
     jpeg: Path,
     info: JpegInfo,
@@ -1632,6 +1681,7 @@ def run_evidence_record(
                 "output_jpeg_bytes_per_second": info.byte_length
                 / transfer_elapsed_seconds,
             }
+    record["hardware_run_summary"] = hardware_run_summary_record(record)
     return record
 
 

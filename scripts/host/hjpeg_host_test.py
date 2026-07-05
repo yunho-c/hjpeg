@@ -1473,6 +1473,18 @@ class HjpegHostTest(unittest.TestCase):
 
             self.assertTrue(matched["input_rgb"]["byte_length_matches_expected"])
             self.assertFalse(mismatched["input_rgb"]["byte_length_matches_expected"])
+            self.assertTrue(
+                matched["hardware_run_summary"]["checks"][
+                    "input_rgb_length_matches_expected"
+                ]
+            )
+            self.assertFalse(
+                mismatched["hardware_run_summary"]["checks"][
+                    "input_rgb_length_matches_expected"
+                ]
+            )
+            self.assertTrue(matched["hardware_run_summary"]["all_recorded_checks_passed"])
+            self.assertFalse(mismatched["hardware_run_summary"]["all_recorded_checks_passed"])
 
     def test_run_evidence_record_summarizes_status_checks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1523,6 +1535,17 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["status_checks_all_idle"])
             self.assertFalse(record["status_checks_any_protocol_error"])
             self.assertFalse(record["status_checks_any_busy"])
+            self.assertEqual(
+                record["hardware_run_summary"]["checks"],
+                {
+                    "jpeg_validation_passed": True,
+                    "status_check_contexts_match_expected": True,
+                    "status_checks_all_idle": True,
+                    "status_checks_no_protocol_error": True,
+                    "status_checks_no_busy": True,
+                },
+            )
+            self.assertTrue(record["hardware_run_summary"]["all_recorded_checks_passed"])
 
             faulted = hjpeg_host.run_evidence_record(
                 jpeg,
@@ -1541,6 +1564,23 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(faulted["status_checks_any_protocol_error"])
             self.assertTrue(faulted["status_checks_any_busy"])
             self.assertFalse(faulted["status_check_contexts_match_expected"])
+            self.assertFalse(faulted["hardware_run_summary"]["all_recorded_checks_passed"])
+            self.assertFalse(
+                faulted["hardware_run_summary"]["checks"][
+                    "status_check_contexts_match_expected"
+                ]
+            )
+            self.assertFalse(
+                faulted["hardware_run_summary"]["checks"]["status_checks_all_idle"]
+            )
+            self.assertFalse(
+                faulted["hardware_run_summary"]["checks"][
+                    "status_checks_no_protocol_error"
+                ]
+            )
+            self.assertFalse(
+                faulted["hardware_run_summary"]["checks"]["status_checks_no_busy"]
+            )
 
     def test_run_evidence_record_reports_transfer_rates_for_positive_elapsed_time(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -3440,6 +3480,32 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["status_checks_all_idle"])
             self.assertFalse(record["status_checks_any_protocol_error"])
             self.assertFalse(record["status_checks_any_busy"])
+            self.assertEqual(
+                record["hardware_run_summary"],
+                {
+                    "evidence_present": {
+                        "input_rgb": True,
+                        "axi_lite": True,
+                        "encoder_config": True,
+                        "capture_config": True,
+                        "status_checks": True,
+                        "validation_expectations": True,
+                        "decoder": True,
+                    },
+                    "checks": {
+                        "jpeg_validation_passed": True,
+                        "input_rgb_length_matches_expected": True,
+                        "input_ppm_matches_input": True,
+                        "status_check_contexts_match_expected": True,
+                        "status_checks_all_idle": True,
+                        "status_checks_no_protocol_error": True,
+                        "status_checks_no_busy": True,
+                        "decoder_passed": True,
+                    },
+                    "all_recorded_checks_passed": True,
+                    "complete_hardware_run_evidence": True,
+                },
+            )
             for status in record["status_checks"]:
                 self.assertEqual(status["axi_lite"]["device"], str(mem))
                 self.assertEqual(status["axi_lite"]["base_addr"], 0)

@@ -204,6 +204,10 @@ Expected evidence:
   word, decoded `busy` and `protocol_error` flags, and text state.
 - Standalone `clear-error --json` evidence records the AXI-Lite target and
   control word pulsed when recovering from a sticky protocol fault.
+- `run-stream-devices --json` evidence includes `hardware_run_summary` with
+  the required evidence groups, recorded run-check booleans, and
+  `complete_hardware_run_evidence`. A valid final board transcript should have
+  `all_recorded_checks_passed` and `complete_hardware_run_evidence` true.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after
