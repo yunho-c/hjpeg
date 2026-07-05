@@ -123,9 +123,10 @@ hardware-tool entry points:
   period/frequency, parsed WNS/WHS values, utilization rows, thresholds, DRC
   violations, route-status counts, clock-utilization report hashes, requested
   input path lists and gate values, checked report/artifact count, per-category
-  checked counts, required evidence category presence, missing category names,
-  required `.bit`/`.xsa` artifact suffix presence, and pass/fail state for
-  build evidence logs. Required evidence category presence is based on at least
+  checked counts, required evidence category presence, per-category passing
+  counts, missing category names, required `.bit`/`.xsa` artifact suffix
+  presence, required suffix passing counts, and pass/fail state for build
+  evidence logs. Required evidence category presence is based on at least
   one passing record in that category, not just a requested input path. Complete
   Vivado evidence counts only records whose `passed` field is an actual JSON
   boolean `true`. Missing or unparseable reports are included as structured

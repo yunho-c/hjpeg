@@ -121,8 +121,9 @@ Pass criteria:
   utilization rows, thresholds, DRC violations, route-status counts, required
   clock-utilization report hashes, requested input path lists and gate values,
   checked report/artifact count, per-category checked counts, required evidence
-  category presence, missing category names, required `.bit`/`.xsa` artifact
-  suffix presence, and pass/fail state. Complete Vivado flow evidence has
+  category presence, per-category passing counts, missing category names,
+  required `.bit`/`.xsa` artifact suffix presence, required suffix passing
+  counts, and pass/fail state. Complete Vivado flow evidence has
   `all_required_present` and `all_required_suffixes_present` true.
   `all_required_present` requires at least one passing record in each required
   category, not just a requested input path. Complete Vivado evidence counts

@@ -353,6 +353,14 @@ class CheckReportsTest(unittest.TestCase):
                         "route_status": True,
                         "clock_utilization": True,
                     },
+                    "passing_counts": {
+                        "artifacts": 2,
+                        "timing": 1,
+                        "utilization": 1,
+                        "drc": 1,
+                        "route_status": 1,
+                        "clock_utilization": 1,
+                    },
                     "missing_required_categories": [],
                     "all_required_present": True,
                 },
@@ -362,6 +370,7 @@ class CheckReportsTest(unittest.TestCase):
                 {
                     "required_suffixes": [".bit", ".xsa"],
                     "suffix_counts": {".bit": 1, ".xsa": 1},
+                    "passing_suffix_counts": {".bit": 1, ".xsa": 1},
                     "required_suffixes_present": {".bit": True, ".xsa": True},
                     "missing_required_suffixes": [],
                     "all_required_suffixes_present": True,
@@ -493,6 +502,13 @@ class CheckReportsTest(unittest.TestCase):
             list(check_reports.REQUIRED_EVIDENCE_CATEGORIES),
         )
         self.assertFalse(record["all_required_present"])
+        self.assertEqual(
+            record["passing_counts"],
+            {
+                category: 0
+                for category in check_reports.REQUIRED_EVIDENCE_CATEGORIES
+            },
+        )
         self.assertTrue(
             all(not present for present in record["present"].values())
         )
@@ -511,6 +527,7 @@ class CheckReportsTest(unittest.TestCase):
         )
         self.assertFalse(record["all_required_suffixes_present"])
         self.assertEqual(record["suffix_counts"], {".bit": 1, ".xsa": 1})
+        self.assertEqual(record["passing_suffix_counts"], {})
         self.assertTrue(
             all(not present for present in record["required_suffixes_present"].values())
         )
@@ -571,6 +588,7 @@ class CheckReportsTest(unittest.TestCase):
                 {
                     "required_suffixes": [".bit", ".xsa"],
                     "suffix_counts": {".xsa": 1},
+                    "passing_suffix_counts": {},
                     "required_suffixes_present": {".bit": False, ".xsa": False},
                     "missing_required_suffixes": [".bit", ".xsa"],
                     "all_required_suffixes_present": False,
@@ -615,6 +633,7 @@ class CheckReportsTest(unittest.TestCase):
                 {
                     "required_suffixes": [".bit", ".xsa"],
                     "suffix_counts": {".bit": 1},
+                    "passing_suffix_counts": {},
                     "required_suffixes_present": {".bit": False, ".xsa": False},
                     "missing_required_suffixes": [".bit", ".xsa"],
                     "all_required_suffixes_present": False,
