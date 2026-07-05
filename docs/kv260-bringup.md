@@ -47,6 +47,7 @@ vivado -mode batch -source scripts/vivado/build_kv260_bitstream.tcl
 python3 scripts/vivado/check_reports.py \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa \
+  --artifact build/vivado/hjpeg-kv260-artifacts/post_impl.dcp \
   --timing build/vivado/hjpeg-kv260-artifacts/post_synth_timing_summary.rpt \
   --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --hold-timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
@@ -63,6 +64,7 @@ Expected evidence:
 
 - `build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit`
 - `build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa`
+- `build/vivado/hjpeg-kv260-artifacts/post_impl.dcp`
 - `post_synth_utilization.rpt`
 - `post_synth_timing_summary.rpt`
 - `post_impl_utilization.rpt`
@@ -74,8 +76,8 @@ Expected evidence:
 Pass criteria:
 
 - Synthesis and implementation finish successfully.
-- The expected bitstream and XSA artifacts exist and are recorded in the JSON
-  evidence.
+- The expected bitstream, XSA, and post-implementation checkpoint artifacts
+  exist and are recorded in the JSON evidence.
 - Post-implementation timing has nonnegative setup WNS and hold WHS for the
   target clock.
 - Post-implementation DRC, route status, and clock utilization reports are
@@ -97,8 +99,8 @@ Pass criteria:
 
 Latest local Vivado 2026.1 evidence:
 
-- `build_kv260_bitstream.tcl` completed and wrote `hjpeg_kv260.bit` and
-  `hjpeg_kv260.xsa`.
+- `build_kv260_bitstream.tcl` completed and wrote `hjpeg_kv260.bit`,
+  `hjpeg_kv260.xsa`, and `post_impl.dcp`.
 - `check_reports.py` passed on post-synthesis and post-implementation timing
   and utilization reports.
 - Latest post-implementation timing is setup WNS `+0.131 ns` and hold WHS

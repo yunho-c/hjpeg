@@ -123,5 +123,7 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
     bitstream must include("hjpeg_kv260.bit")
     bitstream must include("write_hw_platform -fixed -include_bit")
     bitstream must include("hjpeg_kv260.xsa")
+    bitstream must include("write_checkpoint -force")
+    bitstream must include("post_impl.dcp")
   }
 }

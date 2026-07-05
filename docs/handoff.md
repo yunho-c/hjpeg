@@ -172,6 +172,7 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `9e11948 fix: check ppm limits before payload`
 - `7302552 fix: reject invalid host config ranges`
 - `68138d1 fix: reject invalid host cli limits`
 - `ec235dd fix: validate host capture limits`
@@ -386,6 +387,7 @@ vivado -mode batch -source scripts/vivado/build_kv260_bitstream.tcl
 python3 scripts/vivado/check_reports.py \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa \
+  --artifact build/vivado/hjpeg-kv260-artifacts/post_impl.dcp \
   --timing build/vivado/hjpeg-kv260-artifacts/post_synth_timing_summary.rpt \
   --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --hold-timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
@@ -412,8 +414,9 @@ Known local limitations:
   path/shell incompatibility above; it does not validate the new cycle-budget
   regression until run on a compatible simulator setup.
 - The current block-design Vivado reports pass the default 100 MHz
-  setup/hold/utilization gates. Latest artifact reports show post-synthesis
-  setup WNS `+0.807 ns` and post-implementation setup WNS `+0.131 ns`;
+  setup/hold/utilization gates. Latest artifact reports include the bitstream,
+  XSA, and post-implementation checkpoint, and show post-synthesis setup WNS
+  `+0.807 ns` and post-implementation setup WNS `+0.131 ns`;
   post-implementation hold WHS is `+0.010 ns`. Post-implementation utilization is approximately
   50,662 CLB LUTs (43.26%), 25,619 LUTRAMs (44.48%), 2 BRAM tiles (1.39%), and
   17 DSPs (1.36%).
@@ -469,6 +472,7 @@ vivado -mode batch -source scripts/vivado/build_kv260_bitstream.tcl
 python3 scripts/vivado/check_reports.py \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa \
+  --artifact build/vivado/hjpeg-kv260-artifacts/post_impl.dcp \
   --timing build/vivado/hjpeg-kv260-artifacts/post_synth_timing_summary.rpt \
   --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --hold-timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
