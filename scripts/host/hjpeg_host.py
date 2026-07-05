@@ -1510,6 +1510,10 @@ def is_strict_int(value: object) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 
 
+def is_strict_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
 def file_info_record(info: FileInfo) -> dict[str, object]:
     return {
         "path": info.path,
@@ -2498,7 +2502,7 @@ def check_run_evidence_record(
             axi_lite.get("base_addr") if isinstance(axi_lite, dict) else None
         )
         axi_lite_base_matches_vivado = (
-            isinstance(axi_lite_base_addr, int)
+            is_strict_int(axi_lite_base_addr)
             and axi_lite_base_addr in vivado_hjpeg_base_addresses
         )
         result.update(
@@ -2575,7 +2579,7 @@ def vivado_hjpeg_base_addresses_from_record(record: object) -> tuple[int, ...]:
             if entry.get("interface") != "hjpeg_0/s_axi_lite":
                 continue
             base_address = entry.get("base_address")
-            if isinstance(base_address, int) and base_address >= 0:
+            if is_strict_int(base_address) and base_address >= 0:
                 bases.append(base_address)
     return tuple(dict.fromkeys(bases))
 
@@ -2609,10 +2613,10 @@ def vivado_address_map_hex_fields_consistent(record: object) -> bool:
                 return False
             base_address = entry.get("base_address")
             high_address = entry.get("high_address")
-            if not isinstance(base_address, int) or base_address < 0:
+            if not is_strict_int(base_address) or base_address < 0:
                 return False
             if high_address is not None and (
-                not isinstance(high_address, int) or high_address < base_address
+                not is_strict_int(high_address) or high_address < base_address
             ):
                 return False
             if not _hex_field_matches_int(entry.get("base_address_hex"), base_address):
@@ -2727,8 +2731,8 @@ def vivado_clock_target_present(record: object) -> bool:
     clock_period_ns = record.get("clock_period_ns")
     clock_frequency_mhz = record.get("clock_frequency_mhz")
     if not (
-        isinstance(clock_period_ns, (int, float))
-        and isinstance(clock_frequency_mhz, (int, float))
+        is_strict_number(clock_period_ns)
+        and is_strict_number(clock_frequency_mhz)
         and math.isfinite(clock_period_ns)
         and math.isfinite(clock_frequency_mhz)
         and clock_period_ns > 0
@@ -2759,9 +2763,15 @@ def vivado_evidence_categories_present(record: object) -> bool:
     for category in VIVADO_REQUIRED_EVIDENCE_CATEGORIES:
         if present.get(category) is not True:
             return False
-        if not isinstance(passing_counts.get(category), int) or passing_counts[category] <= 0:
+        if (
+            not is_strict_int(passing_counts.get(category))
+            or passing_counts[category] <= 0
+        ):
             return False
-        if failing_counts.get(category) != 0:
+        if (
+            not is_strict_int(failing_counts.get(category))
+            or failing_counts[category] != 0
+        ):
             return False
     return True
 
@@ -2789,11 +2799,11 @@ def vivado_summary_counts_consistent(record: object) -> bool:
         if isinstance(failing_counts, dict):
             category_failing_counts = failing_counts
     if not (
-        isinstance(checked_count, int)
+        is_strict_int(checked_count)
         and checked_count > 0
-        and isinstance(passed_count, int)
-        and isinstance(failed_count, int)
-        and isinstance(failure_count, int)
+        and is_strict_int(passed_count)
+        and is_strict_int(failed_count)
+        and is_strict_int(failure_count)
         and isinstance(failures, list)
         and isinstance(checked_counts, dict)
         and isinstance(checked_paths, list)
@@ -2811,10 +2821,10 @@ def vivado_summary_counts_consistent(record: object) -> bool:
         and len(passed_paths) == passed_count
         and checked_paths == passed_paths
         and all(
-            isinstance(checked_counts.get(category), int)
+            is_strict_int(checked_counts.get(category))
             and checked_counts[category] > 0
-            and isinstance(category_passing_counts.get(category), int)
-            and isinstance(category_failing_counts.get(category), int)
+            and is_strict_int(category_passing_counts.get(category))
+            and is_strict_int(category_failing_counts.get(category))
             and checked_counts[category]
             == category_passing_counts[category] + category_failing_counts[category]
             for category in VIVADO_REQUIRED_EVIDENCE_CATEGORIES
@@ -2822,7 +2832,7 @@ def vivado_summary_counts_consistent(record: object) -> bool:
         and sum(
             int(count)
             for count in checked_counts.values()
-            if isinstance(count, int)
+            if is_strict_int(count)
         )
         == checked_count
     )
@@ -2844,7 +2854,10 @@ def vivado_route_status_counts_present(record: object) -> bool:
             isinstance(counts, dict)
             and isinstance(required_counts, list)
             and missing_counts == []
-            and all(counts.get(name) == 0 for name in VIVADO_REQUIRED_ROUTE_STATUS_COUNTS)
+            and all(
+                is_strict_int(counts.get(name)) and counts.get(name) == 0
+                for name in VIVADO_REQUIRED_ROUTE_STATUS_COUNTS
+            )
             and all(name in required_counts for name in VIVADO_REQUIRED_ROUTE_STATUS_COUNTS)
         ):
             return True
@@ -3625,7 +3638,7 @@ def main(argv: list[str] | None = None) -> int:
                 base
                 for vivado_record in vivado_records
                 for base in vivado_record.get("hjpeg_base_addresses", [])
-                if isinstance(base, int)
+                if is_strict_int(base)
             )
         )
         if len(vivado_hjpeg_base_addresses) > 1:
@@ -3658,32 +3671,32 @@ def main(argv: list[str] | None = None) -> int:
         aggregate_evidence_group_count = sum(
             int(record.get("evidence_group_count", 0))
             for record in records
-            if isinstance(record.get("evidence_group_count"), int)
+            if is_strict_int(record.get("evidence_group_count"))
         )
         aggregate_evidence_present_count = sum(
             int(record.get("evidence_present_count", 0))
             for record in records
-            if isinstance(record.get("evidence_present_count"), int)
+            if is_strict_int(record.get("evidence_present_count"))
         )
         aggregate_evidence_missing_count = sum(
             int(record.get("evidence_missing_count", 0))
             for record in records
-            if isinstance(record.get("evidence_missing_count"), int)
+            if is_strict_int(record.get("evidence_missing_count"))
         )
         aggregate_recorded_check_count = sum(
             int(record.get("recorded_check_count", 0))
             for record in records
-            if isinstance(record.get("recorded_check_count"), int)
+            if is_strict_int(record.get("recorded_check_count"))
         )
         aggregate_passing_check_count = sum(
             int(record.get("passing_check_count", 0))
             for record in records
-            if isinstance(record.get("passing_check_count"), int)
+            if is_strict_int(record.get("passing_check_count"))
         )
         aggregate_failing_check_count = sum(
             int(record.get("failing_check_count", 0))
             for record in records
-            if isinstance(record.get("failing_check_count"), int)
+            if is_strict_int(record.get("failing_check_count"))
         )
         summary_checked_paths = [
             str(record.get("path"))

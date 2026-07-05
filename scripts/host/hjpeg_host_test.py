@@ -3598,6 +3598,46 @@ class HjpegHostTest(unittest.TestCase):
                 any("address-map hex fields" in failure for failure in failures)
             )
 
+    def test_vivado_evidence_file_record_rejects_boolean_numeric_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["address_map"][0]["entries"][0]["base_address"] = False
+            vivado_record["address_map"][0]["entries"][0]["high_address"] = True
+            vivado_record["clock_period_ns"] = True
+            vivado_record["clock_frequency_mhz"] = 1000.0
+            vivado_record["evidence_categories"]["passing_counts"]["artifacts"] = True
+            vivado_record["evidence_categories"]["failing_counts"]["artifacts"] = False
+            vivado_record["checked_count"] = True
+            vivado_record["checked_counts"]["artifacts"] = True
+            vivado_record["route_status"][0]["counts"][
+                "number_of_unrouted_nets"
+            ] = False
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertTrue(record["vivado_passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertFalse(record["vivado_address_map_hex_fields_consistent"])
+            self.assertFalse(record["vivado_clock_target_present"])
+            self.assertFalse(record["vivado_evidence_categories_present"])
+            self.assertFalse(record["vivado_summary_counts_consistent"])
+            self.assertFalse(record["vivado_route_status_counts_present"])
+            self.assertEqual(record["hjpeg_base_addresses"], [])
+            self.assertFalse(record["passed"])
+            self.assertTrue(
+                any("address-map hex fields" in failure for failure in failures)
+            )
+            self.assertTrue(any("clock target" in failure for failure in failures))
+            self.assertTrue(
+                any("evidence category summary" in failure for failure in failures)
+            )
+            self.assertTrue(
+                any("diagnostic summary counts" in failure for failure in failures)
+            )
+            self.assertTrue(any("route-status" in failure for failure in failures))
+
     def test_vivado_evidence_file_record_rejects_inconsistent_artifact_filenames(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vivado.json"
