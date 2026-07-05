@@ -172,6 +172,10 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `00fe4e1 fix: reject zero jpeg sampling factors`
+- `654ae18 fix: reject zero jpeg frame dimensions`
+- `246a26c fix: reject zero jpeg quantization values`
+- `baf6f92 fix: require jfif app0 markers`
 - `63ae06c fix: reject unsupported jpeg header markers`
 - `5e80087 test: cover core output backpressure`
 - `ccb8b6a fix: reject invalid jpeg huffman symbols`
@@ -354,12 +358,12 @@ requires exact DQT/DHT segment counts, requires the standard DC/AC Huffman table
 set, rejects duplicate DQT/DHT table definitions, records parsed marker
 sequence, stuffed entropy `0xff` byte count, RST marker sequence, and JFIF APP0
 signature count, rejects empty, oversized, oversubscribed, or invalid baseline
-DHT tables, zero-valued DQT entries, unsupported header markers, non-JFIF or
-duplicate APP0 markers, RST markers without DRI, out-of-sequence RST markers,
-unexpected non-RST/non-EOI markers after SOS, and trailing bytes after EOI, and
-can enforce expected restart interval, exact RST marker count for the parsed MCU
-count, chroma mode, JFIF APP0 signature presence, quality-matched standard DQT
-payloads, and standard DHT payloads.
+DHT tables, zero-valued DQT entries, unsupported header markers, malformed,
+non-JFIF, or duplicate APP0 markers, RST markers without DRI, out-of-sequence
+RST markers, unexpected non-RST/non-EOI markers after SOS, and trailing bytes
+after EOI, and can enforce expected restart interval, exact RST marker count for
+the parsed MCU count, chroma mode, JFIF APP0 signature presence,
+quality-matched standard DQT payloads, and standard DHT payloads.
 `run-stream-devices` enforces those expectations automatically from the
 configured AXI-Lite control fields and quality setting.
 

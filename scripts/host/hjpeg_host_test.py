@@ -259,6 +259,19 @@ def with_non_jfif_app0(jpeg: bytes) -> bytes:
     return bytes(mutated)
 
 
+def with_short_jfif_app0(jpeg: bytes) -> bytes:
+    app0 = jpeg.find(b"\xff\xe0")
+    if app0 < 0:
+        raise AssertionError("APP0 marker not found")
+    length = (jpeg[app0 + 2] << 8) | jpeg[app0 + 3]
+    return (
+        jpeg[: app0 + 2]
+        + bytes([0x00, 0x07])
+        + b"JFIF\x00"
+        + jpeg[app0 + 2 + length :]
+    )
+
+
 def with_duplicate_app0(jpeg: bytes) -> bytes:
     app0_start, app0_end = segment_bounds(jpeg, b"\xff\xe0")
     segment = jpeg[app0_start:app0_end]
@@ -1872,6 +1885,14 @@ class HjpegHostTest(unittest.TestCase):
             jpeg.write_bytes(with_non_jfif_app0(minimal_jpeg(width=17, height=13)))
 
             with self.assertRaisesRegex(ValueError, "APP0 segment is not a JFIF"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_malformed_jfif_app0(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "short-jfif-app0.jpg"
+            jpeg.write_bytes(with_short_jfif_app0(minimal_jpeg(width=17, height=13)))
+
+            with self.assertRaisesRegex(ValueError, "JFIF APP0 segment is too short"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_rejects_duplicate_app0(self) -> None:
