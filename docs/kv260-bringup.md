@@ -230,8 +230,9 @@ Expected evidence:
   marker order, table order, SOS spectral fields, and standard-Huffman
   requirement. Source PPM evidence must include file and packed-RGB hashes,
   dimension-consistent RGB and packed byte lengths, an input-byte match, and
-  non-flat/color image stats. Status evidence must include the expected
-  checkpoint contexts with all checkpoints idle, no protocol error, and no busy
+  non-flat/color image stats. Status evidence must include the detailed
+  checkpoint list, matching checkpoint count, expected ordered contexts, zero
+  raw status words, and all checkpoints idle with no protocol error or busy
   state.
 - The captured output starts with SOI and ends with EOI.
 

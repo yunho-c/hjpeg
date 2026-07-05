@@ -1802,7 +1802,14 @@ class HjpegHostTest(unittest.TestCase):
                     "jpeg_scan_data_sha256_present": True,
                     "jpeg_marker_sequence_starts_with_soi": True,
                     "jpeg_marker_sequence_ends_with_eoi": True,
+                    "status_checks_list_present": True,
+                    "status_check_count_matches": True,
+                    "status_check_count_expected": True,
+                    "expected_status_contexts_present": True,
+                    "status_check_contexts_match_list": True,
                     "status_check_contexts_match_expected": True,
+                    "status_checks_have_status_words": True,
+                    "status_checks_each_idle": True,
                     "status_checks_all_idle": True,
                     "status_checks_no_protocol_error": True,
                     "status_checks_no_busy": True,
@@ -1843,6 +1850,14 @@ class HjpegHostTest(unittest.TestCase):
                 ]
             )
             self.assertFalse(
+                faulted["hardware_run_summary"]["checks"][
+                    "status_checks_have_status_words"
+                ]
+            )
+            self.assertFalse(
+                faulted["hardware_run_summary"]["checks"]["status_checks_each_idle"]
+            )
+            self.assertFalse(
                 faulted["hardware_run_summary"]["checks"]["status_checks_all_idle"]
             )
             self.assertFalse(
@@ -1853,6 +1868,59 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(
                 faulted["hardware_run_summary"]["checks"]["status_checks_no_busy"]
             )
+
+    def test_hardware_summary_requires_detailed_status_checkpoint_evidence(self) -> None:
+        record = {
+            "status_check_count": 3,
+            "status_check_contexts": [
+                "after configuration",
+                "before transfer",
+                "after transfer",
+            ],
+            "expected_status_check_contexts": [
+                "after configuration",
+                "before transfer",
+                "after transfer",
+            ],
+            "status_check_contexts_match_expected": True,
+            "status_checks_all_idle": True,
+            "status_checks_any_protocol_error": False,
+            "status_checks_any_busy": False,
+            "status_checks": [
+                {
+                    "context": "after configuration",
+                    "status": 0,
+                    "text": "idle",
+                    "busy": False,
+                    "protocol_error": False,
+                },
+                {
+                    "context": "before transfer",
+                    "status": 1,
+                    "text": "idle",
+                    "busy": False,
+                    "protocol_error": False,
+                },
+                {
+                    "context": "after transfer",
+                    "text": "idle",
+                    "busy": False,
+                    "protocol_error": False,
+                },
+            ],
+        }
+
+        summary = hjpeg_host.hardware_run_summary_record(record)
+
+        self.assertFalse(summary["evidence_present"]["status_checks"])
+        self.assertFalse(summary["all_recorded_checks_passed"])
+        self.assertTrue(summary["checks"]["status_checks_list_present"])
+        self.assertTrue(summary["checks"]["status_check_count_matches"])
+        self.assertTrue(summary["checks"]["status_check_count_expected"])
+        self.assertTrue(summary["checks"]["expected_status_contexts_present"])
+        self.assertTrue(summary["checks"]["status_check_contexts_match_list"])
+        self.assertFalse(summary["checks"]["status_checks_have_status_words"])
+        self.assertFalse(summary["checks"]["status_checks_each_idle"])
 
     def test_run_evidence_record_reports_transfer_rates_for_positive_elapsed_time(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -3964,7 +4032,14 @@ class HjpegHostTest(unittest.TestCase):
                         "input_ppm_packed_rgb_sha256_present": True,
                         "input_ppm_non_flat": True,
                         "input_ppm_has_color_pixels": True,
+                        "status_checks_list_present": True,
+                        "status_check_count_matches": True,
+                        "status_check_count_expected": True,
+                        "expected_status_contexts_present": True,
+                        "status_check_contexts_match_list": True,
                         "status_check_contexts_match_expected": True,
+                        "status_checks_have_status_words": True,
+                        "status_checks_each_idle": True,
                         "status_checks_all_idle": True,
                         "status_checks_no_protocol_error": True,
                         "status_checks_no_busy": True,

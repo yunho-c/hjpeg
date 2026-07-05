@@ -1888,8 +1888,45 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
 
     if "status_checks" in record:
+        status_checks = record.get("status_checks")
+        status_checks_list_present = isinstance(status_checks, list)
+        status_check_count_matches = (
+            status_checks_list_present
+            and record.get("status_check_count") == len(status_checks)
+        )
+        status_check_count_expected = (
+            status_checks_list_present
+            and len(status_checks) == len(RUN_STATUS_CHECK_CONTEXTS)
+        )
+        expected_status_contexts_present = (
+            record.get("expected_status_check_contexts") == RUN_STATUS_CHECK_CONTEXTS
+        )
+        status_check_contexts = record.get("status_check_contexts")
+        status_check_contexts_match_list = (
+            status_checks_list_present
+            and status_check_contexts
+            == [
+                str(status_check.get("context", ""))
+                if isinstance(status_check, dict)
+                else ""
+                for status_check in status_checks
+            ]
+        )
         status_check_contexts_match_expected = bool(
             record.get("status_check_contexts_match_expected", False)
+        )
+        status_checks_have_status_words = status_checks_list_present and all(
+            isinstance(status_check, dict)
+            and isinstance(status_check.get("status"), int)
+            for status_check in status_checks
+        )
+        status_checks_each_idle = status_checks_list_present and all(
+            isinstance(status_check, dict)
+            and status_check.get("status") == 0
+            and status_check.get("text") == "idle"
+            and not bool(status_check.get("busy", True))
+            and not bool(status_check.get("protocol_error", True))
+            for status_check in status_checks
         )
         status_checks_all_idle = bool(record.get("status_checks_all_idle", False))
         status_checks_no_protocol_error = not bool(
@@ -1897,14 +1934,28 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
         status_checks_no_busy = not bool(record.get("status_checks_any_busy", True))
         evidence_present["status_checks"] = (
-            status_check_contexts_match_expected
+            status_checks_list_present
+            and status_check_count_matches
+            and status_check_count_expected
+            and expected_status_contexts_present
+            and status_check_contexts_match_list
+            and status_check_contexts_match_expected
+            and status_checks_have_status_words
+            and status_checks_each_idle
             and status_checks_all_idle
             and status_checks_no_protocol_error
             and status_checks_no_busy
         )
+        checks["status_checks_list_present"] = status_checks_list_present
+        checks["status_check_count_matches"] = status_check_count_matches
+        checks["status_check_count_expected"] = status_check_count_expected
+        checks["expected_status_contexts_present"] = expected_status_contexts_present
+        checks["status_check_contexts_match_list"] = status_check_contexts_match_list
         checks["status_check_contexts_match_expected"] = (
             status_check_contexts_match_expected
         )
+        checks["status_checks_have_status_words"] = status_checks_have_status_words
+        checks["status_checks_each_idle"] = status_checks_each_idle
         checks["status_checks_all_idle"] = status_checks_all_idle
         checks["status_checks_no_protocol_error"] = status_checks_no_protocol_error
         checks["status_checks_no_busy"] = status_checks_no_busy

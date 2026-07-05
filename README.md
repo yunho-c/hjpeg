@@ -260,7 +260,8 @@ checked frame limits, quality, restart interval, chroma mode, JFIF setting, and
 control word. Host CLI configuration quality must be in `1..100`, and restart
 interval values must be in `0..65535`. Frame dimensions and frame limits must
 be positive, and AXI-Lite base addresses must be nonnegative. Status evidence
-records the AXI-Lite target, raw status word, decoded flags, and text state.
+records each checkpoint context, AXI-Lite target, raw status word, decoded
+flags, and text state.
 Clear-error evidence records the AXI-Lite target and control word pulsed to clear sticky protocol faults. JPEG validation
 evidence includes dimensions, SOF0 8-bit sample
 precision, exactly one SOF0 and one SOS segment, three-component frame shape,
@@ -340,8 +341,9 @@ expectations evidence must include the baseline shape, marker order, table
 order, SOS spectral fields, and standard-Huffman requirement. Source PPM
 evidence must include file and packed-RGB hashes, dimension-consistent RGB and
 packed byte lengths, an input-byte match, and non-flat/color image stats. Status
-evidence must include the expected checkpoint contexts with all checkpoints
-idle, no protocol error, and no busy state.
+evidence must include the detailed checkpoint list, matching checkpoint count,
+expected ordered contexts, zero raw status words, and all checkpoints idle with
+no protocol error or busy state.
 Maximum output bytes must be positive, and RX timeout values must be finite and
 positive when present. It
 also records host-observed transfer elapsed seconds and derived byte rates when
