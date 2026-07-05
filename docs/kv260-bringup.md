@@ -36,7 +36,10 @@ vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl
 Expected evidence:
 
 - `build/vivado/hjpeg-kv260-bd/hjpeg_kv260_bd.xpr`
+- Address assignment completes.
 - `validate_bd_design` completes successfully.
+- The generated HDL wrapper is added to the project and compile order is
+  updated.
 - The design contains Zynq UltraScale+ PS, AXI DMA, SmartConnect, reset logic,
   interrupt concat, and one `hjpeg_kv260_axi_lite` instance.
 

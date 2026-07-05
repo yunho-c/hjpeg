@@ -148,7 +148,8 @@ the AXI-Lite top first. The IP packaging script maps the generated clock, reset,
 AXI-Lite, and AXI-stream ports onto Vivado bus interfaces and exposes a 4 KiB
 AXI-Lite register aperture. The block-design script consumes the packaged IP and
 wires it to Zynq UltraScale+ PS, AXI DMA, SmartConnect, and reset/interrupt
-plumbing. The bitstream script runs synthesis and implementation, writes
+plumbing, assigns addresses, validates/saves the block design, and generates the
+HDL wrapper. The bitstream script runs synthesis and implementation, writes
 post-synthesis/post-implementation utilization and timing reports, copies the
 bitstream, and exports a hardware platform XSA. These scripts do not create a
 complete bootable KV260 image or prove on-board behavior.

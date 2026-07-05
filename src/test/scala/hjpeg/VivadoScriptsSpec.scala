@@ -104,7 +104,12 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
     blockDesign must include("ps/M_AXI_HPM0_FPD")
     blockDesign must include("ps/S_AXI_HP0_FPD")
     blockDesign must include("dma_irq_concat")
+    blockDesign must include("assign_bd_address")
     blockDesign must include("validate_bd_design")
+    blockDesign must include("save_bd_design")
+    blockDesign must include("make_wrapper")
+    blockDesign must include("${design_name}_wrapper.v")
+    blockDesign must include("update_compile_order -fileset sources_1")
 
     bitstream must include("hjpeg_kv260_bd.xpr")
     bitstream must include("open_project")
