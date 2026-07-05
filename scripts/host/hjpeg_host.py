@@ -516,6 +516,11 @@ def jpeg_info(data: bytes) -> JpegInfo:
                     raise ValueError(
                         f"JPEG {class_name} DHT table {table_id} has no symbols"
                     )
+                if value_count > 256:
+                    class_name = "DC" if table_class == 0 else "AC"
+                    raise ValueError(
+                        f"JPEG {class_name} DHT table {table_id} has {value_count} symbols, expected at most 256"
+                    )
                 symbol_bytes = data[table_offset + 17 : table_offset + 17 + value_count]
                 table_offset += 17 + value_count
                 if table_offset > segment_end:

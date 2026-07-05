@@ -172,6 +172,7 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `d93131f fix: reject empty jpeg huffman tables`
 - `9d2ebf4 fix: reject duplicate jpeg table definitions`
 - `de95eea fix: reject extra vivado script arguments`
 - `0c2597b fix: validate vivado bitstream job count`
@@ -346,11 +347,12 @@ requires supported 4:4:4 or 4:2:0 sampling, requires standard DQT table IDs
 hashes, requires exact DQT/DHT segment counts, requires the standard DC/AC
 Huffman table set, rejects duplicate DQT/DHT table definitions, records parsed
 marker sequence, stuffed entropy `0xff` byte count, RST marker sequence, and
-JFIF APP0 signature count, rejects empty DHT tables, RST markers without DRI,
-out-of-sequence RST markers, unexpected non-RST/non-EOI markers after SOS, and
-trailing bytes after EOI, and can enforce expected restart interval, exact RST
-marker count for the parsed MCU count, chroma mode, JFIF APP0 signature
-presence, quality-matched standard DQT payloads, and standard DHT payloads.
+JFIF APP0 signature count, rejects empty or oversized DHT tables, RST markers
+without DRI, out-of-sequence RST markers, unexpected non-RST/non-EOI markers
+after SOS, and trailing bytes after EOI, and can enforce expected restart
+interval, exact RST marker count for the parsed MCU count, chroma mode, JFIF
+APP0 signature presence, quality-matched standard DQT payloads, and standard
+DHT payloads.
 `run-stream-devices` enforces those expectations automatically from the
 configured AXI-Lite control fields and quality setting.
 
