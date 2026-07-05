@@ -2539,6 +2539,20 @@ def vivado_required_artifact_filenames_present(record: object) -> bool:
     )
 
 
+def vivado_required_address_map_filenames_present(record: object) -> bool:
+    if not isinstance(record, dict):
+        return False
+    address_map_filenames = record.get("address_map_filenames")
+    if not isinstance(address_map_filenames, dict):
+        return False
+    required_filenames_present = address_map_filenames.get("required_filenames_present")
+    return (
+        address_map_filenames.get("all_required_filenames_present") is True
+        and isinstance(required_filenames_present, dict)
+        and required_filenames_present.get("hjpeg_kv260_address_map.rpt") is True
+    )
+
+
 def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str]]:
     result: dict[str, object] = {
         "path": str(path),
@@ -2562,6 +2576,9 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     )
     vivado_artifact_suffixes_present = vivado_required_artifact_suffixes_present(parsed)
     vivado_artifact_filenames_present = vivado_required_artifact_filenames_present(parsed)
+    vivado_address_map_filenames_present = (
+        vivado_required_address_map_filenames_present(parsed)
+    )
     bases = vivado_hjpeg_base_addresses_from_record(parsed)
     result.update(
         {
@@ -2569,6 +2586,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
             "complete_vivado_flow_evidence": complete_vivado_flow_evidence,
             "vivado_artifact_suffixes_present": vivado_artifact_suffixes_present,
             "vivado_artifact_filenames_present": vivado_artifact_filenames_present,
+            "vivado_address_map_filenames_present": vivado_address_map_filenames_present,
             "hjpeg_base_addresses": list(bases),
             "hjpeg_base_addresses_hex": [f"0x{base:x}" for base in bases],
             "passed": (
@@ -2577,6 +2595,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
                 and complete_vivado_flow_evidence
                 and vivado_artifact_suffixes_present
                 and vivado_artifact_filenames_present
+                and vivado_address_map_filenames_present
             ),
         }
     )
@@ -2590,6 +2609,10 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     if not vivado_artifact_filenames_present:
         failures.append(
             f"{path}: Vivado evidence missing required bitstream/XSA/post-implementation checkpoint filenames"
+        )
+    if not vivado_address_map_filenames_present:
+        failures.append(
+            f"{path}: Vivado evidence missing required hjpeg_kv260_address_map.rpt filename"
         )
     if not bases:
         failures.append(f"{path}: no passing hjpeg_0/s_axi_lite address-map evidence")

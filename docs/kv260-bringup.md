@@ -131,16 +131,18 @@ Pass criteria:
   failing category names, required `.bit`/`.xsa`/`.dcp` artifact suffix presence,
   present and missing required suffix names, failing required suffix names,
   required artifact filename presence for `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`,
-  and `post_impl.dcp`, present/missing/failing filename names, required
+  and `post_impl.dcp`, address-map filename presence for
+  `hjpeg_kv260_address_map.rpt`, present/missing/failing filename names, required
   suffix/filename passing/failing counts, required/present/missing category,
-  suffix, and filename counts, aggregate pass/fail counts, diagnostic failure count,
+  suffix, artifact-filename, and address-map-filename counts, aggregate pass/fail counts, diagnostic failure count,
   checked/passed/failed path lists, complete-evidence required/missing/failing
   lists, and pass/fail state.
   Complete Vivado flow evidence has
   `all_required_present` and `all_required_suffixes_present` true, with no
   failing records in the required evidence categories or required `.bit`/`.xsa`/
   `.dcp` artifact suffixes, and with the named artifacts `hjpeg_kv260.bit`,
-  `hjpeg_kv260.xsa`, and `post_impl.dcp` present and passing.
+  `hjpeg_kv260.xsa`, and `post_impl.dcp` present and passing, plus the named
+  address-map report `hjpeg_kv260_address_map.rpt`.
   `all_required_present` requires at least one passing record in each required
   category, not just a requested input path. Complete Vivado evidence counts only
   records whose `passed` field is an actual JSON boolean `true`. Missing,
@@ -288,7 +290,8 @@ Expected evidence:
   requires that Vivado transcript to have `passed` and
   `complete_vivado_flow_evidence` true, plus required `.bit`, `.xsa`, and `.dcp`
   artifact suffix evidence and required `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and
-  `post_impl.dcp` filename evidence. The checker fails if the run transcript's AXI-Lite base
+  `post_impl.dcp` filename evidence, plus required `hjpeg_kv260_address_map.rpt`
+  filename evidence. The checker fails if the run transcript's AXI-Lite base
   address does not match the Vivado build evidence or if multiple Vivado evidence
   files report conflicting HJPEG base addresses.
   JSON output includes the aggregate checked/pass/fail

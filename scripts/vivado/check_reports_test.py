@@ -524,6 +524,26 @@ class CheckReportsTest(unittest.TestCase):
                 },
             )
             self.assertEqual(
+                record["address_map_filenames"],
+                {
+                    "label": "address_map",
+                    "required_filenames": ["hjpeg_kv260_address_map.rpt"],
+                    "required_filename_count": 1,
+                    "filename_counts": {"hjpeg_kv260_address_map.rpt": 1},
+                    "passing_filename_counts": {"hjpeg_kv260_address_map.rpt": 1},
+                    "failing_filename_counts": {},
+                    "required_filenames_present": {
+                        "hjpeg_kv260_address_map.rpt": True,
+                    },
+                    "present_filename_count": 1,
+                    "missing_filename_count": 0,
+                    "present_required_filenames": ["hjpeg_kv260_address_map.rpt"],
+                    "failing_required_filenames": [],
+                    "missing_required_filenames": [],
+                    "all_required_filenames_present": True,
+                },
+            )
+            self.assertEqual(
                 record["arguments"],
                 {
                     "artifacts": [str(artifact), str(xsa), str(dcp)],
@@ -700,6 +720,10 @@ class CheckReportsTest(unittest.TestCase):
                 ["hjpeg_kv260.bit", "hjpeg_kv260.xsa", "post_impl.dcp"],
             )
             self.assertEqual(
+                record["complete_vivado_flow_evidence_missing_address_map_filenames"],
+                ["hjpeg_kv260_address_map.rpt"],
+            )
+            self.assertEqual(
                 record["complete_vivado_flow_evidence_failing_categories"], []
             )
             self.assertEqual(
@@ -707,6 +731,10 @@ class CheckReportsTest(unittest.TestCase):
             )
             self.assertEqual(
                 record["complete_vivado_flow_evidence_failing_filenames"], []
+            )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_failing_address_map_filenames"],
+                [],
             )
             self.assertTrue(record["evidence_categories"]["present"]["timing"])
             self.assertFalse(record["evidence_categories"]["present"]["artifacts"])
@@ -790,6 +818,10 @@ class CheckReportsTest(unittest.TestCase):
             self.assertEqual(record["complete_vivado_flow_evidence_missing_suffixes"], [])
             self.assertEqual(record["complete_vivado_flow_evidence_missing_filenames"], [])
             self.assertEqual(
+                record["complete_vivado_flow_evidence_missing_address_map_filenames"],
+                [],
+            )
+            self.assertEqual(
                 record["complete_vivado_flow_evidence_failing_categories"],
                 ["artifacts", "timing"],
             )
@@ -797,9 +829,14 @@ class CheckReportsTest(unittest.TestCase):
                 record["complete_vivado_flow_evidence_failing_suffixes"], [".xsa"]
             )
             self.assertEqual(record["complete_vivado_flow_evidence_failing_filenames"], [])
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_failing_address_map_filenames"],
+                [],
+            )
             self.assertTrue(record["evidence_categories"]["all_required_present"])
             self.assertTrue(record["artifact_suffixes"]["all_required_suffixes_present"])
             self.assertTrue(record["artifact_filenames"]["all_required_filenames_present"])
+            self.assertTrue(record["address_map_filenames"]["all_required_filenames_present"])
             self.assertEqual(record["artifact_suffixes"]["failing_suffix_counts"], {".xsa": 1})
             self.assertTrue(
                 any("failing required categories" in failure for failure in record["failures"])

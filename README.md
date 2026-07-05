@@ -158,18 +158,21 @@ per-category passing/failing counts, present and missing category names, failing
 category names, required `.bit`/`.xsa`/`.dcp` artifact suffix presence, present and
 missing required suffix names, failing required suffix names, required artifact
 filename presence for `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and `post_impl.dcp`,
+address-map filename presence for `hjpeg_kv260_address_map.rpt`,
 present/missing/failing filename names, required suffix/filename passing/failing
-counts, required/present/missing category, suffix, and filename counts, aggregate
-pass/fail counts, diagnostic failure count, checked/passed/failed path lists,
-complete-evidence required/missing/failing lists, and pass/fail state in
-machine-readable build evidence.
+counts, required/present/missing category, suffix, artifact-filename, and
+address-map-filename counts, aggregate pass/fail counts, diagnostic failure
+count, checked/passed/failed path lists, complete-evidence
+required/missing/failing lists, and pass/fail state in machine-readable build
+evidence.
 Required evidence category presence is based on at least one passing record in
 that category, not just a requested input path. Complete Vivado evidence also
 requires every supplied required evidence category and required `.bit`/`.xsa`/
 `.dcp` artifact suffix to have no failing records, and requires the named
 artifacts `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and `post_impl.dcp` to be present
-and passing. Complete Vivado evidence counts only records whose `passed` field is
-an actual JSON boolean `true`. Use
+and passing, plus the named address-map report `hjpeg_kv260_address_map.rpt`.
+Complete Vivado evidence counts only records whose `passed` field is an actual
+JSON boolean `true`. Use
 `--require-complete-evidence` for full bitstream evidence gates; partial
 post-synthesis checks can omit it.
 Missing, non-file, or unparseable reports are recorded as structured
@@ -400,9 +403,10 @@ and fails if the stored summary does not match the recomputed evidence. When
 the passing `hjpeg_0/s_axi_lite` address-map base address. The Vivado transcript
 must have `passed`, `complete_vivado_flow_evidence`, the required `.bit`, `.xsa`,
 and `.dcp` artifact suffix evidence true, and the required `hjpeg_kv260.bit`,
-`hjpeg_kv260.xsa`, and `post_impl.dcp` artifact filename evidence true. The checker fails if the run transcript's
-AXI-Lite base address does not match the Vivado build evidence, or if multiple
-Vivado evidence files report conflicting HJPEG base addresses. Its JSON output
+`hjpeg_kv260.xsa`, `post_impl.dcp`, and `hjpeg_kv260_address_map.rpt` filename
+evidence true. The checker fails if the run transcript's AXI-Lite base address
+does not match the Vivado build evidence, or if multiple Vivado evidence files
+report conflicting HJPEG base addresses. Its JSON output
 includes aggregate checked/pass/fail transcript counts, diagnostic failure count,
 checked/passed/failed path lists, summary checked, matched, and
 mismatched counts and paths, aggregate evidence group present/missing counts and
