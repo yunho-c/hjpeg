@@ -26,6 +26,7 @@ import shlex
 import struct
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from dataclasses import dataclass
@@ -2905,17 +2906,30 @@ def run_stream_devices(
         raise ValueError("RX device produced no JPEG output")
 
     jpeg = read_result[0]
-    output_jpeg.write_bytes(jpeg)
-    info = validate_jpeg(
-        output_jpeg,
-        expected_width,
-        expected_height,
-        expected_restart_interval=expected_restart_interval,
-        expected_chroma_subsample=expected_chroma_subsample,
-        expected_emit_jfif=expected_emit_jfif,
-        expected_quality=quality,
-        require_standard_huffman=True,
-    )
+    with tempfile.NamedTemporaryFile(
+        prefix=f".{output_jpeg.name}.",
+        suffix=".tmp",
+        dir=output_jpeg.parent,
+        delete=False,
+    ) as temp_file:
+        temp_output = Path(temp_file.name)
+    try:
+        temp_output.write_bytes(jpeg)
+        info = validate_jpeg(
+            temp_output,
+            expected_width,
+            expected_height,
+            expected_restart_interval=expected_restart_interval,
+            expected_chroma_subsample=expected_chroma_subsample,
+            expected_emit_jfif=expected_emit_jfif,
+            expected_quality=quality,
+            require_standard_huffman=True,
+        )
+        os.replace(temp_output, output_jpeg)
+    except BaseException:
+        if temp_output.exists():
+            temp_output.unlink()
+        raise
     if decoder_command is not None:
         decoder_result = run_decoder_command(
             output_jpeg,

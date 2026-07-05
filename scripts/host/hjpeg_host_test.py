@@ -6011,6 +6011,7 @@ class HjpegHostTest(unittest.TestCase):
                     expected_restart_interval=2,
                     timeout_seconds=1.0,
                 )
+            self.assertFalse(output_jpeg.exists())
 
     def test_run_stream_devices_rejects_chroma_mode_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -6034,6 +6035,7 @@ class HjpegHostTest(unittest.TestCase):
                     expected_chroma_subsample=True,
                     timeout_seconds=1.0,
                 )
+            self.assertFalse(output_jpeg.exists())
 
     def test_run_stream_devices_rejects_jfif_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -6057,6 +6059,7 @@ class HjpegHostTest(unittest.TestCase):
                     expected_emit_jfif=False,
                     timeout_seconds=1.0,
                 )
+            self.assertFalse(output_jpeg.exists())
 
     def test_run_stream_devices_rejects_default_oversize_frame_before_io(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
