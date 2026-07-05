@@ -362,6 +362,55 @@ class HjpegHostTest(unittest.TestCase):
                     | hjpeg_host.CONTROL_ENABLE_CHROMA_SUBSAMPLE,
                 )
 
+    def test_config_cli_can_print_json_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            mem = Path(tmp) / "mem.bin"
+            mem.write_bytes(bytes(hjpeg_host.AXI_LITE_APERTURE_BYTES))
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "config",
+                            "--dev",
+                            str(mem),
+                            "--base-addr",
+                            "0",
+                            "--width",
+                            "320",
+                            "--height",
+                            "240",
+                            "--quality",
+                            "75",
+                            "--restart-interval",
+                            "4",
+                            "--chroma-subsample",
+                            "--no-jfif",
+                            "--clear-error",
+                            "--json",
+                        ]
+                    ),
+                    0,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertEqual(record["axi_lite"]["device"], str(mem))
+            self.assertEqual(record["axi_lite"]["base_addr"], 0)
+            self.assertEqual(record["axi_lite"]["base_addr_hex"], "0x0")
+            self.assertEqual(record["encoder_config"]["width"], 320)
+            self.assertEqual(record["encoder_config"]["height"], 240)
+            self.assertEqual(record["encoder_config"]["quality"], 75)
+            self.assertEqual(record["encoder_config"]["restart_interval"], 4)
+            self.assertTrue(record["encoder_config"]["chroma_subsample"])
+            self.assertFalse(record["encoder_config"]["emit_jfif"])
+            self.assertTrue(record["encoder_config"]["clear_error"])
+            self.assertEqual(
+                record["encoder_config"]["control"],
+                hjpeg_host.CONTROL_CLEAR_PROTOCOL_ERROR
+                | hjpeg_host.CONTROL_ENABLE_CHROMA_SUBSAMPLE,
+            )
+
     def test_status_text(self) -> None:
         self.assertEqual(hjpeg_host.status_text(0), "idle")
         self.assertEqual(hjpeg_host.status_text(hjpeg_host.STATUS_BUSY), "busy")
@@ -519,6 +568,11 @@ class HjpegHostTest(unittest.TestCase):
                             "2",
                             "--height",
                             "1",
+                            "--quality",
+                            "80",
+                            "--restart-interval",
+                            "2",
+                            "--chroma-subsample",
                             "--decoder-command",
                             decoder_command,
                             "--json",
@@ -543,6 +597,15 @@ class HjpegHostTest(unittest.TestCase):
                 record["input_rgb"]["sha256"],
                 hashlib.sha256(input_rgb.read_bytes()).hexdigest(),
             )
+            self.assertEqual(record["axi_lite"]["device"], str(mem))
+            self.assertEqual(record["axi_lite"]["base_addr"], 0)
+            self.assertEqual(record["encoder_config"]["width"], 2)
+            self.assertEqual(record["encoder_config"]["height"], 1)
+            self.assertEqual(record["encoder_config"]["quality"], 80)
+            self.assertEqual(record["encoder_config"]["restart_interval"], 2)
+            self.assertTrue(record["encoder_config"]["chroma_subsample"])
+            self.assertTrue(record["encoder_config"]["emit_jfif"])
+            self.assertFalse(record["encoder_config"]["clear_error"])
             self.assertTrue(record["decoder_passed"])
             self.assertEqual(record["decoder_command"], decoder_command)
             self.assertEqual(decoder_marker.read_text(), "ffd8")

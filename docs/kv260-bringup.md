@@ -119,7 +119,8 @@ python3 scripts/host/hjpeg_host.py run-stream-devices \
   --input-rgb input.rgb \
   --output-jpeg output.jpg \
   --width WIDTH \
-  --height HEIGHT
+  --height HEIGHT \
+  --json
 python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000 --json
 ```
 
@@ -133,6 +134,8 @@ Expected evidence:
 - Status is `idle` before the transfer starts.
 - Status returns to `idle` after the transfer completes.
 - `protocol_error` is never reported for the valid frame.
+- JSON evidence records the AXI-Lite target and encoder configuration used for
+  the run.
 - Standalone `status --json` evidence records the raw status word, decoded
   `busy` and `protocol_error` flags, and text state.
 - The captured output starts with SOI and ends with EOI.
@@ -158,8 +161,9 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
   --decoder-command 'magick identify {jpeg}'
 ```
 
-Use `--json` with `make-test-ppm`, `pack-ppm`, `status`, `validate-jpeg`, or
-`run-stream-devices` when saving evidence for automation or later comparison.
+Use `--json` with `make-test-ppm`, `pack-ppm`, `config`, `status`,
+`validate-jpeg`, or `run-stream-devices` when saving evidence for automation or
+later comparison.
 
 Expected evidence:
 

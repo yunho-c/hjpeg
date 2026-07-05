@@ -344,6 +344,8 @@ def run_evidence_record(
     jpeg: Path,
     info: JpegInfo,
     input_info: FileInfo | None = None,
+    axi_lite: dict[str, object] | None = None,
+    encoder_config: dict[str, object] | None = None,
     status_checks: list[dict[str, object]] | None = None,
     decoder_passed: bool | None = None,
     decoder_command: str | None = None,
@@ -355,6 +357,10 @@ def run_evidence_record(
             "byte_length": input_info.byte_length,
             "sha256": input_info.sha256,
         }
+    if axi_lite is not None:
+        record["axi_lite"] = axi_lite
+    if encoder_config is not None:
+        record["encoder_config"] = encoder_config
     if status_checks is not None:
         record["status_checks"] = status_checks
     return record
@@ -520,6 +526,48 @@ def configure_registers(
     regs.write32(REG_CONTROL, control)
 
 
+def control_value(chroma_subsample: bool, emit_jfif: bool, clear_error: bool) -> int:
+    control = 0
+    if clear_error:
+        control |= CONTROL_CLEAR_PROTOCOL_ERROR
+    if chroma_subsample:
+        control |= CONTROL_ENABLE_CHROMA_SUBSAMPLE
+    if emit_jfif:
+        control |= CONTROL_EMIT_JFIF
+    return control
+
+
+def encoder_config_record(
+    width: int,
+    height: int,
+    quality: int,
+    restart_interval: int,
+    chroma_subsample: bool,
+    emit_jfif: bool,
+    clear_error: bool,
+) -> dict[str, object]:
+    control = control_value(chroma_subsample, emit_jfif, clear_error)
+    return {
+        "width": width,
+        "height": height,
+        "quality": quality,
+        "restart_interval": restart_interval,
+        "chroma_subsample": chroma_subsample,
+        "emit_jfif": emit_jfif,
+        "clear_error": clear_error,
+        "control": control,
+        "control_hex": f"0x{control:08x}",
+    }
+
+
+def axi_lite_target_record(device: Path, base_address: int) -> dict[str, object]:
+    return {
+        "device": str(device),
+        "base_addr": base_address,
+        "base_addr_hex": f"0x{base_address:x}",
+    }
+
+
 def status_text(status: int) -> str:
     flags = []
     if status & STATUS_BUSY:
@@ -602,6 +650,7 @@ def build_parser() -> argparse.ArgumentParser:
     config.add_argument("--chroma-subsample", action="store_true")
     config.add_argument("--no-jfif", action="store_true")
     config.add_argument("--clear-error", action="store_true")
+    config.add_argument("--json", action="store_true", help="print configuration evidence as JSON")
 
     status = subparsers.add_parser("status", help="read encoder AXI-Lite status register")
     status.add_argument("--dev", type=Path, default=Path("/dev/mem"))
@@ -724,6 +773,25 @@ def main(argv: list[str] | None = None) -> int:
                 emit_jfif=not args.no_jfif,
                 clear_error=args.clear_error,
             )
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "axi_lite": axi_lite_target_record(args.dev, args.base_addr),
+                        "encoder_config": encoder_config_record(
+                            width=args.width,
+                            height=args.height,
+                            quality=args.quality,
+                            restart_interval=args.restart_interval,
+                            chroma_subsample=args.chroma_subsample,
+                            emit_jfif=not args.no_jfif,
+                            clear_error=args.clear_error,
+                        ),
+                    },
+                    sort_keys=True,
+                )
+            )
+            return 0
         print(f"configured hjpeg at 0x{args.base_addr:x} for {args.width}x{args.height}")
         return 0
 
@@ -793,6 +861,16 @@ def main(argv: list[str] | None = None) -> int:
                         args.output_jpeg,
                         info,
                         input_info,
+                        axi_lite_target_record(args.dev, args.base_addr),
+                        encoder_config_record(
+                            width=args.width,
+                            height=args.height,
+                            quality=args.quality,
+                            restart_interval=args.restart_interval,
+                            chroma_subsample=args.chroma_subsample,
+                            emit_jfif=not args.no_jfif,
+                            clear_error=args.clear_error,
+                        ),
                         status_checks,
                         decoder_passed,
                         args.decoder_command,
