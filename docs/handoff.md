@@ -268,13 +268,14 @@ encoder configuration, status checkpoints, and optional decoder command. Host
 JPEG validation now checks more than dimensions: it requires DQT and DHT
 markers, records DQT/DHT table IDs and SOS component table selectors, rejects
 dangling table references, records APP0/DQT/DHT/DRI/RST marker counts, parses
-DRI restart intervals, requires 8-bit three-component SOF0 shape, requires SOS
-components to match SOF0 exactly, requires SOF0/SOS component IDs in `[1, 2, 3]`
-order, requires baseline SOS spectral fields `0/63/0`, records SOF0 component
-sampling factors, requires 8-bit DQT precision, records JFIF APP0 signature
-count, infers 4:4:4 versus 4:2:0, and can enforce expected restart interval,
-chroma mode, and JFIF APP0 signature presence. `run-stream-devices` enforces
-those expectations automatically from the configured AXI-Lite control fields.
+DRI restart intervals, requires exactly one SOF0 and one SOS segment, requires
+8-bit three-component SOF0 shape, requires SOS components to match SOF0 exactly,
+requires SOF0/SOS component IDs in `[1, 2, 3]` order, requires baseline SOS
+spectral fields `0/63/0`, records SOF0 component sampling factors, requires
+8-bit DQT precision, records JFIF APP0 signature count, infers 4:4:4 versus
+4:2:0, and can enforce expected restart interval, chroma mode, and JFIF APP0
+signature presence. `run-stream-devices` enforces those expectations
+automatically from the configured AXI-Lite control fields.
 
 The host helper defaults input-prep and hardware-run dimensions to the current
 KV260 top's `1920x1080` limit. Use `--max-width` and `--max-height` only for a
@@ -453,18 +454,19 @@ Hardware completion evidence should include:
 - No protocol error is reported for a valid frame.
 - Captured output starts with SOI and ends with EOI.
 - `validate-jpeg` confirms the expected dimensions, 8-bit SOF0 sample
-  precision, three-component SOF0 frame shape, DQT/DHT presence, non-empty
-  entropy-coded scan data, SOF0/SOS component ID order, exact SOS component
-  coverage, baseline SOS spectral fields, 8-bit DQT precision, SOF0 component
-  sampling factors, chroma mode, DRI restart interval, restart markers, JFIF
-  APP0 signature presence, and valid DQT/DHT table references from SOF0/SOS.
+  precision, exactly one SOF0 and one SOS segment, three-component SOF0 frame
+  shape, DQT/DHT presence, non-empty entropy-coded scan data, SOF0/SOS component
+  ID order, exact SOS component coverage, baseline SOS spectral fields, 8-bit
+  DQT precision, SOF0 component sampling factors, chroma mode, DRI restart
+  interval, restart markers, JFIF APP0 signature presence, and valid DQT/DHT
+  table references from SOF0/SOS.
 - JSON evidence records the bitstream/XSA/report hashes, PPM/RGB input hashes,
   AXI-Lite target, encoder configuration, status checkpoints, output JPEG hash,
-  scan payload length, SOF0 sample precision, SOF0/SOS component ID order, SOS
-  component coverage, SOS spectral fields, DQT precision, component sampling
-  factors, marker counts, JFIF APP0 signature count, restart interval evidence,
-  DQT/DHT table IDs, SOS table selectors, chroma mode, JFIF evidence, and
-  decoder command.
+  scan payload length, SOF0/SOS marker counts, SOF0 sample precision, SOF0/SOS
+  component ID order, SOS component coverage, SOS spectral fields, DQT
+  precision, component sampling factors, marker counts, JFIF APP0 signature
+  count, restart interval evidence, DQT/DHT table IDs, SOS table selectors,
+  chroma mode, JFIF evidence, and decoder command.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 

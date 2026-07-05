@@ -129,13 +129,14 @@ binary P6 PPM files into 32-bit-per-pixel RGB stream beats for the AXI DMA MM2S
 channel, writes the encoder AXI-Lite configuration/status registers via
 `/dev/mem`, and validates returned JPEG files by checking SOI/EOI markers, SOF0
 dimensions, 8-bit sample precision, three-component frame shape, DQT/DHT table
-markers, optional JFIF APP0 signature, optional DRI restart interval, SOS, and
-non-empty entropy-coded scan data. It also records SOF0 component sampling
-factors, APP0 and JFIF APP0 counts, DQT/DHT table IDs, and SOS component table
-selectors, requires SOF0 and SOS component IDs to be `[1, 2, 3]`, requires the
-SOS component list to match SOF0 exactly, requires baseline SOS spectral fields
-`0/63/0`, requires 8-bit DQT precision, rejects dangling table references, and
-infers whether the output is 4:4:4 or 4:2:0. The helper
+markers, optional JFIF APP0 signature, optional DRI restart interval, exactly
+one SOF0 and SOS, and non-empty entropy-coded scan data. It also records SOF0
+component sampling factors, APP0 and JFIF APP0 counts, DQT/DHT table IDs, and
+SOS component table selectors, requires SOF0 and SOS component IDs to be
+`[1, 2, 3]`, requires the SOS component list to match SOF0 exactly, requires
+baseline SOS spectral fields `0/63/0`, requires 8-bit DQT precision, rejects
+dangling table references, and infers whether the output is 4:4:4 or 4:2:0. The
+helper
 can also run an external JPEG decoder command so decoder-open evidence is
 captured in the same transcript. Standalone validation can require an expected
 restart interval and chroma/JFIF mode, and `run-stream-devices` checks the

@@ -176,9 +176,9 @@ later comparison.
 Expected evidence:
 
 - The helper reports valid baseline JPEG dimensions, 8-bit SOF0 sample
-  precision, three-component SOF0 frame shape, and the number of entropy-coded
-  scan data bytes, proving the file contains an SOS marker with non-empty scan
-  payload.
+  precision, three-component SOF0 frame shape, exactly one SOF0 and one SOS
+  segment, and the number of entropy-coded scan data bytes, proving the file
+  contains an SOS marker with non-empty scan payload.
 - The helper records APP0, DQT, DHT, DRI, and restart-marker counts, plus the
   parsed DRI restart interval when present. At least one DQT and one DHT
   segment are required for a standalone baseline JPEG. The helper records DQT

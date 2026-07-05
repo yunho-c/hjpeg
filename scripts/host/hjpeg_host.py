@@ -104,7 +104,9 @@ class JpegInfo:
     app0_segments: int
     jfif_app0_segments: int
     dqt_segments: int
+    sof0_segments: int
     dht_segments: int
+    sos_segments: int
     dri_segments: int
     restart_interval: int | None
     restart_markers: int
@@ -233,7 +235,9 @@ def jpeg_info(data: bytes) -> JpegInfo:
     app0_segments = 0
     jfif_app0_segments = 0
     dqt_segments = 0
+    sof0_segments = 0
     dht_segments = 0
+    sos_segments = 0
     dri_segments = 0
     restart_interval: int | None = None
     restart_markers = 0
@@ -290,6 +294,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
             dri_segments += 1
             restart_interval = _read_be16(data, offset + 2)
         if marker == 0xC0:
+            sof0_segments += 1
             if segment_length < 8:
                 raise ValueError("SOF0 segment is too short")
             sample_precision = data[offset + 2]
@@ -333,6 +338,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
 
         if marker == 0xDA:
             saw_sos = True
+            sos_segments += 1
             if segment_length < 6:
                 raise ValueError("SOS segment is too short")
             scan_component_count = data[offset + 2]
@@ -380,6 +386,8 @@ def jpeg_info(data: bytes) -> JpegInfo:
         raise ValueError("JPEG output does not contain EOI")
     if dimensions is None:
         raise ValueError("JPEG output does not contain a baseline SOF0 segment")
+    if sof0_segments != 1:
+        raise ValueError(f"JPEG SOF0 segment count is {sof0_segments}, expected 1")
     if sample_precision != 8:
         raise ValueError(
             f"JPEG SOF0 sample precision is {sample_precision}, expected 8"
@@ -399,6 +407,8 @@ def jpeg_info(data: bytes) -> JpegInfo:
         raise ValueError("JPEG output does not contain a DHT segment")
     if not saw_sos:
         raise ValueError("JPEG output does not contain an SOS segment")
+    if sos_segments != 1:
+        raise ValueError(f"JPEG SOS segment count is {sos_segments}, expected 1")
     if (spectral_start, spectral_end, successive_approximation) != (0, 63, 0):
         raise ValueError(
             "JPEG SOS spectral selection/successive approximation is "
@@ -465,7 +475,9 @@ def jpeg_info(data: bytes) -> JpegInfo:
         app0_segments=app0_segments,
         jfif_app0_segments=jfif_app0_segments,
         dqt_segments=dqt_segments,
+        sof0_segments=sof0_segments,
         dht_segments=dht_segments,
+        sos_segments=sos_segments,
         dri_segments=dri_segments,
         restart_interval=restart_interval,
         restart_markers=restart_markers,
@@ -653,7 +665,9 @@ def jpeg_info_record(
         "app0_segments": info.app0_segments,
         "jfif_app0_segments": info.jfif_app0_segments,
         "dqt_segments": info.dqt_segments,
+        "sof0_segments": info.sof0_segments,
         "dht_segments": info.dht_segments,
+        "sos_segments": info.sos_segments,
         "dri_segments": info.dri_segments,
         "restart_interval": info.restart_interval,
         "restart_markers": info.restart_markers,

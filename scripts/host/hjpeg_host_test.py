@@ -301,6 +301,27 @@ def with_16bit_dqt(jpeg: bytes) -> bytes:
     return jpeg[:dqt] + replacement + jpeg[dqt + 69 :]
 
 
+def with_duplicate_sof0(jpeg: bytes) -> bytes:
+    sof0 = jpeg.find(b"\xff\xc0")
+    if sof0 < 0:
+        raise AssertionError("SOF0 marker not found")
+    length = (jpeg[sof0 + 2] << 8) | jpeg[sof0 + 3]
+    segment = jpeg[sof0 : sof0 + 2 + length]
+    return jpeg[:sof0] + segment + jpeg[sof0:]
+
+
+def with_duplicate_sos(jpeg: bytes) -> bytes:
+    sos = jpeg.find(b"\xff\xda")
+    if sos < 0:
+        raise AssertionError("SOS marker not found")
+    length = (jpeg[sos + 2] << 8) | jpeg[sos + 3]
+    segment = jpeg[sos : sos + 2 + length]
+    eoi = jpeg.rfind(b"\xff\xd9")
+    if eoi < 0:
+        raise AssertionError("EOI marker not found")
+    return jpeg[:eoi] + segment + b"\x7f" + jpeg[eoi:]
+
+
 def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
     data = minimal_jpeg(width, height)
     return hjpeg_host.JpegInfo(
@@ -337,7 +358,9 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
         app0_segments=1,
         jfif_app0_segments=1,
         dqt_segments=2,
+        sof0_segments=1,
         dht_segments=4,
+        sos_segments=1,
         dri_segments=0,
         restart_interval=None,
         restart_markers=0,
@@ -574,7 +597,9 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(parsed.app0_segments, 1)
             self.assertEqual(parsed.jfif_app0_segments, 1)
             self.assertEqual(parsed.dqt_segments, 2)
+            self.assertEqual(parsed.sof0_segments, 1)
             self.assertEqual(parsed.dht_segments, 4)
+            self.assertEqual(parsed.sos_segments, 1)
             self.assertEqual(parsed.dri_segments, 0)
             self.assertIsNone(parsed.restart_interval)
             self.assertEqual(parsed.restart_markers, 0)
@@ -701,7 +726,9 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["app0_segments"], 1)
             self.assertEqual(record["jfif_app0_segments"], 1)
             self.assertEqual(record["dqt_segments"], 2)
+            self.assertEqual(record["sof0_segments"], 1)
             self.assertEqual(record["dht_segments"], 4)
+            self.assertEqual(record["sos_segments"], 1)
             self.assertEqual(record["dri_segments"], 0)
             self.assertIsNone(record["restart_interval"])
             self.assertEqual(record["restart_markers"], 0)
@@ -993,6 +1020,19 @@ class HjpegHostTest(unittest.TestCase):
                 hjpeg_host.validate_jpeg(header_only, expected_width=17, expected_height=13)
             with self.assertRaisesRegex(ValueError, "entropy-coded scan data"):
                 hjpeg_host.validate_jpeg(empty_scan, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_duplicate_frame_and_scan_markers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            duplicate_sof0 = root / "duplicate-sof0.jpg"
+            duplicate_sos = root / "duplicate-sos.jpg"
+            duplicate_sof0.write_bytes(with_duplicate_sof0(minimal_jpeg(width=17, height=13)))
+            duplicate_sos.write_bytes(with_duplicate_sos(minimal_jpeg(width=17, height=13)))
+
+            with self.assertRaisesRegex(ValueError, "SOF0 segment count"):
+                hjpeg_host.validate_jpeg(duplicate_sof0, expected_width=17, expected_height=13)
+            with self.assertRaisesRegex(ValueError, "SOS segment count"):
+                hjpeg_host.validate_jpeg(duplicate_sos, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_requires_quantization_and_huffman_tables(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
