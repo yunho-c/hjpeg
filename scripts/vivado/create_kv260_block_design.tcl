@@ -36,6 +36,47 @@ if {![file exists $component_xml]} {
   error "Missing packaged hjpeg IP: $component_xml. Run: vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl"
 }
 
+proc write_address_map_report {path} {
+  set ps_data_space [get_bd_addr_spaces /ps/Data -quiet]
+  if {[llength $ps_data_space] == 0} {
+    error "Could not find /ps/Data address space"
+  }
+
+  set required_segments {
+    {hjpeg_0/s_axi_lite hjpeg_0 control}
+    {axi_dma_0/S_AXI_LITE axi_dma_0 Reg}
+  }
+  set rows {}
+  foreach required_segment $required_segments {
+    lassign $required_segment interface_name segment_cell segment_leaf
+    set matched_segment ""
+    foreach segment [get_bd_addr_segs -of_objects $ps_data_space] {
+      set segment_name [get_property NAME $segment]
+      if {[string first $segment_cell $segment_name] >= 0 && [string first $segment_leaf $segment_name] >= 0} {
+        set matched_segment $segment
+        break
+      }
+    }
+    if {$matched_segment eq ""} {
+      error "Could not find assigned address segment for $interface_name"
+    }
+
+    set base [expr {[get_property OFFSET $matched_segment]}]
+    set range [expr {[get_property RANGE $matched_segment]}]
+    set high [expr {$base + $range - 1}]
+    lappend rows [list $interface_name $base $high $range]
+  }
+
+  set fp [open $path w]
+  puts $fp "Address Map"
+  puts $fp "| Interface | Base Address | High Address | Range |"
+  foreach row $rows {
+    lassign $row interface_name base high range
+    puts $fp [format "| %s | 0x%08X | 0x%08X | 0x%X |" $interface_name $base $high $range]
+  }
+  close $fp
+}
+
 file mkdir $project_dir
 create_project hjpeg_kv260_bd $project_dir -part $part_name -force
 set_property target_language Verilog [current_project]
@@ -109,7 +150,7 @@ connect_bd_net [get_bd_pins axi_dma_0/s2mm_introut] [get_bd_pins dma_irq_concat/
 connect_bd_net [get_bd_pins dma_irq_concat/dout] [get_bd_pins ps/pl_ps_irq0]
 
 assign_bd_address
-report_bd_address -file [file join $project_dir hjpeg_kv260_address_map.rpt]
+write_address_map_report [file join $project_dir hjpeg_kv260_address_map.rpt]
 validate_bd_design
 save_bd_design
 make_wrapper -files [get_files [file join $project_dir hjpeg_kv260_bd.srcs sources_1 bd $design_name ${design_name}.bd]] -top
