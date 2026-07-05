@@ -119,8 +119,9 @@ Pass criteria:
   hashes, target clock period/frequency, parsed setup WNS and hold WHS values,
   utilization rows, thresholds, DRC violations, route-status counts, required
   clock-utilization report hashes, requested input path lists and gate values,
-  checked report/artifact count, and pass/fail state. Missing, non-file, or
-  unparseable reports are recorded as structured JSON failures. Timing
+  checked report/artifact count, per-category checked counts, and pass/fail
+  state. Missing, non-file, or unparseable reports are recorded as structured
+  JSON failures. Timing
   thresholds, utilization threshold, and target clock period values must be
   finite. The target clock period must be positive,
   and the utilization threshold must be nonnegative.

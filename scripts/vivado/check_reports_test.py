@@ -320,6 +320,17 @@ class CheckReportsTest(unittest.TestCase):
             self.assertEqual(record["failures"], [])
             self.assertEqual(record["checked_count"], 6)
             self.assertEqual(
+                record["checked_counts"],
+                {
+                    "artifacts": 1,
+                    "timing": 1,
+                    "utilization": 1,
+                    "drc": 1,
+                    "route_status": 1,
+                    "clock_utilization": 1,
+                },
+            )
+            self.assertEqual(
                 record["arguments"],
                 {
                     "artifacts": [str(artifact)],
@@ -415,6 +426,17 @@ class CheckReportsTest(unittest.TestCase):
 
             record = json.loads(stdout.getvalue())
             self.assertFalse(record["passed"])
+            self.assertEqual(
+                record["checked_counts"],
+                {
+                    "artifacts": 1,
+                    "timing": 1,
+                    "utilization": 0,
+                    "drc": 0,
+                    "route_status": 0,
+                    "clock_utilization": 0,
+                },
+            )
             self.assertFalse(record["artifacts"][0]["exists"])
             self.assertFalse(record["artifacts"][0]["passed"])
             self.assertEqual(record["timing"][0]["wns_ns"], -0.01)

@@ -416,8 +416,9 @@ arguments so the bitstream, XSA, timing reports, utilization reports, DRC
 reports, route-status reports, and clock-utilization reports can be recorded
 with byte lengths, hashes, target clock period/frequency, parsed setup WNS and
 hold WHS, utilization rows, DRC violations, route-status counts, thresholds,
-requested input path lists and gate values, checked report/artifact count, and
-pass/fail state. Missing, non-file, or unparseable reports are recorded as
+requested input path lists and gate values, checked report/artifact count,
+per-category checked counts, and pass/fail state. Missing, non-file, or
+unparseable reports are recorded as
 structured JSON failures instead of aborting the transcript. Requested artifacts
 and clock-utilization reports must be non-empty. Use `--hold-timing`
 for post-implementation timing reports; post-synthesis hold can be negative

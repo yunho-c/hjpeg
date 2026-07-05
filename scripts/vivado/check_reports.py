@@ -556,6 +556,14 @@ def main(argv: list[str] | None = None) -> int:
         + len(args.route_status)
         + len(args.clock_utilization)
     )
+    checked_counts = {
+        "artifacts": len(args.artifact),
+        "timing": len(timing_paths),
+        "utilization": len(args.utilization),
+        "drc": len(args.drc),
+        "route_status": len(args.route_status),
+        "clock_utilization": len(args.clock_utilization),
+    }
 
     if args.json:
         arguments = {
@@ -577,6 +585,7 @@ def main(argv: list[str] | None = None) -> int:
                     "passed": not failures,
                     "failures": failures,
                     "checked_count": checked,
+                    "checked_counts": checked_counts,
                     "arguments": arguments,
                     "clock_period_ns": args.clock_period_ns,
                     "clock_frequency_mhz": 1000.0 / args.clock_period_ns,
