@@ -242,6 +242,14 @@ def with_unexpected_scan_marker(jpeg: bytes) -> bytes:
     return jpeg.replace(eoi_payload, b"\x7f" + app1 + b"\xff\xd9", 1)
 
 
+def with_unexpected_header_marker(jpeg: bytes) -> bytes:
+    dqt = jpeg.find(b"\xff\xdb")
+    if dqt < 0:
+        raise AssertionError("DQT marker not found")
+    app1 = bytes([0xFF, 0xE1, 0x00, 0x02])
+    return jpeg[:dqt] + app1 + jpeg[dqt:]
+
+
 def without_segment(jpeg: bytes, marker: bytes) -> bytes:
     marker_offset = jpeg.find(marker)
     if marker_offset < 0:
@@ -1796,6 +1804,14 @@ class HjpegHostTest(unittest.TestCase):
             jpeg.write_bytes(with_unexpected_scan_marker(minimal_jpeg(width=17, height=13)))
 
             with self.assertRaisesRegex(ValueError, "unexpected APP1 marker"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_unexpected_header_markers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "header-marker.jpg"
+            jpeg.write_bytes(with_unexpected_header_marker(minimal_jpeg(width=17, height=13)))
+
+            with self.assertRaisesRegex(ValueError, "APP1 marker is not supported"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_rejects_duplicate_frame_and_scan_markers(self) -> None:

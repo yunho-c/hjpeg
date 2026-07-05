@@ -472,6 +472,10 @@ def jpeg_info(data: bytes) -> JpegInfo:
                     f"JPEG {marker_name} marker appears out of baseline header order"
                 )
             marker_order_phase = next_phase
+        else:
+            raise ValueError(
+                f"JPEG {jpeg_marker_name(marker)} marker is not supported in hjpeg baseline header"
+            )
 
         segment_length = _read_be16(data, offset)
         if segment_length < 2 or offset + segment_length > len(data):

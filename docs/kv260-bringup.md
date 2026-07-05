@@ -233,8 +233,8 @@ Expected evidence:
   precision, three-component SOF0 frame shape, exactly one SOF0 and one SOS
   segment, and the number of entropy-coded scan data bytes, proving the file
   contains an SOS marker with non-empty scan payload. It also records the
-  stuffed entropy `0xff` byte count and rejects unexpected non-RST/non-EOI
-  markers after SOS or trailing bytes after EOI.
+  stuffed entropy `0xff` byte count and rejects unsupported header markers,
+  unexpected non-RST/non-EOI markers after SOS, or trailing bytes after EOI.
 - The helper records APP0, DQT, DHT, DRI, and restart-marker counts, plus the
   parsed DRI restart interval when present. It requires exactly two DQT
   segments and four DHT segments for the current encoder contract. The helper
@@ -255,9 +255,10 @@ Expected evidence:
   values must be in `0..65535`, and configuration quality values must be in
   `1..100`. The helper records the RST marker sequence and rejects RST markers
   without DRI or sequences that do not increment modulo 8 from RST0.
-- The helper rejects baseline header markers that move out of the encoder's
-  expected order: optional APP0/JFIF, DQT, SOF0, DHT, optional DRI, SOS, entropy
-  data, then EOI. JSON evidence includes the parsed `marker_sequence`.
+- The helper rejects unsupported baseline header markers and markers that move
+  out of the encoder's expected order: optional APP0/JFIF, DQT, SOF0, DHT,
+  optional DRI, SOS, entropy data, then EOI. JSON evidence includes the parsed
+  `marker_sequence`.
 - The helper records SOF0 component sampling factors and the inferred chroma
   mode, records the parsed MCU count, requires supported 4:4:4 or 4:2:0
   sampling factors, and requires SOF0/SOS component IDs in `[1, 2, 3]` order
