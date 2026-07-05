@@ -163,6 +163,7 @@ run:
 python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
   --width WIDTH \
   --height HEIGHT \
+  --restart-interval RESTART_INTERVAL \
   --decoder-command 'magick identify {jpeg}'
 ```
 
@@ -177,7 +178,10 @@ Expected evidence:
   non-empty scan payload.
 - The helper records APP0, DQT, DHT, DRI, and restart-marker counts, plus the
   parsed DRI restart interval when present. At least one DQT and one DHT
-  segment are required for a standalone baseline JPEG.
+  segment are required for a standalone baseline JPEG. Pass
+  `--restart-interval` to standalone `validate-jpeg` to check the expected
+  value; `run-stream-devices` checks this automatically against the configured
+  register value.
 - The helper reports the total JPEG byte length and SHA-256 so the captured
   artifact can be matched against saved files and logs.
 - For `run-stream-devices`, the helper reports the input RGB stream byte length

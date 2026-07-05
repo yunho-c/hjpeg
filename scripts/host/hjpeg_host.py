@@ -287,7 +287,26 @@ def jpeg_dimensions(data: bytes) -> tuple[int, int]:
     return info.width, info.height
 
 
-def validate_jpeg(path: Path, expected_width: int, expected_height: int) -> JpegInfo:
+def require_restart_interval(info: JpegInfo, expected_restart_interval: int) -> None:
+    if expected_restart_interval < 0:
+        raise ValueError("expected restart interval must be nonnegative")
+    if expected_restart_interval == 0:
+        if info.dri_segments != 0 or info.restart_interval is not None or info.restart_markers != 0:
+            raise ValueError("JPEG contains restart markers or DRI, but restart interval 0 was expected")
+        return
+    if info.restart_interval != expected_restart_interval:
+        actual = "none" if info.restart_interval is None else str(info.restart_interval)
+        raise ValueError(
+            f"JPEG restart interval is {actual}, expected {expected_restart_interval}"
+        )
+
+
+def validate_jpeg(
+    path: Path,
+    expected_width: int,
+    expected_height: int,
+    expected_restart_interval: int | None = None,
+) -> JpegInfo:
     data = path.read_bytes()
     if len(data) < 4:
         raise ValueError("JPEG output is too short")
@@ -301,6 +320,8 @@ def validate_jpeg(path: Path, expected_width: int, expected_height: int) -> Jpeg
         raise ValueError(
             f"JPEG dimensions are {info.width}x{info.height}, expected {expected_width}x{expected_height}"
         )
+    if expected_restart_interval is not None:
+        require_restart_interval(info, expected_restart_interval)
     return info
 
 
@@ -450,6 +471,7 @@ def run_stream_devices(
     max_output_bytes: int,
     expected_width: int,
     expected_height: int,
+    expected_restart_interval: int | None = None,
     max_width: int = DEFAULT_MAX_FRAME_WIDTH,
     max_height: int = DEFAULT_MAX_FRAME_HEIGHT,
     timeout_seconds: float | None = 30.0,
@@ -502,7 +524,12 @@ def run_stream_devices(
 
     jpeg = read_result[0]
     output_jpeg.write_bytes(jpeg)
-    info = validate_jpeg(output_jpeg, expected_width, expected_height)
+    info = validate_jpeg(
+        output_jpeg,
+        expected_width,
+        expected_height,
+        expected_restart_interval=expected_restart_interval,
+    )
     if decoder_command is not None:
         run_decoder_command(output_jpeg, decoder_command)
     if check_status is not None:
@@ -702,6 +729,11 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--width", type=int, required=True)
     validate.add_argument("--height", type=int, required=True)
     validate.add_argument(
+        "--restart-interval",
+        type=int,
+        help="optional expected DRI restart interval; use 0 to require no DRI/RST markers",
+    )
+    validate.add_argument(
         "--decoder-command",
         help="optional external decoder command; {jpeg} is replaced with the JPEG path, otherwise the path is appended",
     )
@@ -808,7 +840,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "validate-jpeg":
-        info = validate_jpeg(args.jpeg, args.width, args.height)
+        info = validate_jpeg(
+            args.jpeg,
+            args.width,
+            args.height,
+            expected_restart_interval=args.restart_interval,
+        )
         decoder_passed = None
         if args.decoder_command is not None:
             run_decoder_command(args.jpeg, args.decoder_command)
@@ -926,6 +963,7 @@ def main(argv: list[str] | None = None) -> int:
             max_output_bytes=args.max_output_bytes,
             expected_width=args.width,
             expected_height=args.height,
+            expected_restart_interval=args.restart_interval,
             max_width=args.max_width,
             max_height=args.max_height,
             timeout_seconds=args.timeout_seconds,

@@ -427,6 +427,69 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["decoder_passed"])
             self.assertEqual(record["decoder_command"], command)
 
+    def test_validate_jpeg_can_check_expected_restart_interval(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            jpeg = root / "restart.jpg"
+            no_restart = root / "no-restart.jpg"
+            jpeg.write_bytes(with_dri_segment(minimal_jpeg(width=17, height=13), 4))
+            no_restart.write_bytes(minimal_jpeg(width=17, height=13))
+
+            info = hjpeg_host.validate_jpeg(
+                jpeg,
+                expected_width=17,
+                expected_height=13,
+                expected_restart_interval=4,
+            )
+            self.assertEqual(info.restart_interval, 4)
+
+            with self.assertRaisesRegex(ValueError, "expected 3"):
+                hjpeg_host.validate_jpeg(
+                    jpeg,
+                    expected_width=17,
+                    expected_height=13,
+                    expected_restart_interval=3,
+                )
+            with self.assertRaisesRegex(ValueError, "restart interval 0"):
+                hjpeg_host.validate_jpeg(
+                    jpeg,
+                    expected_width=17,
+                    expected_height=13,
+                    expected_restart_interval=0,
+                )
+            with self.assertRaisesRegex(ValueError, "expected 4"):
+                hjpeg_host.validate_jpeg(
+                    no_restart,
+                    expected_width=17,
+                    expected_height=13,
+                    expected_restart_interval=4,
+                )
+
+    def test_validate_jpeg_cli_can_check_restart_interval(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "restart.jpg"
+            jpeg.write_bytes(with_dri_segment(minimal_jpeg(width=17, height=13), 4))
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "validate-jpeg",
+                            str(jpeg),
+                            "--width",
+                            "17",
+                            "--height",
+                            "13",
+                            "--restart-interval",
+                            "4",
+                            "--json",
+                        ]
+                    ),
+                    0,
+                )
+            self.assertEqual(json.loads(stdout.getvalue())["restart_interval"], 4)
+
     def test_decoder_command_supports_placeholder_and_reports_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             jpeg = Path(tmp) / "out.jpg"
@@ -756,7 +819,7 @@ class HjpegHostTest(unittest.TestCase):
             mem = root / "mem.bin"
             decoder_marker = root / "decoder.txt"
             input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
-            rx_device.write_bytes(minimal_jpeg(width=2, height=1))
+            rx_device.write_bytes(with_dri_segment(minimal_jpeg(width=2, height=1), 2))
             mem.write_bytes(bytes(hjpeg_host.AXI_LITE_APERTURE_BYTES))
             decoder_command = (
                 f'"{sys.executable}" -c "import pathlib, sys; '
@@ -802,11 +865,13 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["jpeg"], str(output_jpeg))
             self.assertEqual(record["width"], 2)
             self.assertEqual(record["height"], 1)
+            self.assertEqual(record["dri_segments"], 1)
+            self.assertEqual(record["restart_interval"], 2)
             self.assertEqual(record["scan_data_bytes"], 1)
-            self.assertEqual(record["byte_length"], len(minimal_jpeg(width=2, height=1)))
+            self.assertEqual(record["byte_length"], len(with_dri_segment(minimal_jpeg(width=2, height=1), 2)))
             self.assertEqual(
                 record["sha256"],
-                hashlib.sha256(minimal_jpeg(width=2, height=1)).hexdigest(),
+                hashlib.sha256(with_dri_segment(minimal_jpeg(width=2, height=1), 2)).hexdigest(),
             )
             self.assertEqual(record["input_rgb"]["path"], str(input_rgb))
             self.assertEqual(record["input_rgb"]["byte_length"], 8)
@@ -857,6 +922,29 @@ class HjpegHostTest(unittest.TestCase):
                     max_output_bytes=1024,
                     expected_width=2,
                     expected_height=1,
+                    timeout_seconds=1.0,
+                )
+
+    def test_run_stream_devices_rejects_restart_interval_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_rgb = root / "input.rgb"
+            output_jpeg = root / "output.jpg"
+            tx_device = root / "tx.dev"
+            rx_device = root / "rx.dev"
+            input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
+            rx_device.write_bytes(minimal_jpeg(width=2, height=1))
+
+            with self.assertRaisesRegex(ValueError, "expected 2"):
+                hjpeg_host.run_stream_devices(
+                    input_rgb=input_rgb,
+                    output_jpeg=output_jpeg,
+                    tx_device=tx_device,
+                    rx_device=rx_device,
+                    max_output_bytes=1024,
+                    expected_width=2,
+                    expected_height=1,
+                    expected_restart_interval=2,
                     timeout_seconds=1.0,
                 )
 

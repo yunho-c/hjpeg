@@ -196,6 +196,7 @@ that the decoder passed and the command string used:
 python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
   --width 640 \
   --height 480 \
+  --restart-interval 0 \
   --decoder-command 'magick identify {jpeg}'
 ```
 
@@ -207,9 +208,12 @@ RGB stream. Configuration evidence includes the AXI-Lite target, frame settings,
 checked frame limits, quality, restart interval, chroma mode, JFIF setting, and
 control word. JPEG validation evidence includes dimensions, scan-data byte
 count, APP0/DQT/DHT/DRI/restart marker counts, parsed DRI restart interval,
-total JPEG byte length, SHA-256, and decoder command when one was provided. For
-`run-stream-devices`, it also includes the input RGB stream byte length and
-SHA-256 plus the AXI-Lite status checkpoints enforced during the run.
+total JPEG byte length, SHA-256, and decoder command when one was provided.
+Pass `validate-jpeg --restart-interval N` to require the parsed DRI interval to
+match `N`, or `0` to require no DRI/RST markers. For `run-stream-devices`, the
+configured restart interval is checked against the captured JPEG automatically;
+the run evidence also includes the input RGB stream byte length and SHA-256 plus
+the AXI-Lite status checkpoints enforced during the run.
 
 ## Versions
 
