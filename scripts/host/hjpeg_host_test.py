@@ -1700,6 +1700,28 @@ class HjpegHostTest(unittest.TestCase):
                     | hjpeg_host.CONTROL_ENABLE_CHROMA_SUBSAMPLE,
                 )
 
+    def test_control_value_encodes_axi_lite_control_bits(self) -> None:
+        cases = [
+            (False, False, False, 0),
+            (True, False, False, hjpeg_host.CONTROL_ENABLE_CHROMA_SUBSAMPLE),
+            (False, True, False, hjpeg_host.CONTROL_EMIT_JFIF),
+            (False, False, True, hjpeg_host.CONTROL_CLEAR_PROTOCOL_ERROR),
+            (
+                True,
+                True,
+                True,
+                hjpeg_host.CONTROL_ENABLE_CHROMA_SUBSAMPLE
+                | hjpeg_host.CONTROL_EMIT_JFIF
+                | hjpeg_host.CONTROL_CLEAR_PROTOCOL_ERROR,
+            ),
+        ]
+
+        for chroma_subsample, emit_jfif, clear_error, expected in cases:
+            self.assertEqual(
+                hjpeg_host.control_value(chroma_subsample, emit_jfif, clear_error),
+                expected,
+            )
+
     def test_configure_registers_rejects_default_oversize_frame(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             mem = Path(tmp) / "mem.bin"
