@@ -249,7 +249,11 @@ Add `--json` to `make-test-ppm`, `pack-ppm`, `config`, `status`,
 `clear-error`, `validate-jpeg`, or `run-stream-devices` when you want evidence in a
 machine-readable form for logs. Input-prep evidence includes dimensions, checked
 frame limits, byte lengths, SHA-256 hashes for generated files, and PPM
-per-channel min/max values plus non-flat/color flags. Configuration evidence
+per-channel min/max values plus non-flat/color flags. `run-stream-devices`
+accepts `--input-ppm` to validate that the saved source PPM dimensions match
+the configured frame and that its packed RGB bytes exactly match `--input-rgb`;
+JSON evidence then records the PPM stats and packed-RGB match result.
+Configuration evidence
 includes the AXI-Lite target, frame settings,
 checked frame limits, quality, restart interval, chroma mode, JFIF setting, and
 control word. Host CLI configuration quality must be in `1..100`, and restart

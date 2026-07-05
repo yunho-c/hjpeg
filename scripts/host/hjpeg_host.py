@@ -371,12 +371,17 @@ def read_ppm(
         return PpmImage(width=width, height=height, rgb=rgb)
 
 
-def write_rgb_stream(image: PpmImage, output: Path) -> None:
+def rgb_stream_bytes(image: PpmImage) -> bytes:
     stream = bytearray()
     for offset in range(0, len(image.rgb), 3):
         stream.extend(image.rgb[offset : offset + 3])
         stream.append(0)
-    output.write_bytes(bytes(stream))
+    return bytes(stream)
+
+
+def write_rgb_stream(image: PpmImage, output: Path) -> None:
+    stream = rgb_stream_bytes(image)
+    output.write_bytes(stream)
 
 
 def _read_be16(data: bytes, offset: int) -> int:
@@ -1520,6 +1525,29 @@ def ppm_evidence_record(path: Path, image: PpmImage) -> dict[str, object]:
     return record
 
 
+def run_input_ppm_record(
+    path: Path,
+    expected_width: int,
+    expected_height: int,
+    input_rgb: bytes,
+    max_width: int,
+    max_height: int,
+) -> dict[str, object]:
+    image = read_ppm(path, max_width, max_height)
+    if image.width != expected_width or image.height != expected_height:
+        raise ValueError(
+            f"{path}: PPM dimensions are {image.width}x{image.height}, "
+            f"expected {expected_width}x{expected_height}"
+        )
+    expected_rgb = rgb_stream_bytes(image)
+    if expected_rgb != input_rgb:
+        raise ValueError(f"{path}: packed PPM bytes do not match input RGB stream")
+
+    record = ppm_evidence_record(path, image)
+    record["packed_rgb_matches_input"] = True
+    return record
+
+
 def run_evidence_record(
     jpeg: Path,
     info: JpegInfo,
@@ -1535,6 +1563,7 @@ def run_evidence_record(
     decoder_result: DecoderCommandResult | None = None,
     validation_expectations: dict[str, object] | None = None,
     transfer_elapsed_seconds: float | None = None,
+    input_ppm: dict[str, object] | None = None,
 ) -> dict[str, object]:
     record = jpeg_info_record(
         jpeg,
@@ -1557,6 +1586,8 @@ def run_evidence_record(
                 input_info.byte_length == expected_input_rgb_bytes
             )
         record["input_rgb"] = input_record
+    if input_ppm is not None:
+        record["input_ppm"] = input_ppm
     if axi_lite is not None:
         record["axi_lite"] = axi_lite
     if encoder_config is not None:
@@ -2035,6 +2066,11 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--tx-device", type=Path, required=True)
     run.add_argument("--rx-device", type=Path, required=True)
     run.add_argument("--input-rgb", type=Path, required=True)
+    run.add_argument(
+        "--input-ppm",
+        type=Path,
+        help="optional source PPM fixture to validate and record alongside --input-rgb",
+    )
     run.add_argument("--output-jpeg", type=Path, required=True)
     run.add_argument("--width", type=_positive_int, required=True)
     run.add_argument("--height", type=_positive_int, required=True)
@@ -2276,6 +2312,16 @@ def main(argv: list[str] | None = None) -> int:
 
         decoder_results: list[DecoderCommandResult] = []
         transfer_elapsed_seconds: list[float] = []
+        input_ppm_record = None
+        if args.input_ppm is not None:
+            input_ppm_record = run_input_ppm_record(
+                args.input_ppm,
+                args.width,
+                args.height,
+                args.input_rgb.read_bytes(),
+                args.max_width,
+                args.max_height,
+            )
         info, input_info = run_stream_devices(
             input_rgb=args.input_rgb,
             output_jpeg=args.output_jpeg,
@@ -2344,6 +2390,7 @@ def main(argv: list[str] | None = None) -> int:
                             require_standard_huffman=True,
                         ),
                         transfer_elapsed,
+                        input_ppm=input_ppm_record,
                     ),
                     sort_keys=True,
                 )

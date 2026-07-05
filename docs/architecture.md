@@ -141,7 +141,10 @@ packaging, or on-board validation.
 `scripts/host/hjpeg_host.py` provides the first userspace helpers around the
 KV260 design. It can generate deterministic non-flat P6 PPM fixtures, packs
 binary P6 PPM files into 32-bit-per-pixel RGB stream beats for the AXI DMA MM2S
-channel, writes the encoder AXI-Lite configuration/status registers via
+channel, optionally validates during `run-stream-devices` that the dimensions
+of a saved source PPM match the configured frame and that its packed bytes match
+the RGB stream sent to the TX device, writes the encoder AXI-Lite
+configuration/status registers via
 `/dev/mem`, and validates returned JPEG files by checking SOI/EOI markers, SOF0
 dimensions, 8-bit sample precision, three-component frame shape, DQT/DHT table
 markers, optional JFIF APP0 signature and fixed fields, optional DRI restart

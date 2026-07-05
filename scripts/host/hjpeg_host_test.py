@@ -3119,6 +3119,8 @@ class HjpegHostTest(unittest.TestCase):
             rx_device = root / "rx.dev"
             mem = root / "mem.bin"
             decoder_marker = root / "decoder.txt"
+            input_ppm = root / "input.ppm"
+            input_ppm.write_bytes(b"P6\n2 1\n255\n" + bytes([1, 2, 3, 4, 5, 6]))
             input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
             captured_jpeg = with_dri_segment(
                 minimal_jpeg(width=2, height=1, chroma_subsample=True, quality=80),
@@ -3148,6 +3150,8 @@ class HjpegHostTest(unittest.TestCase):
                             str(rx_device),
                             "--input-rgb",
                             str(input_rgb),
+                            "--input-ppm",
+                            str(input_ppm),
                             "--output-jpeg",
                             str(output_jpeg),
                             "--width",
@@ -3316,6 +3320,19 @@ class HjpegHostTest(unittest.TestCase):
                 record["input_rgb"]["sha256"],
                 hashlib.sha256(input_rgb.read_bytes()).hexdigest(),
             )
+            self.assertEqual(record["input_ppm"]["path"], str(input_ppm))
+            self.assertEqual(record["input_ppm"]["width"], 2)
+            self.assertEqual(record["input_ppm"]["height"], 1)
+            self.assertTrue(record["input_ppm"]["packed_rgb_matches_input"])
+            self.assertEqual(
+                record["input_ppm"]["image_stats"],
+                {
+                    "channel_min": {"r": 1, "g": 2, "b": 3},
+                    "channel_max": {"r": 4, "g": 5, "b": 6},
+                    "non_flat": True,
+                    "has_color_pixels": True,
+                },
+            )
             self.assertEqual(record["axi_lite"]["device"], str(mem))
             self.assertEqual(record["axi_lite"]["base_addr"], 0)
             self.assertEqual(record["encoder_config"]["width"], 2)
@@ -3375,6 +3392,46 @@ class HjpegHostTest(unittest.TestCase):
                 self.assertFalse(status["busy"])
                 self.assertFalse(status["protocol_error"])
                 self.assertEqual(status["text"], "idle")
+
+    def test_run_stream_devices_cli_rejects_input_ppm_mismatch_before_io(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_ppm = root / "input.ppm"
+            input_rgb = root / "input.rgb"
+            tx_device = root / "tx.dev"
+            rx_device = root / "rx.dev"
+            output_jpeg = root / "output.jpg"
+            input_ppm.write_bytes(b"P6\n2 1\n255\n" + bytes([1, 2, 3, 4, 5, 6]))
+            input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 7, 0]))
+            rx_device.write_bytes(minimal_jpeg(width=2, height=1))
+
+            with self.assertRaisesRegex(ValueError, "packed PPM bytes do not match"):
+                hjpeg_host.main(
+                    [
+                        "run-stream-devices",
+                        "--dev",
+                        str(root / "mem.bin"),
+                        "--base-addr",
+                        "0",
+                        "--tx-device",
+                        str(tx_device),
+                        "--rx-device",
+                        str(rx_device),
+                        "--input-rgb",
+                        str(input_rgb),
+                        "--input-ppm",
+                        str(input_ppm),
+                        "--output-jpeg",
+                        str(output_jpeg),
+                        "--width",
+                        "2",
+                        "--height",
+                        "1",
+                    ]
+                )
+
+            self.assertFalse(tx_device.exists())
+            self.assertFalse(output_jpeg.exists())
 
     def test_run_stream_devices_rejects_wrong_input_size(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
