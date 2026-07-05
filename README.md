@@ -262,9 +262,11 @@ counts, exact DQT/DHT segment counts, DQT/DHT/DRI/restart marker counts, parsed
 marker sequence, parsed DRI restart interval, RST marker sequence, total JPEG
 byte length, SHA-256, decoder command, and decoder timeout when one was
 provided, plus decoder return code and bounded stdout/stderr when a decoder
-command ran. The validator rejects non-8-bit or non-three-component SOF0 frames,
-zero SOF0 dimensions, duplicate SOF0/SOS markers, nonstandard SOF0/SOS component
-IDs, mismatched SOS component lists, unsupported SOF0 sampling factors,
+command ran. JFIF APP0 segments must match the encoder's baseline version,
+density, and no-thumbnail fields. The validator rejects non-8-bit or
+non-three-component SOF0 frames, zero SOF0 dimensions, duplicate SOF0/SOS
+markers, nonstandard SOF0/SOS component IDs, mismatched SOS component lists,
+unsupported SOF0 sampling factors,
 zero SOF0 sampling factors, non-baseline SOS spectral fields, unsupported header
 markers, malformed, non-JFIF, or duplicate APP0 markers, unexpected
 non-RST/non-EOI markers after SOS, nonstandard DQT/DHT table sets or segment

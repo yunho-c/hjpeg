@@ -139,11 +139,11 @@ binary P6 PPM files into 32-bit-per-pixel RGB stream beats for the AXI DMA MM2S
 channel, writes the encoder AXI-Lite configuration/status registers via
 `/dev/mem`, and validates returned JPEG files by checking SOI/EOI markers, SOF0
 dimensions, 8-bit sample precision, three-component frame shape, DQT/DHT table
-markers, optional JFIF APP0 signature, optional DRI restart interval, exactly
-one SOF0 and SOS, non-empty entropy-coded scan data, stuffed entropy `0xff`
-byte count, rejection of unsupported header markers, rejection of non-JFIF or
-duplicate APP0 markers, rejection of unexpected non-RST/non-EOI markers after
-SOS, and rejection of trailing bytes after EOI. It
+markers, optional JFIF APP0 signature and fixed fields, optional DRI restart
+interval, exactly one SOF0 and SOS, non-empty entropy-coded scan data, stuffed
+entropy `0xff` byte count, rejection of unsupported header markers, rejection of
+malformed, non-JFIF, or duplicate APP0 markers, rejection of unexpected
+non-RST/non-EOI markers after SOS, and rejection of trailing bytes after EOI. It
 also records SOF0 component sampling factors, APP0 and JFIF APP0 counts, DQT/DHT
 table IDs, table payload byte counts and SHA-256 hashes, and SOS component table
 selectors, requires SOF0 and SOS component IDs to be `[1, 2, 3]`, requires the

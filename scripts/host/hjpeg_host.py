@@ -486,6 +486,11 @@ def jpeg_info(data: bytes) -> JpegInfo:
             if data[offset + 2 : offset + 7] == b"JFIF\x00":
                 if segment_length < 16:
                     raise ValueError("JPEG JFIF APP0 segment is too short")
+                jfif_fields = data[offset + 7 : offset + 16]
+                if jfif_fields != b"\x01\x01\x00\x00\x01\x00\x01\x00\x00":
+                    raise ValueError(
+                        "JPEG JFIF APP0 fields do not match hjpeg baseline header"
+                    )
                 thumbnail_bytes = data[offset + 14] * data[offset + 15] * 3
                 expected_segment_length = 16 + thumbnail_bytes
                 if segment_length != expected_segment_length:
