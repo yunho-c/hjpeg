@@ -45,6 +45,8 @@ Expected evidence:
 ```sh
 vivado -mode batch -source scripts/vivado/build_kv260_bitstream.tcl
 python3 scripts/vivado/check_reports.py \
+  --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit \
+  --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa \
   --timing build/vivado/hjpeg-kv260-artifacts/post_synth_timing_summary.rpt \
   --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --utilization build/vivado/hjpeg-kv260-artifacts/post_synth_utilization.rpt \
@@ -64,13 +66,15 @@ Expected evidence:
 Pass criteria:
 
 - Synthesis and implementation finish successfully.
+- The expected bitstream and XSA artifacts exist and are recorded in the JSON
+  evidence.
 - Post-implementation timing has nonnegative worst negative slack for the
   target clock.
 - Resource use leaves enough headroom for the intended KV260 platform shell.
 - `check_reports.py` exits successfully for the generated timing/utilization
   reports.
-- The JSON evidence records report paths, byte lengths, SHA-256 hashes, parsed
-  WNS values, utilization rows, thresholds, and pass/fail state.
+- The JSON evidence records artifact/report paths, byte lengths, SHA-256
+  hashes, parsed WNS values, utilization rows, thresholds, and pass/fail state.
 
 Latest local Vivado 2026.1 evidence:
 

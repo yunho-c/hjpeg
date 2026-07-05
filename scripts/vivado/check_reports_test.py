@@ -96,8 +96,10 @@ class CheckReportsTest(unittest.TestCase):
     def test_cli_can_print_json_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            artifact = root / "hjpeg_kv260.bit"
             timing = root / "timing.rpt"
             utilization = root / "util.rpt"
+            artifact.write_bytes(b"bitstream")
             timing.write_text(TIMING_TABLE)
             utilization.write_text(UTILIZATION_TABLE)
 
@@ -106,6 +108,8 @@ class CheckReportsTest(unittest.TestCase):
                 self.assertEqual(
                     check_reports.main(
                         [
+                            "--artifact",
+                            str(artifact),
                             "--timing",
                             str(timing),
                             "--utilization",
@@ -119,6 +123,14 @@ class CheckReportsTest(unittest.TestCase):
             record = json.loads(stdout.getvalue())
             self.assertTrue(record["passed"])
             self.assertEqual(record["failures"], [])
+            self.assertEqual(record["artifacts"][0]["path"], str(artifact))
+            self.assertEqual(record["artifacts"][0]["byte_length"], len(b"bitstream"))
+            self.assertEqual(
+                record["artifacts"][0]["sha256"],
+                hashlib.sha256(b"bitstream").hexdigest(),
+            )
+            self.assertTrue(record["artifacts"][0]["exists"])
+            self.assertTrue(record["artifacts"][0]["passed"])
             self.assertEqual(record["timing"][0]["path"], str(timing))
             self.assertEqual(record["timing"][0]["wns_ns"], 0.125)
             timing_bytes = timing.read_bytes()
@@ -133,21 +145,34 @@ class CheckReportsTest(unittest.TestCase):
 
     def test_cli_json_records_failures(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            timing = Path(tmp) / "timing.rpt"
+            root = Path(tmp)
+            timing = root / "timing.rpt"
+            missing = root / "missing.xsa"
             timing.write_text("WNS(ns): -0.010\n")
 
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
                 self.assertEqual(
-                    check_reports.main(["--timing", str(timing), "--json"]),
+                    check_reports.main(
+                        [
+                            "--artifact",
+                            str(missing),
+                            "--timing",
+                            str(timing),
+                            "--json",
+                        ]
+                    ),
                     1,
                 )
 
             record = json.loads(stdout.getvalue())
             self.assertFalse(record["passed"])
+            self.assertFalse(record["artifacts"][0]["exists"])
+            self.assertFalse(record["artifacts"][0]["passed"])
             self.assertEqual(record["timing"][0]["wns_ns"], -0.01)
             self.assertFalse(record["timing"][0]["passed"])
-            self.assertIn("below required", record["failures"][0])
+            self.assertTrue(any("artifact not found" in failure for failure in record["failures"]))
+            self.assertTrue(any("below required" in failure for failure in record["failures"]))
 
 
 if __name__ == "__main__":

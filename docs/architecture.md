@@ -104,11 +104,12 @@ hardware-tool entry points:
   and implementation through `write_bitstream`, emits timing/utilization
   reports, copies `hjpeg_kv260.bit`, and exports `hjpeg_kv260.xsa` with the
   bitstream included.
-- `check_reports.py` parses Vivado timing/utilization reports and fails when
-  WNS is below the requested threshold or any utilization row exceeds the
-  configured percentage. Its `--json` mode emits report hashes, byte lengths,
-  parsed WNS values, utilization rows, thresholds, and pass/fail state for
-  build evidence logs.
+- `check_reports.py` hashes generated artifacts, parses Vivado
+  timing/utilization reports, and fails when a requested artifact is missing,
+  WNS is below the requested threshold, or any utilization row exceeds the
+  configured percentage. Its `--json` mode emits artifact/report hashes, byte
+  lengths, parsed WNS values, utilization rows, thresholds, and pass/fail state
+  for build evidence logs.
 
 These scripts are intended to be run after:
 

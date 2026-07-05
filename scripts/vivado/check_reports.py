@@ -93,6 +93,17 @@ def _file_record(path: Path, data: bytes) -> dict[str, object]:
     }
 
 
+def artifact_record(path: Path) -> tuple[dict[str, object], list[str]]:
+    if not path.exists():
+        return {"path": str(path), "exists": False, "passed": False}, [f"{path}: artifact not found"]
+    if not path.is_file():
+        return {"path": str(path), "exists": True, "passed": False}, [f"{path}: artifact is not a file"]
+
+    record = _file_record(path, path.read_bytes())
+    record.update({"exists": True, "passed": True})
+    return record, []
+
+
 def timing_record(path: Path, min_wns: float) -> tuple[dict[str, object], list[str]]:
     report_bytes = path.read_bytes()
     report = report_bytes.decode(errors="replace")
@@ -162,6 +173,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         help="Vivado utilization report to check; may be passed multiple times",
     )
+    parser.add_argument(
+        "--artifact",
+        type=Path,
+        action="append",
+        default=[],
+        help="Generated artifact to hash in evidence; may be passed multiple times",
+    )
     parser.add_argument("--min-wns", type=float, default=0.0)
     parser.add_argument("--max-utilization", type=float, default=90.0)
     parser.add_argument("--json", action="store_true", help="print parsed report evidence as JSON")
@@ -171,9 +189,14 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     failures = []
+    artifact_records = []
     timing_records = []
     utilization_records = []
 
+    for artifact in args.artifact:
+        record, record_failures = artifact_record(artifact)
+        artifact_records.append(record)
+        failures.extend(record_failures)
     for timing in args.timing:
         record, record_failures = timing_record(timing, args.min_wns)
         timing_records.append(record)
@@ -189,6 +212,7 @@ def main(argv: list[str] | None = None) -> int:
                 {
                     "passed": not failures,
                     "failures": failures,
+                    "artifacts": artifact_records,
                     "timing": timing_records,
                     "utilization": utilization_records,
                 },
@@ -201,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"FAIL: {failure}", file=sys.stderr)
         return 1
 
-    checked = len(args.timing) + len(args.utilization)
+    checked = len(args.artifact) + len(args.timing) + len(args.utilization)
     if not args.json:
         print(f"PASS: checked {checked} Vivado report(s)")
     return 0

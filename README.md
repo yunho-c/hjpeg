@@ -120,13 +120,15 @@ Check generated timing and utilization reports:
 
 ```sh
 python3 scripts/vivado/check_reports.py \
+  --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit \
+  --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa \
   --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt
 ```
 
-Add `--json` to include report paths, byte lengths, SHA-256 hashes, parsed WNS
-values, utilization rows, thresholds, and pass/fail state in machine-readable
-build evidence.
+Add `--json` to include artifact/report paths, byte lengths, SHA-256 hashes,
+parsed WNS values, utilization rows, thresholds, and pass/fail state in
+machine-readable build evidence.
 
 These Vivado scripts consume `generated-kv260-axi-lite-top/filelist.f`. Generate
 the AXI-Lite top first. The IP packaging script maps the generated clock, reset,
