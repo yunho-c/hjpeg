@@ -631,8 +631,10 @@ Hardware completion evidence should include:
   IDs and payload hashes, Huffman table set, SOS table selectors, chroma mode,
   JFIF evidence, standalone validation expectations including expected marker
   counts, expected marker order through SOS and EOI, expected RST marker count
-  and sequence, expected SOF0/SOS component selectors, expected SOS spectral
-  fields, expected chroma mode when checked, and expected DQT/DHT payload hashes,
+  and sequence, expected SOF0 precision and component count, expected SOF0/SOS
+  component selectors, expected SOS spectral fields, expected minimum scan-data
+  length, expected DQT/DHT table order, expected chroma mode when checked, and
+  expected DQT/DHT payload hashes,
   decoder command, resolved decoder argv, decoder timeout, decoder elapsed
   seconds, bounded decoder stdout/stderr, captured decoder output lengths, and
   decoder output capture limit.

@@ -1187,12 +1187,15 @@ def validation_expectations_record(
     record: dict[str, object] = {
         "width": width,
         "height": height,
+        "expected_sample_precision": 8,
+        "expected_component_count": 3,
         "restart_interval": restart_interval,
         "expected_restart_markers": expected_restart_marker_count(info, restart_interval),
         "expected_restart_marker_sequence": expected_restart_marker_sequence(
             info,
             restart_interval,
         ),
+        "expected_scan_data_min_bytes": 1,
         "expected_marker_counts": expected_marker_counts,
         "expected_marker_order": {
             "through_sos": expected_marker_sequence_through_sos,
@@ -1204,6 +1207,14 @@ def validation_expectations_record(
             ),
             "terminal_marker": "EOI",
         },
+        "expected_quantization_tables": [0, 1],
+        "expected_quantization_table_order": [0, 1],
+        "expected_huffman_table_order": [
+            {"table_class": 0, "table_id": 0},
+            {"table_class": 0, "table_id": 1},
+            {"table_class": 1, "table_id": 0},
+            {"table_class": 1, "table_id": 1},
+        ],
         "expected_sof0_components": expected_sof0_components,
         "expected_sos_components": expected_sos_components,
         "expected_sos_spectral": {

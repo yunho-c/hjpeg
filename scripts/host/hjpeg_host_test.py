@@ -1200,9 +1200,12 @@ class HjpegHostTest(unittest.TestCase):
                 {
                     "width": 17,
                     "height": 13,
+                    "expected_sample_precision": 8,
+                    "expected_component_count": 3,
                     "restart_interval": None,
                     "expected_restart_markers": None,
                     "expected_restart_marker_sequence": None,
+                    "expected_scan_data_min_bytes": 1,
                     "expected_marker_counts": {
                         "APP0": None,
                         "JFIF_APP0": None,
@@ -1229,6 +1232,14 @@ class HjpegHostTest(unittest.TestCase):
                         "dri_policy": "optional",
                         "terminal_marker": "EOI",
                     },
+                    "expected_quantization_tables": [0, 1],
+                    "expected_quantization_table_order": [0, 1],
+                    "expected_huffman_table_order": [
+                        {"table_class": 0, "table_id": 0},
+                        {"table_class": 0, "table_id": 1},
+                        {"table_class": 1, "table_id": 0},
+                        {"table_class": 1, "table_id": 1},
+                    ],
                     "expected_sof0_components": [
                         {"component_id": 1, "quantization_table": 0},
                         {"component_id": 2, "quantization_table": 1},
@@ -3117,9 +3128,12 @@ class HjpegHostTest(unittest.TestCase):
                 {
                     "width": 2,
                     "height": 1,
+                    "expected_sample_precision": 8,
+                    "expected_component_count": 3,
                     "restart_interval": 2,
                     "expected_restart_markers": 0,
                     "expected_restart_marker_sequence": [],
+                    "expected_scan_data_min_bytes": 1,
                     "expected_marker_counts": {
                         "APP0": 1,
                         "JFIF_APP0": 1,
@@ -3148,6 +3162,14 @@ class HjpegHostTest(unittest.TestCase):
                         "dri_policy": "present",
                         "terminal_marker": "EOI",
                     },
+                    "expected_quantization_tables": [0, 1],
+                    "expected_quantization_table_order": [0, 1],
+                    "expected_huffman_table_order": [
+                        {"table_class": 0, "table_id": 0},
+                        {"table_class": 0, "table_id": 1},
+                        {"table_class": 1, "table_id": 0},
+                        {"table_class": 1, "table_id": 1},
+                    ],
                     "expected_sof0_components": [
                         {
                             "component_id": 1,
