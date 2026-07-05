@@ -311,7 +311,7 @@ class HjpegHostTest(unittest.TestCase):
 
             configured = []
             status_checks = []
-            info = hjpeg_host.run_stream_devices(
+            info, input_info = hjpeg_host.run_stream_devices(
                 input_rgb=input_rgb,
                 output_jpeg=output_jpeg,
                 tx_device=tx_device,
@@ -331,6 +331,9 @@ class HjpegHostTest(unittest.TestCase):
 
             self.assertEqual(configured, [True])
             self.assertEqual(info, minimal_jpeg_info(width=2, height=1))
+            self.assertEqual(input_info.path, str(input_rgb))
+            self.assertEqual(input_info.byte_length, 8)
+            self.assertEqual(input_info.sha256, hashlib.sha256(input_rgb.read_bytes()).hexdigest())
             self.assertEqual(status_checks, ["before transfer", "after transfer"])
             self.assertEqual(tx_device.read_bytes(), bytes([1, 2, 3, 0, 4, 5, 6, 0]))
             self.assertEqual(output_jpeg.read_bytes(), minimal_jpeg(width=2, height=1))
@@ -385,6 +388,12 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(
                 record["sha256"],
                 hashlib.sha256(minimal_jpeg(width=2, height=1)).hexdigest(),
+            )
+            self.assertEqual(record["input_rgb"]["path"], str(input_rgb))
+            self.assertEqual(record["input_rgb"]["byte_length"], 8)
+            self.assertEqual(
+                record["input_rgb"]["sha256"],
+                hashlib.sha256(input_rgb.read_bytes()).hexdigest(),
             )
 
     def test_run_stream_devices_rejects_wrong_input_size(self) -> None:

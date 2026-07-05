@@ -63,6 +63,13 @@ class JpegInfo:
     sha256: str
 
 
+@dataclass(frozen=True)
+class FileInfo:
+    path: str
+    byte_length: int
+    sha256: str
+
+
 def make_test_image(width: int, height: int) -> PpmImage:
     if width <= 0 or height <= 0:
         raise ValueError("PPM dimensions must be positive")
@@ -298,6 +305,30 @@ def jpeg_info_record(jpeg: Path, info: JpegInfo, decoder_passed: bool | None = N
     return record
 
 
+def file_info(path: Path, data: bytes) -> FileInfo:
+    return FileInfo(
+        path=str(path),
+        byte_length=len(data),
+        sha256=hashlib.sha256(data).hexdigest(),
+    )
+
+
+def run_evidence_record(
+    jpeg: Path,
+    info: JpegInfo,
+    input_info: FileInfo | None = None,
+    decoder_passed: bool | None = None,
+) -> dict[str, object]:
+    record = jpeg_info_record(jpeg, info, decoder_passed)
+    if input_info is not None:
+        record["input_rgb"] = {
+            "path": input_info.path,
+            "byte_length": input_info.byte_length,
+            "sha256": input_info.sha256,
+        }
+    return record
+
+
 def read_until_jpeg_eoi(stream: BinaryIO, max_bytes: int) -> bytes:
     if max_bytes <= 0:
         raise ValueError("max output bytes must be positive")
@@ -327,8 +358,9 @@ def run_stream_devices(
     configure: Callable[[], None] | None = None,
     check_status: Callable[[str], None] | None = None,
     decoder_command: str | None = None,
-) -> JpegInfo:
+) -> tuple[JpegInfo, FileInfo]:
     rgb = input_rgb.read_bytes()
+    input_info = file_info(input_rgb, rgb)
     expected_input_bytes = expected_width * expected_height * 4
     if len(rgb) != expected_input_bytes:
         raise ValueError(
@@ -376,7 +408,7 @@ def run_stream_devices(
         run_decoder_command(output_jpeg, decoder_command)
     if check_status is not None:
         check_status("after transfer")
-    return info
+    return info, input_info
 
 
 class AxiLiteWindow:
@@ -648,7 +680,7 @@ def main(argv: list[str] | None = None) -> int:
             with AxiLiteWindow(args.dev, args.base_addr) as regs:
                 require_idle_status(regs, context)
 
-        info = run_stream_devices(
+        info, input_info = run_stream_devices(
             input_rgb=args.input_rgb,
             output_jpeg=args.output_jpeg,
             tx_device=args.tx_device,
@@ -663,7 +695,12 @@ def main(argv: list[str] | None = None) -> int:
         )
         decoder_passed = True if args.decoder_command is not None else None
         if args.json:
-            print(json.dumps(jpeg_info_record(args.output_jpeg, info, decoder_passed), sort_keys=True))
+            print(
+                json.dumps(
+                    run_evidence_record(args.output_jpeg, info, input_info, decoder_passed),
+                    sort_keys=True,
+                )
+            )
             return 0
         decoder_text = " decoder=pass" if args.decoder_command is not None else ""
         print(
@@ -671,7 +708,9 @@ def main(argv: list[str] | None = None) -> int:
             f"dimensions={info.width}x{info.height} "
             f"scan_data_bytes={info.scan_data_bytes} "
             f"byte_length={info.byte_length} "
-            f"sha256={info.sha256}{decoder_text}"
+            f"sha256={info.sha256} "
+            f"input_rgb_bytes={input_info.byte_length} "
+            f"input_rgb_sha256={input_info.sha256}{decoder_text}"
         )
         return 0
 

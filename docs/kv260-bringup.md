@@ -157,6 +157,8 @@ Expected evidence:
   non-empty scan payload.
 - The helper reports the total JPEG byte length and SHA-256 so the captured
   artifact can be matched against saved files and logs.
+- For `run-stream-devices`, the helper reports the input RGB stream byte length
+  and SHA-256 so the output can be tied to the exact input payload.
 - A standard JPEG decoder can open `output.jpg`; when `--decoder-command` is
   used, that decoder check is part of the command transcript.
 - The decoded dimensions match the input.
