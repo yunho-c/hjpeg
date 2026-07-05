@@ -318,6 +318,7 @@ class CheckReportsTest(unittest.TestCase):
             record = json.loads(stdout.getvalue())
             self.assertTrue(record["passed"])
             self.assertEqual(record["failures"], [])
+            self.assertEqual(record["checked_count"], 6)
             self.assertEqual(
                 record["arguments"],
                 {

@@ -548,6 +548,15 @@ def main(argv: list[str] | None = None) -> int:
         clock_utilization_records.append(record)
         failures.extend(record_failures)
 
+    checked = (
+        len(args.artifact)
+        + len(timing_paths)
+        + len(args.utilization)
+        + len(args.drc)
+        + len(args.route_status)
+        + len(args.clock_utilization)
+    )
+
     if args.json:
         arguments = {
             "artifacts": [str(path) for path in args.artifact],
@@ -567,6 +576,7 @@ def main(argv: list[str] | None = None) -> int:
                 {
                     "passed": not failures,
                     "failures": failures,
+                    "checked_count": checked,
                     "arguments": arguments,
                     "clock_period_ns": args.clock_period_ns,
                     "clock_frequency_mhz": 1000.0 / args.clock_period_ns,
@@ -586,14 +596,6 @@ def main(argv: list[str] | None = None) -> int:
             print(f"FAIL: {failure}", file=sys.stderr)
         return 1
 
-    checked = (
-        len(args.artifact)
-        + len(timing_paths)
-        + len(args.utilization)
-        + len(args.drc)
-        + len(args.route_status)
-        + len(args.clock_utilization)
-    )
     if not args.json:
         print(f"PASS: checked {checked} Vivado report(s)")
     return 0

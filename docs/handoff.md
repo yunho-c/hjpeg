@@ -172,7 +172,8 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
-- current commit: `feat: record vivado checker arguments`
+- current commit: `feat: record vivado checked count`
+- `dbddfb0 feat: record vivado checker arguments`
 - `4c03938 feat: record decoder elapsed evidence`
 - `9a92ff6 feat: record decoder output sizes`
 - `a37718b feat: record decoder argv evidence`
@@ -396,10 +397,10 @@ arguments so the bitstream, XSA, timing reports, utilization reports, DRC
 reports, route-status reports, and clock-utilization reports can be recorded
 with byte lengths, hashes, target clock period/frequency, parsed setup WNS and
 hold WHS, utilization rows, DRC violations, route-status counts, thresholds,
-requested input path lists and gate values, and pass/fail state. Missing,
-non-file, or unparseable reports are recorded as structured JSON failures
-instead of aborting the transcript. Requested artifacts and clock-utilization
-reports must be non-empty. Use `--hold-timing`
+requested input path lists and gate values, checked report/artifact count, and
+pass/fail state. Missing, non-file, or unparseable reports are recorded as
+structured JSON failures instead of aborting the transcript. Requested artifacts
+and clock-utilization reports must be non-empty. Use `--hold-timing`
 for post-implementation timing reports; post-synthesis hold can be negative
 before implementation fixes it. The utilization parser handles Vivado's
 `Prohibited` column and records hard-system rows such as `PS8` without gating

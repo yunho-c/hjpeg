@@ -119,8 +119,8 @@ hardware-tool entry points:
   artifact/report hashes, byte lengths, target clock period/frequency, parsed
   WNS/WHS values, utilization rows, thresholds, DRC violations, route-status
   counts, clock-utilization report hashes, requested input path lists and gate
-  values, and pass/fail state for build evidence logs, including structured
-  failure records for missing or unparseable reports.
+  values, checked report/artifact count, and pass/fail state for build evidence
+  logs, including structured failure records for missing or unparseable reports.
 
 These scripts are intended to be run after:
 
