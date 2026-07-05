@@ -2548,6 +2548,7 @@ class HjpegHostTest(unittest.TestCase):
         self.assertEqual(summary["evidence_group_count"], 10)
         self.assertEqual(summary["evidence_present_count"], 0)
         self.assertEqual(summary["evidence_missing_count"], 10)
+        self.assertEqual(summary["present_evidence"], [])
         self.assertEqual(
             summary["missing_evidence"],
             [
@@ -2578,6 +2579,16 @@ class HjpegHostTest(unittest.TestCase):
             ],
         )
         self.assertEqual(summary["passing_check_count"], 5)
+        self.assertEqual(
+            summary["passing_checks"],
+            [
+                "jpeg_validation_passed",
+                "jpeg_byte_length_positive",
+                "jpeg_scan_data_bytes_positive",
+                "jpeg_marker_sequence_starts_with_soi",
+                "jpeg_marker_sequence_ends_with_eoi",
+            ],
+        )
         self.assertEqual(summary["failing_check_count"], 2)
         self.assertEqual(
             summary["failing_checks"],
@@ -2671,6 +2682,9 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 0)
             self.assertEqual(
+                record["present_evidence"], EXPECTED_HARDWARE_EVIDENCE_GROUPS
+            )
+            self.assertEqual(
                 record["computed_hardware_run_summary"],
                 complete_run_evidence_record(root)["hardware_run_summary"],
             )
@@ -2681,6 +2695,10 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertEqual(record["recorded_check_count"], 75)
             self.assertEqual(record["passing_check_count"], 75)
+            self.assertEqual(
+                record["passing_checks"],
+                EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
+            )
             self.assertEqual(record["failing_check_count"], 0)
             self.assertEqual(record["failing_checks"], [])
 
@@ -2706,6 +2724,9 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 0)
             self.assertEqual(
+                record["present_evidence"], EXPECTED_HARDWARE_EVIDENCE_GROUPS
+            )
+            self.assertEqual(
                 record["computed_hardware_run_summary"],
                 hjpeg_host.hardware_run_summary_record(evidence),
             )
@@ -2716,6 +2737,10 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertEqual(record["recorded_check_count"], 75)
             self.assertEqual(record["passing_check_count"], 75)
+            self.assertEqual(
+                record["passing_checks"],
+                EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
+            )
             self.assertEqual(record["failing_check_count"], 0)
             self.assertEqual(record["failing_checks"], [])
             self.assertTrue(
@@ -2766,6 +2791,19 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["evidence_present_count"], 8)
             self.assertEqual(record["evidence_missing_count"], 2)
             self.assertEqual(
+                record["present_evidence"],
+                [
+                    "jpeg_output",
+                    "input_rgb",
+                    "axi_lite",
+                    "encoder_config",
+                    "capture_config",
+                    "status_checks",
+                    "validation_expectations",
+                    "transfer_timing",
+                ],
+            )
+            self.assertEqual(
                 record["computed_hardware_run_summary"],
                 evidence["hardware_run_summary"],
             )
@@ -2776,6 +2814,10 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertEqual(record["recorded_check_count"], 51)
             self.assertEqual(record["passing_check_count"], 51)
+            self.assertEqual(
+                record["passing_checks"],
+                list(evidence["hardware_run_summary"]["checks"].keys()),
+            )
             self.assertEqual(record["failing_check_count"], 0)
             self.assertEqual(record["failing_checks"], [])
             self.assertTrue(
@@ -2814,6 +2856,9 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["evidence_group_count"], 10)
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 0)
+            self.assertEqual(
+                record["present_evidence"], EXPECTED_HARDWARE_EVIDENCE_GROUPS
+            )
             self.assertEqual(record["missing_evidence"], [])
             self.assertEqual(
                 record["recorded_check_names"],
@@ -2821,6 +2866,14 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertEqual(record["recorded_check_count"], 75)
             self.assertEqual(record["passing_check_count"], 74)
+            self.assertEqual(
+                record["passing_checks"],
+                [
+                    name
+                    for name in EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES
+                    if name != "encoder_config_matches_jpeg_dimensions"
+                ],
+            )
             self.assertEqual(record["failing_check_count"], 1)
             self.assertEqual(
                 record["failing_checks"],
@@ -4774,6 +4827,7 @@ class HjpegHostTest(unittest.TestCase):
                     "evidence_group_count": 10,
                     "evidence_present_count": 10,
                     "evidence_missing_count": 0,
+                    "present_evidence": EXPECTED_HARDWARE_EVIDENCE_GROUPS,
                     "missing_evidence": [],
                     "checks": {
                         "jpeg_validation_passed": True,
@@ -4855,6 +4909,7 @@ class HjpegHostTest(unittest.TestCase):
                     "recorded_check_names": EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
                     "recorded_check_count": 75,
                     "passing_check_count": 75,
+                    "passing_checks": EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
                     "failing_check_count": 0,
                     "failing_checks": [],
                     "all_recorded_checks_passed": True,

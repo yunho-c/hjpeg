@@ -661,8 +661,8 @@ Hardware completion evidence should include:
   JFIF is required, expected chroma mode when checked, and expected DQT/DHT
   payload hashes, hardware-run evidence-presence bits, ordered required
   evidence group names, ordered recorded check names, evidence/check counts,
-  missing evidence group names, failing check names, consolidated run-check
-  booleans,
+  present and missing evidence group names, passing and failing check names,
+  consolidated run-check booleans,
   `all_recorded_checks_passed`, `complete_hardware_run_evidence` with
   hashed output JPEG, source PPM, positive transfer timing with finite positive
   derived input/output byte rates, and passing decoder evidence required,
@@ -698,7 +698,8 @@ Hardware completion evidence should include:
   fields must be actual JSON booleans. The summary records the required
   evidence group names, total, present, and missing evidence-group counts,
   recorded check names, total, passing, and failing check counts, missing
-  evidence group names, and failing check names for review.
+  and present evidence group names, and passing and failing check names for
+  review.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 

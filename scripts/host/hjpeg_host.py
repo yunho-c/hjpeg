@@ -2205,12 +2205,18 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     evidence_present_count = sum(
         1 for present in evidence_present.values() if present is True
     )
+    present_evidence = [
+        str(name) for name, present in evidence_present.items() if present is True
+    ]
     missing_evidence = [
         str(name) for name, present in evidence_present.items() if present is not True
     ]
     evidence_missing_count = len(missing_evidence)
     recorded_check_count = len(checks)
     passing_check_count = sum(1 for passed in checks.values() if passed is True)
+    passing_checks = [
+        str(name) for name, passed in checks.items() if passed is True
+    ]
     failing_checks = [
         str(name) for name, passed in checks.items() if passed is not True
     ]
@@ -2224,11 +2230,13 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         "evidence_group_count": evidence_group_count,
         "evidence_present_count": evidence_present_count,
         "evidence_missing_count": evidence_missing_count,
+        "present_evidence": present_evidence,
         "missing_evidence": missing_evidence,
         "checks": checks,
         "recorded_check_names": recorded_check_names,
         "recorded_check_count": recorded_check_count,
         "passing_check_count": passing_check_count,
+        "passing_checks": passing_checks,
         "failing_check_count": failing_check_count,
         "failing_checks": failing_checks,
         "all_recorded_checks_passed": all_recorded_checks_passed,
@@ -2357,10 +2365,22 @@ def check_run_evidence_record(
         if isinstance(missing_evidence_value, list)
         else []
     )
+    present_evidence_value = computed_summary.get("present_evidence")
+    present_evidence = (
+        [str(name) for name in present_evidence_value]
+        if isinstance(present_evidence_value, list)
+        else []
+    )
     failing_checks_value = computed_summary.get("failing_checks")
     failing_checks = (
         [str(name) for name in failing_checks_value]
         if isinstance(failing_checks_value, list)
+        else []
+    )
+    passing_checks_value = computed_summary.get("passing_checks")
+    passing_checks = (
+        [str(name) for name in passing_checks_value]
+        if isinstance(passing_checks_value, list)
         else []
     )
     complete = bool(computed_summary.get("complete_hardware_run_evidence", False))
@@ -2376,10 +2396,12 @@ def check_run_evidence_record(
             "evidence_group_count": computed_summary.get("evidence_group_count"),
             "evidence_present_count": computed_summary.get("evidence_present_count"),
             "evidence_missing_count": computed_summary.get("evidence_missing_count"),
+            "present_evidence": present_evidence,
             "missing_evidence": missing_evidence,
             "recorded_check_names": computed_summary.get("recorded_check_names"),
             "recorded_check_count": computed_summary.get("recorded_check_count"),
             "passing_check_count": computed_summary.get("passing_check_count"),
+            "passing_checks": passing_checks,
             "failing_check_count": computed_summary.get("failing_check_count"),
             "failing_checks": failing_checks,
         }

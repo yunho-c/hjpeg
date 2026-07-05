@@ -209,8 +209,9 @@ context list, expected context list, context-list match result, and run-level
 all-idle/any-busy/any-protocol-error summaries. It also records a
 `hardware_run_summary` with evidence-presence bits and consolidated pass/fail
 checks, the ordered required evidence group list, evidence/check counts, missing
-evidence group names, ordered recorded check names, and failing check names for
-board-run transcripts; the complete-evidence flag requires a passing
+and present evidence group names, ordered recorded check names, and passing and
+failing check names for board-run transcripts; the complete-evidence flag
+requires a passing
 decoder check, hashed output JPEG evidence with non-empty scan data, source PPM
 evidence with non-flat/color image stats, and positive host-observed transfer
 timing with finite positive derived input and output byte rates. Decoder
@@ -242,7 +243,8 @@ PPM-to-input-RGB consistency, and transfer byte rates from the saved lengths,
 hashes, and elapsed time.
 The summary records the required evidence group names, total, present, and
 missing evidence-group counts, recorded check names, total, passing, and failing
-check counts, missing evidence group names, and failing check names for review.
+check counts, present and missing evidence group names, and passing and failing
+check names for review.
 Required boolean evidence fields must be actual JSON booleans.
 For final board transcripts, pass `run-stream-devices --require-complete-evidence`
 so missing evidence groups turn into a nonzero CLI result; omit it for partial

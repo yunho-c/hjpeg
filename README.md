@@ -329,8 +329,8 @@ all-idle, any-busy, and any-protocol-error checkpoints. The JSON record also
 includes `hardware_run_summary`, which collects evidence-presence bits and
 pass/fail booleans for the recorded run checks, the ordered required evidence
 group list, ordered recorded check names, evidence/check counts, failing check
-names, missing evidence group names, and whether complete hardware-run evidence
-was captured. Complete
+names, passing check names, missing and present evidence group names, and
+whether complete hardware-run evidence was captured. Complete
 hardware-run evidence requires a
 hashed output JPEG with non-empty scan data, source PPM supplied through
 `--input-ppm`, non-flat/color source-image stats, positive host-observed
@@ -364,8 +364,8 @@ PPM-to-input-RGB consistency, and transfer byte rates from the saved lengths,
 hashes, and elapsed time.
 The summary records the required evidence group names, total, present, and
 missing evidence-group counts, recorded check names, total, passing, and failing
-check counts, missing evidence group names, and the names of failing checks for
-review.
+check counts, present and missing evidence group names, and the names of passing
+and failing checks for review.
 Required boolean evidence fields must be actual JSON booleans.
 Pass `run-stream-devices --require-complete-evidence` for final board evidence
 gates; omit it for partial hardware smoke tests that intentionally skip source
