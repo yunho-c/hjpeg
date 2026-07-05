@@ -1481,9 +1481,27 @@ class HjpegHostTest(unittest.TestCase):
             jpeg.write_bytes(minimal_jpeg(width=2, height=1))
 
             status_checks = [
-                {"context": "after configuration", "status": 0},
-                {"context": "before transfer", "status": 0},
-                {"context": "after transfer", "status": 0},
+                {
+                    "context": "after configuration",
+                    "status": 0,
+                    "text": "idle",
+                    "busy": False,
+                    "protocol_error": False,
+                },
+                {
+                    "context": "before transfer",
+                    "status": 0,
+                    "text": "idle",
+                    "busy": False,
+                    "protocol_error": False,
+                },
+                {
+                    "context": "after transfer",
+                    "status": 0,
+                    "text": "idle",
+                    "busy": False,
+                    "protocol_error": False,
+                },
             ]
             record = hjpeg_host.run_evidence_record(
                 jpeg,
@@ -1497,6 +1515,26 @@ class HjpegHostTest(unittest.TestCase):
                 record["status_check_contexts"],
                 ["after configuration", "before transfer", "after transfer"],
             )
+            self.assertTrue(record["status_checks_all_idle"])
+            self.assertFalse(record["status_checks_any_protocol_error"])
+            self.assertFalse(record["status_checks_any_busy"])
+
+            faulted = hjpeg_host.run_evidence_record(
+                jpeg,
+                minimal_jpeg_info(width=2, height=1),
+                status_checks=[
+                    {"context": "before transfer", "text": "idle", "busy": False},
+                    {
+                        "context": "after transfer",
+                        "text": "protocol_error",
+                        "busy": True,
+                        "protocol_error": True,
+                    },
+                ],
+            )
+            self.assertFalse(faulted["status_checks_all_idle"])
+            self.assertTrue(faulted["status_checks_any_protocol_error"])
+            self.assertTrue(faulted["status_checks_any_busy"])
 
     def test_run_evidence_record_reports_transfer_rates_for_positive_elapsed_time(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -3388,6 +3426,9 @@ class HjpegHostTest(unittest.TestCase):
                 record["status_check_contexts"],
                 ["after configuration", "before transfer", "after transfer"],
             )
+            self.assertTrue(record["status_checks_all_idle"])
+            self.assertFalse(record["status_checks_any_protocol_error"])
+            self.assertFalse(record["status_checks_any_busy"])
             for status in record["status_checks"]:
                 self.assertEqual(status["axi_lite"]["device"], str(mem))
                 self.assertEqual(status["axi_lite"]["base_addr"], 0)

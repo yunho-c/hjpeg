@@ -1602,6 +1602,16 @@ def run_evidence_record(
         record["status_check_contexts"] = [
             str(status_check.get("context", "")) for status_check in status_checks
         ]
+        record["status_checks_all_idle"] = all(
+            status_check.get("text") == "idle" for status_check in status_checks
+        )
+        record["status_checks_any_protocol_error"] = any(
+            bool(status_check.get("protocol_error", False))
+            for status_check in status_checks
+        )
+        record["status_checks_any_busy"] = any(
+            bool(status_check.get("busy", False)) for status_check in status_checks
+        )
     if transfer_elapsed_seconds is not None:
         if not math.isfinite(transfer_elapsed_seconds) or transfer_elapsed_seconds < 0:
             raise ValueError("transfer elapsed seconds must be finite and nonnegative")
