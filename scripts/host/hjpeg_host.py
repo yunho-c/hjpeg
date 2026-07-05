@@ -60,6 +60,28 @@ JPEG_HEADER_MARKER_ORDER = {
 }
 
 
+def jpeg_marker_name(marker: int) -> str:
+    if 0xD0 <= marker <= 0xD7:
+        return f"RST{marker - 0xD0}"
+    if marker == 0xD8:
+        return "SOI"
+    if marker == 0xD9:
+        return "EOI"
+    if marker == 0xE0:
+        return "APP0"
+    if marker == 0xDB:
+        return "DQT"
+    if marker == 0xDD:
+        return "DRI"
+    if marker == 0xC0:
+        return "SOF0"
+    if marker == 0xC4:
+        return "DHT"
+    if marker == 0xDA:
+        return "SOS"
+    return f"0xFF{marker:02X}"
+
+
 @dataclass(frozen=True)
 class PpmImage:
     width: int
@@ -119,6 +141,7 @@ class JpegInfo:
     dri_segments: int
     restart_interval: int | None
     restart_markers: int
+    marker_sequence: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -253,6 +276,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
     saw_sos = False
     saw_eoi = False
     marker_order_phase = -1
+    marker_sequence = ["SOI"]
     while offset < len(data):
         while offset < len(data) and data[offset] == 0xFF:
             offset += 1
@@ -263,6 +287,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
         offset += 1
         if marker == 0xD9:
             saw_eoi = True
+            marker_sequence.append("EOI")
             break
         if 0xD0 <= marker <= 0xD7:
             if not saw_sos:
@@ -270,10 +295,12 @@ def jpeg_info(data: bytes) -> JpegInfo:
                     "JPEG restart marker appears before entropy-coded scan data"
                 )
             restart_markers += 1
+            marker_sequence.append(jpeg_marker_name(marker))
             continue
         if offset + 2 > len(data):
             break
 
+        marker_sequence.append(jpeg_marker_name(marker))
         marker_order = JPEG_HEADER_MARKER_ORDER.get(marker)
         if marker_order is not None:
             next_phase, marker_name = marker_order
@@ -398,6 +425,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
                     offset += 1
                 elif 0xD0 <= following <= 0xD7:
                     restart_markers += 1
+                    marker_sequence.append(jpeg_marker_name(following))
                     offset += 2
                 else:
                     break
@@ -517,6 +545,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
         dri_segments=dri_segments,
         restart_interval=restart_interval,
         restart_markers=restart_markers,
+        marker_sequence=tuple(marker_sequence),
     )
 
 
@@ -707,6 +736,7 @@ def jpeg_info_record(
         "dri_segments": info.dri_segments,
         "restart_interval": info.restart_interval,
         "restart_markers": info.restart_markers,
+        "marker_sequence": list(info.marker_sequence),
         "byte_length": info.byte_length,
         "sha256": info.sha256,
     }

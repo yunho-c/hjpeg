@@ -219,9 +219,10 @@ scan-data byte count, SOF0 component ID order, sampling factors, decoded chroma
 mode, exact SOS component order and coverage, baseline SOS spectral fields, SOS
 component table selectors, DQT/DHT table IDs, exact DC/AC Huffman table set,
 exact DQT table set, DQT 8-bit precision, APP0 and JFIF APP0 counts,
-exact DQT/DHT segment counts, DQT/DHT/DRI/restart marker counts, parsed DRI
-restart interval, total JPEG byte length, SHA-256, and decoder command when one
-was provided. The validator rejects non-8-bit or non-three-component SOF0
+exact DQT/DHT segment counts, DQT/DHT/DRI/restart marker counts, parsed marker
+sequence, parsed DRI restart interval, total JPEG byte length, SHA-256, and
+decoder command when one was provided. The validator rejects non-8-bit or
+non-three-component SOF0
 frames, duplicate SOF0/SOS markers, nonstandard SOF0/SOS component IDs,
 mismatched SOS component lists, non-baseline SOS spectral fields, nonstandard
 DQT/DHT table sets or segment counts, non-8-bit DQT tables, and SOF0 or SOS

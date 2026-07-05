@@ -475,9 +475,9 @@ Hardware completion evidence should include:
   scan payload length, SOF0/SOS marker counts, SOF0 sample precision, SOF0/SOS
   component ID order, SOS component coverage, SOS spectral fields, DQT
   precision, DQT table set, DQT/DHT segment counts, component sampling factors,
-  marker counts and ordering, JFIF APP0 signature count, restart interval
-  evidence, DQT/DHT table IDs, Huffman table set, SOS table selectors, chroma
-  mode, JFIF evidence, and decoder command.
+  marker counts, parsed marker sequence, JFIF APP0 signature count, restart
+  interval evidence, DQT/DHT table IDs, Huffman table set, SOS table selectors,
+  chroma mode, JFIF evidence, and decoder command.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 

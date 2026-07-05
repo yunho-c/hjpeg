@@ -191,7 +191,7 @@ Expected evidence:
   configured register value.
 - The helper rejects baseline header markers that move out of the encoder's
   expected order: optional APP0/JFIF, DQT, SOF0, DHT, optional DRI, SOS, entropy
-  data, then EOI.
+  data, then EOI. JSON evidence includes the parsed `marker_sequence`.
 - The helper records SOF0 component sampling factors and the inferred chroma
   mode, and requires SOF0/SOS component IDs in `[1, 2, 3]` order with the SOS
   component list covering the same three SOF0 components exactly once and SOS

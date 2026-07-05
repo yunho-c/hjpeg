@@ -433,6 +433,19 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
         dri_segments=0,
         restart_interval=None,
         restart_markers=0,
+        marker_sequence=(
+            "SOI",
+            "APP0",
+            "DQT",
+            "DQT",
+            "SOF0",
+            "DHT",
+            "DHT",
+            "DHT",
+            "DHT",
+            "SOS",
+            "EOI",
+        ),
     )
 
 
@@ -673,6 +686,22 @@ class HjpegHostTest(unittest.TestCase):
             self.assertIsNone(parsed.restart_interval)
             self.assertEqual(parsed.restart_markers, 0)
             self.assertEqual(
+                parsed.marker_sequence,
+                (
+                    "SOI",
+                    "APP0",
+                    "DQT",
+                    "DQT",
+                    "SOF0",
+                    "DHT",
+                    "DHT",
+                    "DHT",
+                    "DHT",
+                    "SOS",
+                    "EOI",
+                ),
+            )
+            self.assertEqual(
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13),
                 minimal_jpeg_info(width=17, height=13),
             )
@@ -801,6 +830,22 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["dri_segments"], 0)
             self.assertIsNone(record["restart_interval"])
             self.assertEqual(record["restart_markers"], 0)
+            self.assertEqual(
+                record["marker_sequence"],
+                [
+                    "SOI",
+                    "APP0",
+                    "DQT",
+                    "DQT",
+                    "SOF0",
+                    "DHT",
+                    "DHT",
+                    "DHT",
+                    "DHT",
+                    "SOS",
+                    "EOI",
+                ],
+            )
             self.assertEqual(record["byte_length"], len(minimal_jpeg(width=17, height=13)))
             self.assertEqual(
                 record["sha256"],
@@ -1321,6 +1366,7 @@ class HjpegHostTest(unittest.TestCase):
         self.assertEqual(info.restart_interval, 2)
         self.assertEqual(info.scan_data_bytes, 2)
         self.assertEqual(info.restart_markers, 1)
+        self.assertEqual(info.marker_sequence[-3:], ("SOS", "RST0", "EOI"))
 
     def test_validate_jpeg_rejects_malformed_dri_segment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
