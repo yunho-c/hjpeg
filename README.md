@@ -318,10 +318,11 @@ all-idle, any-busy, and any-protocol-error checkpoints. The JSON record also
 includes `hardware_run_summary`, which collects evidence-presence bits and
 pass/fail booleans for the recorded run checks, including whether complete
 hardware-run evidence was captured. Complete hardware-run evidence requires a
-source PPM supplied through `--input-ppm`, non-flat/color source-image stats,
-positive host-observed transfer timing with derived byte rates, and a passing
-decoder check from `--decoder-command` with resolved argv, zero return code,
-and non-truncated captured output evidence.
+hashed output JPEG with non-empty scan data, source PPM supplied through
+`--input-ppm`, non-flat/color source-image stats, positive host-observed
+transfer timing with derived byte rates, and a passing decoder check from
+`--decoder-command` with resolved argv, zero return code, and non-truncated
+captured output evidence.
 Maximum output bytes must be positive, and RX timeout values must be finite and
 positive when present. It
 also records host-observed transfer elapsed seconds and derived byte rates when

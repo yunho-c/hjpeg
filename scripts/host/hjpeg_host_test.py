@@ -1560,6 +1560,10 @@ class HjpegHostTest(unittest.TestCase):
                 record["hardware_run_summary"]["checks"],
                 {
                     "jpeg_validation_passed": True,
+                    "jpeg_byte_length_positive": True,
+                    "jpeg_scan_data_bytes_positive": True,
+                    "jpeg_sha256_present": True,
+                    "jpeg_scan_data_sha256_present": True,
                     "status_check_contexts_match_expected": True,
                     "status_checks_all_idle": True,
                     "status_checks_no_protocol_error": True,
@@ -1662,6 +1666,23 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(
                 record["hardware_run_summary"]["checks"]["decoder_output_not_truncated"]
             )
+
+    def test_hardware_summary_requires_output_hash_and_scan_evidence(self) -> None:
+        record = {
+            "byte_length": 0,
+            "sha256": "",
+            "scan_data_bytes": 0,
+            "scan_data_sha256": "",
+        }
+
+        summary = hjpeg_host.hardware_run_summary_record(record)
+
+        self.assertFalse(summary["evidence_present"]["jpeg_output"])
+        self.assertFalse(summary["all_recorded_checks_passed"])
+        self.assertFalse(summary["checks"]["jpeg_byte_length_positive"])
+        self.assertFalse(summary["checks"]["jpeg_scan_data_bytes_positive"])
+        self.assertFalse(summary["checks"]["jpeg_sha256_present"])
+        self.assertFalse(summary["checks"]["jpeg_scan_data_sha256_present"])
 
     def test_run_evidence_record_rejects_invalid_elapsed_time(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -3543,6 +3564,7 @@ class HjpegHostTest(unittest.TestCase):
                 record["hardware_run_summary"],
                 {
                     "evidence_present": {
+                        "jpeg_output": True,
                         "input_rgb": True,
                         "axi_lite": True,
                         "encoder_config": True,
@@ -3555,6 +3577,10 @@ class HjpegHostTest(unittest.TestCase):
                     },
                     "checks": {
                         "jpeg_validation_passed": True,
+                        "jpeg_byte_length_positive": True,
+                        "jpeg_scan_data_bytes_positive": True,
+                        "jpeg_sha256_present": True,
+                        "jpeg_scan_data_sha256_present": True,
                         "input_rgb_length_matches_expected": True,
                         "input_ppm_matches_input": True,
                         "input_ppm_non_flat": True,

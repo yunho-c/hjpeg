@@ -208,10 +208,11 @@ Expected evidence:
   the required evidence groups, recorded run-check booleans, and
   `complete_hardware_run_evidence`. A valid final board transcript should have
   `all_recorded_checks_passed` and `complete_hardware_run_evidence` true,
-  which requires `--input-ppm` source evidence with non-flat/color stats and a
-  passing `--decoder-command` check, plus positive transfer timing with derived
-  byte rates. Decoder evidence must include the resolved argv, zero return
-  code, and non-truncated captured output metadata.
+  which requires hashed output JPEG evidence with non-empty scan data,
+  `--input-ppm` source evidence with non-flat/color stats, a passing
+  `--decoder-command` check, and positive transfer timing with derived byte
+  rates. Decoder evidence must include the resolved argv, zero return code, and
+  non-truncated captured output metadata.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after

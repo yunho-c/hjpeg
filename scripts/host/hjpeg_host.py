@@ -1557,6 +1557,7 @@ def run_input_ppm_record(
 
 def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     evidence_present = {
+        "jpeg_output": False,
         "input_rgb": "input_rgb" in record,
         "axi_lite": "axi_lite" in record,
         "encoder_config": "encoder_config" in record,
@@ -1568,6 +1569,27 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         "decoder": False,
     }
     checks = {"jpeg_validation_passed": True}
+
+    jpeg_byte_length = record.get("byte_length")
+    scan_data_bytes = record.get("scan_data_bytes")
+    jpeg_sha256 = record.get("sha256")
+    scan_data_sha256 = record.get("scan_data_sha256")
+    jpeg_byte_length_positive = isinstance(jpeg_byte_length, int) and jpeg_byte_length > 0
+    scan_data_bytes_positive = isinstance(scan_data_bytes, int) and scan_data_bytes > 0
+    jpeg_sha256_present = isinstance(jpeg_sha256, str) and len(jpeg_sha256) == 64
+    scan_data_sha256_present = (
+        isinstance(scan_data_sha256, str) and len(scan_data_sha256) == 64
+    )
+    evidence_present["jpeg_output"] = (
+        jpeg_byte_length_positive
+        and scan_data_bytes_positive
+        and jpeg_sha256_present
+        and scan_data_sha256_present
+    )
+    checks["jpeg_byte_length_positive"] = jpeg_byte_length_positive
+    checks["jpeg_scan_data_bytes_positive"] = scan_data_bytes_positive
+    checks["jpeg_sha256_present"] = jpeg_sha256_present
+    checks["jpeg_scan_data_sha256_present"] = scan_data_sha256_present
 
     input_rgb = record.get("input_rgb")
     if isinstance(input_rgb, dict) and "byte_length_matches_expected" in input_rgb:
