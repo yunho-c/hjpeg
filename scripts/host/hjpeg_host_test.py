@@ -75,6 +75,8 @@ EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES = [
     "status_check_contexts_match_expected",
     "status_check_contexts_expected_flag_matches",
     "status_checks_have_status_words",
+    "status_checks_have_axi_lite_targets",
+    "status_checks_axi_lite_targets_match",
     "status_checks_each_idle",
     "status_checks_all_idle",
     "status_checks_all_idle_flag_matches",
@@ -2258,6 +2260,8 @@ class HjpegHostTest(unittest.TestCase):
                     "status_check_contexts_match_expected": True,
                     "status_check_contexts_expected_flag_matches": True,
                     "status_checks_have_status_words": True,
+                    "status_checks_have_axi_lite_targets": False,
+                    "status_checks_axi_lite_targets_match": False,
                     "status_checks_each_idle": True,
                     "status_checks_all_idle": True,
                     "status_checks_all_idle_flag_matches": True,
@@ -2267,8 +2271,8 @@ class HjpegHostTest(unittest.TestCase):
                     "status_checks_any_busy_flag_matches": True,
                 },
             )
-            self.assertTrue(record["hardware_run_summary"]["all_recorded_checks_passed"])
-            self.assertTrue(
+            self.assertFalse(record["hardware_run_summary"]["all_recorded_checks_passed"])
+            self.assertFalse(
                 record["hardware_run_summary"]["evidence_present"]["status_checks"]
             )
             self.assertFalse(record["hardware_run_summary"]["evidence_present"]["input_ppm"])
@@ -2483,6 +2487,21 @@ class HjpegHostTest(unittest.TestCase):
         self.assertTrue(summary["checks"]["status_check_contexts_match_list"])
         self.assertFalse(summary["checks"]["status_checks_have_status_words"])
         self.assertFalse(summary["checks"]["status_checks_each_idle"])
+
+    def test_hardware_summary_requires_status_axi_lite_targets_to_match_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            record = complete_run_evidence_record(Path(tmp))
+            status_axi_lite = record["status_checks"][1]["axi_lite"]
+            status_axi_lite["base_addr"] = 4
+            status_axi_lite["base_addr_hex"] = "0x4"
+
+            summary = hjpeg_host.hardware_run_summary_record(record)
+
+            self.assertFalse(summary["evidence_present"]["status_checks"])
+            self.assertFalse(summary["all_recorded_checks_passed"])
+            self.assertTrue(summary["checks"]["status_checks_have_axi_lite_targets"])
+            self.assertFalse(summary["checks"]["status_checks_axi_lite_targets_match"])
+            self.assertTrue(summary["checks"]["status_checks_each_idle"])
 
     def test_run_evidence_record_reports_transfer_rates_for_positive_elapsed_time(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2864,8 +2883,8 @@ class HjpegHostTest(unittest.TestCase):
                 record["recorded_check_names"],
                 EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
             )
-            self.assertEqual(record["recorded_check_count"], 75)
-            self.assertEqual(record["passing_check_count"], 75)
+            self.assertEqual(record["recorded_check_count"], 77)
+            self.assertEqual(record["passing_check_count"], 77)
             self.assertEqual(
                 record["passing_checks"],
                 EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
@@ -2940,8 +2959,8 @@ class HjpegHostTest(unittest.TestCase):
                 record["recorded_check_names"],
                 EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
             )
-            self.assertEqual(record["recorded_check_count"], 75)
-            self.assertEqual(record["passing_check_count"], 75)
+            self.assertEqual(record["recorded_check_count"], 77)
+            self.assertEqual(record["passing_check_count"], 77)
             self.assertEqual(
                 record["passing_checks"],
                 EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
@@ -3017,8 +3036,8 @@ class HjpegHostTest(unittest.TestCase):
                 record["recorded_check_names"],
                 list(evidence["hardware_run_summary"]["checks"].keys()),
             )
-            self.assertEqual(record["recorded_check_count"], 51)
-            self.assertEqual(record["passing_check_count"], 51)
+            self.assertEqual(record["recorded_check_count"], 53)
+            self.assertEqual(record["passing_check_count"], 53)
             self.assertEqual(
                 record["passing_checks"],
                 list(evidence["hardware_run_summary"]["checks"].keys()),
@@ -3069,8 +3088,8 @@ class HjpegHostTest(unittest.TestCase):
                 record["recorded_check_names"],
                 EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
             )
-            self.assertEqual(record["recorded_check_count"], 75)
-            self.assertEqual(record["passing_check_count"], 74)
+            self.assertEqual(record["recorded_check_count"], 77)
+            self.assertEqual(record["passing_check_count"], 76)
             self.assertEqual(
                 record["passing_checks"],
                 [
@@ -3134,8 +3153,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["aggregate_evidence_group_count"], 20)
             self.assertEqual(record["aggregate_evidence_present_count"], 10)
             self.assertEqual(record["aggregate_evidence_missing_count"], 10)
-            self.assertEqual(record["aggregate_recorded_check_count"], 82)
-            self.assertEqual(record["aggregate_passing_check_count"], 76)
+            self.assertEqual(record["aggregate_recorded_check_count"], 84)
+            self.assertEqual(record["aggregate_passing_check_count"], 78)
             self.assertEqual(record["aggregate_failing_check_count"], 6)
             self.assertEqual(record["summary_checked_count"], 2)
             self.assertEqual(record["summary_match_count"], 1)
@@ -5707,6 +5726,8 @@ class HjpegHostTest(unittest.TestCase):
                         "status_check_contexts_match_expected": True,
                         "status_check_contexts_expected_flag_matches": True,
                         "status_checks_have_status_words": True,
+                        "status_checks_have_axi_lite_targets": True,
+                        "status_checks_axi_lite_targets_match": True,
                         "status_checks_each_idle": True,
                         "status_checks_all_idle": True,
                         "status_checks_all_idle_flag_matches": True,
@@ -5735,8 +5756,8 @@ class HjpegHostTest(unittest.TestCase):
                         "host_output_jpeg_rate_matches_elapsed": True,
                     },
                     "recorded_check_names": EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
-                    "recorded_check_count": 75,
-                    "passing_check_count": 75,
+                    "recorded_check_count": 77,
+                    "passing_check_count": 77,
                     "passing_checks": EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
                     "failing_check_count": 0,
                     "failing_checks": [],

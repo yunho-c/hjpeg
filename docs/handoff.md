@@ -723,9 +723,10 @@ Hardware completion evidence should include:
   Source PPM evidence must include file and packed-RGB SHA-256 hex hashes,
   dimension-consistent RGB and packed byte lengths, an input-byte match, and
   non-flat/color image stats. Status evidence must include the detailed
-  checkpoint list, matching checkpoint count, expected ordered contexts, zero
-  raw status words, and all checkpoints idle with no protocol error or busy
-  state. Summary checks recompute checkpoint order and aggregate
+  checkpoint list, matching checkpoint count, expected ordered contexts,
+  per-checkpoint AXI-Lite targets matching the run target, zero raw status
+  words, and all checkpoints idle with no protocol error or busy state. Summary
+  checks recompute checkpoint order, checkpoint target matches, and aggregate
   idle/error/busy flags from the detailed status records. They also recompute
   RGB byte-count matches, PPM-to-input-RGB consistency, and transfer byte rates
   from the saved lengths, hashes, and elapsed time. Required boolean evidence

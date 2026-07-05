@@ -1977,6 +1977,21 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and isinstance(status_check.get("status"), int)
             for status_check in status_checks
         )
+        run_axi_lite = record.get("axi_lite")
+        status_checks_have_axi_lite_targets = status_checks_list_present and all(
+            isinstance(status_check, dict)
+            and isinstance(status_check.get("axi_lite"), dict)
+            for status_check in status_checks
+        )
+        status_checks_axi_lite_targets_match = (
+            isinstance(run_axi_lite, dict)
+            and status_checks_have_axi_lite_targets
+            and all(
+                status_check.get("axi_lite") == run_axi_lite
+                for status_check in status_checks
+                if isinstance(status_check, dict)
+            )
+        )
         status_checks_each_idle = status_checks_list_present and all(
             isinstance(status_check, dict)
             and status_check.get("status") == 0
@@ -2028,6 +2043,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and status_check_contexts_match_expected
             and status_check_contexts_expected_flag_matches
             and status_checks_have_status_words
+            and status_checks_have_axi_lite_targets
+            and status_checks_axi_lite_targets_match
             and status_checks_each_idle
             and status_checks_all_idle
             and status_checks_all_idle_flag_matches
@@ -2048,6 +2065,12 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             status_check_contexts_expected_flag_matches
         )
         checks["status_checks_have_status_words"] = status_checks_have_status_words
+        checks["status_checks_have_axi_lite_targets"] = (
+            status_checks_have_axi_lite_targets
+        )
+        checks["status_checks_axi_lite_targets_match"] = (
+            status_checks_axi_lite_targets_match
+        )
         checks["status_checks_each_idle"] = status_checks_each_idle
         checks["status_checks_all_idle"] = status_checks_all_idle
         checks["status_checks_all_idle_flag_matches"] = (
