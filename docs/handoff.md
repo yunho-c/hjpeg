@@ -172,6 +172,8 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `69f47d4 test: cover jfif app0 length validation`
+- `4eb8f9f fix: validate jfif app0 fields`
 - `a871713 fix: reject malformed jfif app0 markers`
 - `00fe4e1 fix: reject zero jpeg sampling factors`
 - `654ae18 fix: reject zero jpeg frame dimensions`
@@ -347,14 +349,15 @@ addresses, and out-of-range quality and restart interval values before AXI-Lite
 mapping or stream setup. Host JPEG validation now checks more than dimensions:
 it requires DQT and DHT
 markers, records DQT/DHT table IDs and SOS component table selectors, rejects
-dangling table references, records APP0/DQT/DHT/DRI/RST marker counts, parses
-DRI restart intervals, requires exactly one SOF0 and one SOS segment, requires
-8-bit three-component SOF0 shape with nonzero dimensions, requires SOS
-components to match SOF0 exactly, requires SOF0/SOS component IDs in `[1, 2, 3]`
-order, requires baseline SOS spectral fields `0/63/0`, records SOF0 component
-sampling factors and MCU count, requires supported 4:4:4 or 4:2:0 sampling,
-rejects zero SOF0 sampling factors, requires standard DQT table IDs `{0, 1}`
-with 8-bit precision, records DQT/DHT payload byte counts and SHA-256 hashes,
+dangling table references, records APP0/DQT/DHT/DRI/RST marker counts, records
+parsed JFIF APP0 version/density/thumbnail fields, parses DRI restart intervals,
+requires exactly one SOF0 and one SOS segment, requires 8-bit three-component
+SOF0 shape with nonzero dimensions, requires SOS components to match SOF0
+exactly, requires SOF0/SOS component IDs in `[1, 2, 3]` order, requires baseline
+SOS spectral fields `0/63/0`, records SOF0 component sampling factors and MCU
+count, requires supported 4:4:4 or 4:2:0 sampling, rejects zero SOF0 sampling
+factors, requires standard DQT table IDs `{0, 1}` with 8-bit precision, records
+DQT/DHT payload byte counts and SHA-256 hashes,
 requires exact DQT/DHT segment counts, requires the standard DC/AC Huffman table
 set, rejects duplicate DQT/DHT table definitions, records parsed marker
 sequence, stuffed entropy `0xff` byte count, RST marker sequence, and JFIF APP0

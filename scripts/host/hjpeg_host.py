@@ -209,6 +209,17 @@ class JpegScanComponent:
 
 
 @dataclass(frozen=True)
+class JfifApp0Info:
+    version_major: int
+    version_minor: int
+    density_units: int
+    x_density: int
+    y_density: int
+    thumbnail_width: int
+    thumbnail_height: int
+
+
+@dataclass(frozen=True)
 class JpegInfo:
     width: int
     height: int
@@ -228,6 +239,7 @@ class JpegInfo:
     sha256: str
     app0_segments: int
     jfif_app0_segments: int
+    jfif_app0: JfifApp0Info | None
     dqt_segments: int
     sof0_segments: int
     dht_segments: int
@@ -423,6 +435,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
     stuffed_ff_bytes = 0
     app0_segments = 0
     jfif_app0_segments = 0
+    jfif_app0: JfifApp0Info | None = None
     dqt_segments = 0
     sof0_segments = 0
     dht_segments = 0
@@ -498,6 +511,15 @@ def jpeg_info(data: bytes) -> JpegInfo:
                         "JPEG JFIF APP0 segment length does not match thumbnail size"
                     )
                 jfif_app0_segments += 1
+                jfif_app0 = JfifApp0Info(
+                    version_major=data[offset + 7],
+                    version_minor=data[offset + 8],
+                    density_units=data[offset + 9],
+                    x_density=_read_be16(data, offset + 10),
+                    y_density=_read_be16(data, offset + 12),
+                    thumbnail_width=data[offset + 14],
+                    thumbnail_height=data[offset + 15],
+                )
         if marker == 0xDB:
             dqt_segments += 1
             table_offset = offset + 2
@@ -814,6 +836,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
         sha256=hashlib.sha256(data).hexdigest(),
         app0_segments=app0_segments,
         jfif_app0_segments=jfif_app0_segments,
+        jfif_app0=jfif_app0,
         dqt_segments=dqt_segments,
         sof0_segments=sof0_segments,
         dht_segments=dht_segments,
@@ -1162,6 +1185,17 @@ def jpeg_info_record(
         "stuffed_ff_bytes": info.stuffed_ff_bytes,
         "app0_segments": info.app0_segments,
         "jfif_app0_segments": info.jfif_app0_segments,
+        "jfif_app0": None
+        if info.jfif_app0 is None
+        else {
+            "version_major": info.jfif_app0.version_major,
+            "version_minor": info.jfif_app0.version_minor,
+            "density_units": info.jfif_app0.density_units,
+            "x_density": info.jfif_app0.x_density,
+            "y_density": info.jfif_app0.y_density,
+            "thumbnail_width": info.jfif_app0.thumbnail_width,
+            "thumbnail_height": info.jfif_app0.thumbnail_height,
+        },
         "dqt_segments": info.dqt_segments,
         "sof0_segments": info.sof0_segments,
         "dht_segments": info.dht_segments,

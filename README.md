@@ -258,12 +258,13 @@ order, sampling factors, MCU count, decoded chroma mode, exact SOS component
 order and coverage, baseline SOS spectral fields, SOS component table selectors,
 DQT/DHT table IDs, exact DC/AC Huffman table set, exact DQT table set, DQT 8-bit
 precision, DQT/DHT payload byte counts and SHA-256 hashes, APP0 and JFIF APP0
-counts, exact DQT/DHT segment counts, DQT/DHT/DRI/restart marker counts, parsed
-marker sequence, parsed DRI restart interval, RST marker sequence, total JPEG
-byte length, SHA-256, decoder command, and decoder timeout when one was
-provided, plus decoder return code and bounded stdout/stderr when a decoder
-command ran. JFIF APP0 segments must match the encoder's baseline version,
-density, and no-thumbnail fields. The validator rejects non-8-bit or
+counts, parsed JFIF APP0 version/density/thumbnail fields, exact DQT/DHT
+segment counts, DQT/DHT/DRI/restart marker counts, parsed marker sequence,
+parsed DRI restart interval, RST marker sequence, total JPEG byte length,
+SHA-256, decoder command, and decoder timeout when one was provided, plus
+decoder return code and bounded stdout/stderr when a decoder command ran. JFIF
+APP0 segments must match the encoder's baseline version, density, and
+no-thumbnail fields. The validator rejects non-8-bit or
 non-three-component SOF0 frames, zero SOF0 dimensions, duplicate SOF0/SOS
 markers, nonstandard SOF0/SOS component IDs, mismatched SOS component lists,
 unsupported SOF0 sampling factors,

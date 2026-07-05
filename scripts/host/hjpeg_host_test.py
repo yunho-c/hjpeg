@@ -693,6 +693,15 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
         sha256=hashlib.sha256(data).hexdigest(),
         app0_segments=1,
         jfif_app0_segments=1,
+        jfif_app0=hjpeg_host.JfifApp0Info(
+            version_major=1,
+            version_minor=1,
+            density_units=0,
+            x_density=1,
+            y_density=1,
+            thumbnail_width=0,
+            thumbnail_height=0,
+        ),
         dqt_segments=2,
         sof0_segments=1,
         dht_segments=4,
@@ -984,6 +993,10 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(parsed.stuffed_ff_bytes, 0)
             self.assertEqual(parsed.app0_segments, 1)
             self.assertEqual(parsed.jfif_app0_segments, 1)
+            self.assertEqual(
+                parsed.jfif_app0,
+                hjpeg_host.JfifApp0Info(1, 1, 0, 1, 1, 0, 0),
+            )
             self.assertEqual(parsed.dqt_segments, 2)
             self.assertEqual(parsed.sof0_segments, 1)
             self.assertEqual(parsed.dht_segments, 4)
@@ -1180,6 +1193,18 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["stuffed_ff_bytes"], 0)
             self.assertEqual(record["app0_segments"], 1)
             self.assertEqual(record["jfif_app0_segments"], 1)
+            self.assertEqual(
+                record["jfif_app0"],
+                {
+                    "version_major": 1,
+                    "version_minor": 1,
+                    "density_units": 0,
+                    "x_density": 1,
+                    "y_density": 1,
+                    "thumbnail_width": 0,
+                    "thumbnail_height": 0,
+                },
+            )
             self.assertEqual(record["dqt_segments"], 2)
             self.assertEqual(record["sof0_segments"], 1)
             self.assertEqual(record["dht_segments"], 4)
@@ -1715,18 +1740,23 @@ class HjpegHostTest(unittest.TestCase):
             )
             without_jfif.write_bytes(without_segment(minimal_jpeg(width=17, height=13), b"\xff\xe0"))
 
-            hjpeg_host.validate_jpeg(
+            info_with_jfif = hjpeg_host.validate_jpeg(
                 with_jfif,
                 expected_width=17,
                 expected_height=13,
                 expected_emit_jfif=True,
             )
-            hjpeg_host.validate_jpeg(
+            info_without_jfif = hjpeg_host.validate_jpeg(
                 without_jfif,
                 expected_width=17,
                 expected_height=13,
                 expected_emit_jfif=False,
             )
+            self.assertEqual(
+                info_with_jfif.jfif_app0,
+                hjpeg_host.JfifApp0Info(1, 1, 0, 1, 1, 0, 0),
+            )
+            self.assertIsNone(info_without_jfif.jfif_app0)
             with self.assertRaisesRegex(ValueError, "APP0 segment is not a JFIF"):
                 hjpeg_host.validate_jpeg(
                     with_app0,
