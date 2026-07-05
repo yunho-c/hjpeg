@@ -225,7 +225,9 @@ Expected evidence:
   values in range, boolean control flags, and a control word/hex string matching
   those flags. Validation expectations evidence must include the baseline shape,
   marker order, table order, SOS spectral fields, and standard-Huffman
-  requirement.
+  requirement. Source PPM evidence must include file and packed-RGB hashes,
+  dimension-consistent RGB and packed byte lengths, an input-byte match, and
+  non-flat/color image stats.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after

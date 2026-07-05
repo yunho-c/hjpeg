@@ -1822,15 +1822,70 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
 
     input_ppm = record.get("input_ppm")
     if isinstance(input_ppm, dict) and "packed_rgb_matches_input" in input_ppm:
+        input_ppm_byte_length = input_ppm.get("byte_length")
+        input_ppm_sha256 = input_ppm.get("sha256")
+        input_ppm_width = input_ppm.get("width")
+        input_ppm_height = input_ppm.get("height")
+        input_ppm_rgb_bytes = input_ppm.get("rgb_bytes")
+        input_ppm_packed_rgb_byte_length = input_ppm.get("packed_rgb_byte_length")
+        input_ppm_packed_rgb_sha256 = input_ppm.get("packed_rgb_sha256")
         input_ppm_matches = bool(input_ppm["packed_rgb_matches_input"])
-        evidence_present["input_ppm"] = input_ppm_matches
+        input_ppm_byte_length_positive = (
+            isinstance(input_ppm_byte_length, int) and input_ppm_byte_length > 0
+        )
+        input_ppm_sha256_present = (
+            isinstance(input_ppm_sha256, str) and len(input_ppm_sha256) == 64
+        )
+        input_ppm_dimensions_positive = (
+            isinstance(input_ppm_width, int)
+            and isinstance(input_ppm_height, int)
+            and input_ppm_width > 0
+            and input_ppm_height > 0
+        )
+        input_ppm_rgb_byte_length_matches_dimensions = (
+            input_ppm_dimensions_positive
+            and input_ppm_rgb_bytes == input_ppm_width * input_ppm_height * 3
+        )
+        input_ppm_packed_rgb_length_matches_dimensions = (
+            input_ppm_dimensions_positive
+            and input_ppm_packed_rgb_byte_length == input_ppm_width * input_ppm_height * 4
+        )
+        input_ppm_packed_rgb_sha256_present = (
+            isinstance(input_ppm_packed_rgb_sha256, str)
+            and len(input_ppm_packed_rgb_sha256) == 64
+        )
         checks["input_ppm_matches_input"] = input_ppm_matches
+        checks["input_ppm_byte_length_positive"] = input_ppm_byte_length_positive
+        checks["input_ppm_sha256_present"] = input_ppm_sha256_present
+        checks["input_ppm_dimensions_positive"] = input_ppm_dimensions_positive
+        checks["input_ppm_rgb_byte_length_matches_dimensions"] = (
+            input_ppm_rgb_byte_length_matches_dimensions
+        )
+        checks["input_ppm_packed_rgb_length_matches_dimensions"] = (
+            input_ppm_packed_rgb_length_matches_dimensions
+        )
+        checks["input_ppm_packed_rgb_sha256_present"] = (
+            input_ppm_packed_rgb_sha256_present
+        )
+        input_ppm_non_flat = False
+        input_ppm_has_color_pixels = False
         image_stats = input_ppm.get("image_stats")
         if isinstance(image_stats, dict):
-            checks["input_ppm_non_flat"] = bool(image_stats.get("non_flat", False))
-            checks["input_ppm_has_color_pixels"] = bool(
-                image_stats.get("has_color_pixels", False)
-            )
+            input_ppm_non_flat = bool(image_stats.get("non_flat", False))
+            input_ppm_has_color_pixels = bool(image_stats.get("has_color_pixels", False))
+        checks["input_ppm_non_flat"] = input_ppm_non_flat
+        checks["input_ppm_has_color_pixels"] = input_ppm_has_color_pixels
+        evidence_present["input_ppm"] = (
+            input_ppm_matches
+            and input_ppm_byte_length_positive
+            and input_ppm_sha256_present
+            and input_ppm_dimensions_positive
+            and input_ppm_rgb_byte_length_matches_dimensions
+            and input_ppm_packed_rgb_length_matches_dimensions
+            and input_ppm_packed_rgb_sha256_present
+            and input_ppm_non_flat
+            and input_ppm_has_color_pixels
+        )
 
     if "status_checks" in record:
         checks["status_check_contexts_match_expected"] = bool(

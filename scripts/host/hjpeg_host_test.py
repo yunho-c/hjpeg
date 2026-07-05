@@ -1537,6 +1537,58 @@ class HjpegHostTest(unittest.TestCase):
         )
         self.assertTrue(complete_summary["checks"]["input_rgb_length_matches_expected"])
 
+    def test_hardware_summary_requires_complete_input_ppm_evidence(self) -> None:
+        incomplete = {
+            "input_ppm": {
+                "byte_length": 16,
+                "sha256": "",
+                "width": 2,
+                "height": 1,
+                "rgb_bytes": 6,
+                "packed_rgb_byte_length": 8,
+                "packed_rgb_sha256": "1" * 64,
+                "packed_rgb_matches_input": True,
+                "image_stats": {"non_flat": True, "has_color_pixels": False},
+            }
+        }
+        complete = {
+            "input_ppm": {
+                "byte_length": 16,
+                "sha256": "0" * 64,
+                "width": 2,
+                "height": 1,
+                "rgb_bytes": 6,
+                "packed_rgb_byte_length": 8,
+                "packed_rgb_sha256": "1" * 64,
+                "packed_rgb_matches_input": True,
+                "image_stats": {"non_flat": True, "has_color_pixels": True},
+            }
+        }
+
+        incomplete_summary = hjpeg_host.hardware_run_summary_record(incomplete)
+        complete_summary = hjpeg_host.hardware_run_summary_record(complete)
+
+        self.assertFalse(incomplete_summary["evidence_present"]["input_ppm"])
+        self.assertFalse(incomplete_summary["checks"]["input_ppm_sha256_present"])
+        self.assertFalse(incomplete_summary["checks"]["input_ppm_has_color_pixels"])
+        self.assertTrue(complete_summary["evidence_present"]["input_ppm"])
+        self.assertTrue(complete_summary["checks"]["input_ppm_byte_length_positive"])
+        self.assertTrue(complete_summary["checks"]["input_ppm_sha256_present"])
+        self.assertTrue(complete_summary["checks"]["input_ppm_dimensions_positive"])
+        self.assertTrue(
+            complete_summary["checks"]["input_ppm_rgb_byte_length_matches_dimensions"]
+        )
+        self.assertTrue(
+            complete_summary["checks"][
+                "input_ppm_packed_rgb_length_matches_dimensions"
+            ]
+        )
+        self.assertTrue(
+            complete_summary["checks"]["input_ppm_packed_rgb_sha256_present"]
+        )
+        self.assertTrue(complete_summary["checks"]["input_ppm_non_flat"])
+        self.assertTrue(complete_summary["checks"]["input_ppm_has_color_pixels"])
+
     def test_hardware_summary_requires_valid_capture_config(self) -> None:
         invalid = {
             "capture_config": {
@@ -3840,6 +3892,12 @@ class HjpegHostTest(unittest.TestCase):
                         "axi_lite_base_addr_nonnegative": True,
                         "axi_lite_base_addr_hex_matches": True,
                         "input_ppm_matches_input": True,
+                        "input_ppm_byte_length_positive": True,
+                        "input_ppm_sha256_present": True,
+                        "input_ppm_dimensions_positive": True,
+                        "input_ppm_rgb_byte_length_matches_dimensions": True,
+                        "input_ppm_packed_rgb_length_matches_dimensions": True,
+                        "input_ppm_packed_rgb_sha256_present": True,
                         "input_ppm_non_flat": True,
                         "input_ppm_has_color_pixels": True,
                         "status_check_contexts_match_expected": True,
