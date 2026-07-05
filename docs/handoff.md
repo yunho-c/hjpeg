@@ -602,8 +602,9 @@ python3 scripts/host/hjpeg_host.py run-stream-devices \
   --decoder-command 'magick identify {jpeg}' \
   --decoder-timeout-seconds 30 \
   --require-complete-evidence \
-  --json
+  --json > run.json
 python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000 --json
+python3 scripts/host/hjpeg_host.py check-run-evidence run.json --json
 python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
   --width WIDTH \
   --height HEIGHT \
@@ -713,7 +714,9 @@ which is useful for commands that print decoded dimensions.
 Use `run-stream-devices --require-complete-evidence` for final board evidence
 gates; omit it for partial smoke tests that intentionally skip source PPM or
 decoder evidence. Run JSON records whether complete evidence was required and
-which evidence groups were missing.
+which evidence groups were missing. Saved run JSON can be checked later with
+`check-run-evidence`, which fails on malformed JSON, missing
+`hardware_run_summary`, failed recorded checks, or incomplete hardware evidence.
 
 ## Known Blockers And Bottlenecks
 
@@ -765,7 +768,8 @@ If the new PC has KV260 access too:
    expectations, a standard decoder command, and a decoder timeout.
 5. Use `run-stream-devices --require-complete-evidence` for the final board
    run transcript.
-6. Save the command JSON records and enough output evidence to update
+6. Run `check-run-evidence` on the saved run JSON.
+7. Save the command JSON records and enough output evidence to update
    `docs/kv260-bringup.md`.
 
 If the new PC does not have Vivado or hardware:

@@ -251,10 +251,11 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
 ```
 
 Add `--json` to `make-test-ppm`, `pack-ppm`, `config`, `status`,
-`clear-error`, `validate-jpeg`, or `run-stream-devices` when you want evidence in a
-machine-readable form for logs. Input-prep evidence includes dimensions, checked
-frame limits, byte lengths, SHA-256 hex hashes for generated files, and PPM
-per-channel min/max values plus non-flat/color flags. `run-stream-devices`
+`clear-error`, `validate-jpeg`, `run-stream-devices`, or `check-run-evidence`
+when you want evidence in a machine-readable form for logs. Input-prep evidence
+includes dimensions, checked frame limits, byte lengths, SHA-256 hex hashes for
+generated files, and PPM per-channel min/max values plus non-flat/color flags.
+`run-stream-devices`
 accepts `--input-ppm` to validate that the saved source PPM dimensions match
 the configured frame and that its packed RGB bytes exactly match `--input-rgb`;
 JSON evidence then records the PPM stats, PPM-derived packed RGB byte length
@@ -353,6 +354,12 @@ Pass `run-stream-devices --require-complete-evidence` for final board evidence
 gates; omit it for partial hardware smoke tests that intentionally skip source
 PPM or decoder evidence. Run JSON records whether complete evidence was
 required and which evidence groups were missing.
+Saved run JSON can be checked later with:
+
+```sh
+python3 scripts/host/hjpeg_host.py check-run-evidence run.json --json
+```
+
 Maximum output bytes must be positive, and RX timeout values must be finite and
 positive when present. It
 also records host-observed transfer elapsed seconds and derived byte rates when

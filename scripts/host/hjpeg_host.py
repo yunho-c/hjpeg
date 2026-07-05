@@ -2158,6 +2158,87 @@ def run_evidence_record(
     return record
 
 
+def check_run_evidence_record(
+    path: Path, record: object
+) -> tuple[dict[str, object], list[str]]:
+    result: dict[str, object] = {
+        "path": str(path),
+        "exists": True,
+        "passed": False,
+    }
+    failures: list[str] = []
+    if not isinstance(record, dict):
+        failures.append(f"{path}: run evidence JSON root must be an object")
+        result["error"] = "root is not an object"
+        return result, failures
+
+    summary = record.get("hardware_run_summary")
+    if not isinstance(summary, dict):
+        failures.append(f"{path}: missing hardware_run_summary object")
+        result["error"] = "missing hardware_run_summary"
+        return result, failures
+
+    evidence_present = summary.get("evidence_present")
+    missing_evidence = []
+    if isinstance(evidence_present, dict):
+        missing_evidence = [
+            str(name) for name, present in evidence_present.items() if not bool(present)
+        ]
+    else:
+        failures.append(
+            f"{path}: missing hardware_run_summary.evidence_present object"
+        )
+    complete = bool(summary.get("complete_hardware_run_evidence", False))
+    all_checks = bool(summary.get("all_recorded_checks_passed", False))
+    result.update(
+        {
+            "complete_hardware_run_evidence": complete,
+            "all_recorded_checks_passed": all_checks,
+            "missing_evidence": missing_evidence,
+        }
+    )
+    if not complete:
+        failures.append(f"{path}: complete_hardware_run_evidence is false")
+    if not all_checks:
+        failures.append(f"{path}: all_recorded_checks_passed is false")
+    if missing_evidence:
+        failures.append(
+            f"{path}: missing hardware evidence groups: {', '.join(missing_evidence)}"
+        )
+    result["passed"] = not failures
+    return result, failures
+
+
+def check_run_evidence_file(path: Path) -> tuple[dict[str, object], list[str]]:
+    if not path.exists():
+        record = {
+            "path": str(path),
+            "exists": False,
+            "passed": False,
+            "error": "file not found",
+        }
+        return record, [f"{path}: run evidence file not found"]
+    if not path.is_file():
+        record = {
+            "path": str(path),
+            "exists": True,
+            "passed": False,
+            "error": "not a file",
+        }
+        return record, [f"{path}: run evidence path is not a file"]
+    try:
+        parsed = json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        record = {
+            "path": str(path),
+            "exists": True,
+            "passed": False,
+            "error": f"invalid JSON: {exc.msg}",
+        }
+        return record, [f"{path}: invalid JSON: {exc.msg}"]
+    return check_run_evidence_record(path, parsed)
+
+
 def require_capture_config(max_output_bytes: int, timeout_seconds: float | None) -> None:
     if max_output_bytes <= 0:
         raise ValueError("max output bytes must be positive")
@@ -2577,6 +2658,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validate.add_argument("--json", action="store_true", help="print validation evidence as JSON")
 
+    check_run = subparsers.add_parser(
+        "check-run-evidence",
+        help="check saved run-stream-devices JSON for complete hardware evidence",
+    )
+    check_run.add_argument("json_files", nargs="+", type=Path)
+    check_run.add_argument("--json", action="store_true", help="print check evidence as JSON")
+
     config = subparsers.add_parser("config", help="write encoder AXI-Lite configuration registers")
     config.add_argument("--dev", type=Path, default=Path("/dev/mem"))
     config.add_argument("--base-addr", type=_nonnegative_int, required=True)
@@ -2760,6 +2848,32 @@ def main(argv: list[str] | None = None) -> int:
             f"sha256={info.sha256}{decoder_text}"
         )
         return 0
+
+    if args.command == "check-run-evidence":
+        records = []
+        failures = []
+        for evidence_path in args.json_files:
+            record, record_failures = check_run_evidence_file(evidence_path)
+            records.append(record)
+            failures.extend(record_failures)
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "passed": not failures,
+                        "checked_count": len(records),
+                        "records": records,
+                        "failures": failures,
+                    },
+                    sort_keys=True,
+                )
+            )
+        else:
+            for failure in failures:
+                print(f"FAIL: {failure}", file=sys.stderr)
+            if not failures:
+                print(f"PASS: checked {len(records)} hardware run evidence file(s)")
+        return 0 if not failures else 1
 
     if args.command == "config":
         with AxiLiteWindow(args.dev, args.base_addr) as regs:

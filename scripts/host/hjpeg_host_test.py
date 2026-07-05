@@ -2119,6 +2119,134 @@ class HjpegHostTest(unittest.TestCase):
                             transfer_elapsed_seconds=elapsed,
                         )
 
+    def test_check_run_evidence_file_reports_complete_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "run.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "hardware_run_summary": {
+                            "evidence_present": {
+                                "jpeg_output": True,
+                                "decoder": True,
+                            },
+                            "all_recorded_checks_passed": True,
+                            "complete_hardware_run_evidence": True,
+                        }
+                    }
+                )
+            )
+
+            record, failures = hjpeg_host.check_run_evidence_file(path)
+
+            self.assertEqual(failures, [])
+            self.assertTrue(record["passed"])
+            self.assertTrue(record["exists"])
+            self.assertTrue(record["complete_hardware_run_evidence"])
+            self.assertTrue(record["all_recorded_checks_passed"])
+            self.assertEqual(record["missing_evidence"], [])
+
+    def test_check_run_evidence_file_reports_incomplete_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "run.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "hardware_run_summary": {
+                            "evidence_present": {
+                                "jpeg_output": True,
+                                "input_ppm": False,
+                                "decoder": False,
+                            },
+                            "all_recorded_checks_passed": False,
+                            "complete_hardware_run_evidence": False,
+                        }
+                    }
+                )
+            )
+
+            record, failures = hjpeg_host.check_run_evidence_file(path)
+
+            self.assertFalse(record["passed"])
+            self.assertFalse(record["complete_hardware_run_evidence"])
+            self.assertFalse(record["all_recorded_checks_passed"])
+            self.assertEqual(record["missing_evidence"], ["input_ppm", "decoder"])
+            self.assertTrue(
+                any(
+                    "complete_hardware_run_evidence is false" in failure
+                    for failure in failures
+                )
+            )
+            self.assertTrue(
+                any(
+                    "all_recorded_checks_passed is false" in failure
+                    for failure in failures
+                )
+            )
+            self.assertTrue(
+                any(
+                    "missing hardware evidence groups" in failure
+                    for failure in failures
+                )
+            )
+
+    def test_check_run_evidence_cli_can_print_json_failures(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            complete = root / "complete.json"
+            incomplete = root / "incomplete.json"
+            malformed = root / "malformed.json"
+            missing = root / "missing.json"
+            complete.write_text(
+                json.dumps(
+                    {
+                        "hardware_run_summary": {
+                            "evidence_present": {"jpeg_output": True},
+                            "all_recorded_checks_passed": True,
+                            "complete_hardware_run_evidence": True,
+                        }
+                    }
+                )
+            )
+            incomplete.write_text(json.dumps({"hardware_run_summary": {}}))
+            malformed.write_text("{")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "check-run-evidence",
+                            str(complete),
+                            str(incomplete),
+                            str(malformed),
+                            str(missing),
+                            "--json",
+                        ]
+                    ),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertEqual(record["checked_count"], 4)
+            self.assertTrue(record["records"][0]["passed"])
+            self.assertFalse(record["records"][1]["passed"])
+            self.assertFalse(record["records"][2]["passed"])
+            self.assertFalse(record["records"][3]["exists"])
+            self.assertTrue(
+                any(
+                    "missing hardware_run_summary.evidence_present" in failure
+                    for failure in record["failures"]
+                )
+            )
+            self.assertTrue(
+                any("invalid JSON" in failure for failure in record["failures"])
+            )
+            self.assertTrue(
+                any("file not found" in failure for failure in record["failures"])
+            )
+
     def test_capture_config_record_rejects_invalid_limits(self) -> None:
         for max_output_bytes in (0, -1):
             with self.subTest(max_output_bytes=max_output_bytes):

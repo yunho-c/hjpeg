@@ -231,7 +231,9 @@ status words, and all checkpoints idle with no protocol error or busy state.
 For final board transcripts, pass `run-stream-devices --require-complete-evidence`
 so missing evidence groups turn into a nonzero CLI result; omit it for partial
 smoke tests. Run JSON records whether complete evidence was required and which
-evidence groups were missing.
+evidence groups were missing. Saved run JSON can be checked later with
+`check-run-evidence`, which fails on malformed JSON, missing
+`hardware_run_summary`, failed recorded checks, or incomplete hardware evidence.
 The `run-stream-devices` command supports Linux board images that expose DMA
 MM2S/S2MM endpoints as byte-stream device files by writing padded RGB bytes to
 the TX device and reading JPEG bytes from the RX device until EOI, while

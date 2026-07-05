@@ -186,9 +186,10 @@ python3 scripts/host/hjpeg_host.py run-stream-devices \
   --height HEIGHT \
   --decoder-command 'magick identify {jpeg}' \
   --require-complete-evidence \
-  --json
+  --json > run.json
 python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000 --json
 python3 scripts/host/hjpeg_host.py clear-error --base-addr 0xa0000000 --json
+python3 scripts/host/hjpeg_host.py check-run-evidence run.json --json
 ```
 
 Adjust the `--tx-device` and `--rx-device` paths to match the loaded board
@@ -246,6 +247,9 @@ Expected evidence:
   fails the command. Omit it only for intentional partial smoke tests. Run JSON
   records whether complete evidence was required and which evidence groups were
   missing.
+- Saved run JSON can be checked later with `check-run-evidence`, which fails if
+  `hardware_run_summary` is missing, `all_recorded_checks_passed` is false, or
+  `complete_hardware_run_evidence` is false.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after
