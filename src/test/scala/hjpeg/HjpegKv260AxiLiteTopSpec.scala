@@ -223,6 +223,29 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
     }
   }
 
+  "HjpegKv260AxiLiteTop should honor AXI-Lite narrow register write strobes" in {
+    simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      init(dut)
+
+      writeReg(dut, HjpegAxiLiteRegisters.Quality, 0x7f)
+      writeRegDataFirst(dut, HjpegAxiLiteRegisters.Quality, 0x0000, strobe = 0x2)
+      readReg(dut, HjpegAxiLiteRegisters.Quality) mustBe 0x7f
+
+      writeRegDataFirst(dut, HjpegAxiLiteRegisters.Quality, 0x2a, strobe = 0x1)
+      readReg(dut, HjpegAxiLiteRegisters.Quality) mustBe 0x2a
+
+      writeReg(dut, HjpegAxiLiteRegisters.RestartInterval, 0x1234)
+      writeRegDataFirst(dut, HjpegAxiLiteRegisters.RestartInterval, 0xab00, strobe = 0x2)
+      readReg(dut, HjpegAxiLiteRegisters.RestartInterval) mustBe 0xab34
+
+      writeRegDataFirst(dut, HjpegAxiLiteRegisters.RestartInterval, 0x00cd, strobe = 0x1)
+      readReg(dut, HjpegAxiLiteRegisters.RestartInterval) mustBe 0xabcd
+    }
+  }
+
   "HjpegKv260AxiLiteTop should clear protocol errors through AXI-Lite control" in {
     simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
       dut.reset.poke(true.B)
