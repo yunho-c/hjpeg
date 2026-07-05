@@ -1550,6 +1550,10 @@ def run_evidence_record(
         record["capture_config"] = capture_config
     if status_checks is not None:
         record["status_checks"] = status_checks
+        record["status_check_count"] = len(status_checks)
+        record["status_check_contexts"] = [
+            str(status_check.get("context", "")) for status_check in status_checks
+        ]
     if transfer_elapsed_seconds is not None:
         if not math.isfinite(transfer_elapsed_seconds) or transfer_elapsed_seconds < 0:
             raise ValueError("transfer elapsed seconds must be finite and nonnegative")

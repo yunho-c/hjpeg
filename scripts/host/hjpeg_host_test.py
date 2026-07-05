@@ -1448,6 +1448,30 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["transfer_elapsed_seconds"], 0.0)
             self.assertNotIn("host_transfer_rates", record)
 
+    def test_run_evidence_record_summarizes_status_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            jpeg = root / "output.jpg"
+            jpeg.write_bytes(minimal_jpeg(width=2, height=1))
+
+            status_checks = [
+                {"context": "after configuration", "status": 0},
+                {"context": "before transfer", "status": 0},
+                {"context": "after transfer", "status": 0},
+            ]
+            record = hjpeg_host.run_evidence_record(
+                jpeg,
+                minimal_jpeg_info(width=2, height=1),
+                status_checks=status_checks,
+            )
+
+            self.assertEqual(record["status_checks"], status_checks)
+            self.assertEqual(record["status_check_count"], 3)
+            self.assertEqual(
+                record["status_check_contexts"],
+                ["after configuration", "before transfer", "after transfer"],
+            )
+
     def test_run_evidence_record_reports_transfer_rates_for_positive_elapsed_time(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -3299,6 +3323,11 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(decoder_marker.read_text(), "ffd8")
             self.assertEqual(
                 [status["context"] for status in record["status_checks"]],
+                ["after configuration", "before transfer", "after transfer"],
+            )
+            self.assertEqual(record["status_check_count"], 3)
+            self.assertEqual(
+                record["status_check_contexts"],
                 ["after configuration", "before transfer", "after transfer"],
             )
             for status in record["status_checks"]:

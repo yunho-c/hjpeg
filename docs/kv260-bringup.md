@@ -309,7 +309,8 @@ Expected evidence:
   final throughput claims.
 - For `run-stream-devices --json`, the helper records the AXI-Lite status
   checkpoints enforced after configuration, before transfer, and after
-  transfer, including the AXI-Lite target sampled for each checkpoint.
+  transfer, including the AXI-Lite target sampled for each checkpoint, the
+  checkpoint count, and the ordered checkpoint context list.
 - A standard JPEG decoder can open `output.jpg`; when `--decoder-command` is
   used, that decoder check, command string, resolved argv, timeout, return
   code, elapsed seconds, bounded stdout/stderr, captured output lengths, and
