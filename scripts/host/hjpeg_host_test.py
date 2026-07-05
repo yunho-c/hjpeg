@@ -1198,6 +1198,7 @@ class HjpegHostTest(unittest.TestCase):
                     "width": 17,
                     "height": 13,
                     "restart_interval": None,
+                    "expected_restart_markers": None,
                     "check_chroma_mode": False,
                     "chroma_subsample": None,
                     "expect_jfif": None,
@@ -1715,6 +1716,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(info.restart_interval, 4)
             self.assertEqual(info.restart_markers, 1)
             self.assertEqual(info.restart_marker_sequence, (0,))
+            self.assertEqual(hjpeg_host.expected_restart_marker_count(info, 4), 1)
 
             with self.assertRaisesRegex(ValueError, "expected 3"):
                 hjpeg_host.validate_jpeg(
@@ -1773,7 +1775,9 @@ class HjpegHostTest(unittest.TestCase):
                     ),
                     0,
                 )
-            self.assertEqual(json.loads(stdout.getvalue())["restart_interval"], 4)
+            record = json.loads(stdout.getvalue())
+            self.assertEqual(record["restart_interval"], 4)
+            self.assertEqual(record["validation_expectations"]["expected_restart_markers"], 1)
 
     def test_validate_jpeg_can_check_expected_chroma_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -3038,6 +3042,7 @@ class HjpegHostTest(unittest.TestCase):
                     "width": 2,
                     "height": 1,
                     "restart_interval": 2,
+                    "expected_restart_markers": 0,
                     "check_chroma_mode": True,
                     "chroma_subsample": True,
                     "expect_jfif": "present",

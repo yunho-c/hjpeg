@@ -1028,6 +1028,17 @@ def jpeg_mcu_count(info: JpegInfo) -> int:
     return info.mcu_count
 
 
+def expected_restart_marker_count(
+    info: JpegInfo,
+    expected_restart_interval: int | None,
+) -> int | None:
+    if expected_restart_interval is None:
+        return None
+    if expected_restart_interval == 0:
+        return 0
+    return (jpeg_mcu_count(info) - 1) // expected_restart_interval
+
+
 def require_restart_interval(info: JpegInfo, expected_restart_interval: int) -> None:
     if expected_restart_interval < 0:
         raise ValueError("expected restart interval must be nonnegative")
@@ -1050,9 +1061,7 @@ def require_restart_interval(info: JpegInfo, expected_restart_interval: int) -> 
         raise ValueError(
             f"JPEG restart interval is {actual}, expected {expected_restart_interval}"
         )
-    expected_restart_markers = (
-        jpeg_mcu_count(info) - 1
-    ) // expected_restart_interval
+    expected_restart_markers = expected_restart_marker_count(info, expected_restart_interval)
     if info.restart_markers != expected_restart_markers:
         raise ValueError(
             f"JPEG restart marker count is {info.restart_markers}, "
@@ -1101,6 +1110,30 @@ def validate_jpeg(
         require_standard_huffman=require_standard_huffman,
     )
     return info
+
+
+def validation_expectations_record(
+    info: JpegInfo,
+    width: int,
+    height: int,
+    restart_interval: int | None,
+    check_chroma_mode: bool,
+    chroma_subsample: bool | None,
+    expect_jfif: str | None,
+    quality: int | None,
+    require_standard_huffman: bool,
+) -> dict[str, object]:
+    return {
+        "width": width,
+        "height": height,
+        "restart_interval": restart_interval,
+        "expected_restart_markers": expected_restart_marker_count(info, restart_interval),
+        "check_chroma_mode": check_chroma_mode,
+        "chroma_subsample": chroma_subsample,
+        "expect_jfif": expect_jfif,
+        "quality": quality,
+        "require_standard_huffman": require_standard_huffman,
+    }
 
 
 def decoder_command_argv(jpeg: Path, command: str) -> list[str]:
@@ -1975,18 +2008,19 @@ def main(argv: list[str] | None = None) -> int:
                         args.decoder_command,
                         decoder_timeout,
                         decoder_result,
-                        {
-                            "width": args.width,
-                            "height": args.height,
-                            "restart_interval": args.restart_interval,
-                            "check_chroma_mode": args.check_chroma_mode,
-                            "chroma_subsample": args.chroma_subsample
+                        validation_expectations_record(
+                            info=info,
+                            width=args.width,
+                            height=args.height,
+                            restart_interval=args.restart_interval,
+                            check_chroma_mode=args.check_chroma_mode,
+                            chroma_subsample=args.chroma_subsample
                             if args.check_chroma_mode
                             else None,
-                            "expect_jfif": args.expect_jfif,
-                            "quality": args.quality,
-                            "require_standard_huffman": args.require_standard_huffman,
-                        },
+                            expect_jfif=args.expect_jfif,
+                            quality=args.quality,
+                            require_standard_huffman=args.require_standard_huffman,
+                        ),
                     ),
                     sort_keys=True,
                 )
@@ -2162,16 +2196,17 @@ def main(argv: list[str] | None = None) -> int:
                         args.decoder_command,
                         decoder_timeout,
                         decoder_result,
-                        {
-                            "width": args.width,
-                            "height": args.height,
-                            "restart_interval": args.restart_interval,
-                            "check_chroma_mode": True,
-                            "chroma_subsample": args.chroma_subsample,
-                            "expect_jfif": "absent" if args.no_jfif else "present",
-                            "quality": args.quality,
-                            "require_standard_huffman": True,
-                        },
+                        validation_expectations_record(
+                            info=info,
+                            width=args.width,
+                            height=args.height,
+                            restart_interval=args.restart_interval,
+                            check_chroma_mode=True,
+                            chroma_subsample=args.chroma_subsample,
+                            expect_jfif="absent" if args.no_jfif else "present",
+                            quality=args.quality,
+                            require_standard_huffman=True,
+                        ),
                         transfer_elapsed,
                     ),
                     sort_keys=True,

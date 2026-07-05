@@ -172,7 +172,8 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
-- current commit: `test: cover configured axi wrapper equivalence`
+- current commit: `feat: record expected rst marker count`
+- `11a5b0d test: cover configured axi wrapper equivalence`
 - `398378a feat: record run validation expectations`
 - `9ea42be feat: record jpeg validation expectations`
 - `e63b094 feat: record vivado checked count`
@@ -390,10 +391,12 @@ can enforce expected restart interval, exact RST marker count for the parsed MCU
 count, chroma mode, JFIF APP0 signature presence, quality-matched standard DQT
 payloads, and standard DHT payloads. Standalone validation JSON records the
 requested dimensions and optional restart/chroma/JFIF/quality/Huffman
-expectations that were enforced.
+expectations that were enforced, including the derived expected RST marker
+count.
 `run-stream-devices` enforces those expectations automatically from the
 configured AXI-Lite control fields and quality setting and records the same
-expectation object in run JSON evidence.
+expectation object, including the expected RST marker count, in run JSON
+evidence.
 
 The host helper defaults input-prep and hardware-run dimensions to the current
 KV260 top's `1920x1080` limit. Use `--max-width` and `--max-height` only for a
@@ -623,10 +626,10 @@ Hardware completion evidence should include:
   parsed marker sequence, stuffed entropy `0xff` byte count, JFIF APP0
   signature count, restart interval and RST sequence evidence, DQT/DHT table
   IDs and payload hashes, Huffman table set, SOS table selectors, chroma mode,
-  JFIF evidence, standalone validation expectations, decoder command, resolved
-  decoder argv, decoder timeout, decoder elapsed seconds, bounded decoder
-  stdout/stderr, captured decoder output lengths, and decoder output capture
-  limit.
+  JFIF evidence, standalone validation expectations including expected RST
+  marker count, decoder command, resolved decoder argv, decoder timeout,
+  decoder elapsed seconds, bounded decoder stdout/stderr, captured decoder
+  output lengths, and decoder output capture limit.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 
