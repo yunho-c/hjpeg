@@ -1013,6 +1013,28 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["transfer_elapsed_seconds"], 0.0)
             self.assertNotIn("host_transfer_rates", record)
 
+    def test_run_evidence_record_reports_transfer_rates_for_positive_elapsed_time(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            jpeg = root / "output.jpg"
+            input_rgb = root / "input.rgb"
+            jpeg.write_bytes(minimal_jpeg(width=2, height=1))
+            input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
+
+            record = hjpeg_host.run_evidence_record(
+                jpeg,
+                minimal_jpeg_info(width=2, height=1),
+                input_info=hjpeg_host.file_info(input_rgb, input_rgb.read_bytes()),
+                transfer_elapsed_seconds=2.0,
+            )
+
+            self.assertEqual(record["transfer_elapsed_seconds"], 2.0)
+            self.assertEqual(record["host_transfer_rates"]["input_rgb_bytes_per_second"], 4.0)
+            self.assertEqual(
+                record["host_transfer_rates"]["output_jpeg_bytes_per_second"],
+                len(minimal_jpeg(width=2, height=1)) / 2.0,
+            )
+
     def test_run_evidence_record_rejects_negative_elapsed_time(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             jpeg = Path(tmp) / "output.jpg"
