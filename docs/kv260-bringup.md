@@ -219,7 +219,8 @@ Expected evidence:
   must include positive byte length, a SHA-256 hash, a positive expected byte
   length, and an actual-vs-expected length match. Capture configuration evidence
   must include a positive maximum output byte count and either no timeout or a
-  finite positive timeout.
+  finite positive timeout. AXI-Lite target evidence must include a device path,
+  nonnegative base address, and matching hexadecimal base-address text.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after

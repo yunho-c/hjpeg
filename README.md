@@ -328,7 +328,9 @@ expected RGB stream byte length, and requires the parsed marker sequence to
 begin with SOI and end with EOI. Input RGB evidence must include positive byte
 length, a SHA-256 hash, a positive expected byte length, and an actual-vs-expected
 length match. Capture configuration evidence must include a positive maximum
-output byte count and either no timeout or a finite positive timeout.
+output byte count and either no timeout or a finite positive timeout. AXI-Lite
+target evidence must include a device path, nonnegative base address, and
+matching hexadecimal base-address text.
 Maximum output bytes must be positive, and RX timeout values must be finite and
 positive when present. It
 also records host-observed transfer elapsed seconds and derived byte rates when

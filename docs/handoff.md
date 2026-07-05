@@ -658,7 +658,8 @@ Hardware completion evidence should include:
   byte length, a SHA-256 hash, a positive expected byte length, and an
   actual-vs-expected length match. Capture configuration evidence must include a
   positive maximum output byte count and either no timeout or a finite positive
-  timeout.
+  timeout. AXI-Lite target evidence must include a device path, nonnegative base
+  address, and matching hexadecimal base-address text.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 

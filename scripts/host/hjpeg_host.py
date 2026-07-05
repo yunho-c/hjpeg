@@ -1559,7 +1559,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     evidence_present = {
         "jpeg_output": False,
         "input_rgb": False,
-        "axi_lite": "axi_lite" in record,
+        "axi_lite": False,
         "encoder_config": "encoder_config" in record,
         "capture_config": False,
         "status_checks": "status_checks" in record,
@@ -1684,6 +1684,26 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             capture_max_output_bytes_positive
         )
         checks["capture_timeout_valid"] = capture_timeout_valid
+
+    axi_lite = record.get("axi_lite")
+    if isinstance(axi_lite, dict):
+        axi_lite_device_present = bool(axi_lite.get("device"))
+        axi_lite_base_addr = axi_lite.get("base_addr")
+        axi_lite_base_addr_nonnegative = (
+            isinstance(axi_lite_base_addr, int) and axi_lite_base_addr >= 0
+        )
+        axi_lite_base_addr_hex_matches = (
+            axi_lite_base_addr_nonnegative
+            and axi_lite.get("base_addr_hex") == f"0x{axi_lite_base_addr:x}"
+        )
+        evidence_present["axi_lite"] = (
+            axi_lite_device_present
+            and axi_lite_base_addr_nonnegative
+            and axi_lite_base_addr_hex_matches
+        )
+        checks["axi_lite_device_present"] = axi_lite_device_present
+        checks["axi_lite_base_addr_nonnegative"] = axi_lite_base_addr_nonnegative
+        checks["axi_lite_base_addr_hex_matches"] = axi_lite_base_addr_hex_matches
 
     input_ppm = record.get("input_ppm")
     if isinstance(input_ppm, dict) and "packed_rgb_matches_input" in input_ppm:

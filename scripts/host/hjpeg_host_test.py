@@ -1563,6 +1563,34 @@ class HjpegHostTest(unittest.TestCase):
         self.assertTrue(valid_summary["checks"]["capture_max_output_bytes_positive"])
         self.assertTrue(valid_summary["checks"]["capture_timeout_valid"])
 
+    def test_hardware_summary_requires_valid_axi_lite_target(self) -> None:
+        invalid = {
+            "axi_lite": {
+                "device": "",
+                "base_addr": 16,
+                "base_addr_hex": "0x20",
+            }
+        }
+        valid = {
+            "axi_lite": {
+                "device": "/dev/mem",
+                "base_addr": 16,
+                "base_addr_hex": "0x10",
+            }
+        }
+
+        invalid_summary = hjpeg_host.hardware_run_summary_record(invalid)
+        valid_summary = hjpeg_host.hardware_run_summary_record(valid)
+
+        self.assertFalse(invalid_summary["evidence_present"]["axi_lite"])
+        self.assertFalse(invalid_summary["checks"]["axi_lite_device_present"])
+        self.assertTrue(invalid_summary["checks"]["axi_lite_base_addr_nonnegative"])
+        self.assertFalse(invalid_summary["checks"]["axi_lite_base_addr_hex_matches"])
+        self.assertTrue(valid_summary["evidence_present"]["axi_lite"])
+        self.assertTrue(valid_summary["checks"]["axi_lite_device_present"])
+        self.assertTrue(valid_summary["checks"]["axi_lite_base_addr_nonnegative"])
+        self.assertTrue(valid_summary["checks"]["axi_lite_base_addr_hex_matches"])
+
     def test_run_evidence_record_summarizes_status_checks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -3698,6 +3726,9 @@ class HjpegHostTest(unittest.TestCase):
                         "input_rgb_length_matches_expected": True,
                         "capture_max_output_bytes_positive": True,
                         "capture_timeout_valid": True,
+                        "axi_lite_device_present": True,
+                        "axi_lite_base_addr_nonnegative": True,
+                        "axi_lite_base_addr_hex_matches": True,
                         "input_ppm_matches_input": True,
                         "input_ppm_non_flat": True,
                         "input_ppm_has_color_pixels": True,
