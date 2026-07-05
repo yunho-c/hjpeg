@@ -630,7 +630,9 @@ Hardware completion evidence should include:
   signature count, restart interval and RST sequence evidence, DQT/DHT table
   IDs and payload hashes, Huffman table set, SOS table selectors, chroma mode,
   JFIF evidence, standalone validation expectations including expected marker
-  counts, expected RST marker count, and expected DQT/DHT payload hashes,
+  counts, expected RST marker count, expected SOF0/SOS component selectors,
+  expected SOS spectral fields, expected chroma mode when checked, and expected
+  DQT/DHT payload hashes,
   decoder command, resolved decoder argv, decoder timeout, decoder elapsed
   seconds, bounded decoder stdout/stderr, captured decoder output lengths, and
   decoder output capture limit.

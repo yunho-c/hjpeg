@@ -268,8 +268,10 @@ DQT/DHT/DRI/restart marker counts, a grouped `marker_counts` object,
 parsed marker sequence,
 parsed DRI restart interval, RST marker sequence, total JPEG byte length,
 SHA-256, standalone validation expectations including derived expected RST
-marker count, expected marker counts, and expected DQT/DHT payload hashes when
-table checks are enabled, decoder command, resolved decoder argv, decoder
+marker count, expected marker counts, expected SOF0/SOS component shape,
+expected SOS spectral fields, expected chroma mode when checked, and expected
+DQT/DHT payload hashes when table checks are enabled, decoder command, resolved
+decoder argv, decoder
 timeout, and decoder elapsed seconds when one was provided, plus decoder return
 code and bounded stdout/stderr when a decoder command ran, including captured
 output lengths and the capture limit. JFIF

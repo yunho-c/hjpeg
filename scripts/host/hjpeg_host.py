@@ -1140,14 +1140,51 @@ def validation_expectations_record(
         "DRI": None if restart_interval is None else (0 if restart_interval == 0 else 1),
         "RST": expected_restart_marker_count(info, restart_interval),
     }
+    expected_sof0_components = [
+        {"component_id": 1, "quantization_table": 0},
+        {"component_id": 2, "quantization_table": 1},
+        {"component_id": 3, "quantization_table": 1},
+    ]
+    if check_chroma_mode and chroma_subsample is not None:
+        expected_y_sampling = 2 if chroma_subsample else 1
+        expected_sof0_components[0].update(
+            {
+                "horizontal_sampling": expected_y_sampling,
+                "vertical_sampling": expected_y_sampling,
+            }
+        )
+        for expected_component in expected_sof0_components[1:]:
+            expected_component.update(
+                {
+                    "horizontal_sampling": 1,
+                    "vertical_sampling": 1,
+                }
+            )
+    expected_sos_components = [
+        {"component_id": 1, "dc_table": 0, "ac_table": 0},
+        {"component_id": 2, "dc_table": 1, "ac_table": 1},
+        {"component_id": 3, "dc_table": 1, "ac_table": 1},
+    ]
     record: dict[str, object] = {
         "width": width,
         "height": height,
         "restart_interval": restart_interval,
         "expected_restart_markers": expected_restart_marker_count(info, restart_interval),
         "expected_marker_counts": expected_marker_counts,
+        "expected_sof0_components": expected_sof0_components,
+        "expected_sos_components": expected_sos_components,
+        "expected_sos_spectral": {
+            "spectral_start": 0,
+            "spectral_end": 63,
+            "successive_approximation": 0,
+        },
         "check_chroma_mode": check_chroma_mode,
         "chroma_subsample": chroma_subsample,
+        "expected_chroma_mode": (
+            ("4:2:0" if chroma_subsample else "4:4:4")
+            if check_chroma_mode and chroma_subsample is not None
+            else None
+        ),
         "expect_jfif": expect_jfif,
         "quality": quality,
         "require_standard_huffman": require_standard_huffman,
