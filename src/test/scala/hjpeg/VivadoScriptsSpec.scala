@@ -35,12 +35,14 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
       script must include("sbt 'runMain hjpeg.ElaborateKv260AxiLiteTop'")
       script must include("No RTL files listed in $filelist")
     }
+    synth must include("Expected at most 2 arguments: rtl_dir project_dir")
     synth must include("create_clock -period 10.000 -name pl_clk [get_ports clock]")
     synth must include("post_synth_utilization.rpt")
     synth must include("post_synth_timing_summary.rpt")
     synth must include("write_checkpoint -force")
     synth must include("post_synth.dcp")
 
+    packageIp must include("Expected at most 2 arguments: rtl_dir ip_repo_dir")
     packageIp must include("hjpeg_kv260_axi_lite")
     packageIp must include("xilinx.com:interface:aximm")
     packageIp must include("xilinx.com:interface:axis")
@@ -90,6 +92,7 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
     }
 
     blockDesign must include("hjpeg_kv260_axi_lite_1_0")
+    blockDesign must include("Expected at most 2 arguments: ip_repo_dir project_dir")
     blockDesign must include("component.xml")
     blockDesign must include("xilinx.com:ip:zynq_ultra_ps_e")
     blockDesign must include("xilinx.com:ip:axi_dma")
@@ -118,6 +121,7 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
 
     bitstream must include("hjpeg_kv260_bd.xpr")
     bitstream must include("open_project")
+    bitstream must include("Expected at most 3 arguments: project_dir artifacts_dir jobs")
     bitstream must include("Vivado job count must be a positive integer")
     bitstream must include("set_property top hjpeg_kv260_wrapper")
     bitstream must include("launch_runs synth_1")

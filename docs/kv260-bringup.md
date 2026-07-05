@@ -84,7 +84,8 @@ python3 scripts/vivado/check_reports.py \
 
 The bitstream script accepts optional project directory, artifact directory, and
 Vivado job-count arguments after `-tclargs`; use a positive integer for the job
-count.
+count. Vivado scripts reject extra positional `-tclargs` so build automation
+does not silently ignore misspelled or misplaced arguments.
 
 Expected evidence:
 

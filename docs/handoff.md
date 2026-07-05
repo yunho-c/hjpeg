@@ -172,6 +172,7 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `0c2597b fix: validate vivado bitstream job count`
 - `a1619c7 fix: validate host evidence config records`
 - `e809d61 fix: validate jpeg expectations before io`
 - `0dea2ce fix: validate host run config before io`

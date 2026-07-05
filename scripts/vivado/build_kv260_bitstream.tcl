@@ -16,6 +16,9 @@ set project_dir [file normalize [file join $repo_root build/vivado/hjpeg-kv260-b
 set artifacts_dir [file normalize [file join $repo_root build/vivado/hjpeg-kv260-artifacts]]
 set jobs 4
 
+if {$argc > 3} {
+  error "Expected at most 3 arguments: project_dir artifacts_dir jobs"
+}
 if {$argc >= 1} {
   set project_dir [file normalize [lindex $argv 0]]
 }

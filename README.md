@@ -123,7 +123,8 @@ vivado -mode batch -source scripts/vivado/build_kv260_bitstream.tcl
 
 The bitstream script also accepts optional project directory, artifact
 directory, and Vivado job-count arguments after `-tclargs`; the job count must
-be a positive integer.
+be a positive integer. Vivado scripts reject extra positional `-tclargs` so
+automation does not silently ignore misspelled or misplaced arguments.
 
 Check generated timing and utilization reports:
 

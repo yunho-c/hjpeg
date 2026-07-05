@@ -17,6 +17,9 @@ set repo_root [file normalize [file join $script_dir ../..]]
 set ip_repo_dir [file normalize [file join $repo_root build/vivado/ip_repo]]
 set project_dir [file normalize [file join $repo_root build/vivado/hjpeg-kv260-bd]]
 
+if {$argc > 2} {
+  error "Expected at most 2 arguments: ip_repo_dir project_dir"
+}
 if {$argc >= 1} {
   set ip_repo_dir [file normalize [lindex $argv 0]]
 }

@@ -14,6 +14,9 @@ set repo_root [file normalize [file join $script_dir ../..]]
 set rtl_dir [file normalize [file join $repo_root generated-kv260-axi-lite-top]]
 set project_dir [file normalize [file join $repo_root build/vivado/hjpeg-kv260-axi-lite]]
 
+if {$argc > 2} {
+  error "Expected at most 2 arguments: rtl_dir project_dir"
+}
 if {$argc >= 1} {
   set rtl_dir [file normalize [lindex $argv 0]]
 }

@@ -14,6 +14,9 @@ set repo_root [file normalize [file join $script_dir ../..]]
 set rtl_dir [file normalize [file join $repo_root generated-kv260-axi-lite-top]]
 set ip_repo_dir [file normalize [file join $repo_root build/vivado/ip_repo]]
 
+if {$argc > 2} {
+  error "Expected at most 2 arguments: rtl_dir ip_repo_dir"
+}
 if {$argc >= 1} {
   set rtl_dir [file normalize [lindex $argv 0]]
 }
