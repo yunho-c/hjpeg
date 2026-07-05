@@ -1017,6 +1017,8 @@ def run_evidence_record(
     if status_checks is not None:
         record["status_checks"] = status_checks
     if transfer_elapsed_seconds is not None:
+        if transfer_elapsed_seconds < 0:
+            raise ValueError("transfer elapsed seconds must be nonnegative")
         record["transfer_elapsed_seconds"] = transfer_elapsed_seconds
         if transfer_elapsed_seconds > 0 and input_info is not None:
             record["host_transfer_rates"] = {
