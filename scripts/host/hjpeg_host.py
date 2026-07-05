@@ -234,6 +234,7 @@ class JpegInfo:
     quantization_table_order: tuple[int, ...]
     quantization_table_details: tuple[JpegQuantizationTable, ...]
     huffman_tables: tuple[JpegHuffmanTable, ...]
+    huffman_table_order: tuple[tuple[int, int], ...]
     scan_data_bytes: int
     stuffed_ff_bytes: int
     byte_length: int
@@ -433,6 +434,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
     quantization_table_order: list[int] = []
     quantization_table_details: dict[int, tuple[int, int, str]] = {}
     huffman_tables: dict[tuple[int, int], tuple[int, str]] = {}
+    huffman_table_order: list[tuple[int, int]] = []
     scan_data_bytes = 0
     stuffed_ff_bytes = 0
     app0_segments = 0
@@ -629,6 +631,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
                     raise ValueError(
                         f"JPEG {class_name} DHT table {table_id} is defined more than once"
                     )
+                huffman_table_order.append((table_class, table_id))
                 huffman_tables[(table_class, table_id)] = (
                     value_count,
                     hashlib.sha256(count_bytes + symbol_bytes).hexdigest(),
@@ -736,6 +739,11 @@ def jpeg_info(data: bytes) -> JpegInfo:
         )
     if dht_segments != 4:
         raise ValueError(f"JPEG DHT segment count is {dht_segments}, expected 4")
+    if tuple(huffman_table_order) != ((0, 0), (0, 1), (1, 0), (1, 1)):
+        raise ValueError(
+            f"JPEG DHT table order is {huffman_table_order}, "
+            "expected DC0, DC1, AC0, AC1"
+        )
     if app0_segments > 1:
         raise ValueError(f"JPEG APP0 segment count is {app0_segments}, expected 0 or 1")
     if app0_segments != jfif_app0_segments:
@@ -855,6 +863,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
                 huffman_tables.items()
             )
         ),
+        huffman_table_order=tuple(huffman_table_order),
         scan_data_bytes=scan_data_bytes,
         stuffed_ff_bytes=stuffed_ff_bytes,
         byte_length=len(data),
@@ -1205,6 +1214,10 @@ def jpeg_info_record(
                 "payload_sha256": table.payload_sha256,
             }
             for table in info.huffman_tables
+        ],
+        "huffman_table_order": [
+            {"table_class": table_class, "table_id": table_id}
+            for table_class, table_id in info.huffman_table_order
         ],
         "chroma_mode": jpeg_chroma_mode(info),
         "scan_data_bytes": info.scan_data_bytes,

@@ -172,6 +172,7 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `b5c1df9 feat: validate jpeg dqt table order`
 - `5299dd2 fix: validate jpeg quantization selectors`
 - `cc3ef2a fix: validate jpeg sos table selectors`
 - `bd3feeb feat: record jfif app0 field evidence`
@@ -361,8 +362,9 @@ quantization table selectors to be Y `0` and Cb/Cr `1`, requires SOS table
 selectors to be Y `0/0` and Cb/Cr `1/1`, requires baseline SOS spectral fields
 `0/63/0`, records SOF0 component sampling factors and MCU count, requires
 supported 4:4:4 or 4:2:0 sampling, rejects zero SOF0 sampling
-factors, requires standard DQT table IDs `{0, 1}` in table order `[0, 1]` with
-8-bit precision, records DQT/DHT payload byte counts and SHA-256 hashes,
+factors, requires standard DQT table IDs `{0, 1}` in table order `[0, 1]`, DHT
+table order DC0, DC1, AC0, AC1, and 8-bit DQT precision, records DQT/DHT payload
+byte counts and SHA-256 hashes,
 requires exact DQT/DHT segment counts, requires the standard DC/AC Huffman table
 set, rejects duplicate DQT/DHT table definitions, records parsed marker
 sequence, stuffed entropy `0xff` byte count, RST marker sequence, and JFIF APP0

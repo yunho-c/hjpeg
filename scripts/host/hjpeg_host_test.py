@@ -594,6 +594,24 @@ def with_duplicate_dht_table_in_segment(jpeg: bytes) -> bytes:
     return jpeg[:dht] + replacement + jpeg[dht + 2 + length :]
 
 
+def with_first_two_dht_segments_swapped(jpeg: bytes) -> bytes:
+    first_start, first_end = segment_bounds(jpeg, b"\xff\xc4")
+    second_start = jpeg.find(b"\xff\xc4", first_end)
+    if second_start < 0:
+        raise AssertionError("second DHT marker not found")
+    second_length = (jpeg[second_start + 2] << 8) | jpeg[second_start + 3]
+    second_end = second_start + 2 + second_length
+    first_segment = jpeg[first_start:first_end]
+    second_segment = jpeg[second_start:second_end]
+    return (
+        jpeg[:first_start]
+        + second_segment
+        + jpeg[first_end:second_start]
+        + first_segment
+        + jpeg[second_end:]
+    )
+
+
 def with_empty_first_dht_table(jpeg: bytes) -> bytes:
     dht = jpeg.find(b"\xff\xc4")
     if dht < 0:
@@ -726,6 +744,7 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
             hjpeg_host.JpegHuffmanTable(1, 0, 162, standard_dht_payload_sha256(1, 0)),
             hjpeg_host.JpegHuffmanTable(1, 1, 162, standard_dht_payload_sha256(1, 1)),
         ),
+        huffman_table_order=((0, 0), (0, 1), (1, 0), (1, 1)),
         scan_data_bytes=1,
         stuffed_ff_bytes=0,
         byte_length=len(data),
@@ -1227,6 +1246,15 @@ class HjpegHostTest(unittest.TestCase):
                         "symbol_count": 162,
                         "payload_sha256": standard_dht_payload_sha256(1, 1),
                     },
+                ],
+            )
+            self.assertEqual(
+                record["huffman_table_order"],
+                [
+                    {"table_class": 0, "table_id": 0},
+                    {"table_class": 0, "table_id": 1},
+                    {"table_class": 1, "table_id": 0},
+                    {"table_class": 1, "table_id": 1},
                 ],
             )
             self.assertEqual(record["scan_data_bytes"], 1)
@@ -2124,6 +2152,16 @@ class HjpegHostTest(unittest.TestCase):
             )
 
             with self.assertRaisesRegex(ValueError, "DC DHT table 0 is defined more than once"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_swapped_huffman_table_order(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "swapped-dht.jpg"
+            jpeg.write_bytes(
+                with_first_two_dht_segments_swapped(minimal_jpeg(width=17, height=13))
+            )
+
+            with self.assertRaisesRegex(ValueError, "DHT table order"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_rejects_empty_huffman_table(self) -> None:
