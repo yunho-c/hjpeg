@@ -137,9 +137,14 @@ hardware-tool entry points:
   names, failing required suffix names, required artifact filename presence for
   `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and `post_impl.dcp`,
   address-map filename presence for `hjpeg_kv260_address_map.rpt`,
+  required report filename presence for `post_synth_timing_summary.rpt`,
+  `post_impl_timing_summary.rpt`, `post_synth_utilization.rpt`,
+  `post_impl_utilization.rpt`, `post_impl_drc.rpt`,
+  `post_impl_route_status.rpt`, and `post_impl_clock_utilization.rpt`,
   present/missing/failing filename names, suffix and filename passing/failing
   counts, aggregate pass/fail counts, required/present/missing category, suffix,
-  artifact-filename, and address-map-filename counts, diagnostic failure count,
+  artifact-filename, address-map-filename, and report-filename counts,
+  diagnostic failure count,
   checked/passed/failed path lists, complete-evidence required/missing/failing
   lists, and pass/fail state for build evidence logs.
   Required evidence category presence is based on at least
@@ -148,12 +153,14 @@ hardware-tool entry points:
   required `.bit`/`.xsa`/`.dcp` artifact suffix to have no failing records, and
   requires the named artifacts `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and
   `post_impl.dcp` to be present and passing, plus the named address-map report
-  `hjpeg_kv260_address_map.rpt`. Complete Vivado evidence counts only records
+  `hjpeg_kv260_address_map.rpt` and the named timing/utilization/implementation
+  reports. Complete Vivado evidence counts only records
   whose `passed` field is an actual JSON boolean `true`. Missing or unparseable
   reports are included as structured failure records. Full bitstream gates can
   pass `--require-complete-evidence` to fail unless all required categories,
   address-map evidence, required artifact suffixes, required artifact filenames,
-  and the required address-map filename are present and passing.
+  the required address-map filename, and required report filenames are present
+  and passing.
 
 These scripts are intended to be run after:
 

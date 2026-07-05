@@ -271,13 +271,15 @@ class CheckReportsTest(unittest.TestCase):
     def test_cli_passes_valid_reports(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            timing = root / "timing.rpt"
-            utilization = root / "util.rpt"
+            post_synth_timing = root / "post_synth_timing_summary.rpt"
+            post_impl_timing = root / "post_impl_timing_summary.rpt"
+            post_synth_utilization = root / "post_synth_utilization.rpt"
+            post_impl_utilization = root / "post_impl_utilization.rpt"
             drc = root / "post_impl_drc.rpt"
             route_status = root / "post_impl_route_status.rpt"
             clock_utilization = root / "post_impl_clock_utilization.rpt"
-            timing.write_text(TIMING_TABLE)
-            utilization.write_text(UTILIZATION_TABLE)
+            post_synth_timing.write_text(TIMING_TABLE)
+            post_synth_utilization.write_text(UTILIZATION_TABLE)
             drc.write_text(DRC_CLEAN_REPORT)
             route_status.write_text(ROUTE_STATUS_CLEAN_REPORT)
             clock_utilization.write_text("Clock Utilization\n")
@@ -286,9 +288,9 @@ class CheckReportsTest(unittest.TestCase):
                 check_reports.main(
                     [
                         "--timing",
-                        str(timing),
+                        str(post_synth_timing),
                         "--utilization",
-                        str(utilization),
+                        str(post_synth_utilization),
                         "--drc",
                         str(drc),
                         "--route-status",
@@ -313,8 +315,10 @@ class CheckReportsTest(unittest.TestCase):
             xsa = root / "hjpeg_kv260.xsa"
             dcp = root / "post_impl.dcp"
             address_map = root / "hjpeg_kv260_address_map.rpt"
-            timing = root / "timing.rpt"
-            utilization = root / "util.rpt"
+            post_synth_timing = root / "post_synth_timing_summary.rpt"
+            post_impl_timing = root / "post_impl_timing_summary.rpt"
+            post_synth_utilization = root / "post_synth_utilization.rpt"
+            post_impl_utilization = root / "post_impl_utilization.rpt"
             drc = root / "post_impl_drc.rpt"
             route_status = root / "post_impl_route_status.rpt"
             clock_utilization = root / "post_impl_clock_utilization.rpt"
@@ -322,8 +326,10 @@ class CheckReportsTest(unittest.TestCase):
             xsa.write_bytes(b"xsa")
             dcp.write_bytes(b"checkpoint")
             address_map.write_text(ADDRESS_MAP_REPORT)
-            timing.write_text(TIMING_TABLE)
-            utilization.write_text(VIVADO_UTILIZATION_TABLE)
+            post_synth_timing.write_text(TIMING_TABLE)
+            post_impl_timing.write_text(TIMING_TABLE)
+            post_synth_utilization.write_text(VIVADO_UTILIZATION_TABLE)
+            post_impl_utilization.write_text(VIVADO_UTILIZATION_TABLE)
             drc.write_text(DRC_CLEAN_REPORT)
             route_status.write_text(ROUTE_STATUS_CLEAN_REPORT)
             clock_utilization.write_text("Clock Utilization\n")
@@ -342,11 +348,15 @@ class CheckReportsTest(unittest.TestCase):
                             "--address-map",
                             str(address_map),
                             "--timing",
-                            str(timing),
+                            str(post_synth_timing),
+                            "--timing",
+                            str(post_impl_timing),
                             "--hold-timing",
-                            str(timing),
+                            str(post_impl_timing),
                             "--utilization",
-                            str(utilization),
+                            str(post_synth_utilization),
+                            "--utilization",
+                            str(post_impl_utilization),
                             "--drc",
                             str(drc),
                             "--route-status",
@@ -365,8 +375,8 @@ class CheckReportsTest(unittest.TestCase):
             self.assertTrue(record["passed"])
             self.assertEqual(record["failures"], [])
             self.assertEqual(record["failure_count"], 0)
-            self.assertEqual(record["checked_count"], 9)
-            self.assertEqual(record["passed_count"], 9)
+            self.assertEqual(record["checked_count"], 11)
+            self.assertEqual(record["passed_count"], 11)
             self.assertEqual(record["failed_count"], 0)
             self.assertEqual(
                 record["checked_paths"],
@@ -375,8 +385,10 @@ class CheckReportsTest(unittest.TestCase):
                     str(xsa),
                     str(dcp),
                     str(address_map),
-                    str(timing),
-                    str(utilization),
+                    str(post_synth_timing),
+                    str(post_impl_timing),
+                    str(post_synth_utilization),
+                    str(post_impl_utilization),
                     str(drc),
                     str(route_status),
                     str(clock_utilization),
@@ -389,8 +401,10 @@ class CheckReportsTest(unittest.TestCase):
                     str(xsa),
                     str(dcp),
                     str(address_map),
-                    str(timing),
-                    str(utilization),
+                    str(post_synth_timing),
+                    str(post_impl_timing),
+                    str(post_synth_utilization),
+                    str(post_impl_utilization),
                     str(drc),
                     str(route_status),
                     str(clock_utilization),
@@ -402,8 +416,8 @@ class CheckReportsTest(unittest.TestCase):
                 {
                     "artifacts": 3,
                     "address_map": 1,
-                    "timing": 1,
-                    "utilization": 1,
+                    "timing": 2,
+                    "utilization": 2,
                     "drc": 1,
                     "route_status": 1,
                     "clock_utilization": 1,
@@ -436,8 +450,8 @@ class CheckReportsTest(unittest.TestCase):
                     "passing_counts": {
                         "artifacts": 3,
                         "address_map": 1,
-                        "timing": 1,
-                        "utilization": 1,
+                        "timing": 2,
+                        "utilization": 2,
                         "drc": 1,
                         "route_status": 1,
                         "clock_utilization": 1,
@@ -544,13 +558,134 @@ class CheckReportsTest(unittest.TestCase):
                 },
             )
             self.assertEqual(
+                record["report_filenames"],
+                {
+                    "timing": {
+                        "label": "timing",
+                        "required_filenames": [
+                            "post_synth_timing_summary.rpt",
+                            "post_impl_timing_summary.rpt",
+                        ],
+                        "required_filename_count": 2,
+                        "filename_counts": {
+                            "post_synth_timing_summary.rpt": 1,
+                            "post_impl_timing_summary.rpt": 1,
+                        },
+                        "passing_filename_counts": {
+                            "post_synth_timing_summary.rpt": 1,
+                            "post_impl_timing_summary.rpt": 1,
+                        },
+                        "failing_filename_counts": {},
+                        "required_filenames_present": {
+                            "post_synth_timing_summary.rpt": True,
+                            "post_impl_timing_summary.rpt": True,
+                        },
+                        "present_filename_count": 2,
+                        "missing_filename_count": 0,
+                        "present_required_filenames": [
+                            "post_synth_timing_summary.rpt",
+                            "post_impl_timing_summary.rpt",
+                        ],
+                        "failing_required_filenames": [],
+                        "missing_required_filenames": [],
+                        "all_required_filenames_present": True,
+                    },
+                    "utilization": {
+                        "label": "utilization",
+                        "required_filenames": [
+                            "post_synth_utilization.rpt",
+                            "post_impl_utilization.rpt",
+                        ],
+                        "required_filename_count": 2,
+                        "filename_counts": {
+                            "post_synth_utilization.rpt": 1,
+                            "post_impl_utilization.rpt": 1,
+                        },
+                        "passing_filename_counts": {
+                            "post_synth_utilization.rpt": 1,
+                            "post_impl_utilization.rpt": 1,
+                        },
+                        "failing_filename_counts": {},
+                        "required_filenames_present": {
+                            "post_synth_utilization.rpt": True,
+                            "post_impl_utilization.rpt": True,
+                        },
+                        "present_filename_count": 2,
+                        "missing_filename_count": 0,
+                        "present_required_filenames": [
+                            "post_synth_utilization.rpt",
+                            "post_impl_utilization.rpt",
+                        ],
+                        "failing_required_filenames": [],
+                        "missing_required_filenames": [],
+                        "all_required_filenames_present": True,
+                    },
+                    "drc": {
+                        "label": "drc",
+                        "required_filenames": ["post_impl_drc.rpt"],
+                        "required_filename_count": 1,
+                        "filename_counts": {"post_impl_drc.rpt": 1},
+                        "passing_filename_counts": {"post_impl_drc.rpt": 1},
+                        "failing_filename_counts": {},
+                        "required_filenames_present": {"post_impl_drc.rpt": True},
+                        "present_filename_count": 1,
+                        "missing_filename_count": 0,
+                        "present_required_filenames": ["post_impl_drc.rpt"],
+                        "failing_required_filenames": [],
+                        "missing_required_filenames": [],
+                        "all_required_filenames_present": True,
+                    },
+                    "route_status": {
+                        "label": "route_status",
+                        "required_filenames": ["post_impl_route_status.rpt"],
+                        "required_filename_count": 1,
+                        "filename_counts": {"post_impl_route_status.rpt": 1},
+                        "passing_filename_counts": {"post_impl_route_status.rpt": 1},
+                        "failing_filename_counts": {},
+                        "required_filenames_present": {
+                            "post_impl_route_status.rpt": True,
+                        },
+                        "present_filename_count": 1,
+                        "missing_filename_count": 0,
+                        "present_required_filenames": ["post_impl_route_status.rpt"],
+                        "failing_required_filenames": [],
+                        "missing_required_filenames": [],
+                        "all_required_filenames_present": True,
+                    },
+                    "clock_utilization": {
+                        "label": "clock_utilization",
+                        "required_filenames": ["post_impl_clock_utilization.rpt"],
+                        "required_filename_count": 1,
+                        "filename_counts": {"post_impl_clock_utilization.rpt": 1},
+                        "passing_filename_counts": {
+                            "post_impl_clock_utilization.rpt": 1,
+                        },
+                        "failing_filename_counts": {},
+                        "required_filenames_present": {
+                            "post_impl_clock_utilization.rpt": True,
+                        },
+                        "present_filename_count": 1,
+                        "missing_filename_count": 0,
+                        "present_required_filenames": [
+                            "post_impl_clock_utilization.rpt",
+                        ],
+                        "failing_required_filenames": [],
+                        "missing_required_filenames": [],
+                        "all_required_filenames_present": True,
+                    },
+                },
+            )
+            self.assertEqual(
                 record["arguments"],
                 {
                     "artifacts": [str(artifact), str(xsa), str(dcp)],
                     "address_map": [str(address_map)],
-                    "timing": [str(timing)],
-                    "hold_timing": [str(timing)],
-                    "utilization": [str(utilization)],
+                    "timing": [str(post_synth_timing), str(post_impl_timing)],
+                    "hold_timing": [str(post_impl_timing)],
+                    "utilization": [
+                        str(post_synth_utilization),
+                        str(post_impl_utilization),
+                    ],
                     "drc": [str(drc)],
                     "route_status": [str(route_status)],
                     "clock_utilization": [str(clock_utilization)],
@@ -632,19 +767,21 @@ class CheckReportsTest(unittest.TestCase):
                     "aperture_bytes": 0x10000,
                 },
             )
-            self.assertEqual(record["timing"][0]["path"], str(timing))
+            self.assertEqual(record["timing"][0]["path"], str(post_synth_timing))
             self.assertTrue(record["timing"][0]["exists"])
             self.assertEqual(record["timing"][0]["wns_ns"], 0.125)
             self.assertEqual(record["timing"][0]["whs_ns"], 0.05)
             self.assertEqual(record["timing"][0]["min_whs_ns"], 0.0)
-            self.assertTrue(record["timing"][0]["check_whs"])
-            timing_bytes = timing.read_bytes()
+            self.assertFalse(record["timing"][0]["check_whs"])
+            timing_bytes = post_synth_timing.read_bytes()
             self.assertEqual(record["timing"][0]["byte_length"], len(timing_bytes))
             self.assertEqual(
                 record["timing"][0]["sha256"],
                 hashlib.sha256(timing_bytes).hexdigest(),
             )
-            self.assertEqual(record["utilization"][0]["path"], str(utilization))
+            self.assertEqual(record["timing"][1]["path"], str(post_impl_timing))
+            self.assertTrue(record["timing"][1]["check_whs"])
+            self.assertEqual(record["utilization"][0]["path"], str(post_synth_utilization))
             self.assertTrue(record["utilization"][0]["exists"])
             self.assertEqual(record["utilization"][0]["rows"][0]["name"], "LUT as Logic")
             self.assertEqual(record["utilization"][0]["rows"][0]["prohibited"], 0)
@@ -724,6 +861,22 @@ class CheckReportsTest(unittest.TestCase):
                 ["hjpeg_kv260_address_map.rpt"],
             )
             self.assertEqual(
+                record["complete_vivado_flow_evidence_missing_report_filenames"],
+                {
+                    "timing": [
+                        "post_synth_timing_summary.rpt",
+                        "post_impl_timing_summary.rpt",
+                    ],
+                    "utilization": [
+                        "post_synth_utilization.rpt",
+                        "post_impl_utilization.rpt",
+                    ],
+                    "drc": ["post_impl_drc.rpt"],
+                    "route_status": ["post_impl_route_status.rpt"],
+                    "clock_utilization": ["post_impl_clock_utilization.rpt"],
+                },
+            )
+            self.assertEqual(
                 record["complete_vivado_flow_evidence_failing_categories"], []
             )
             self.assertEqual(
@@ -735,6 +888,10 @@ class CheckReportsTest(unittest.TestCase):
             self.assertEqual(
                 record["complete_vivado_flow_evidence_failing_address_map_filenames"],
                 [],
+            )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_failing_report_filenames"],
+                {},
             )
             self.assertTrue(record["evidence_categories"]["present"]["timing"])
             self.assertFalse(record["evidence_categories"]["present"]["artifacts"])
@@ -754,9 +911,11 @@ class CheckReportsTest(unittest.TestCase):
             dcp = root / "post_impl.dcp"
             empty_xsa = root / "empty.xsa"
             address_map = root / "hjpeg_kv260_address_map.rpt"
-            timing = root / "timing.rpt"
+            post_synth_timing = root / "post_synth_timing_summary.rpt"
+            post_impl_timing = root / "post_impl_timing_summary.rpt"
             bad_timing = root / "bad_timing.rpt"
-            utilization = root / "util.rpt"
+            post_synth_utilization = root / "post_synth_utilization.rpt"
+            post_impl_utilization = root / "post_impl_utilization.rpt"
             drc = root / "post_impl_drc.rpt"
             route_status = root / "post_impl_route_status.rpt"
             clock_utilization = root / "post_impl_clock_utilization.rpt"
@@ -765,9 +924,11 @@ class CheckReportsTest(unittest.TestCase):
             dcp.write_bytes(b"checkpoint")
             empty_xsa.write_bytes(b"")
             address_map.write_text(ADDRESS_MAP_REPORT)
-            timing.write_text(TIMING_TABLE)
+            post_synth_timing.write_text(TIMING_TABLE)
+            post_impl_timing.write_text(TIMING_TABLE)
             bad_timing.write_text("WNS(ns): -0.010\nWHS(ns): 0.010\n")
-            utilization.write_text(VIVADO_UTILIZATION_TABLE)
+            post_synth_utilization.write_text(VIVADO_UTILIZATION_TABLE)
+            post_impl_utilization.write_text(VIVADO_UTILIZATION_TABLE)
             drc.write_text(DRC_CLEAN_REPORT)
             route_status.write_text(ROUTE_STATUS_CLEAN_REPORT)
             clock_utilization.write_text("Clock Utilization\n")
@@ -788,13 +949,17 @@ class CheckReportsTest(unittest.TestCase):
                             "--address-map",
                             str(address_map),
                             "--timing",
-                            str(timing),
+                            str(post_synth_timing),
+                            "--timing",
+                            str(post_impl_timing),
                             "--timing",
                             str(bad_timing),
                             "--hold-timing",
-                            str(timing),
+                            str(post_impl_timing),
                             "--utilization",
-                            str(utilization),
+                            str(post_synth_utilization),
+                            "--utilization",
+                            str(post_impl_utilization),
                             "--drc",
                             str(drc),
                             "--route-status",
@@ -822,6 +987,10 @@ class CheckReportsTest(unittest.TestCase):
                 [],
             )
             self.assertEqual(
+                record["complete_vivado_flow_evidence_missing_report_filenames"],
+                {},
+            )
+            self.assertEqual(
                 record["complete_vivado_flow_evidence_failing_categories"],
                 ["artifacts", "timing"],
             )
@@ -833,10 +1002,20 @@ class CheckReportsTest(unittest.TestCase):
                 record["complete_vivado_flow_evidence_failing_address_map_filenames"],
                 [],
             )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_failing_report_filenames"],
+                {},
+            )
             self.assertTrue(record["evidence_categories"]["all_required_present"])
             self.assertTrue(record["artifact_suffixes"]["all_required_suffixes_present"])
             self.assertTrue(record["artifact_filenames"]["all_required_filenames_present"])
             self.assertTrue(record["address_map_filenames"]["all_required_filenames_present"])
+            self.assertTrue(
+                all(
+                    item["all_required_filenames_present"]
+                    for item in record["report_filenames"].values()
+                )
+            )
             self.assertEqual(record["artifact_suffixes"]["failing_suffix_counts"], {".xsa": 1})
             self.assertTrue(
                 any("failing required categories" in failure for failure in record["failures"])

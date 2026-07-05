@@ -428,10 +428,14 @@ passing/failing counts, required `.bit`/`.xsa`/`.dcp` artifact suffix presence,
 present and missing required suffix names, failing required suffix names,
 required artifact filename presence for `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`,
 and `post_impl.dcp`, address-map filename presence for
-`hjpeg_kv260_address_map.rpt`, present/missing/failing filename names, required
-suffix/filename passing/failing counts, aggregate pass/fail counts,
-required/present/missing category, suffix, artifact-filename, and
-address-map-filename counts, diagnostic failure count,
+`hjpeg_kv260_address_map.rpt`, required report filename presence for
+`post_synth_timing_summary.rpt`, `post_impl_timing_summary.rpt`,
+`post_synth_utilization.rpt`, `post_impl_utilization.rpt`,
+`post_impl_drc.rpt`, `post_impl_route_status.rpt`, and
+`post_impl_clock_utilization.rpt`, present/missing/failing filename names,
+required suffix/filename passing/failing counts, aggregate pass/fail counts,
+required/present/missing category, suffix, artifact-filename,
+address-map-filename, and report-filename counts, diagnostic failure count,
 checked/passed/failed path lists, complete-evidence required/missing/failing
 lists, and pass/fail state.
 Complete Vivado flow evidence should have `all_required_present` and
@@ -439,7 +443,8 @@ Complete Vivado flow evidence should have `all_required_present` and
 evidence categories or required `.bit`/`.xsa`/`.dcp` artifact suffixes, and with
 the named artifacts `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and `post_impl.dcp`
 present and passing, plus the named address-map report
-`hjpeg_kv260_address_map.rpt`.
+`hjpeg_kv260_address_map.rpt` and the named timing/utilization/implementation
+reports.
 `all_required_present` requires at least one passing record in each required
 category, not just a requested input path. Complete Vivado evidence counts only
 records whose `passed` field is an actual JSON boolean `true`. Missing, non-file,

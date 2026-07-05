@@ -136,8 +136,10 @@ python3 scripts/vivado/check_reports.py \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa \
   --artifact build/vivado/hjpeg-kv260-artifacts/post_impl.dcp \
   --address-map build/vivado/hjpeg-kv260-bd/hjpeg_kv260_address_map.rpt \
+  --timing build/vivado/hjpeg-kv260-artifacts/post_synth_timing_summary.rpt \
   --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --hold-timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
+  --utilization build/vivado/hjpeg-kv260-artifacts/post_synth_utilization.rpt \
   --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt \
   --drc build/vivado/hjpeg-kv260-artifacts/post_impl_drc.rpt \
   --route-status build/vivado/hjpeg-kv260-artifacts/post_impl_route_status.rpt \
@@ -159,10 +161,14 @@ category names, required `.bit`/`.xsa`/`.dcp` artifact suffix presence, present 
 missing required suffix names, failing required suffix names, required artifact
 filename presence for `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and `post_impl.dcp`,
 address-map filename presence for `hjpeg_kv260_address_map.rpt`,
+required report filename presence for `post_synth_timing_summary.rpt`,
+`post_impl_timing_summary.rpt`, `post_synth_utilization.rpt`,
+`post_impl_utilization.rpt`, `post_impl_drc.rpt`,
+`post_impl_route_status.rpt`, and `post_impl_clock_utilization.rpt`,
 present/missing/failing filename names, required suffix/filename passing/failing
-counts, required/present/missing category, suffix, artifact-filename, and
-address-map-filename counts, aggregate pass/fail counts, diagnostic failure
-count, checked/passed/failed path lists, complete-evidence
+counts, required/present/missing category, suffix, artifact-filename,
+address-map-filename, and report-filename counts, aggregate pass/fail counts,
+diagnostic failure count, checked/passed/failed path lists, complete-evidence
 required/missing/failing lists, and pass/fail state in machine-readable build
 evidence.
 Required evidence category presence is based on at least one passing record in
@@ -170,7 +176,8 @@ that category, not just a requested input path. Complete Vivado evidence also
 requires every supplied required evidence category and required `.bit`/`.xsa`/
 `.dcp` artifact suffix to have no failing records, and requires the named
 artifacts `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and `post_impl.dcp` to be present
-and passing, plus the named address-map report `hjpeg_kv260_address_map.rpt`.
+and passing, plus the named address-map and timing/utilization/implementation
+reports.
 Complete Vivado evidence counts only records whose `passed` field is an actual
 JSON boolean `true`. Use
 `--require-complete-evidence` for full bitstream evidence gates; partial

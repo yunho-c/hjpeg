@@ -980,6 +980,51 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
                 "hjpeg_kv260_address_map.rpt": True,
             },
         },
+        "report_filenames": {
+            "timing": {
+                "all_required_filenames_present": True,
+                "required_filenames": [
+                    "post_synth_timing_summary.rpt",
+                    "post_impl_timing_summary.rpt",
+                ],
+                "required_filenames_present": {
+                    "post_synth_timing_summary.rpt": True,
+                    "post_impl_timing_summary.rpt": True,
+                },
+            },
+            "utilization": {
+                "all_required_filenames_present": True,
+                "required_filenames": [
+                    "post_synth_utilization.rpt",
+                    "post_impl_utilization.rpt",
+                ],
+                "required_filenames_present": {
+                    "post_synth_utilization.rpt": True,
+                    "post_impl_utilization.rpt": True,
+                },
+            },
+            "drc": {
+                "all_required_filenames_present": True,
+                "required_filenames": ["post_impl_drc.rpt"],
+                "required_filenames_present": {
+                    "post_impl_drc.rpt": True,
+                },
+            },
+            "route_status": {
+                "all_required_filenames_present": True,
+                "required_filenames": ["post_impl_route_status.rpt"],
+                "required_filenames_present": {
+                    "post_impl_route_status.rpt": True,
+                },
+            },
+            "clock_utilization": {
+                "all_required_filenames_present": True,
+                "required_filenames": ["post_impl_clock_utilization.rpt"],
+                "required_filenames_present": {
+                    "post_impl_clock_utilization.rpt": True,
+                },
+            },
+        },
         "address_map": [
             {
                 "path": "hjpeg_kv260_address_map.rpt",
@@ -3299,6 +3344,9 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(
                 record["vivado_evidence"][0]["vivado_address_map_filenames_present"]
             )
+            self.assertTrue(
+                record["vivado_evidence"][0]["vivado_report_filenames_present"]
+            )
             self.assertFalse(record["vivado_evidence"][0]["passed"])
             self.assertTrue(
                 any("post-implementation checkpoint filenames" in failure for failure in record["failures"])
@@ -3354,9 +3402,74 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(
                 record["vivado_evidence"][0]["vivado_address_map_filenames_present"]
             )
+            self.assertTrue(
+                record["vivado_evidence"][0]["vivado_report_filenames_present"]
+            )
             self.assertFalse(record["vivado_evidence"][0]["passed"])
             self.assertTrue(
                 any("hjpeg_kv260_address_map.rpt" in failure for failure in record["failures"])
+            )
+
+    def test_check_run_evidence_cli_rejects_vivado_evidence_without_report_filenames(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run = root / "run.json"
+            vivado = root / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["report_filenames"]["timing"] = {
+                "all_required_filenames_present": False,
+                "required_filenames": [
+                    "post_synth_timing_summary.rpt",
+                    "post_impl_timing_summary.rpt",
+                ],
+                "required_filenames_present": {
+                    "post_synth_timing_summary.rpt": True,
+                    "post_impl_timing_summary.rpt": False,
+                },
+            }
+            run.write_text(json.dumps(complete_run_evidence_record(root)))
+            vivado.write_text(json.dumps(vivado_record))
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "check-run-evidence",
+                            str(run),
+                            "--vivado-evidence",
+                            str(vivado),
+                            "--json",
+                        ]
+                    ),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertEqual(record["vivado_evidence_checked_count"], 1)
+            self.assertEqual(record["vivado_evidence_passed_count"], 0)
+            self.assertEqual(record["vivado_evidence_failed_count"], 1)
+            self.assertEqual(record["vivado_hjpeg_base_addresses"], [0])
+            self.assertTrue(record["vivado_evidence"][0]["vivado_passed"])
+            self.assertTrue(
+                record["vivado_evidence"][0]["complete_vivado_flow_evidence"]
+            )
+            self.assertTrue(
+                record["vivado_evidence"][0]["vivado_artifact_suffixes_present"]
+            )
+            self.assertTrue(
+                record["vivado_evidence"][0]["vivado_artifact_filenames_present"]
+            )
+            self.assertTrue(
+                record["vivado_evidence"][0]["vivado_address_map_filenames_present"]
+            )
+            self.assertFalse(
+                record["vivado_evidence"][0]["vivado_report_filenames_present"]
+            )
+            self.assertFalse(record["vivado_evidence"][0]["passed"])
+            self.assertTrue(
+                any("report filenames" in failure for failure in record["failures"])
             )
 
     def test_check_run_evidence_cli_rejects_conflicting_vivado_addresses(self) -> None:

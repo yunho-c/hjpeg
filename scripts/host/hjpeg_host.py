@@ -51,6 +51,13 @@ STATUS_PROTOCOL_ERROR = 1 << 1
 
 DEFAULT_MAX_FRAME_WIDTH = 1920
 DEFAULT_MAX_FRAME_HEIGHT = 1080
+VIVADO_REQUIRED_REPORT_FILENAMES = {
+    "timing": ("post_synth_timing_summary.rpt", "post_impl_timing_summary.rpt"),
+    "utilization": ("post_synth_utilization.rpt", "post_impl_utilization.rpt"),
+    "drc": ("post_impl_drc.rpt",),
+    "route_status": ("post_impl_route_status.rpt",),
+    "clock_utilization": ("post_impl_clock_utilization.rpt",),
+}
 RUN_STATUS_CHECK_CONTEXTS = [
     "after configuration",
     "before transfer",
@@ -2553,6 +2560,28 @@ def vivado_required_address_map_filenames_present(record: object) -> bool:
     )
 
 
+def vivado_required_report_filenames_present(record: object) -> bool:
+    if not isinstance(record, dict):
+        return False
+    report_filenames = record.get("report_filenames")
+    if not isinstance(report_filenames, dict):
+        return False
+    for category, required_filenames in VIVADO_REQUIRED_REPORT_FILENAMES.items():
+        category_record = report_filenames.get(category)
+        if not isinstance(category_record, dict):
+            return False
+        required_filenames_present = category_record.get("required_filenames_present")
+        if (
+            category_record.get("all_required_filenames_present") is not True
+            or not isinstance(required_filenames_present, dict)
+        ):
+            return False
+        for filename in required_filenames:
+            if required_filenames_present.get(filename) is not True:
+                return False
+    return True
+
+
 def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str]]:
     result: dict[str, object] = {
         "path": str(path),
@@ -2579,6 +2608,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     vivado_address_map_filenames_present = (
         vivado_required_address_map_filenames_present(parsed)
     )
+    vivado_report_filenames_present = vivado_required_report_filenames_present(parsed)
     bases = vivado_hjpeg_base_addresses_from_record(parsed)
     result.update(
         {
@@ -2587,6 +2617,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
             "vivado_artifact_suffixes_present": vivado_artifact_suffixes_present,
             "vivado_artifact_filenames_present": vivado_artifact_filenames_present,
             "vivado_address_map_filenames_present": vivado_address_map_filenames_present,
+            "vivado_report_filenames_present": vivado_report_filenames_present,
             "hjpeg_base_addresses": list(bases),
             "hjpeg_base_addresses_hex": [f"0x{base:x}" for base in bases],
             "passed": (
@@ -2596,6 +2627,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
                 and vivado_artifact_suffixes_present
                 and vivado_artifact_filenames_present
                 and vivado_address_map_filenames_present
+                and vivado_report_filenames_present
             ),
         }
     )
@@ -2613,6 +2645,10 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     if not vivado_address_map_filenames_present:
         failures.append(
             f"{path}: Vivado evidence missing required hjpeg_kv260_address_map.rpt filename"
+        )
+    if not vivado_report_filenames_present:
+        failures.append(
+            f"{path}: Vivado evidence missing required timing/utilization/implementation report filenames"
         )
     if not bases:
         failures.append(f"{path}: no passing hjpeg_0/s_axi_lite address-map evidence")
