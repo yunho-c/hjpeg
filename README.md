@@ -349,7 +349,9 @@ evidence must include file and packed-RGB SHA-256 hex hashes,
 dimension-consistent RGB and packed byte lengths, an input-byte match, and
 non-flat/color image stats. Status evidence must include the detailed checkpoint
 list, matching checkpoint count, expected ordered contexts, zero raw status
-words, and all checkpoints idle with no protocol error or busy state.
+words, and all checkpoints idle with no protocol error or busy state. Summary
+checks recompute checkpoint order and aggregate idle/error/busy flags from the
+detailed status records.
 Pass `run-stream-devices --require-complete-evidence` for final board evidence
 gates; omit it for partial hardware smoke tests that intentionally skip source
 PPM or decoder evidence. Run JSON records whether complete evidence was

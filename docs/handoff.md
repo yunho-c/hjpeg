@@ -682,7 +682,8 @@ Hardware completion evidence should include:
   non-flat/color image stats. Status evidence must include the detailed
   checkpoint list, matching checkpoint count, expected ordered contexts, zero
   raw status words, and all checkpoints idle with no protocol error or busy
-  state.
+  state. Summary checks recompute checkpoint order and aggregate
+  idle/error/busy flags from the detailed status records.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 

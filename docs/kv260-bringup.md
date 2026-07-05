@@ -241,7 +241,8 @@ Expected evidence:
   and non-flat/color image stats. Status evidence must include the detailed
   checkpoint list, matching checkpoint count, expected ordered contexts, zero
   raw status words, and all checkpoints idle with no protocol error or busy
-  state.
+  state. Summary checks recompute checkpoint order and aggregate
+  idle/error/busy flags from the detailed status records.
 - Use `run-stream-devices --require-complete-evidence` for the final board
   transcript so missing source PPM, decoder, transfer timing, or status evidence
   fails the command. Omit it only for intentional partial smoke tests. Run JSON
