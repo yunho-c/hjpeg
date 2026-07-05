@@ -2889,6 +2889,32 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(summary["checks"]["status_checks_status_hex_matches"])
             self.assertFalse(summary["checks"]["status_checks_each_idle"])
 
+    def test_hardware_summary_rejects_boolean_timing_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            record = complete_run_evidence_record(Path(tmp))
+            record["capture_config"]["timeout_seconds"] = True
+            record["decoder_timeout_seconds"] = True
+            record["decoder_elapsed_seconds"] = False
+            record["transfer_elapsed_seconds"] = True
+            record["host_transfer_rates"]["input_rgb_bytes_per_second"] = True
+            record["host_transfer_rates"]["output_jpeg_bytes_per_second"] = True
+
+            summary = hjpeg_host.hardware_run_summary_record(record)
+
+            self.assertFalse(summary["all_recorded_checks_passed"])
+            self.assertFalse(summary["checks"]["capture_timeout_valid"])
+            self.assertFalse(summary["checks"]["decoder_timeout_seconds_positive"])
+            self.assertFalse(summary["checks"]["decoder_elapsed_seconds_nonnegative"])
+            self.assertFalse(summary["checks"]["transfer_elapsed_seconds_positive"])
+            self.assertFalse(summary["checks"]["host_input_rgb_rate_positive"])
+            self.assertFalse(summary["checks"]["host_output_jpeg_rate_positive"])
+            self.assertFalse(
+                summary["checks"]["host_input_rgb_rate_matches_elapsed"]
+            )
+            self.assertFalse(
+                summary["checks"]["host_output_jpeg_rate_matches_elapsed"]
+            )
+
     def test_hardware_summary_requires_output_hash_and_scan_evidence(self) -> None:
         record = {
             "byte_length": 16,

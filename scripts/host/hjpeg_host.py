@@ -1837,7 +1837,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             is_strict_int(max_output_bytes) and max_output_bytes > 0
         )
         capture_timeout_valid = timeout_seconds is None or (
-            isinstance(timeout_seconds, (int, float))
+            is_strict_number(timeout_seconds)
             and math.isfinite(timeout_seconds)
             and timeout_seconds > 0
         )
@@ -2119,13 +2119,13 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
         decoder_timeout_seconds = record.get("decoder_timeout_seconds")
         decoder_timeout_seconds_positive = (
-            isinstance(decoder_timeout_seconds, (int, float))
+            is_strict_number(decoder_timeout_seconds)
             and math.isfinite(decoder_timeout_seconds)
             and decoder_timeout_seconds > 0
         )
         decoder_elapsed_seconds = record.get("decoder_elapsed_seconds")
         decoder_elapsed_seconds_nonnegative = (
-            isinstance(decoder_elapsed_seconds, (int, float))
+            is_strict_number(decoder_elapsed_seconds)
             and math.isfinite(decoder_elapsed_seconds)
             and decoder_elapsed_seconds >= 0
         )
@@ -2206,9 +2206,11 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         checks["decoder_output_not_truncated"] = decoder_output_not_truncated
 
     transfer_elapsed = record.get("transfer_elapsed_seconds")
-    if isinstance(transfer_elapsed, (int, float)):
+    if "transfer_elapsed_seconds" in record:
         transfer_elapsed_positive = (
-            math.isfinite(transfer_elapsed) and transfer_elapsed > 0
+            is_strict_number(transfer_elapsed)
+            and math.isfinite(transfer_elapsed)
+            and transfer_elapsed > 0
         )
         host_transfer_rates = record.get("host_transfer_rates")
         host_transfer_rates_present = isinstance(host_transfer_rates, dict)
@@ -2223,12 +2225,12 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             else None
         )
         host_input_rgb_rate_positive = (
-            isinstance(input_rgb_rate, (int, float))
+            is_strict_number(input_rgb_rate)
             and math.isfinite(input_rgb_rate)
             and input_rgb_rate > 0
         )
         host_output_jpeg_rate_positive = (
-            isinstance(output_jpeg_rate, (int, float))
+            is_strict_number(output_jpeg_rate)
             and math.isfinite(output_jpeg_rate)
             and output_jpeg_rate > 0
         )
@@ -2239,7 +2241,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         jpeg_byte_length = record.get("byte_length")
         host_input_rgb_rate_matches_elapsed = (
             is_strict_int(input_rgb_byte_length)
-            and isinstance(input_rgb_rate, (int, float))
+            and is_strict_number(input_rgb_rate)
             and transfer_elapsed_positive
             and math.isclose(
                 input_rgb_rate,
@@ -2250,7 +2252,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
         host_output_jpeg_rate_matches_elapsed = (
             is_strict_int(jpeg_byte_length)
-            and isinstance(output_jpeg_rate, (int, float))
+            and is_strict_number(output_jpeg_rate)
             and transfer_elapsed_positive
             and math.isclose(
                 output_jpeg_rate,
