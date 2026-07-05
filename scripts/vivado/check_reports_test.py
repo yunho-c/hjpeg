@@ -80,6 +80,20 @@ Design Route Status
 # of nets with routing errors: 0
 """
 
+ROUTE_STATUS_VIVADO_TABLE_REPORT = """
+Design Route Status
+                                               :      # nets :
+   ------------------------------------------- : ----------- :
+   # of logical nets.......................... :      119470 :
+       # of nets not needing routing.......... :       44355 :
+           # of internally routed nets........ :       36293 :
+           # of nets with no loads............ :        8062 :
+       # of routable nets..................... :       75115 :
+           # of fully routed nets............. :       75115 :
+       # of nets with routing errors.......... :           0 :
+   ------------------------------------------- : ----------- :
+"""
+
 ROUTE_STATUS_BAD_REPORT = """
 Design Route Status
 -------------------
@@ -149,6 +163,12 @@ class CheckReportsTest(unittest.TestCase):
                 "number_of_unrouted_nets": 0,
                 "number_of_nets_with_routing_errors": 0,
             },
+        )
+
+    def test_parse_route_status_counts_from_vivado_table(self) -> None:
+        self.assertEqual(
+            check_reports.parse_route_status_counts(ROUTE_STATUS_VIVADO_TABLE_REPORT),
+            {"number_of_nets_with_routing_errors": 0},
         )
 
     def test_check_utilization_ignores_expected_hard_system_rows(self) -> None:
@@ -240,6 +260,13 @@ class CheckReportsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             report = Path(tmp) / "post_impl_route_status.rpt"
             report.write_text(ROUTE_STATUS_VIVADO_VARIANT_REPORT)
+
+            self.assertEqual(check_reports.check_route_status(report), [])
+
+    def test_check_route_status_accepts_vivado_table(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "post_impl_route_status.rpt"
+            report.write_text(ROUTE_STATUS_VIVADO_TABLE_REPORT)
 
             self.assertEqual(check_reports.check_route_status(report), [])
 

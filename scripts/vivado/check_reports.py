@@ -32,7 +32,9 @@ DRC_ZERO_RE = re.compile(
     re.IGNORECASE,
 )
 ROUTE_STATUS_RE = re.compile(
-    r"^\s*(?:#\s*)?(?P<label>[A-Za-z0-9_ /-]*(?:unrouted|routing errors?|not completely routed)[A-Za-z0-9_ /-]*)\s*[:=]\s*(?P<count>\d+)\b",
+    r"^\s*(?:#\s*)?"
+    r"(?P<label>[A-Za-z0-9_ /-]*(?:unrouted|routing errors?|not completely routed)[A-Za-z0-9_ /-]*)"
+    r"\s*(?:\.{2,})?\s*[:=]\s*(?P<count>\d+)\b\s*:?",
     re.IGNORECASE,
 )
 HEX_ADDRESS_RE = re.compile(r"0x[0-9a-fA-F_]+")
@@ -195,6 +197,8 @@ def parse_route_status_counts(report: str) -> dict[str, int]:
             continue
         label = "_".join(match.group("label").lower().split())
         label = label.replace("-", "_").replace("/", "_")
+        if label.startswith("of_"):
+            label = f"number_{label}"
         counts[label] = int(match.group("count"))
     return counts
 
