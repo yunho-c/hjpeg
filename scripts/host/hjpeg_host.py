@@ -2216,7 +2216,9 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     ]
     failing_check_count = len(failing_checks)
     all_recorded_checks_passed = not failing_checks
+    required_evidence_groups = list(evidence_present.keys())
     return {
+        "required_evidence_groups": required_evidence_groups,
         "evidence_present": evidence_present,
         "evidence_group_count": evidence_group_count,
         "evidence_present_count": evidence_present_count,
@@ -2366,6 +2368,9 @@ def check_run_evidence_record(
             "complete_hardware_run_evidence": complete,
             "all_recorded_checks_passed": all_checks,
             "hardware_run_summary_matches_computed": summary_matches_computed,
+            "required_evidence_groups": computed_summary.get(
+                "required_evidence_groups"
+            ),
             "evidence_group_count": computed_summary.get("evidence_group_count"),
             "evidence_present_count": computed_summary.get("evidence_present_count"),
             "evidence_missing_count": computed_summary.get("evidence_missing_count"),

@@ -12,6 +12,20 @@ from pathlib import Path
 import hjpeg_host
 
 
+EXPECTED_HARDWARE_EVIDENCE_GROUPS = [
+    "jpeg_output",
+    "input_rgb",
+    "axi_lite",
+    "encoder_config",
+    "capture_config",
+    "status_checks",
+    "validation_expectations",
+    "input_ppm",
+    "transfer_timing",
+    "decoder",
+]
+
+
 def jpeg_segment(marker: int, payload: bytes) -> bytes:
     length = len(payload) + 2
     return bytes([0xFF, marker, (length >> 8) & 0xFF, length & 0xFF]) + payload
@@ -2450,6 +2464,9 @@ class HjpegHostTest(unittest.TestCase):
         summary = hjpeg_host.hardware_run_summary_record(record)
 
         self.assertFalse(summary["evidence_present"]["jpeg_output"])
+        self.assertEqual(
+            summary["required_evidence_groups"], EXPECTED_HARDWARE_EVIDENCE_GROUPS
+        )
         self.assertEqual(summary["evidence_group_count"], 10)
         self.assertEqual(summary["evidence_present_count"], 0)
         self.assertEqual(summary["evidence_missing_count"], 10)
@@ -2556,6 +2573,10 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["complete_hardware_run_evidence"])
             self.assertTrue(record["all_recorded_checks_passed"])
             self.assertTrue(record["hardware_run_summary_matches_computed"])
+            self.assertEqual(
+                record["required_evidence_groups"],
+                EXPECTED_HARDWARE_EVIDENCE_GROUPS,
+            )
             self.assertEqual(record["evidence_group_count"], 10)
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 0)
@@ -2583,6 +2604,10 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["complete_hardware_run_evidence"])
             self.assertTrue(record["all_recorded_checks_passed"])
             self.assertFalse(record["hardware_run_summary_matches_computed"])
+            self.assertEqual(
+                record["required_evidence_groups"],
+                EXPECTED_HARDWARE_EVIDENCE_GROUPS,
+            )
             self.assertEqual(record["evidence_group_count"], 10)
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 0)
@@ -2635,6 +2660,10 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(record["complete_hardware_run_evidence"])
             self.assertTrue(record["all_recorded_checks_passed"])
             self.assertTrue(record["hardware_run_summary_matches_computed"])
+            self.assertEqual(
+                record["required_evidence_groups"],
+                EXPECTED_HARDWARE_EVIDENCE_GROUPS,
+            )
             self.assertEqual(record["evidence_group_count"], 10)
             self.assertEqual(record["evidence_present_count"], 8)
             self.assertEqual(record["evidence_missing_count"], 2)
@@ -2676,6 +2705,10 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(record["passed"])
             self.assertFalse(record["all_recorded_checks_passed"])
             self.assertTrue(record["hardware_run_summary_matches_computed"])
+            self.assertEqual(
+                record["required_evidence_groups"],
+                EXPECTED_HARDWARE_EVIDENCE_GROUPS,
+            )
             self.assertEqual(record["evidence_group_count"], 10)
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 0)
@@ -4619,6 +4652,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(
                 record["hardware_run_summary"],
                 {
+                    "required_evidence_groups": EXPECTED_HARDWARE_EVIDENCE_GROUPS,
                     "evidence_present": {
                         "jpeg_output": True,
                         "input_rgb": True,
