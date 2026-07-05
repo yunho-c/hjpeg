@@ -124,15 +124,16 @@ python3 scripts/vivado/check_reports.py \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa \
   --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --hold-timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
-  --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt
+  --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt \
+  --clock-period-ns 10.0
 ```
 
 Add `--json` to include artifact/report paths, byte lengths, SHA-256 hashes,
 parsed setup WNS and hold WHS values, utilization rows, thresholds, and
-pass/fail state in machine-readable build evidence. Missing, non-file, or
-unparseable reports are recorded as structured JSON failures. Use
-`--hold-timing` for post-implementation reports where hold timing is expected
-to be closed.
+target clock period/frequency, and pass/fail state in machine-readable build
+evidence. Missing, non-file, or unparseable reports are recorded as structured
+JSON failures. Use `--hold-timing` for post-implementation reports where hold
+timing is expected to be closed.
 
 These Vivado scripts consume `generated-kv260-axi-lite-top/filelist.f`. Generate
 the AXI-Lite top first. The IP packaging script maps the generated clock, reset,

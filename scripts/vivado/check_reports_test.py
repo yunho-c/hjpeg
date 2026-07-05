@@ -167,6 +167,8 @@ class CheckReportsTest(unittest.TestCase):
                             str(timing),
                             "--utilization",
                             str(utilization),
+                            "--clock-period-ns",
+                            "8.0",
                             "--json",
                         ]
                     ),
@@ -176,6 +178,8 @@ class CheckReportsTest(unittest.TestCase):
             record = json.loads(stdout.getvalue())
             self.assertTrue(record["passed"])
             self.assertEqual(record["failures"], [])
+            self.assertEqual(record["clock_period_ns"], 8.0)
+            self.assertEqual(record["clock_frequency_mhz"], 125.0)
             self.assertEqual(record["artifacts"][0]["path"], str(artifact))
             self.assertEqual(record["artifacts"][0]["byte_length"], len(b"bitstream"))
             self.assertEqual(
@@ -316,6 +320,10 @@ class CheckReportsTest(unittest.TestCase):
             self.assertFalse(record["utilization"][0]["passed"])
             self.assertEqual(record["utilization"][0]["rows"], [])
             self.assertTrue(any("no utilization rows found" in failure for failure in record["failures"]))
+
+    def test_cli_rejects_nonpositive_clock_period(self) -> None:
+        with self.assertRaises(SystemExit):
+            check_reports.main(["--clock-period-ns", "0", "--json"])
 
 
 if __name__ == "__main__":

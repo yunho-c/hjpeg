@@ -52,6 +52,7 @@ python3 scripts/vivado/check_reports.py \
   --hold-timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --utilization build/vivado/hjpeg-kv260-artifacts/post_synth_utilization.rpt \
   --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt \
+  --clock-period-ns 10.0 \
   --json
 ```
 
@@ -75,9 +76,9 @@ Pass criteria:
 - `check_reports.py` exits successfully for the generated timing/utilization
   reports, with hold timing gated on the post-implementation timing report.
 - The JSON evidence records artifact/report paths, byte lengths, SHA-256
-  hashes, parsed setup WNS and hold WHS values, utilization rows, thresholds,
-  and pass/fail state. Missing, non-file, or unparseable reports are recorded
-  as structured JSON failures.
+  hashes, target clock period/frequency, parsed setup WNS and hold WHS values,
+  utilization rows, thresholds, and pass/fail state. Missing, non-file, or
+  unparseable reports are recorded as structured JSON failures.
 
 Latest local Vivado 2026.1 evidence:
 

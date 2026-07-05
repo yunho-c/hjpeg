@@ -23,6 +23,13 @@ UTIL_ROW_RE = re.compile(
 IGNORED_UTILIZATION_ROWS = {"PS8"}
 
 
+def positive_float(value: str) -> float:
+    parsed = float(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("value must be positive")
+    return parsed
+
+
 @dataclass(frozen=True)
 class UtilizationRow:
     name: str
@@ -282,6 +289,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-wns", type=float, default=0.0)
     parser.add_argument("--min-whs", type=float, default=0.0)
     parser.add_argument("--max-utilization", type=float, default=90.0)
+    parser.add_argument(
+        "--clock-period-ns",
+        type=positive_float,
+        default=10.0,
+        help="target clock period to record in JSON evidence, default 10.0 ns",
+    )
     parser.add_argument("--json", action="store_true", help="print parsed report evidence as JSON")
     return parser
 
@@ -327,6 +340,8 @@ def main(argv: list[str] | None = None) -> int:
                 {
                     "passed": not failures,
                     "failures": failures,
+                    "clock_period_ns": args.clock_period_ns,
+                    "clock_frequency_mhz": 1000.0 / args.clock_period_ns,
                     "artifacts": artifact_records,
                     "timing": timing_records,
                     "utilization": utilization_records,

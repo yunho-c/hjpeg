@@ -295,9 +295,10 @@ custom RTL elaboration with different `HjpegConfig` frame limits.
 
 The Vivado report checker supports `--json` plus repeated `--artifact`
 arguments so the bitstream, XSA, timing reports, and utilization reports can be
-recorded with byte lengths, hashes, parsed setup WNS and hold WHS, utilization
-rows, thresholds, and pass/fail state. Missing, non-file, or unparseable reports
-are recorded as structured JSON failures instead of aborting the transcript. Use
+recorded with byte lengths, hashes, target clock period/frequency, parsed setup
+WNS and hold WHS, utilization rows, thresholds, and pass/fail state. Missing,
+non-file, or unparseable reports are recorded as structured JSON failures
+instead of aborting the transcript. Use
 `--hold-timing` for post-implementation timing reports; post-synthesis hold can
 be negative before implementation fixes it. The utilization parser handles
 Vivado's `Prohibited` column and records hard-system rows such as `PS8` without
