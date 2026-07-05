@@ -3125,6 +3125,21 @@ def main(argv: list[str] | None = None) -> int:
             for record in records
             if isinstance(record.get("failing_check_count"), int)
         )
+        summary_checked_paths = [
+            str(record.get("path"))
+            for record in records
+            if isinstance(record.get("hardware_run_summary_matches_computed"), bool)
+        ]
+        summary_matched_paths = [
+            str(record.get("path"))
+            for record in records
+            if record.get("hardware_run_summary_matches_computed") is True
+        ]
+        summary_mismatched_paths = [
+            str(record.get("path"))
+            for record in records
+            if record.get("hardware_run_summary_matches_computed") is False
+        ]
         aggregate_present_evidence = unique_string_values(records, "present_evidence")
         aggregate_missing_evidence = unique_string_values(records, "missing_evidence")
         aggregate_passing_checks = unique_string_values(records, "passing_checks")
@@ -3159,6 +3174,12 @@ def main(argv: list[str] | None = None) -> int:
                         "aggregate_failing_check_count": (
                             aggregate_failing_check_count
                         ),
+                        "summary_checked_count": len(summary_checked_paths),
+                        "summary_match_count": len(summary_matched_paths),
+                        "summary_mismatch_count": len(summary_mismatched_paths),
+                        "summary_checked_paths": summary_checked_paths,
+                        "summary_matched_paths": summary_matched_paths,
+                        "summary_mismatched_paths": summary_mismatched_paths,
                         "aggregate_present_evidence": aggregate_present_evidence,
                         "aggregate_missing_evidence": aggregate_missing_evidence,
                         "aggregate_passing_checks": aggregate_passing_checks,

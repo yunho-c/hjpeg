@@ -383,10 +383,11 @@ python3 scripts/host/hjpeg_host.py check-run-evidence run.json --json
 The saved-evidence checker recomputes `hardware_run_summary` from the transcript
 and fails if the stored summary does not match the recomputed evidence. Its JSON
 output includes aggregate checked/pass/fail transcript counts, diagnostic
-failure count, checked/passed/failed path lists, aggregate evidence group
-present/missing counts and names, and aggregate recorded/passing/failing check
-counts and names plus the recomputed summary, evidence/check counts, missing
-evidence groups, and failing check names for each object-shaped transcript.
+failure count, checked/passed/failed path lists, summary checked, matched, and
+mismatched counts and paths, aggregate evidence group present/missing counts and
+names, and aggregate recorded/passing/failing check counts and names plus the
+recomputed summary, evidence/check counts, missing evidence groups, and failing
+check names for each object-shaped transcript.
 
 Maximum output bytes must be positive, and RX timeout values must be finite and
 positive when present. It

@@ -270,11 +270,11 @@ Expected evidence:
   `hardware_run_summary` from the saved transcript and fails if the stored
   summary does not match the recomputed evidence. JSON output includes the
   aggregate checked/pass/fail transcript counts, diagnostic failure count, and
-  checked/passed/failed path lists, aggregate evidence group present/missing
-  counts, aggregate evidence group present/missing names, and aggregate
-  recorded/passing/failing check counts and names plus the recomputed summary,
-  evidence/check counts, missing evidence groups, and failing check names for
-  each object-shaped transcript.
+  checked/passed/failed path lists, summary checked, matched, and mismatched
+  counts and paths, aggregate evidence group present/missing counts, aggregate
+  evidence group present/missing names, and aggregate recorded/passing/failing check
+  counts and names plus the recomputed summary, evidence/check counts, missing
+  evidence groups, and failing check names for each object-shaped transcript.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after
