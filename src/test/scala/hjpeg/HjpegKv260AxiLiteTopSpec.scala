@@ -477,6 +477,66 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
     }
   }
 
+  "HjpegKv260AxiLiteTop should drain late TLAST packets and recover after clear" in {
+    simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      init(dut)
+      configure(dut, width = 1, height = 1, subsample = false)
+
+      dut.io.mAxisJpeg.ready.poke(false.B)
+      dut.io.sAxisRgb.valid.poke(true.B)
+      dut.io.sAxisRgb.bits.data.poke(0.U)
+      dut.io.sAxisRgb.bits.keep.poke("b1111".U)
+      dut.io.sAxisRgb.bits.last.poke(false.B)
+      dut.io.sAxisRgb.ready.expect(true.B)
+      dut.clock.step()
+
+      (readReg(dut, HjpegAxiLiteRegisters.Status) &
+        BigInt(1 << HjpegAxiLiteRegisters.StatusProtocolErrorBit)) mustBe
+        BigInt(1 << HjpegAxiLiteRegisters.StatusProtocolErrorBit)
+
+      dut.io.sAxisRgb.valid.poke(true.B)
+      dut.io.sAxisRgb.bits.last.poke(true.B)
+      dut.io.sAxisRgb.ready.expect(true.B)
+      dut.clock.step()
+      dut.io.sAxisRgb.valid.poke(false.B)
+
+      dut.io.mAxisJpeg.ready.poke(true.B)
+      val firstBytes = scala.collection.mutable.ArrayBuffer.empty[Int]
+      var sawLast = false
+      var cycles = 0
+      while (!sawLast) {
+        assert(cycles < JpegHeaderBytes.HeaderLength + 4096, "timeout waiting for late-TLAST JPEG output")
+        if (dut.io.mAxisJpeg.valid.peek().litToBoolean) {
+          firstBytes += dut.io.mAxisJpeg.bits.data.peek().litValue.toInt
+          sawLast = dut.io.mAxisJpeg.bits.last.peek().litToBoolean
+        }
+        dut.clock.step()
+        cycles += 1
+      }
+      firstBytes.take(2).toSeq mustBe Seq(0xff, 0xd8)
+      firstBytes.takeRight(2).toSeq mustBe Seq(0xff, 0xd9)
+
+      writeReg(
+        dut,
+        HjpegAxiLiteRegisters.Control,
+        BigInt(1 << HjpegAxiLiteRegisters.ControlClearProtocolErrorBit))
+      readReg(dut, HjpegAxiLiteRegisters.Status) mustBe 0
+
+      configure(dut, width = 8, height = 8, subsample = false)
+      val recoveredBytes = emitFrame(dut, width = 8, height = 8)
+      recoveredBytes.take(2) mustBe Seq(0xff, 0xd8)
+      recoveredBytes.takeRight(2) mustBe Seq(0xff, 0xd9)
+      val image = ImageIO.read(new ByteArrayInputStream(recoveredBytes.map(_.toByte).toArray))
+      image must not be null
+      image.getWidth mustBe 8
+      image.getHeight mustBe 8
+      readReg(dut, HjpegAxiLiteRegisters.Status) mustBe 0
+    }
+  }
+
   "HjpegKv260AxiLiteTop should encode a configured frame through AXI streams" in {
     simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
       dut.reset.poke(true.B)
