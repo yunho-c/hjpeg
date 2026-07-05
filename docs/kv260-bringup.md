@@ -269,8 +269,8 @@ Expected evidence:
   `hardware_run_summary` from the saved transcript and fails if the stored
   summary does not match the recomputed evidence. JSON output includes the
   aggregate checked/pass/fail transcript counts, diagnostic failure count, and
-  passed/failed path lists, aggregate evidence group present/missing counts,
-  aggregate evidence group present/missing names, and aggregate
+  checked/passed/failed path lists, aggregate evidence group present/missing
+  counts, aggregate evidence group present/missing names, and aggregate
   recorded/passing/failing check counts and names plus the recomputed summary,
   evidence/check counts, missing evidence groups, and failing check names for
   each object-shaped transcript.

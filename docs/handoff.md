@@ -737,11 +737,11 @@ which evidence groups were missing. Saved run JSON can be checked later with
 `hardware_run_summary`, a stored summary that does not match recomputed
 evidence, failed recorded checks, or incomplete hardware evidence. JSON output
 includes aggregate checked/pass/fail transcript counts, diagnostic failure
-count, passed/failed path lists, aggregate evidence group present/missing counts,
-aggregate evidence group present/missing names, and aggregate
-recorded/passing/failing check counts and names plus the recomputed summary,
-evidence/check counts, missing evidence groups, and failing check names for each
-object-shaped transcript.
+count, checked/passed/failed path lists, aggregate evidence group
+present/missing counts, aggregate evidence group present/missing names, and
+aggregate recorded/passing/failing check counts and names plus the recomputed
+summary, evidence/check counts, missing evidence groups, and failing check names
+for each object-shaped transcript.
 
 ## Known Blockers And Bottlenecks
 

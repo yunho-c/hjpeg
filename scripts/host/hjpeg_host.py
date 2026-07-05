@@ -3084,6 +3084,7 @@ def main(argv: list[str] | None = None) -> int:
             failures.extend(record_failures)
         passed_count = sum(1 for record in records if record.get("passed") is True)
         failed_count = len(records) - passed_count
+        checked_paths = [str(record.get("path")) for record in records]
         passed_paths = [
             str(record.get("path"))
             for record in records
@@ -3137,6 +3138,7 @@ def main(argv: list[str] | None = None) -> int:
                         "passed_count": passed_count,
                         "failed_count": failed_count,
                         "failure_count": len(failures),
+                        "checked_paths": checked_paths,
                         "passed_paths": passed_paths,
                         "failed_paths": failed_paths,
                         "aggregate_evidence_group_count": (
