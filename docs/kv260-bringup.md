@@ -143,8 +143,8 @@ Expected evidence:
 - `protocol_error` is never reported for the valid frame.
 - JSON evidence records the AXI-Lite target and encoder configuration used for
   the run, including the frame limits checked by the host helper.
-- Standalone `status --json` evidence records the raw status word, decoded
-  `busy` and `protocol_error` flags, and text state.
+- Standalone `status --json` evidence records the AXI-Lite target, raw status
+  word, decoded `busy` and `protocol_error` flags, and text state.
 - Standalone `clear-error --json` evidence records the AXI-Lite target and
   control word pulsed when recovering from a sticky protocol fault.
 - The captured output starts with SOI and ends with EOI.

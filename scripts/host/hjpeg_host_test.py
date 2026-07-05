@@ -1818,6 +1818,9 @@ class HjpegHostTest(unittest.TestCase):
                 )
 
             record = json.loads(stdout.getvalue())
+            self.assertEqual(record["axi_lite"]["device"], str(mem))
+            self.assertEqual(record["axi_lite"]["base_addr"], 0)
+            self.assertEqual(record["axi_lite"]["base_addr_hex"], "0x0")
             self.assertEqual(record["status"], 3)
             self.assertEqual(record["status_hex"], "0x00000003")
             self.assertTrue(record["busy"])

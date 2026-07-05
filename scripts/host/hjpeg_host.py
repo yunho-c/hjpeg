@@ -1237,6 +1237,12 @@ def status_record(status: int) -> dict[str, object]:
     }
 
 
+def status_evidence_record(device: Path, base_address: int, status: int) -> dict[str, object]:
+    record = status_record(status)
+    record["axi_lite"] = axi_lite_target_record(device, base_address)
+    return record
+
+
 def clear_error_record(device: Path, base_address: int, control: int) -> dict[str, object]:
     return {
         "axi_lite": axi_lite_target_record(device, base_address),
@@ -1530,7 +1536,12 @@ def main(argv: list[str] | None = None) -> int:
         with AxiLiteWindow(args.dev, args.base_addr) as regs:
             status = regs.read32(REG_STATUS)
         if args.json:
-            print(json.dumps(status_record(status), sort_keys=True))
+            print(
+                json.dumps(
+                    status_evidence_record(args.dev, args.base_addr, status),
+                    sort_keys=True,
+                )
+            )
             return 0
         print(f"0x{status:08x} {status_text(status)}")
         return 0

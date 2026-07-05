@@ -220,8 +220,10 @@ machine-readable form for logs. Input-prep evidence includes dimensions, checked
 frame limits, byte lengths, and SHA-256 hashes for the generated PPM and packed
 RGB stream. Configuration evidence includes the AXI-Lite target, frame settings,
 checked frame limits, quality, restart interval, chroma mode, JFIF setting, and
-control word. Clear-error evidence records the AXI-Lite target and control word
-pulsed to clear sticky protocol faults. JPEG validation evidence includes dimensions, SOF0 8-bit sample
+control word. Status evidence records the AXI-Lite target, raw status word,
+decoded flags, and text state. Clear-error evidence records the AXI-Lite target
+and control word pulsed to clear sticky protocol faults. JPEG validation
+evidence includes dimensions, SOF0 8-bit sample
 precision, exactly one SOF0 and one SOS segment, three-component frame shape,
 scan-data byte count, stuffed entropy `0xff` byte count, SOF0 component ID
 order, sampling factors, MCU count, decoded chroma mode, exact SOS component
