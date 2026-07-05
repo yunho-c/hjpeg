@@ -141,8 +141,9 @@ channel, writes the encoder AXI-Lite configuration/status registers via
 dimensions, 8-bit sample precision, three-component frame shape, DQT/DHT table
 markers, optional JFIF APP0 signature, optional DRI restart interval, exactly
 one SOF0 and SOS, non-empty entropy-coded scan data, stuffed entropy `0xff`
-byte count, rejection of unsupported header markers, rejection of unexpected
-non-RST/non-EOI markers after SOS, and rejection of trailing bytes after EOI. It
+byte count, rejection of unsupported header markers, rejection of non-JFIF or
+duplicate APP0 markers, rejection of unexpected non-RST/non-EOI markers after
+SOS, and rejection of trailing bytes after EOI. It
 also records SOF0 component sampling factors, APP0 and JFIF APP0 counts, DQT/DHT
 table IDs, table payload byte counts and SHA-256 hashes, and SOS component table
 selectors, requires SOF0 and SOS component IDs to be `[1, 2, 3]`, requires the
@@ -151,11 +152,12 @@ SOS component list to match SOF0 exactly, requires baseline SOS spectral fields
 segment counts, rejects nonstandard DHT table sets and duplicate DQT/DHT table
 definitions, rejects empty, oversized, oversubscribed, or invalid baseline DHT
 tables and dangling table references, rejects unsupported header markers,
-requires the encoder's baseline marker order of optional APP0/JFIF, DQT, SOF0,
-DHT, optional DRI, SOS, entropy, and EOI, records the parsed marker sequence,
-RST marker sequence, and MCU count in JSON evidence, rejects RST markers without
-DRI or out-of-sequence RST markers, and requires the SOF0 sampling factors to
-match the supported 4:4:4 or 4:2:0 modes. The helper
+rejects non-JFIF or duplicate APP0 markers, requires the encoder's baseline
+marker order of optional APP0/JFIF, DQT, SOF0, DHT, optional DRI, SOS, entropy,
+and EOI, records the parsed marker sequence, RST marker sequence, and MCU count
+in JSON evidence, rejects RST markers without DRI or out-of-sequence RST
+markers, and requires the SOF0 sampling factors to match the supported 4:4:4 or
+4:2:0 modes. The helper
 can also run an external JPEG decoder command with a configurable timeout and
 bounded stdout/stderr capture so decoder-open evidence is captured in the same
 transcript without risking a hung or oversized validation run. Standalone

@@ -234,7 +234,8 @@ Expected evidence:
   segment, and the number of entropy-coded scan data bytes, proving the file
   contains an SOS marker with non-empty scan payload. It also records the
   stuffed entropy `0xff` byte count and rejects unsupported header markers,
-  unexpected non-RST/non-EOI markers after SOS, or trailing bytes after EOI.
+  non-JFIF or duplicate APP0 markers, unexpected non-RST/non-EOI markers after
+  SOS, or trailing bytes after EOI.
 - The helper records APP0, DQT, DHT, DRI, and restart-marker counts, plus the
   parsed DRI restart interval when present. It requires exactly two DQT
   segments and four DHT segments for the current encoder contract. The helper
@@ -266,10 +267,10 @@ Expected evidence:
   once and SOS spectral fields `Ss=0`, `Se=63`, `Ah/Al=0`. Pass
   `--check-chroma-mode` to standalone `validate-jpeg`; `run-stream-devices`
   checks this automatically against the configured chroma mode.
-- The helper records APP0 marker count and JFIF APP0 signature count, and can
-  enforce the JFIF signature with `--expect-jfif present` or `absent`;
-  `run-stream-devices` checks this automatically against the configured JFIF
-  control bit.
+- The helper records APP0 marker count and JFIF APP0 signature count, rejects
+  non-JFIF APP0 segments and more than one APP0 marker, and can enforce the
+  JFIF signature with `--expect-jfif present` or `absent`; `run-stream-devices`
+  checks this automatically against the configured JFIF control bit.
 - The helper reports the total JPEG byte length and SHA-256 so the captured
   artifact can be matched against saved files and logs.
 - For `run-stream-devices`, the helper reports the actual and expected input

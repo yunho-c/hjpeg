@@ -680,6 +680,10 @@ def jpeg_info(data: bytes) -> JpegInfo:
         )
     if dht_segments != 4:
         raise ValueError(f"JPEG DHT segment count is {dht_segments}, expected 4")
+    if app0_segments > 1:
+        raise ValueError(f"JPEG APP0 segment count is {app0_segments}, expected 0 or 1")
+    if app0_segments != jfif_app0_segments:
+        raise ValueError("JPEG APP0 segment is not a JFIF APP0 segment")
     if dri_segments > 1:
         raise ValueError(f"JPEG DRI segment count is {dri_segments}, expected 0 or 1")
     if restart_interval == 0:

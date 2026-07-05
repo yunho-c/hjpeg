@@ -250,6 +250,21 @@ def with_unexpected_header_marker(jpeg: bytes) -> bytes:
     return jpeg[:dqt] + app1 + jpeg[dqt:]
 
 
+def with_non_jfif_app0(jpeg: bytes) -> bytes:
+    app0 = jpeg.find(b"\xff\xe0")
+    if app0 < 0:
+        raise AssertionError("APP0 marker not found")
+    mutated = bytearray(jpeg)
+    mutated[app0 + 4 : app0 + 9] = b"BAD!\x00"
+    return bytes(mutated)
+
+
+def with_duplicate_app0(jpeg: bytes) -> bytes:
+    app0_start, app0_end = segment_bounds(jpeg, b"\xff\xe0")
+    segment = jpeg[app0_start:app0_end]
+    return jpeg[:app0_start] + segment + jpeg[app0_start:]
+
+
 def without_segment(jpeg: bytes, marker: bytes) -> bytes:
     marker_offset = jpeg.find(marker)
     if marker_offset < 0:
@@ -1637,14 +1652,13 @@ class HjpegHostTest(unittest.TestCase):
                 expected_height=13,
                 expected_emit_jfif=False,
             )
-            generic_app0_info = hjpeg_host.validate_jpeg(
-                with_app0,
-                expected_width=17,
-                expected_height=13,
-                expected_emit_jfif=False,
-            )
-            self.assertEqual(generic_app0_info.app0_segments, 1)
-            self.assertEqual(generic_app0_info.jfif_app0_segments, 0)
+            with self.assertRaisesRegex(ValueError, "APP0 segment is not a JFIF"):
+                hjpeg_host.validate_jpeg(
+                    with_app0,
+                    expected_width=17,
+                    expected_height=13,
+                    expected_emit_jfif=False,
+                )
 
             with self.assertRaisesRegex(ValueError, "expected"):
                 hjpeg_host.validate_jpeg(
@@ -1653,7 +1667,7 @@ class HjpegHostTest(unittest.TestCase):
                     expected_height=13,
                     expected_emit_jfif=True,
                 )
-            with self.assertRaisesRegex(ValueError, "expected"):
+            with self.assertRaisesRegex(ValueError, "APP0 segment is not a JFIF"):
                 hjpeg_host.validate_jpeg(
                     with_app0,
                     expected_width=17,
@@ -1812,6 +1826,22 @@ class HjpegHostTest(unittest.TestCase):
             jpeg.write_bytes(with_unexpected_header_marker(minimal_jpeg(width=17, height=13)))
 
             with self.assertRaisesRegex(ValueError, "APP1 marker is not supported"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_non_jfif_app0(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "non-jfif-app0.jpg"
+            jpeg.write_bytes(with_non_jfif_app0(minimal_jpeg(width=17, height=13)))
+
+            with self.assertRaisesRegex(ValueError, "APP0 segment is not a JFIF"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_duplicate_app0(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "duplicate-app0.jpg"
+            jpeg.write_bytes(with_duplicate_app0(minimal_jpeg(width=17, height=13)))
+
+            with self.assertRaisesRegex(ValueError, "APP0 segment count is 2"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_rejects_duplicate_frame_and_scan_markers(self) -> None:
