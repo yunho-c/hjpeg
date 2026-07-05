@@ -25,6 +25,9 @@ if {$argc >= 2} {
 if {$argc >= 3} {
   set jobs [lindex $argv 2]
 }
+if {![regexp {^[1-9][0-9]*$} $jobs]} {
+  error "Vivado job count must be a positive integer"
+}
 
 set project_file [file join $project_dir hjpeg_kv260_bd.xpr]
 

@@ -172,6 +172,10 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `a1619c7 fix: validate host evidence config records`
+- `e809d61 fix: validate jpeg expectations before io`
+- `0dea2ce fix: validate host run config before io`
+- `d48e990 fix: validate host jpeg table payloads`
 - `3292d43 fix: reject empty vivado evidence files`
 - `f56dedd fix: reject empty vivado packaging filelist`
 - `e3b3b7f test: verify vivado block design handoff`

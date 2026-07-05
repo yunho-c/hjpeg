@@ -118,6 +118,7 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
 
     bitstream must include("hjpeg_kv260_bd.xpr")
     bitstream must include("open_project")
+    bitstream must include("Vivado job count must be a positive integer")
     bitstream must include("set_property top hjpeg_kv260_wrapper")
     bitstream must include("launch_runs synth_1")
     bitstream must include("wait_on_run synth_1")

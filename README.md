@@ -121,6 +121,10 @@ Build the block design through bitstream generation and export an XSA:
 vivado -mode batch -source scripts/vivado/build_kv260_bitstream.tcl
 ```
 
+The bitstream script also accepts optional project directory, artifact
+directory, and Vivado job-count arguments after `-tclargs`; the job count must
+be a positive integer.
+
 Check generated timing and utilization reports:
 
 ```sh

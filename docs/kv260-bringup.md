@@ -82,6 +82,10 @@ python3 scripts/vivado/check_reports.py \
   --json
 ```
 
+The bitstream script accepts optional project directory, artifact directory, and
+Vivado job-count arguments after `-tclargs`; use a positive integer for the job
+count.
+
 Expected evidence:
 
 - `build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit`
