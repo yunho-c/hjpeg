@@ -281,9 +281,10 @@ Expected evidence:
   points at the `check_reports.py --json` output saved from the bitstream build,
   it also extracts the passing `hjpeg_0/s_axi_lite` address-map base address and
   requires that Vivado transcript to have `passed` and
-  `complete_vivado_flow_evidence` true. The checker fails if the run
-  transcript's AXI-Lite base address does not match the Vivado build evidence or
-  if multiple Vivado evidence files report conflicting HJPEG base addresses.
+  `complete_vivado_flow_evidence` true, plus required `.bit` and `.xsa` artifact
+  suffix evidence. The checker fails if the run transcript's AXI-Lite base
+  address does not match the Vivado build evidence or if multiple Vivado evidence
+  files report conflicting HJPEG base addresses.
   JSON output includes the aggregate checked/pass/fail
   transcript counts, diagnostic failure count, and checked/passed/failed path
   lists, summary checked, matched, and mismatched counts and paths, aggregate

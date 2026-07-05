@@ -266,10 +266,11 @@ run JSON can be checked later with
 evidence, failed recorded checks, or incomplete hardware evidence. With
 `--vivado-evidence`, the saved-run checker also parses `check_reports.py --json`
 Vivado evidence, extracts passing `hjpeg_0/s_axi_lite` address-map base
-addresses, and requires the Vivado transcript to have `passed` and
-`complete_vivado_flow_evidence` true. It fails run transcripts whose AXI-Lite
-base address does not match the Vivado build evidence, or whose supplied Vivado
-evidence files report conflicting HJPEG base addresses. JSON output includes
+addresses, and requires the Vivado transcript to have `passed`,
+`complete_vivado_flow_evidence`, and the required `.bit` and `.xsa` artifact
+suffix evidence true. It fails run transcripts whose AXI-Lite base address does
+not match the Vivado build evidence, or whose supplied Vivado evidence files
+report conflicting HJPEG base addresses. JSON output includes
 aggregate checked/pass/fail transcript counts, diagnostic failure count,
 checked/passed/failed path lists, summary checked, matched, and mismatched
 counts and paths, aggregate evidence group present/missing counts, aggregate

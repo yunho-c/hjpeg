@@ -754,8 +754,9 @@ evidence, failed recorded checks, or incomplete hardware evidence. Pass
 `--vivado-evidence` with the saved `check_reports.py --json` bitstream evidence
 to cross-check the run transcript's AXI-Lite base address against the Vivado
 `hjpeg_0/s_axi_lite` address-map entry. The Vivado transcript must have
-`passed` and `complete_vivado_flow_evidence` true. Supplying multiple Vivado
-evidence files is allowed only when they agree on the same HJPEG base address.
+`passed`, `complete_vivado_flow_evidence`, and the required `.bit` and `.xsa`
+artifact suffix evidence true. Supplying multiple Vivado evidence files is
+allowed only when they agree on the same HJPEG base address.
 JSON output includes aggregate checked/pass/fail transcript counts, diagnostic
 failure count, checked/passed/failed path lists, summary checked, matched, and
 mismatched counts and paths, aggregate evidence group present/missing counts,

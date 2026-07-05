@@ -2507,6 +2507,21 @@ def vivado_hjpeg_base_addresses_from_record(record: object) -> tuple[int, ...]:
     return tuple(dict.fromkeys(bases))
 
 
+def vivado_required_artifact_suffixes_present(record: object) -> bool:
+    if not isinstance(record, dict):
+        return False
+    artifact_suffixes = record.get("artifact_suffixes")
+    if not isinstance(artifact_suffixes, dict):
+        return False
+    required_suffixes_present = artifact_suffixes.get("required_suffixes_present")
+    return (
+        artifact_suffixes.get("all_required_suffixes_present") is True
+        and isinstance(required_suffixes_present, dict)
+        and required_suffixes_present.get(".bit") is True
+        and required_suffixes_present.get(".xsa") is True
+    )
+
+
 def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str]]:
     result: dict[str, object] = {
         "path": str(path),
@@ -2528,14 +2543,21 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         isinstance(parsed, dict)
         and parsed.get("complete_vivado_flow_evidence") is True
     )
+    vivado_artifact_suffixes_present = vivado_required_artifact_suffixes_present(parsed)
     bases = vivado_hjpeg_base_addresses_from_record(parsed)
     result.update(
         {
             "vivado_passed": vivado_passed,
             "complete_vivado_flow_evidence": complete_vivado_flow_evidence,
+            "vivado_artifact_suffixes_present": vivado_artifact_suffixes_present,
             "hjpeg_base_addresses": list(bases),
             "hjpeg_base_addresses_hex": [f"0x{base:x}" for base in bases],
-            "passed": bool(bases) and vivado_passed and complete_vivado_flow_evidence,
+            "passed": (
+                bool(bases)
+                and vivado_passed
+                and complete_vivado_flow_evidence
+                and vivado_artifact_suffixes_present
+            ),
         }
     )
     failures = []
@@ -2543,6 +2565,8 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         failures.append(f"{path}: Vivado evidence did not pass")
     if not complete_vivado_flow_evidence:
         failures.append(f"{path}: complete_vivado_flow_evidence is false")
+    if not vivado_artifact_suffixes_present:
+        failures.append(f"{path}: Vivado evidence missing required .bit/.xsa artifacts")
     if not bases:
         failures.append(f"{path}: no passing hjpeg_0/s_axi_lite address-map evidence")
     return result, failures
