@@ -2452,6 +2452,21 @@ class HjpegHostTest(unittest.TestCase):
         self.assertFalse(summary["evidence_present"]["jpeg_output"])
         self.assertEqual(summary["evidence_group_count"], 10)
         self.assertEqual(summary["evidence_present_count"], 0)
+        self.assertEqual(
+            summary["missing_evidence"],
+            [
+                "jpeg_output",
+                "input_rgb",
+                "axi_lite",
+                "encoder_config",
+                "capture_config",
+                "status_checks",
+                "validation_expectations",
+                "input_ppm",
+                "transfer_timing",
+                "decoder",
+            ],
+        )
         self.assertFalse(summary["all_recorded_checks_passed"])
         self.assertEqual(summary["recorded_check_count"], 7)
         self.assertEqual(summary["passing_check_count"], 5)
@@ -4555,6 +4570,7 @@ class HjpegHostTest(unittest.TestCase):
                     },
                     "evidence_group_count": 10,
                     "evidence_present_count": 10,
+                    "missing_evidence": [],
                     "checks": {
                         "jpeg_validation_passed": True,
                         "jpeg_byte_length_positive": True,

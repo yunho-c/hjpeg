@@ -2205,6 +2205,9 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     evidence_present_count = sum(
         1 for present in evidence_present.values() if present is True
     )
+    missing_evidence = [
+        str(name) for name, present in evidence_present.items() if present is not True
+    ]
     recorded_check_count = len(checks)
     passing_check_count = sum(1 for passed in checks.values() if passed is True)
     failing_checks = [
@@ -2215,12 +2218,13 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         "evidence_present": evidence_present,
         "evidence_group_count": evidence_group_count,
         "evidence_present_count": evidence_present_count,
+        "missing_evidence": missing_evidence,
         "checks": checks,
         "recorded_check_count": recorded_check_count,
         "passing_check_count": passing_check_count,
         "failing_checks": failing_checks,
         "all_recorded_checks_passed": all_recorded_checks_passed,
-        "complete_hardware_run_evidence": evidence_present_count == evidence_group_count
+        "complete_hardware_run_evidence": not missing_evidence
         and all_recorded_checks_passed,
     }
 
@@ -2339,12 +2343,12 @@ def check_run_evidence_record(
         failures.append(
             f"{path}: missing hardware_run_summary.evidence_present object"
         )
-    evidence_present = computed_summary.get("evidence_present")
-    missing_evidence = []
-    if isinstance(evidence_present, dict):
-        missing_evidence = [
-            str(name) for name, present in evidence_present.items() if not bool(present)
-        ]
+    missing_evidence_value = computed_summary.get("missing_evidence")
+    missing_evidence = (
+        [str(name) for name in missing_evidence_value]
+        if isinstance(missing_evidence_value, list)
+        else []
+    )
     complete = bool(computed_summary.get("complete_hardware_run_evidence", False))
     all_checks = bool(computed_summary.get("all_recorded_checks_passed", False))
     result.update(
