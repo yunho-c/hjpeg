@@ -2559,6 +2559,7 @@ class HjpegHostTest(unittest.TestCase):
                 complete_run_evidence_record(root)["hardware_run_summary"],
             )
             self.assertEqual(record["missing_evidence"], [])
+            self.assertEqual(record["failing_checks"], [])
 
     def test_check_run_evidence_file_rejects_tampered_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2579,6 +2580,7 @@ class HjpegHostTest(unittest.TestCase):
                 hjpeg_host.hardware_run_summary_record(evidence),
             )
             self.assertEqual(record["missing_evidence"], [])
+            self.assertEqual(record["failing_checks"], [])
             self.assertTrue(
                 any(
                     "does not match recomputed summary" in failure
@@ -2624,6 +2626,7 @@ class HjpegHostTest(unittest.TestCase):
                 evidence["hardware_run_summary"],
             )
             self.assertEqual(record["missing_evidence"], ["input_ppm", "decoder"])
+            self.assertEqual(record["failing_checks"], [])
             self.assertTrue(
                 any(
                     "complete_hardware_run_evidence is false" in failure
@@ -2635,6 +2638,31 @@ class HjpegHostTest(unittest.TestCase):
                     "missing hardware evidence groups" in failure
                     for failure in failures
                 )
+            )
+
+    def test_check_run_evidence_file_reports_failing_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "run.json"
+            evidence = complete_run_evidence_record(root)
+            evidence["encoder_config"]["width"] = evidence["width"] + 1
+            evidence["hardware_run_summary"] = hjpeg_host.hardware_run_summary_record(
+                evidence
+            )
+            path.write_text(json.dumps(evidence))
+
+            record, failures = hjpeg_host.check_run_evidence_file(path)
+
+            self.assertFalse(record["passed"])
+            self.assertFalse(record["all_recorded_checks_passed"])
+            self.assertTrue(record["hardware_run_summary_matches_computed"])
+            self.assertEqual(record["missing_evidence"], [])
+            self.assertEqual(
+                record["failing_checks"],
+                ["encoder_config_matches_jpeg_dimensions"],
+            )
+            self.assertTrue(
+                any("failing hardware checks" in failure for failure in failures)
             )
 
     def test_check_run_evidence_cli_can_print_json_failures(self) -> None:

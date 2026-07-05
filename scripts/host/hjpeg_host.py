@@ -2349,6 +2349,12 @@ def check_run_evidence_record(
         if isinstance(missing_evidence_value, list)
         else []
     )
+    failing_checks_value = computed_summary.get("failing_checks")
+    failing_checks = (
+        [str(name) for name in failing_checks_value]
+        if isinstance(failing_checks_value, list)
+        else []
+    )
     complete = bool(computed_summary.get("complete_hardware_run_evidence", False))
     all_checks = bool(computed_summary.get("all_recorded_checks_passed", False))
     result.update(
@@ -2357,6 +2363,7 @@ def check_run_evidence_record(
             "all_recorded_checks_passed": all_checks,
             "hardware_run_summary_matches_computed": summary_matches_computed,
             "missing_evidence": missing_evidence,
+            "failing_checks": failing_checks,
         }
     )
     if not complete:
@@ -2367,6 +2374,8 @@ def check_run_evidence_record(
         failures.append(
             f"{path}: missing hardware evidence groups: {', '.join(missing_evidence)}"
         )
+    if failing_checks:
+        failures.append(f"{path}: failing hardware checks: {', '.join(failing_checks)}")
     result["passed"] = not failures
     return result, failures
 
