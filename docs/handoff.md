@@ -264,8 +264,9 @@ Recent host/Vivado helper work made the evidence path machine-readable. The
 host helper now supports JSON evidence for `make-test-ppm`, `pack-ppm`,
 `config`, `status`, `validate-jpeg`, and `run-stream-devices`. The run evidence
 ties together the input RGB stream hash, output JPEG hash, AXI-Lite target,
-encoder configuration, status checkpoints, and optional decoder command. Host
-JPEG validation now checks more than dimensions: it requires DQT and DHT
+encoder configuration, status checkpoints, and optional decoder command plus
+the decoder timeout. Host JPEG validation now checks more than dimensions: it
+requires DQT and DHT
 markers, records DQT/DHT table IDs and SOS component table selectors, rejects
 dangling table references, records APP0/DQT/DHT/DRI/RST marker counts, parses
 DRI restart intervals, requires exactly one SOF0 and one SOS segment, requires
@@ -440,6 +441,7 @@ python3 scripts/host/hjpeg_host.py run-stream-devices \
   --restart-interval RESTART_INTERVAL \
   --chroma-subsample \
   --decoder-command 'magick identify {jpeg}' \
+  --decoder-timeout-seconds 30 \
   --json
 python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000 --json
 python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
@@ -483,7 +485,7 @@ Hardware completion evidence should include:
   marker counts, parsed marker sequence, stuffed entropy `0xff` byte count,
   JFIF APP0 signature count, restart interval evidence, DQT/DHT table IDs and
   payload hashes, Huffman table set, SOS table selectors, chroma mode, JFIF
-  evidence, and decoder command.
+  evidence, decoder command, and decoder timeout.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 
@@ -496,7 +498,9 @@ deterministic non-flat/color P6 PPM fixture for repeatable visual checks when
 no external image is available. Pass
 `--decoder-command 'magick identify {jpeg}'` or an equivalent installed decoder
 command to `validate-jpeg` or `run-stream-devices` when you want the standard
-decoder-open check captured in JSON evidence.
+decoder-open check captured in JSON evidence. Use
+`--decoder-timeout-seconds` to bound that subprocess; the default is 30
+seconds.
 
 ## Known Blockers And Bottlenecks
 
@@ -534,7 +538,7 @@ If the new PC has KV260 access too:
 2. Confirm the AXI-Lite base address and DMA device model.
 3. Run a small PPM through `hjpeg_host.py` using the JSON evidence options.
 4. Validate the captured JPEG with `--json`, marker/chroma/JFIF/restart
-   expectations, and a standard decoder command.
+   expectations, a standard decoder command, and a decoder timeout.
 5. Save the command JSON records and enough output evidence to update
    `docs/kv260-bringup.md`.
 

@@ -956,6 +956,7 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertNotIn("decoder_passed", record)
             self.assertNotIn("decoder_command", record)
+            self.assertNotIn("decoder_timeout_seconds", record)
 
     def test_validate_jpeg_json_records_decoder_command(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -976,6 +977,8 @@ class HjpegHostTest(unittest.TestCase):
                             "13",
                             "--decoder-command",
                             command,
+                            "--decoder-timeout-seconds",
+                            "2.5",
                             "--json",
                         ]
                     ),
@@ -985,6 +988,7 @@ class HjpegHostTest(unittest.TestCase):
             record = json.loads(stdout.getvalue())
             self.assertTrue(record["decoder_passed"])
             self.assertEqual(record["decoder_command"], command)
+            self.assertEqual(record["decoder_timeout_seconds"], 2.5)
 
     def test_validate_jpeg_can_check_expected_restart_interval(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1233,6 +1237,24 @@ class HjpegHostTest(unittest.TestCase):
                 hjpeg_host.run_decoder_command(
                     jpeg,
                     f'"{sys.executable}" -c "import sys; print(\'bad\', file=sys.stderr); sys.exit(3)"',
+                )
+
+    def test_decoder_command_reports_timeout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "out.jpg"
+            jpeg.write_bytes(minimal_jpeg(width=17, height=13))
+
+            with self.assertRaisesRegex(RuntimeError, "timed out after 0.1 seconds"):
+                hjpeg_host.run_decoder_command(
+                    jpeg,
+                    f'"{sys.executable}" -c "import time; time.sleep(5)"',
+                    timeout_seconds=0.1,
+                )
+            with self.assertRaisesRegex(ValueError, "decoder timeout"):
+                hjpeg_host.run_decoder_command(
+                    jpeg,
+                    f'"{sys.executable}" -c "pass"',
+                    timeout_seconds=0,
                 )
 
     def test_decoder_command_argv_appends_or_replaces_jpeg_path(self) -> None:
@@ -1845,6 +1867,8 @@ class HjpegHostTest(unittest.TestCase):
                             "--chroma-subsample",
                             "--decoder-command",
                             decoder_command,
+                            "--decoder-timeout-seconds",
+                            "2.5",
                             "--json",
                         ]
                     ),
@@ -1883,6 +1907,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(record["encoder_config"]["clear_error"])
             self.assertTrue(record["decoder_passed"])
             self.assertEqual(record["decoder_command"], decoder_command)
+            self.assertEqual(record["decoder_timeout_seconds"], 2.5)
             self.assertEqual(decoder_marker.read_text(), "ffd8")
             self.assertEqual(
                 [status["context"] for status in record["status_checks"]],

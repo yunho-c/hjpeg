@@ -760,7 +760,14 @@ def decoder_command_argv(jpeg: Path, command: str) -> list[str]:
     return argv
 
 
-def run_decoder_command(jpeg: Path, command: str) -> None:
+def run_decoder_command(
+    jpeg: Path,
+    command: str,
+    timeout_seconds: float = 30.0,
+) -> None:
+    if timeout_seconds <= 0:
+        raise ValueError("decoder timeout must be positive")
+
     argv = decoder_command_argv(jpeg, command)
 
     try:
@@ -770,9 +777,14 @@ def run_decoder_command(jpeg: Path, command: str) -> None:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            timeout=timeout_seconds,
         )
     except FileNotFoundError as exc:
         raise RuntimeError(f"decoder command not found: {argv[0]}") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            f"decoder command timed out after {timeout_seconds:g} seconds"
+        ) from exc
 
     if completed.returncode != 0:
         detail = (completed.stderr or completed.stdout).strip()
@@ -785,6 +797,7 @@ def jpeg_info_record(
     info: JpegInfo,
     decoder_passed: bool | None = None,
     decoder_command: str | None = None,
+    decoder_timeout_seconds: float | None = None,
 ) -> dict[str, object]:
     record: dict[str, object] = {
         "jpeg": str(jpeg),
@@ -852,6 +865,8 @@ def jpeg_info_record(
         record["decoder_passed"] = decoder_passed
     if decoder_command is not None:
         record["decoder_command"] = decoder_command
+    if decoder_timeout_seconds is not None:
+        record["decoder_timeout_seconds"] = decoder_timeout_seconds
     return record
 
 
@@ -892,8 +907,15 @@ def run_evidence_record(
     status_checks: list[dict[str, object]] | None = None,
     decoder_passed: bool | None = None,
     decoder_command: str | None = None,
+    decoder_timeout_seconds: float | None = None,
 ) -> dict[str, object]:
-    record = jpeg_info_record(jpeg, info, decoder_passed, decoder_command)
+    record = jpeg_info_record(
+        jpeg,
+        info,
+        decoder_passed,
+        decoder_command,
+        decoder_timeout_seconds,
+    )
     if input_info is not None:
         record["input_rgb"] = {
             "path": input_info.path,
@@ -943,6 +965,7 @@ def run_stream_devices(
     configure: Callable[[], None] | None = None,
     check_status: Callable[[str], None] | None = None,
     decoder_command: str | None = None,
+    decoder_timeout_seconds: float = 30.0,
 ) -> tuple[JpegInfo, FileInfo]:
     require_supported_dimensions(expected_width, expected_height, max_width, max_height)
     rgb = input_rgb.read_bytes()
@@ -998,7 +1021,7 @@ def run_stream_devices(
         expected_emit_jfif=expected_emit_jfif,
     )
     if decoder_command is not None:
-        run_decoder_command(output_jpeg, decoder_command)
+        run_decoder_command(output_jpeg, decoder_command, decoder_timeout_seconds)
     if check_status is not None:
         check_status("after transfer")
     return info, input_info
@@ -1219,6 +1242,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--decoder-command",
         help="optional external decoder command; {jpeg} is replaced with the JPEG path, otherwise the path is appended",
     )
+    validate.add_argument(
+        "--decoder-timeout-seconds",
+        type=float,
+        default=30.0,
+        help="maximum seconds to wait for --decoder-command",
+    )
     validate.add_argument("--json", action="store_true", help="print validation evidence as JSON")
 
     config = subparsers.add_parser("config", help="write encoder AXI-Lite configuration registers")
@@ -1268,6 +1297,12 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument(
         "--decoder-command",
         help="optional external decoder command to prove the captured JPEG opens",
+    )
+    run.add_argument(
+        "--decoder-timeout-seconds",
+        type=float,
+        default=30.0,
+        help="maximum seconds to wait for --decoder-command",
     )
     run.add_argument("--json", action="store_true", help="print capture evidence as JSON")
 
@@ -1335,12 +1370,25 @@ def main(argv: list[str] | None = None) -> int:
         )
         decoder_passed = None
         if args.decoder_command is not None:
-            run_decoder_command(args.jpeg, args.decoder_command)
+            run_decoder_command(
+                args.jpeg,
+                args.decoder_command,
+                args.decoder_timeout_seconds,
+            )
             decoder_passed = True
+        decoder_timeout = (
+            args.decoder_timeout_seconds if args.decoder_command is not None else None
+        )
         if args.json:
             print(
                 json.dumps(
-                    jpeg_info_record(args.jpeg, info, decoder_passed, args.decoder_command),
+                    jpeg_info_record(
+                        args.jpeg,
+                        info,
+                        decoder_passed,
+                        args.decoder_command,
+                        decoder_timeout,
+                    ),
                     sort_keys=True,
                 )
             )
@@ -1460,8 +1508,12 @@ def main(argv: list[str] | None = None) -> int:
             configure=configure,
             check_status=check_status,
             decoder_command=args.decoder_command,
+            decoder_timeout_seconds=args.decoder_timeout_seconds,
         )
         decoder_passed = True if args.decoder_command is not None else None
+        decoder_timeout = (
+            args.decoder_timeout_seconds if args.decoder_command is not None else None
+        )
         if args.json:
             print(
                 json.dumps(
@@ -1484,6 +1536,7 @@ def main(argv: list[str] | None = None) -> int:
                         status_checks,
                         decoder_passed,
                         args.decoder_command,
+                        decoder_timeout,
                     ),
                     sort_keys=True,
                 )

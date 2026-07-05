@@ -166,7 +166,8 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
   --restart-interval RESTART_INTERVAL \
   --check-chroma-mode \
   --expect-jfif present \
-  --decoder-command 'magick identify {jpeg}'
+  --decoder-command 'magick identify {jpeg}' \
+  --decoder-timeout-seconds 30
 ```
 
 Use `--json` with `make-test-ppm`, `pack-ppm`, `config`, `status`,
@@ -215,7 +216,8 @@ Expected evidence:
   checkpoints enforced after configuration, before transfer, and after
   transfer.
 - A standard JPEG decoder can open `output.jpg`; when `--decoder-command` is
-  used, that decoder check and command string are part of the JSON evidence.
+  used, that decoder check, command string, and timeout are part of the JSON
+  evidence, and decoder failure or timeout fails validation.
 - The decoded dimensions match the input.
 - Visual content is recognizable for non-flat test images.
 

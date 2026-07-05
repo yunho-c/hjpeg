@@ -194,8 +194,10 @@ small adapter around the same host-side packing and validation helpers.
 
 To fold a standard decoder into the validation transcript, pass a command with
 `--decoder-command`. The helper replaces `{jpeg}` with the output path, or
-appends the path when no placeholder is present. JSON evidence records both
-that the decoder passed and the command string used:
+appends the path when no placeholder is present. The decoder subprocess is
+bounded by `--decoder-timeout-seconds`, which defaults to 30 seconds. JSON
+evidence records that the decoder passed, the command string used, and the
+timeout value:
 
 ```sh
 python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
@@ -204,7 +206,8 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
   --restart-interval 0 \
   --check-chroma-mode \
   --expect-jfif present \
-  --decoder-command 'magick identify {jpeg}'
+  --decoder-command 'magick identify {jpeg}' \
+  --decoder-timeout-seconds 30
 ```
 
 Add `--json` to `make-test-ppm`, `pack-ppm`, `config`, `status`,
@@ -222,13 +225,13 @@ DQT/DHT table IDs, exact DC/AC Huffman table set, exact DQT table set, DQT 8-bit
 precision, DQT/DHT payload byte counts and SHA-256 hashes, APP0 and JFIF APP0
 counts, exact DQT/DHT segment counts, DQT/DHT/DRI/restart marker counts, parsed
 marker sequence, parsed DRI restart interval, total JPEG byte length, SHA-256,
-and decoder command when one was provided. The validator rejects non-8-bit or
-non-three-component SOF0 frames, duplicate SOF0/SOS markers, nonstandard
-SOF0/SOS component IDs, mismatched SOS component lists, unsupported SOF0
-sampling factors, non-baseline SOS spectral fields, unexpected non-RST/non-EOI
-markers after SOS, nonstandard DQT/DHT table sets or segment counts, non-8-bit
-DQT tables, trailing bytes after EOI, and SOF0 or SOS references to missing
-DQT/DHT tables. Pass
+decoder command, and decoder timeout when one was provided. The validator
+rejects non-8-bit or non-three-component SOF0 frames, duplicate SOF0/SOS
+markers, nonstandard SOF0/SOS component IDs, mismatched SOS component lists,
+unsupported SOF0 sampling factors, non-baseline SOS spectral fields, unexpected
+non-RST/non-EOI markers after SOS, nonstandard DQT/DHT table sets or segment
+counts, non-8-bit DQT tables, trailing bytes after EOI, SOF0 or SOS references
+to missing DQT/DHT tables, and decoder commands that fail or time out. Pass
 `validate-jpeg --restart-interval N` to require the parsed DRI interval to match
 `N` and the scan to contain the expected number of RST markers for the parsed
 MCU count, or `0` to require no DRI/RST markers. Pass
