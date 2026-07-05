@@ -279,8 +279,8 @@ Expected evidence:
   `--check-chroma-mode` to standalone `validate-jpeg`; `run-stream-devices`
   checks this automatically against the configured chroma mode. The JSON
   `validation_expectations` block records these expected SOF0/SOS component
-  selectors, baseline spectral fields, and expected chroma mode alongside the
-  parsed evidence.
+  selectors, baseline spectral fields, marker order through SOS and EOI, RST
+  marker sequence, and expected chroma mode alongside the parsed evidence.
 - The helper records APP0 marker count, JFIF APP0 signature count, and parsed
   JFIF APP0 version/density/thumbnail fields, requires JFIF APP0 fixed fields
   to match the encoder baseline, rejects malformed JFIF APP0 segments,

@@ -167,10 +167,11 @@ parsed marker sequence, RST marker sequence, and MCU count in JSON evidence,
 rejects RST markers without DRI or out-of-sequence RST markers, and requires the
 SOF0 sampling factors to be nonzero and match the supported 4:4:4 or 4:2:0
 modes. The JSON validation expectations also record the expected marker counts,
+expected marker order through SOS and the terminal EOI marker,
 SOF0 component quantization selectors, optional SOF0 sampling factors,
 SOS component table selectors, baseline SOS spectral fields, expected chroma
-mode when checked, expected restart marker count, and expected DQT/DHT payload
-hashes when table checks are enabled. The helper
+mode when checked, expected restart marker count and RST sequence, and expected
+DQT/DHT payload hashes when table checks are enabled. The helper
 can also run an external JPEG decoder command with a configurable timeout and
 bounded stdout/stderr capture and records the resolved argv so decoder-open
 evidence, elapsed seconds, captured output lengths, and capture limit are

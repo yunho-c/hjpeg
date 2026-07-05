@@ -1202,6 +1202,7 @@ class HjpegHostTest(unittest.TestCase):
                     "height": 13,
                     "restart_interval": None,
                     "expected_restart_markers": None,
+                    "expected_restart_marker_sequence": None,
                     "expected_marker_counts": {
                         "APP0": None,
                         "JFIF_APP0": None,
@@ -1211,6 +1212,22 @@ class HjpegHostTest(unittest.TestCase):
                         "SOS": 1,
                         "DRI": None,
                         "RST": None,
+                    },
+                    "expected_marker_order": {
+                        "through_sos": [
+                            "SOI",
+                            "DQT",
+                            "DQT",
+                            "SOF0",
+                            "DHT",
+                            "DHT",
+                            "DHT",
+                            "DHT",
+                            "SOS",
+                        ],
+                        "app0_policy": "optional",
+                        "dri_policy": "optional",
+                        "terminal_marker": "EOI",
                     },
                     "expected_sof0_components": [
                         {"component_id": 1, "quantization_table": 0},
@@ -3102,6 +3119,7 @@ class HjpegHostTest(unittest.TestCase):
                     "height": 1,
                     "restart_interval": 2,
                     "expected_restart_markers": 0,
+                    "expected_restart_marker_sequence": [],
                     "expected_marker_counts": {
                         "APP0": 1,
                         "JFIF_APP0": 1,
@@ -3111,6 +3129,24 @@ class HjpegHostTest(unittest.TestCase):
                         "SOS": 1,
                         "DRI": 1,
                         "RST": 0,
+                    },
+                    "expected_marker_order": {
+                        "through_sos": [
+                            "SOI",
+                            "APP0",
+                            "DQT",
+                            "DQT",
+                            "SOF0",
+                            "DHT",
+                            "DHT",
+                            "DHT",
+                            "DHT",
+                            "DRI",
+                            "SOS",
+                        ],
+                        "app0_policy": "present",
+                        "dri_policy": "present",
+                        "terminal_marker": "EOI",
                     },
                     "expected_sof0_components": [
                         {

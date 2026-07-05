@@ -1039,6 +1039,16 @@ def expected_restart_marker_count(
     return (jpeg_mcu_count(info) - 1) // expected_restart_interval
 
 
+def expected_restart_marker_sequence(
+    info: JpegInfo,
+    expected_restart_interval: int | None,
+) -> list[str] | None:
+    marker_count = expected_restart_marker_count(info, expected_restart_interval)
+    if marker_count is None:
+        return None
+    return [f"RST{index % 8}" for index in range(marker_count)]
+
+
 def require_restart_interval(info: JpegInfo, expected_restart_interval: int) -> None:
     if expected_restart_interval < 0:
         raise ValueError("expected restart interval must be nonnegative")
@@ -1140,6 +1150,15 @@ def validation_expectations_record(
         "DRI": None if restart_interval is None else (0 if restart_interval == 0 else 1),
         "RST": expected_restart_marker_count(info, restart_interval),
     }
+    expected_marker_sequence_through_sos = ["SOI"]
+    if expect_jfif == "present":
+        expected_marker_sequence_through_sos.append("APP0")
+    expected_marker_sequence_through_sos.extend(
+        ["DQT", "DQT", "SOF0", "DHT", "DHT", "DHT", "DHT"]
+    )
+    if restart_interval is not None and restart_interval != 0:
+        expected_marker_sequence_through_sos.append("DRI")
+    expected_marker_sequence_through_sos.append("SOS")
     expected_sof0_components = [
         {"component_id": 1, "quantization_table": 0},
         {"component_id": 2, "quantization_table": 1},
@@ -1170,7 +1189,21 @@ def validation_expectations_record(
         "height": height,
         "restart_interval": restart_interval,
         "expected_restart_markers": expected_restart_marker_count(info, restart_interval),
+        "expected_restart_marker_sequence": expected_restart_marker_sequence(
+            info,
+            restart_interval,
+        ),
         "expected_marker_counts": expected_marker_counts,
+        "expected_marker_order": {
+            "through_sos": expected_marker_sequence_through_sos,
+            "app0_policy": expect_jfif if expect_jfif is not None else "optional",
+            "dri_policy": (
+                "optional"
+                if restart_interval is None
+                else ("absent" if restart_interval == 0 else "present")
+            ),
+            "terminal_marker": "EOI",
+        },
         "expected_sof0_components": expected_sof0_components,
         "expected_sos_components": expected_sos_components,
         "expected_sos_spectral": {
