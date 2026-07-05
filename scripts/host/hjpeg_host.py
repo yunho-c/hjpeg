@@ -378,6 +378,32 @@ def require_valid_huffman_code_counts(
             )
 
 
+def require_baseline_huffman_symbols(
+    symbol_bytes: bytes,
+    table_class: int,
+    table_id: int,
+) -> None:
+    class_name = "DC" if table_class == 0 else "AC"
+    if table_class == 0:
+        for symbol in symbol_bytes:
+            if symbol > 11:
+                raise ValueError(
+                    f"JPEG DC DHT table {table_id} contains invalid category {symbol}"
+                )
+        return
+
+    for symbol in symbol_bytes:
+        magnitude_size = symbol & 0x0F
+        if magnitude_size > 10:
+            raise ValueError(
+                f"JPEG AC DHT table {table_id} contains invalid magnitude size {magnitude_size}"
+            )
+        if magnitude_size == 0 and symbol not in (0x00, 0xF0):
+            raise ValueError(
+                f"JPEG {class_name} DHT table {table_id} contains invalid zero-size run symbol 0x{symbol:02x}"
+            )
+
+
 def jpeg_info(data: bytes) -> JpegInfo:
     if len(data) < 4 or data[:2] != b"\xff\xd8":
         raise ValueError("JPEG output does not start with SOI")
@@ -538,6 +564,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
                     )
                 require_valid_huffman_code_counts(count_bytes, table_class, table_id)
                 symbol_bytes = data[table_offset + 17 : table_offset + 17 + value_count]
+                require_baseline_huffman_symbols(symbol_bytes, table_class, table_id)
                 table_offset += 17 + value_count
                 if table_offset > segment_end:
                     raise ValueError("DHT segment table overruns segment length")

@@ -539,6 +539,24 @@ def with_mutated_first_dht_payload(jpeg: bytes) -> bytes:
     return bytes(mutated)
 
 
+def with_invalid_dc_dht_symbol(jpeg: bytes) -> bytes:
+    dht = jpeg.find(b"\xff\xc4")
+    if dht < 0:
+        raise AssertionError("DHT marker not found")
+    mutated = bytearray(jpeg)
+    mutated[dht + 21] = 0x0C
+    return bytes(mutated)
+
+
+def with_invalid_ac_dht_symbol(jpeg: bytes) -> bytes:
+    dht = jpeg.find(b"\xff\xc4\x00\xb5\x10")
+    if dht < 0:
+        raise AssertionError("AC DHT marker not found")
+    mutated = bytearray(jpeg)
+    mutated[dht + 21] = 0x10
+    return bytes(mutated)
+
+
 def standard_dht_payload_sha256(table_class: int, table_id: int) -> str:
     return hjpeg_host.expected_huffman_payload_hashes()[(table_class, table_id)][1]
 
@@ -1892,6 +1910,22 @@ class HjpegHostTest(unittest.TestCase):
             )
 
             with self.assertRaisesRegex(ValueError, "DC DHT table 0 oversubscribes"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_invalid_dc_huffman_symbol(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "invalid-dc-dht-symbol.jpg"
+            jpeg.write_bytes(with_invalid_dc_dht_symbol(minimal_jpeg(width=17, height=13)))
+
+            with self.assertRaisesRegex(ValueError, "DC DHT table 0 contains invalid category 12"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_invalid_ac_huffman_symbol(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "invalid-ac-dht-symbol.jpg"
+            jpeg.write_bytes(with_invalid_ac_dht_symbol(minimal_jpeg(width=17, height=13)))
+
+            with self.assertRaisesRegex(ValueError, "AC DHT table 0 contains invalid zero-size run"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_can_require_standard_table_payloads(self) -> None:
