@@ -6,7 +6,8 @@ This utility keeps the software contract close to the RTL register map:
 * P6 PPM input is packed as one 32-bit AXI-stream beat per RGB pixel, with byte
   order R, G, B, unused. The unused byte is ignored by the KV260 RTL wrapper.
 * AXI-Lite register writes configure `HjpegKv260AxiLiteTop`.
-* JPEG output validation checks SOI/EOI and SOF0 dimensions after a hardware run.
+* JPEG output validation checks SOI/EOI, SOF0 dimensions, SOS, and non-empty
+  entropy-coded scan data after a hardware run.
 
 DMA buffer allocation and transfer submission are intentionally board-image
 specific, so this script prepares and validates the payloads around that layer.
@@ -47,6 +48,13 @@ class PpmImage:
     width: int
     height: int
     rgb: bytes
+
+
+@dataclass(frozen=True)
+class JpegInfo:
+    width: int
+    height: int
+    scan_data_bytes: int
 
 
 def make_test_image(width: int, height: int) -> PpmImage:
@@ -132,12 +140,16 @@ def _read_be16(data: bytes, offset: int) -> int:
     return (data[offset] << 8) | data[offset + 1]
 
 
-def jpeg_dimensions(data: bytes) -> tuple[int, int]:
+def jpeg_info(data: bytes) -> JpegInfo:
     if len(data) < 4 or data[:2] != b"\xff\xd8":
         raise ValueError("JPEG output does not start with SOI")
 
     offset = 2
-    while offset + 4 <= len(data):
+    dimensions: tuple[int, int] | None = None
+    scan_data_bytes = 0
+    saw_sos = False
+    saw_eoi = False
+    while offset < len(data):
         while offset < len(data) and data[offset] == 0xFF:
             offset += 1
         if offset >= len(data):
@@ -146,6 +158,7 @@ def jpeg_dimensions(data: bytes) -> tuple[int, int]:
         marker = data[offset]
         offset += 1
         if marker == 0xD9:
+            saw_eoi = True
             break
         if 0xD0 <= marker <= 0xD7:
             continue
@@ -161,11 +174,45 @@ def jpeg_dimensions(data: bytes) -> tuple[int, int]:
                 raise ValueError("SOF0 segment is too short")
             height = _read_be16(data, offset + 3)
             width = _read_be16(data, offset + 5)
-            return width, height
+            dimensions = (width, height)
+
+        if marker == 0xDA:
+            saw_sos = True
+            offset += segment_length
+            while offset + 1 < len(data):
+                if data[offset] != 0xFF:
+                    scan_data_bytes += 1
+                    offset += 1
+                    continue
+
+                following = data[offset + 1]
+                if following == 0x00:
+                    scan_data_bytes += 1
+                    offset += 2
+                elif following == 0xFF:
+                    offset += 1
+                elif 0xD0 <= following <= 0xD7:
+                    offset += 2
+                else:
+                    break
+            continue
 
         offset += segment_length
 
-    raise ValueError("JPEG output does not contain a baseline SOF0 segment")
+    if not saw_eoi:
+        raise ValueError("JPEG output does not contain EOI")
+    if dimensions is None:
+        raise ValueError("JPEG output does not contain a baseline SOF0 segment")
+    if not saw_sos:
+        raise ValueError("JPEG output does not contain an SOS segment")
+    if scan_data_bytes == 0:
+        raise ValueError("JPEG output does not contain entropy-coded scan data")
+    return JpegInfo(width=dimensions[0], height=dimensions[1], scan_data_bytes=scan_data_bytes)
+
+
+def jpeg_dimensions(data: bytes) -> tuple[int, int]:
+    info = jpeg_info(data)
+    return info.width, info.height
 
 
 def validate_jpeg(path: Path, expected_width: int, expected_height: int) -> None:

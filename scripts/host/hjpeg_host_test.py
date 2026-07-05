@@ -32,9 +32,24 @@ def minimal_jpeg(width: int, height: int) -> bytes:
             0x11,
             0x00,
             0xFF,
+            0xDA,
+            0x00,
+            0x08,
+            0x01,
+            0x01,
+            0x00,
+            0x00,
+            0x3F,
+            0x00,
+            0x7F,
+            0xFF,
             0xD9,
         ]
     )
+
+
+def header_only_jpeg(width: int, height: int) -> bytes:
+    return minimal_jpeg(width, height).split(b"\xff\xda", maxsplit=1)[0] + b"\xff\xd9"
 
 
 class HjpegHostTest(unittest.TestCase):
@@ -85,9 +100,23 @@ class HjpegHostTest(unittest.TestCase):
             jpeg.write_bytes(minimal_jpeg(width=17, height=13))
 
             self.assertEqual(hjpeg_host.jpeg_dimensions(jpeg.read_bytes()), (17, 13))
+            self.assertEqual(hjpeg_host.jpeg_info(jpeg.read_bytes()).scan_data_bytes, 1)
             hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
             with self.assertRaisesRegex(ValueError, "expected 16x13"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=16, expected_height=13)
+
+    def test_validate_jpeg_requires_scan_data(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            header_only = root / "header-only.jpg"
+            empty_scan = root / "empty-scan.jpg"
+            header_only.write_bytes(header_only_jpeg(width=17, height=13))
+            empty_scan.write_bytes(minimal_jpeg(width=17, height=13).replace(b"\x7f\xff\xd9", b"\xff\xd9"))
+
+            with self.assertRaisesRegex(ValueError, "SOS"):
+                hjpeg_host.validate_jpeg(header_only, expected_width=17, expected_height=13)
+            with self.assertRaisesRegex(ValueError, "entropy-coded scan data"):
+                hjpeg_host.validate_jpeg(empty_scan, expected_width=17, expected_height=13)
 
     def test_configure_registers_writes_axi_lite_map(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
