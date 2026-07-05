@@ -2523,17 +2523,29 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     except json.JSONDecodeError as exc:
         return result, [f"{path}: invalid Vivado evidence JSON: {exc}"]
 
+    vivado_passed = isinstance(parsed, dict) and parsed.get("passed") is True
+    complete_vivado_flow_evidence = (
+        isinstance(parsed, dict)
+        and parsed.get("complete_vivado_flow_evidence") is True
+    )
     bases = vivado_hjpeg_base_addresses_from_record(parsed)
     result.update(
         {
+            "vivado_passed": vivado_passed,
+            "complete_vivado_flow_evidence": complete_vivado_flow_evidence,
             "hjpeg_base_addresses": list(bases),
             "hjpeg_base_addresses_hex": [f"0x{base:x}" for base in bases],
-            "passed": bool(bases),
+            "passed": bool(bases) and vivado_passed and complete_vivado_flow_evidence,
         }
     )
+    failures = []
+    if not vivado_passed:
+        failures.append(f"{path}: Vivado evidence did not pass")
+    if not complete_vivado_flow_evidence:
+        failures.append(f"{path}: complete_vivado_flow_evidence is false")
     if not bases:
-        return result, [f"{path}: no passing hjpeg_0/s_axi_lite address-map evidence"]
-    return result, []
+        failures.append(f"{path}: no passing hjpeg_0/s_axi_lite address-map evidence")
+    return result, failures
 
 
 def unique_string_values(records: list[dict[str, object]], key: str) -> list[str]:
