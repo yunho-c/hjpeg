@@ -149,10 +149,11 @@ parsed setup WNS and hold WHS values, utilization rows, thresholds, and
 target clock period/frequency, DRC violations, route-status counts, required
 clock-utilization report hashes, the requested input path lists and gate values,
 checked report/artifact count, per-category checked counts, required evidence
-category presence, per-category passing counts, missing category names, required
-`.bit`/`.xsa` artifact suffix presence, required suffix passing counts, and
-aggregate pass/fail counts, diagnostic failure count, passed/failed path lists,
-and pass/fail state in machine-readable build evidence.
+category presence, per-category passing/failing counts, missing category names,
+required `.bit`/`.xsa` artifact suffix presence, required suffix
+passing/failing counts, aggregate pass/fail counts, diagnostic failure count,
+passed/failed path lists, and pass/fail state in machine-readable build
+evidence.
 Required evidence category presence is based on at least one passing record in
 that category, not just a requested input path. Complete Vivado evidence counts
 only records whose `passed` field is an actual JSON boolean `true`. Use

@@ -454,6 +454,14 @@ def evidence_category_record(
         )
         for category in REQUIRED_EVIDENCE_CATEGORIES
     }
+    failing_counts = {
+        category: sum(
+            1
+            for record in evidence_records.get(category, [])
+            if record.get("passed") is not True
+        )
+        for category in REQUIRED_EVIDENCE_CATEGORIES
+    }
     present = {
         category: passing_counts[category] > 0
         for category in REQUIRED_EVIDENCE_CATEGORIES
@@ -463,6 +471,7 @@ def evidence_category_record(
         "required_categories": list(REQUIRED_EVIDENCE_CATEGORIES),
         "present": present,
         "passing_counts": passing_counts,
+        "failing_counts": failing_counts,
         "missing_required_categories": missing,
         "all_required_present": not missing,
     }
@@ -471,6 +480,7 @@ def evidence_category_record(
 def artifact_suffix_record(artifact_records: list[dict[str, object]]) -> dict[str, object]:
     suffix_counts: dict[str, int] = {}
     passing_suffix_counts: dict[str, int] = {}
+    failing_suffix_counts: dict[str, int] = {}
     present = {suffix: False for suffix in REQUIRED_ARTIFACT_SUFFIXES}
     for record in artifact_records:
         suffix = Path(str(record.get("path", ""))).suffix.lower()
@@ -480,12 +490,15 @@ def artifact_suffix_record(artifact_records: list[dict[str, object]]) -> dict[st
         if record.get("passed") is True and suffix in present:
             passing_suffix_counts[suffix] = passing_suffix_counts.get(suffix, 0) + 1
             present[suffix] = True
+        elif record.get("passed") is not True and suffix in present:
+            failing_suffix_counts[suffix] = failing_suffix_counts.get(suffix, 0) + 1
 
     missing = [suffix for suffix, is_present in present.items() if not is_present]
     return {
         "required_suffixes": list(REQUIRED_ARTIFACT_SUFFIXES),
         "suffix_counts": suffix_counts,
         "passing_suffix_counts": passing_suffix_counts,
+        "failing_suffix_counts": failing_suffix_counts,
         "required_suffixes_present": present,
         "missing_required_suffixes": missing,
         "all_required_suffixes_present": not missing,
