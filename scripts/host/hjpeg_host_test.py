@@ -961,6 +961,19 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
         "failed_count": 0,
         "failure_count": 0,
         "failures": [],
+        "checked_paths": [
+            "hjpeg_kv260.bit",
+            "hjpeg_kv260.xsa",
+            "post_impl.dcp",
+            "hjpeg_kv260_address_map.rpt",
+            "post_synth_timing_summary.rpt",
+            "post_impl_timing_summary.rpt",
+            "post_synth_utilization.rpt",
+            "post_impl_utilization.rpt",
+            "post_impl_drc.rpt",
+            "post_impl_route_status.rpt",
+            "post_impl_clock_utilization.rpt",
+        ],
         "passed_paths": [
             "hjpeg_kv260.bit",
             "hjpeg_kv260.xsa",
@@ -3328,6 +3341,24 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["vivado_evidence_categories_present"])
             self.assertFalse(record["vivado_summary_counts_consistent"])
             self.assertTrue(record["vivado_route_status_counts_present"])
+            self.assertFalse(record["passed"])
+            self.assertTrue(
+                any("diagnostic summary counts" in failure for failure in failures)
+            )
+
+    def test_vivado_evidence_file_record_rejects_inconsistent_checked_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["checked_paths"] = vivado_record["checked_paths"][:-1]
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertTrue(record["vivado_passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["vivado_evidence_categories_present"])
+            self.assertFalse(record["vivado_summary_counts_consistent"])
             self.assertFalse(record["passed"])
             self.assertTrue(
                 any("diagnostic summary counts" in failure for failure in failures)

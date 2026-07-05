@@ -307,9 +307,9 @@ Expected evidence:
   suffix lists empty, finite positive `clock_period_ns` and
   `clock_frequency_mhz` values that match each other, a required
   evidence-category summary showing every required category present and passing,
-  zero diagnostic failures and failed paths in the Vivado summary, plus
-  a passing route-status record with zero unrouted nets and zero nets with
-  routing errors. The
+  zero diagnostic failures and failed paths in the Vivado summary, checked paths
+  matching passed paths, plus a passing route-status record with zero unrouted
+  nets and zero nets with routing errors. The
   checker fails if the run transcript's AXI-Lite base address does not match the
   Vivado build evidence or if multiple Vivado evidence files report conflicting
   HJPEG base addresses.

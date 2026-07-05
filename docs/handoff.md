@@ -784,8 +784,9 @@ to cross-check the run transcript's AXI-Lite base address against the Vivado
 `post_impl_timing_summary.rpt` also present as passing hold-timing evidence and
 matching missing/failing filename, hold-timing, and suffix lists empty. The
 Vivado clock target must include finite positive `clock_period_ns` and
-`clock_frequency_mhz` values that match each other. Supplying multiple Vivado
-evidence files is allowed only when they agree on the same HJPEG base address.
+`clock_frequency_mhz` values that match each other, and the Vivado checked path
+list must match the passed path list. Supplying multiple Vivado evidence files
+is allowed only when they agree on the same HJPEG base address.
 JSON output includes aggregate checked/pass/fail transcript counts, diagnostic
 failure count, checked/passed/failed path lists, summary checked, matched, and
 mismatched counts and paths, aggregate evidence group present/missing counts,

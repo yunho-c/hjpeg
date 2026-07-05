@@ -2703,6 +2703,7 @@ def vivado_summary_counts_consistent(record: object) -> bool:
     failed_count = record.get("failed_count")
     failure_count = record.get("failure_count")
     failures = record.get("failures")
+    checked_paths = record.get("checked_paths")
     failed_paths = record.get("failed_paths")
     passed_paths = record.get("passed_paths")
     if not (
@@ -2712,6 +2713,7 @@ def vivado_summary_counts_consistent(record: object) -> bool:
         and isinstance(failed_count, int)
         and isinstance(failure_count, int)
         and isinstance(failures, list)
+        and isinstance(checked_paths, list)
         and isinstance(failed_paths, list)
         and isinstance(passed_paths, list)
     ):
@@ -2721,8 +2723,10 @@ def vivado_summary_counts_consistent(record: object) -> bool:
         and failed_count == 0
         and failure_count == 0
         and failures == []
+        and len(checked_paths) == checked_count
         and failed_paths == []
         and len(passed_paths) == passed_count
+        and checked_paths == passed_paths
     )
 
 
