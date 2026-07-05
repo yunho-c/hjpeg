@@ -211,6 +211,19 @@ def with_scan_restart_marker(jpeg: bytes, restart_marker: int = 0) -> bytes:
     )
 
 
+def with_scan_restart_markers(jpeg: bytes, restart_markers: list[int]) -> bytes:
+    eoi_payload = b"\x7f\xff\xd9"
+    if eoi_payload not in jpeg:
+        raise AssertionError("minimal scan payload not found")
+    scan = bytearray([0x7F])
+    for marker_index, restart_marker in enumerate(restart_markers):
+        if not 0 <= restart_marker <= 7:
+            raise AssertionError("restart marker must be in 0..7")
+        scan.extend([0xFF, 0xD0 + restart_marker, 0x40 + marker_index])
+    scan.extend([0xFF, 0xD9])
+    return jpeg.replace(eoi_payload, bytes(scan), 1)
+
+
 def with_stuffed_entropy_ff(jpeg: bytes) -> bytes:
     eoi_payload = b"\x7f\xff\xd9"
     if eoi_payload not in jpeg:
@@ -491,6 +504,7 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
         dri_segments=0,
         restart_interval=None,
         restart_markers=0,
+        restart_marker_sequence=(),
         marker_sequence=(
             "SOI",
             "APP0",
@@ -755,6 +769,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(parsed.dri_segments, 0)
             self.assertIsNone(parsed.restart_interval)
             self.assertEqual(parsed.restart_markers, 0)
+            self.assertEqual(parsed.restart_marker_sequence, ())
             self.assertEqual(
                 parsed.marker_sequence,
                 (
@@ -933,6 +948,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["dri_segments"], 0)
             self.assertIsNone(record["restart_interval"])
             self.assertEqual(record["restart_markers"], 0)
+            self.assertEqual(record["restart_marker_sequence"], [])
             self.assertEqual(
                 record["marker_sequence"],
                 [
@@ -1013,6 +1029,7 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertEqual(info.restart_interval, 4)
             self.assertEqual(info.restart_markers, 1)
+            self.assertEqual(info.restart_marker_sequence, (0,))
 
             with self.assertRaisesRegex(ValueError, "expected 3"):
                 hjpeg_host.validate_jpeg(
@@ -1536,10 +1553,7 @@ class HjpegHostTest(unittest.TestCase):
 
     def test_jpeg_info_counts_restart_markers_in_scan_data(self) -> None:
         jpeg = with_dri_segment(
-            minimal_jpeg(width=17, height=13).replace(
-                b"\x7f\xff\xd9",
-                b"\x7f\xff\xd0\x55\xff\xd9",
-            ),
+            with_scan_restart_markers(minimal_jpeg(width=17, height=13), [0, 1]),
             restart_interval=2,
         )
 
@@ -1547,9 +1561,31 @@ class HjpegHostTest(unittest.TestCase):
 
         self.assertEqual(info.dri_segments, 1)
         self.assertEqual(info.restart_interval, 2)
-        self.assertEqual(info.scan_data_bytes, 2)
-        self.assertEqual(info.restart_markers, 1)
-        self.assertEqual(info.marker_sequence[-3:], ("SOS", "RST0", "EOI"))
+        self.assertEqual(info.scan_data_bytes, 3)
+        self.assertEqual(info.restart_markers, 2)
+        self.assertEqual(info.restart_marker_sequence, (0, 1))
+        self.assertEqual(info.marker_sequence[-4:], ("SOS", "RST0", "RST1", "EOI"))
+
+    def test_validate_jpeg_rejects_bad_restart_marker_sequence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "bad-rst-sequence.jpg"
+            jpeg.write_bytes(
+                with_dri_segment(
+                    with_scan_restart_markers(minimal_jpeg(width=17, height=13), [0, 2]),
+                    restart_interval=1,
+                )
+            )
+
+            with self.assertRaisesRegex(ValueError, "restart marker sequence"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_restart_markers_without_dri(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "rst-without-dri.jpg"
+            jpeg.write_bytes(with_scan_restart_marker(minimal_jpeg(width=17, height=13)))
+
+            with self.assertRaisesRegex(ValueError, "without a DRI segment"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_rejects_malformed_dri_segment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1882,6 +1918,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["chroma_mode"], "4:2:0")
             self.assertEqual(record["dri_segments"], 1)
             self.assertEqual(record["restart_interval"], 2)
+            self.assertEqual(record["restart_marker_sequence"], [])
             self.assertEqual(record["scan_data_bytes"], 1)
             self.assertEqual(record["byte_length"], len(captured_jpeg))
             self.assertEqual(

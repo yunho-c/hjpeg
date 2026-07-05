@@ -147,6 +147,7 @@ class JpegInfo:
     dri_segments: int
     restart_interval: int | None
     restart_markers: int
+    restart_marker_sequence: tuple[int, ...]
     marker_sequence: tuple[str, ...]
 
 
@@ -279,7 +280,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
     sos_segments = 0
     dri_segments = 0
     restart_interval: int | None = None
-    restart_markers = 0
+    restart_marker_sequence: list[int] = []
     saw_sos = False
     saw_eoi = False
     eoi_offset: int | None = None
@@ -307,7 +308,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
                 raise ValueError(
                     "JPEG restart marker appears before entropy-coded scan data"
                 )
-            restart_markers += 1
+            restart_marker_sequence.append(marker - 0xD0)
             marker_sequence.append(jpeg_marker_name(marker))
             continue
         if offset + 2 > len(data):
@@ -448,7 +449,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
                 elif following == 0xFF:
                     offset += 1
                 elif 0xD0 <= following <= 0xD7:
-                    restart_markers += 1
+                    restart_marker_sequence.append(following - 0xD0)
                     marker_sequence.append(jpeg_marker_name(following))
                     offset += 2
                 else:
@@ -511,6 +512,16 @@ def jpeg_info(data: bytes) -> JpegInfo:
         raise ValueError(f"JPEG DRI segment count is {dri_segments}, expected 0 or 1")
     if restart_interval == 0:
         raise ValueError("JPEG DRI restart interval is 0, expected no DRI segment")
+    if restart_marker_sequence and restart_interval is None:
+        raise ValueError("JPEG restart marker appears without a DRI segment")
+    for marker_index, marker_id in enumerate(restart_marker_sequence):
+        expected_marker_id = marker_index % 8
+        if marker_id != expected_marker_id:
+            raise ValueError(
+                "JPEG restart marker sequence is "
+                f"{restart_marker_sequence}, expected RST markers to increment "
+                f"modulo 8 starting at RST0"
+            )
     if not saw_sos:
         raise ValueError("JPEG output does not contain an SOS segment")
     if sos_segments != 1:
@@ -606,7 +617,8 @@ def jpeg_info(data: bytes) -> JpegInfo:
         sos_segments=sos_segments,
         dri_segments=dri_segments,
         restart_interval=restart_interval,
-        restart_markers=restart_markers,
+        restart_markers=len(restart_marker_sequence),
+        restart_marker_sequence=tuple(restart_marker_sequence),
         marker_sequence=tuple(marker_sequence),
     )
 
@@ -857,6 +869,7 @@ def jpeg_info_record(
         "dri_segments": info.dri_segments,
         "restart_interval": info.restart_interval,
         "restart_markers": info.restart_markers,
+        "restart_marker_sequence": list(info.restart_marker_sequence),
         "marker_sequence": list(info.marker_sequence),
         "byte_length": info.byte_length,
         "sha256": info.sha256,
