@@ -24,12 +24,13 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
   private val StripeSamples = StripeRows * c.maxFrameWidth
   private val sampleIndexBits = log2Ceil(StripeSamples).max(1)
 
-  val sCollect :: sLoad :: sEmit :: Nil = Enum(3)
+  val sCollect :: sLoad :: sTransform :: sEmit :: Nil = Enum(4)
   val state = RegInit(sCollect)
   val blockX = RegInit(0.U(c.coordBits.W))
   val currentStripeLast = RegInit(false.B)
   val lastRowInStripe = RegInit(0.U(3.W))
   val loadSample = RegInit(0.U(6.W))
+  val transformBlock = RegInit(0.U(2.W))
 
   val ySamples = Mem(StripeSamples, SInt(sampleBits.W))
   val cbSamples = Mem(StripeSamples, SInt(sampleBits.W))
@@ -37,6 +38,9 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
   val yBlock = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
   val cbBlock = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
   val crBlock = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
+  val yCoefficients = Reg(new ZigZagCoefficientBlock(coefficientBits))
+  val cbCoefficients = Reg(new ZigZagCoefficientBlock(coefficientBits))
+  val crCoefficients = Reg(new ZigZagCoefficientBlock(coefficientBits))
 
   val rowInStripe = io.input.bits.y(2, 0)
   val writeIndex = (rowInStripe * c.maxFrameWidth.U + io.input.bits.x)(sampleIndexBits - 1, 0)
@@ -59,6 +63,7 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
       currentStripeLast := io.input.bits.y + 1.U >= io.config.ysize
       lastRowInStripe := rowInStripe
       loadSample := 0.U
+      transformBlock := 0.U
     }
   }
 
@@ -77,54 +82,52 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
     cbBlock(loadSample) := cbLoadSample
     crBlock(loadSample) := crLoadSample
     when(loadSample === (HjpegConstants.BlockSize - 1).U) {
-      state := sEmit
+      state := sTransform
+      transformBlock := 0.U
     }.otherwise {
       loadSample := loadSample + 1.U
     }
   }
 
-  val yTransform = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
-  val cbTransform = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
-  val crTransform = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
+  val transform = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
 
-  yTransform.io.quality := io.config.quality
-  yTransform.io.isLuminance := true.B
-  cbTransform.io.quality := io.config.quality
-  cbTransform.io.isLuminance := false.B
-  crTransform.io.quality := io.config.quality
-  crTransform.io.isLuminance := false.B
-
-  yTransform.io.input.valid := state === sEmit
-  cbTransform.io.input.valid := state === sEmit
-  crTransform.io.input.valid := state === sEmit
+  transform.io.quality := io.config.quality
+  transform.io.isLuminance := transformBlock === 0.U
+  transform.io.input.valid := state === sTransform
 
   for (row <- 0 until HjpegConstants.BlockDim) {
     for (col <- 0 until HjpegConstants.BlockDim) {
       val blockSample = row * HjpegConstants.BlockDim + col
-      yTransform.io.input.bits.samples(blockSample) := yBlock(blockSample)
-      cbTransform.io.input.bits.samples(blockSample) := cbBlock(blockSample)
-      crTransform.io.input.bits.samples(blockSample) := crBlock(blockSample)
+      transform.io.input.bits.samples(blockSample) :=
+        Mux(transformBlock === 0.U, yBlock(blockSample), Mux(transformBlock === 1.U, cbBlock(blockSample), crBlock(blockSample)))
     }
   }
 
-  val allTransformsValid =
-    yTransform.io.output.valid && cbTransform.io.output.valid && crTransform.io.output.valid
-  val allTransformsReady = io.output.ready && allTransformsValid
+  transform.io.output.ready := state === sTransform
 
-  yTransform.io.output.ready := allTransformsReady
-  cbTransform.io.output.ready := allTransformsReady
-  crTransform.io.output.ready := allTransformsReady
+  when(transform.io.output.fire) {
+    when(transformBlock === 0.U) {
+      yCoefficients := transform.io.output.bits
+      transformBlock := 1.U
+    }.elsewhen(transformBlock === 1.U) {
+      cbCoefficients := transform.io.output.bits
+      transformBlock := 2.U
+    }.otherwise {
+      crCoefficients := transform.io.output.bits
+      state := sEmit
+    }
+  }
 
   val lastBlockInStripe = blockX + HjpegConstants.BlockDim.U >= io.config.xsize
 
-  io.output.valid := state === sEmit && allTransformsValid
+  io.output.valid := state === sEmit
   io.output.bits.mcu.yBlockCount := 1.U
-  io.output.bits.mcu.y := yTransform.io.output.bits
-  io.output.bits.mcu.y1 := yTransform.io.output.bits
-  io.output.bits.mcu.y2 := yTransform.io.output.bits
-  io.output.bits.mcu.y3 := yTransform.io.output.bits
-  io.output.bits.mcu.cb := cbTransform.io.output.bits
-  io.output.bits.mcu.cr := crTransform.io.output.bits
+  io.output.bits.mcu.y := yCoefficients
+  io.output.bits.mcu.y1 := yCoefficients
+  io.output.bits.mcu.y2 := yCoefficients
+  io.output.bits.mcu.y3 := yCoefficients
+  io.output.bits.mcu.cb := cbCoefficients
+  io.output.bits.mcu.cr := crCoefficients
   io.output.bits.last := lastBlockInStripe && currentStripeLast
 
   when(io.output.fire) {
@@ -134,6 +137,7 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
     }.otherwise {
       blockX := blockX + HjpegConstants.BlockDim.U
       loadSample := 0.U
+      transformBlock := 0.U
       state := sLoad
     }
   }

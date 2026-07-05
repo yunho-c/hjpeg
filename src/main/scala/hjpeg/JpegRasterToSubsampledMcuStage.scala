@@ -26,13 +26,14 @@ class JpegRasterToSubsampledMcuStage(
   private val BandSamples = McuDim * c.maxFrameWidth
   private val sampleIndexBits = log2Ceil(BandSamples).max(1)
 
-  val sCollect :: sLoad :: sEmit :: Nil = Enum(3)
+  val sCollect :: sLoad :: sTransform :: sEmit :: Nil = Enum(4)
   val state = RegInit(sCollect)
   val blockX = RegInit(0.U(c.coordBits.W))
   val currentBandLast = RegInit(false.B)
   val lastRowInBand = RegInit(0.U(4.W))
   val loadPhase = RegInit(0.U(3.W))
   val loadSample = RegInit(0.U(6.W))
+  val transformBlock = RegInit(0.U(3.W))
   val chromaSubSample = RegInit(0.U(2.W))
   val cbAccumulator = RegInit(0.S((sampleBits + 2).W))
   val crAccumulator = RegInit(0.S((sampleBits + 2).W))
@@ -46,6 +47,12 @@ class JpegRasterToSubsampledMcuStage(
   val y3Block = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
   val cbBlock = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
   val crBlock = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
+  val y0Coefficients = Reg(new ZigZagCoefficientBlock(coefficientBits))
+  val y1Coefficients = Reg(new ZigZagCoefficientBlock(coefficientBits))
+  val y2Coefficients = Reg(new ZigZagCoefficientBlock(coefficientBits))
+  val y3Coefficients = Reg(new ZigZagCoefficientBlock(coefficientBits))
+  val cbCoefficients = Reg(new ZigZagCoefficientBlock(coefficientBits))
+  val crCoefficients = Reg(new ZigZagCoefficientBlock(coefficientBits))
 
   val rowInBand = io.input.bits.y(3, 0)
   val writeIndex = (rowInBand * c.maxFrameWidth.U + io.input.bits.x)(sampleIndexBits - 1, 0)
@@ -69,6 +76,7 @@ class JpegRasterToSubsampledMcuStage(
       lastRowInBand := rowInBand
       loadPhase := 0.U
       loadSample := 0.U
+      transformBlock := 0.U
       chromaSubSample := 0.U
       cbAccumulator := 0.S
       crAccumulator := 0.S
@@ -120,7 +128,8 @@ class JpegRasterToSubsampledMcuStage(
         cbAccumulator := 0.S
         crAccumulator := 0.S
         when(loadSample === (HjpegConstants.BlockSize - 1).U) {
-          state := sEmit
+          state := sTransform
+          transformBlock := 0.U
         }.otherwise {
           loadSample := loadSample + 1.U
         }
@@ -130,24 +139,10 @@ class JpegRasterToSubsampledMcuStage(
     }
   }
 
-  val y0Transform = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
-  val y1Transform = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
-  val y2Transform = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
-  val y3Transform = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
-  val cbTransform = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
-  val crTransform = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
-
-  val transforms = Seq(y0Transform, y1Transform, y2Transform, y3Transform, cbTransform, crTransform)
-  for (transform <- transforms) {
-    transform.io.quality := io.config.quality
-    transform.io.input.valid := state === sEmit
-  }
-  y0Transform.io.isLuminance := true.B
-  y1Transform.io.isLuminance := true.B
-  y2Transform.io.isLuminance := true.B
-  y3Transform.io.isLuminance := true.B
-  cbTransform.io.isLuminance := false.B
-  crTransform.io.isLuminance := false.B
+  val transform = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
+  transform.io.quality := io.config.quality
+  transform.io.isLuminance := transformBlock < 4.U
+  transform.io.input.valid := state === sTransform
 
   private def clampedIndex(row: UInt, col: UInt): UInt = {
     val readRow = Mux(row > lastRowInBand, lastRowInBand, row(3, 0))
@@ -158,31 +153,55 @@ class JpegRasterToSubsampledMcuStage(
   for (row <- 0 until HjpegConstants.BlockDim) {
     for (col <- 0 until HjpegConstants.BlockDim) {
       val sample = row * HjpegConstants.BlockDim + col
-      y0Transform.io.input.bits.samples(sample) := y0Block(sample)
-      y1Transform.io.input.bits.samples(sample) := y1Block(sample)
-      y2Transform.io.input.bits.samples(sample) := y2Block(sample)
-      y3Transform.io.input.bits.samples(sample) := y3Block(sample)
-      cbTransform.io.input.bits.samples(sample) := cbBlock(sample)
-      crTransform.io.input.bits.samples(sample) := crBlock(sample)
+      val y01Sample = Mux(transformBlock === 0.U, y0Block(sample), y1Block(sample))
+      val y23Sample = Mux(transformBlock === 2.U, y2Block(sample), y3Block(sample))
+      val ySample = Mux(transformBlock < 2.U, y01Sample, y23Sample)
+      val chromaSample = Mux(transformBlock === 4.U, cbBlock(sample), crBlock(sample))
+      transform.io.input.bits.samples(sample) := Mux(transformBlock < 4.U, ySample, chromaSample)
     }
   }
 
-  val allTransformsValid = transforms.map(_.io.output.valid).reduce(_ && _)
-  val allTransformsReady = io.output.ready && allTransformsValid
-  for (transform <- transforms) {
-    transform.io.output.ready := allTransformsReady
+  transform.io.output.ready := state === sTransform
+
+  when(transform.io.output.fire) {
+    switch(transformBlock) {
+      is(0.U) {
+        y0Coefficients := transform.io.output.bits
+        transformBlock := 1.U
+      }
+      is(1.U) {
+        y1Coefficients := transform.io.output.bits
+        transformBlock := 2.U
+      }
+      is(2.U) {
+        y2Coefficients := transform.io.output.bits
+        transformBlock := 3.U
+      }
+      is(3.U) {
+        y3Coefficients := transform.io.output.bits
+        transformBlock := 4.U
+      }
+      is(4.U) {
+        cbCoefficients := transform.io.output.bits
+        transformBlock := 5.U
+      }
+      is(5.U) {
+        crCoefficients := transform.io.output.bits
+        state := sEmit
+      }
+    }
   }
 
   val lastBlockInBand = blockX + McuDim.U >= io.config.xsize
 
-  io.output.valid := state === sEmit && allTransformsValid
+  io.output.valid := state === sEmit
   io.output.bits.mcu.yBlockCount := 4.U
-  io.output.bits.mcu.y := y0Transform.io.output.bits
-  io.output.bits.mcu.y1 := y1Transform.io.output.bits
-  io.output.bits.mcu.y2 := y2Transform.io.output.bits
-  io.output.bits.mcu.y3 := y3Transform.io.output.bits
-  io.output.bits.mcu.cb := cbTransform.io.output.bits
-  io.output.bits.mcu.cr := crTransform.io.output.bits
+  io.output.bits.mcu.y := y0Coefficients
+  io.output.bits.mcu.y1 := y1Coefficients
+  io.output.bits.mcu.y2 := y2Coefficients
+  io.output.bits.mcu.y3 := y3Coefficients
+  io.output.bits.mcu.cb := cbCoefficients
+  io.output.bits.mcu.cr := crCoefficients
   io.output.bits.last := lastBlockInBand && currentBandLast
 
   when(io.output.fire) {
@@ -193,6 +212,7 @@ class JpegRasterToSubsampledMcuStage(
       blockX := blockX + McuDim.U
       loadPhase := 0.U
       loadSample := 0.U
+      transformBlock := 0.U
       chromaSubSample := 0.U
       cbAccumulator := 0.S
       crAccumulator := 0.S

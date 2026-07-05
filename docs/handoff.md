@@ -199,7 +199,9 @@ The raster-to-MCU stages were also changed to serially load each MCU from stripe
 or band memories into small block registers before DCT. Generated
 `mem_15360x9.sv` and `mem_30720x9.sv` now have one read port and one write port,
 which removes the previous Vivado synthesis failure caused by too many memory
-read ports.
+read ports. A later source edit reuses one `JpegBlockTransformStage` per raster
+stage across the MCU's component blocks, reducing the 4:4:4 path from three
+parallel block transforms to one and the 4:2:0 path from six to one.
 
 The non-gray AXI wrapper regression compares the JPEG bytes emitted through
 `HjpegAxiStreamCore` against bytes emitted by direct `HjpegCore` input for the
@@ -238,8 +240,9 @@ Known local limitations:
   run no longer fails immediately on the raster-buffer memory port count, but it
   ran for more than 20 minutes locally and was stopped before producing reports.
   The next hardware bottleneck is likely overall synthesis/runtime/resource
-  pressure from the current highly combinational JPEG datapath, especially the
-  parallel DCT/quantization stages.
+  pressure from the current highly combinational JPEG datapath. After the
+  transform-sharing edit, a second local synthesis attempt still exceeded 12
+  minutes and was stopped before reports were produced.
 
 On a new machine, run these first:
 
@@ -348,8 +351,10 @@ Hardware completion evidence should include:
 - KV260 hardware access was unavailable. This blocks final completion.
 - Full Vivado synthesis has not completed locally. The previous hard failure on
   too many raster-buffer memory read ports has been addressed by serial MCU
-  loading, but the design still needs synthesis/runtime/resource reduction
-  before bitstream work is likely to be practical.
+  loading. The raster stages also now share one block transform across each MCU,
+  but a bounded synthesis run still did not produce reports. The next likely
+  hardware reduction is deeper DCT/quantization serialization or pipelining
+  inside `JpegBlockTransformStage`/`Dct8x8Stage`.
 - Chisel/Verilator frame-level tests are not instant. A focused AXI wrapper
   frame-level spec recently took about 76 seconds.
 - On Windows, avoid running multiple sbt commands in parallel; the launcher can

@@ -28,10 +28,11 @@ markers and reset DC predictors at MCU boundaries.
 
 The raster-to-MCU stages buffer one 8-row 4:4:4 stripe or one 16-row 4:2:0 band
 at a time. They then load one MCU into small block registers over multiple
-cycles before presenting it to the DCT/quantization path. This keeps the stripe
-memories to one read and one write port per component in generated RTL, which is
-more compatible with FPGA block RAM inference than fanning out a whole MCU as
-combinational memory reads.
+cycles before presenting it to the DCT/quantization path. Each raster stage
+reuses one block transform across the MCU's component blocks, capturing the
+transformed coefficients before emitting the MCU packet. This keeps the stripe
+memories to one read and one write port per component and avoids instantiating
+three or six parallel DCT/quantization paths per MCU.
 
 ## Source Layout
 

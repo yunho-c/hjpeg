@@ -87,6 +87,7 @@ class JpegRasterToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
       }
       dut.clock.step()
 
+      waitForOutput(dut)
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.last.expect(true.B)
       dut.io.output.bits.mcu.y.coefficients(0).expect(16.S)
