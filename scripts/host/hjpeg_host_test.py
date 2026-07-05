@@ -211,6 +211,21 @@ def with_scan_restart_marker(jpeg: bytes, restart_marker: int = 0) -> bytes:
     )
 
 
+def with_stuffed_entropy_ff(jpeg: bytes) -> bytes:
+    eoi_payload = b"\x7f\xff\xd9"
+    if eoi_payload not in jpeg:
+        raise AssertionError("minimal scan payload not found")
+    return jpeg.replace(eoi_payload, b"\x7f\xff\x00\xff\xd9", 1)
+
+
+def with_unexpected_scan_marker(jpeg: bytes) -> bytes:
+    eoi_payload = b"\x7f\xff\xd9"
+    if eoi_payload not in jpeg:
+        raise AssertionError("minimal scan payload not found")
+    app1 = bytes([0xFF, 0xE1, 0x00, 0x02])
+    return jpeg.replace(eoi_payload, b"\x7f" + app1 + b"\xff\xd9", 1)
+
+
 def without_segment(jpeg: bytes, marker: bytes) -> bytes:
     marker_offset = jpeg.find(marker)
     if marker_offset < 0:
@@ -446,6 +461,7 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
             hjpeg_host.JpegHuffmanTable(1, 1),
         ),
         scan_data_bytes=1,
+        stuffed_ff_bytes=0,
         byte_length=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
         app0_segments=1,
@@ -701,6 +717,7 @@ class HjpegHostTest(unittest.TestCase):
                 ),
             )
             self.assertEqual(parsed.scan_data_bytes, 1)
+            self.assertEqual(parsed.stuffed_ff_bytes, 0)
             self.assertEqual(parsed.app0_segments, 1)
             self.assertEqual(parsed.jfif_app0_segments, 1)
             self.assertEqual(parsed.dqt_segments, 2)
@@ -785,6 +802,7 @@ class HjpegHostTest(unittest.TestCase):
                 )
             self.assertEqual(marker.read_text(), "ffd8")
             self.assertIn("scan_data_bytes=1", stdout.getvalue())
+            self.assertIn("stuffed_ff_bytes=0", stdout.getvalue())
             self.assertIn("byte_length=", stdout.getvalue())
             self.assertIn("sha256=", stdout.getvalue())
             self.assertIn("decoder=pass", stdout.getvalue())
@@ -847,6 +865,7 @@ class HjpegHostTest(unittest.TestCase):
                 ],
             )
             self.assertEqual(record["scan_data_bytes"], 1)
+            self.assertEqual(record["stuffed_ff_bytes"], 0)
             self.assertEqual(record["app0_segments"], 1)
             self.assertEqual(record["jfif_app0_segments"], 1)
             self.assertEqual(record["dqt_segments"], 2)
@@ -1183,6 +1202,21 @@ class HjpegHostTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "entropy-coded scan data"):
                 hjpeg_host.validate_jpeg(empty_scan, expected_width=17, expected_height=13)
 
+    def test_jpeg_info_records_stuffed_entropy_bytes(self) -> None:
+        info = hjpeg_host.jpeg_info(with_stuffed_entropy_ff(minimal_jpeg(17, 13)))
+
+        self.assertEqual(info.scan_data_bytes, 2)
+        self.assertEqual(info.stuffed_ff_bytes, 1)
+        self.assertEqual(info.marker_sequence[-2:], ("SOS", "EOI"))
+
+    def test_validate_jpeg_rejects_unexpected_marker_after_scan_starts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "scan-marker.jpg"
+            jpeg.write_bytes(with_unexpected_scan_marker(minimal_jpeg(width=17, height=13)))
+
+            with self.assertRaisesRegex(ValueError, "unexpected APP1 marker"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
     def test_validate_jpeg_rejects_duplicate_frame_and_scan_markers(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -1193,7 +1227,7 @@ class HjpegHostTest(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "SOF0 segment count"):
                 hjpeg_host.validate_jpeg(duplicate_sof0, expected_width=17, expected_height=13)
-            with self.assertRaisesRegex(ValueError, "SOS segment count"):
+            with self.assertRaisesRegex(ValueError, "unexpected SOS marker"):
                 hjpeg_host.validate_jpeg(duplicate_sos, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_requires_quantization_and_huffman_tables(self) -> None:

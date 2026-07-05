@@ -178,7 +178,9 @@ Expected evidence:
 - The helper reports valid baseline JPEG dimensions, 8-bit SOF0 sample
   precision, three-component SOF0 frame shape, exactly one SOF0 and one SOS
   segment, and the number of entropy-coded scan data bytes, proving the file
-  contains an SOS marker with non-empty scan payload.
+  contains an SOS marker with non-empty scan payload. It also records the
+  stuffed entropy `0xff` byte count and rejects unexpected non-RST/non-EOI
+  markers after SOS.
 - The helper records APP0, DQT, DHT, DRI, and restart-marker counts, plus the
   parsed DRI restart interval when present. It requires exactly two DQT
   segments and four DHT segments for the current encoder contract. The helper

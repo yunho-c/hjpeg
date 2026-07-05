@@ -67,8 +67,8 @@ def jpeg_marker_name(marker: int) -> str:
         return "SOI"
     if marker == 0xD9:
         return "EOI"
-    if marker == 0xE0:
-        return "APP0"
+    if 0xE0 <= marker <= 0xEF:
+        return f"APP{marker - 0xE0}"
     if marker == 0xDB:
         return "DQT"
     if marker == 0xDD:
@@ -131,6 +131,7 @@ class JpegInfo:
     quantization_table_details: tuple[JpegQuantizationTable, ...]
     huffman_tables: tuple[JpegHuffmanTable, ...]
     scan_data_bytes: int
+    stuffed_ff_bytes: int
     byte_length: int
     sha256: str
     app0_segments: int
@@ -265,6 +266,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
     quantization_table_details: set[tuple[int, int]] = set()
     huffman_tables: set[tuple[int, int]] = set()
     scan_data_bytes = 0
+    stuffed_ff_bytes = 0
     app0_segments = 0
     jfif_app0_segments = 0
     dqt_segments = 0
@@ -290,6 +292,10 @@ def jpeg_info(data: bytes) -> JpegInfo:
             saw_eoi = True
             marker_sequence.append("EOI")
             break
+        if saw_sos:
+            raise ValueError(
+                f"JPEG scan data is followed by unexpected {jpeg_marker_name(marker)} marker"
+            )
         if 0xD0 <= marker <= 0xD7:
             if not saw_sos:
                 raise ValueError(
@@ -421,6 +427,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
                 following = data[offset + 1]
                 if following == 0x00:
                     scan_data_bytes += 1
+                    stuffed_ff_bytes += 1
                     offset += 2
                 elif following == 0xFF:
                     offset += 1
@@ -556,6 +563,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
             for table_class, table_id in sorted(huffman_tables)
         ),
         scan_data_bytes=scan_data_bytes,
+        stuffed_ff_bytes=stuffed_ff_bytes,
         byte_length=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
         app0_segments=app0_segments,
@@ -790,6 +798,7 @@ def jpeg_info_record(
         ],
         "chroma_mode": jpeg_chroma_mode(info),
         "scan_data_bytes": info.scan_data_bytes,
+        "stuffed_ff_bytes": info.stuffed_ff_bytes,
         "app0_segments": info.app0_segments,
         "jfif_app0_segments": info.jfif_app0_segments,
         "dqt_segments": info.dqt_segments,
@@ -1307,6 +1316,7 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"{args.jpeg}: valid baseline JPEG dimensions {info.width}x{info.height}; "
             f"scan_data_bytes={info.scan_data_bytes} "
+            f"stuffed_ff_bytes={info.stuffed_ff_bytes} "
             f"byte_length={info.byte_length} "
             f"sha256={info.sha256}{decoder_text}"
         )
@@ -1448,6 +1458,7 @@ def main(argv: list[str] | None = None) -> int:
             f"captured validated JPEG to {args.output_jpeg}: "
             f"dimensions={info.width}x{info.height} "
             f"scan_data_bytes={info.scan_data_bytes} "
+            f"stuffed_ff_bytes={info.stuffed_ff_bytes} "
             f"byte_length={info.byte_length} "
             f"sha256={info.sha256} "
             f"input_rgb_bytes={input_info.byte_length} "

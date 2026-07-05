@@ -130,17 +130,18 @@ channel, writes the encoder AXI-Lite configuration/status registers via
 `/dev/mem`, and validates returned JPEG files by checking SOI/EOI markers, SOF0
 dimensions, 8-bit sample precision, three-component frame shape, DQT/DHT table
 markers, optional JFIF APP0 signature, optional DRI restart interval, exactly
-one SOF0 and SOS, and non-empty entropy-coded scan data. It also records SOF0
-component sampling factors, APP0 and JFIF APP0 counts, DQT/DHT table IDs, and
-SOS component table selectors, requires SOF0 and SOS component IDs to be
-`[1, 2, 3]`, requires the SOS component list to match SOF0 exactly, requires
-baseline SOS spectral fields `0/63/0`, requires DQT IDs `{0, 1}` with 8-bit
-precision and exact DQT/DHT segment counts, rejects nonstandard DHT table sets,
-rejects dangling table references, requires the encoder's baseline marker order
-of optional APP0/JFIF, DQT, SOF0, DHT, optional DRI, SOS, entropy, and EOI,
-records the parsed marker sequence and MCU count in JSON evidence, and requires
-the SOF0 sampling factors to match the supported 4:4:4 or 4:2:0 modes. The
-helper
+one SOF0 and SOS, non-empty entropy-coded scan data, stuffed entropy `0xff`
+byte count, and rejection of unexpected non-RST/non-EOI markers after SOS. It
+also records SOF0 component sampling factors, APP0 and JFIF APP0 counts, DQT/DHT
+table IDs, and SOS component table selectors, requires SOF0 and SOS component
+IDs to be `[1, 2, 3]`, requires the SOS component list to match SOF0 exactly,
+requires baseline SOS spectral fields `0/63/0`, requires DQT IDs `{0, 1}` with
+8-bit precision and exact DQT/DHT segment counts, rejects nonstandard DHT table
+sets, rejects dangling table references, requires the encoder's baseline marker
+order of optional APP0/JFIF, DQT, SOF0, DHT, optional DRI, SOS, entropy, and
+EOI, records the parsed marker sequence and MCU count in JSON evidence, and
+requires the SOF0 sampling factors to match the supported 4:4:4 or 4:2:0 modes.
+The helper
 can also run an external JPEG decoder command so decoder-open evidence is
 captured in the same transcript. Standalone validation can require an expected
 restart interval, exact RST marker count for the parsed MCU count, and
