@@ -374,6 +374,15 @@ def jpeg_info(data: bytes) -> JpegInfo:
     if scan_data_bytes == 0:
         raise ValueError("JPEG output does not contain entropy-coded scan data")
     component_ids = {component.component_id for component in components}
+    scan_component_ids = [component.component_id for component in scan_components]
+    if len(scan_component_ids) != 3:
+        raise ValueError(
+            f"JPEG SOS component count is {len(scan_component_ids)}, expected 3"
+        )
+    if len(set(scan_component_ids)) != len(scan_component_ids):
+        raise ValueError("JPEG SOS component IDs must be unique")
+    if set(scan_component_ids) != component_ids:
+        raise ValueError("JPEG SOS components do not match SOF0 components")
     for component in components:
         if component.quantization_table not in quantization_tables:
             raise ValueError(

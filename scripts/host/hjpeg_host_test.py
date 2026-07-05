@@ -214,6 +214,42 @@ def without_all_segments(jpeg: bytes, marker: bytes) -> bytes:
     return stripped
 
 
+def with_duplicate_sos_component(jpeg: bytes) -> bytes:
+    sos = jpeg.find(b"\xff\xda\x00\x0c\x03")
+    if sos < 0:
+        raise AssertionError("SOS marker not found")
+    duplicate_component_id_offset = sos + 9
+    return (
+        jpeg[:duplicate_component_id_offset]
+        + bytes([jpeg[sos + 5]])
+        + jpeg[duplicate_component_id_offset + 1 :]
+    )
+
+
+def with_two_component_sos(jpeg: bytes) -> bytes:
+    sos = jpeg.find(b"\xff\xda\x00\x0c\x03")
+    if sos < 0:
+        raise AssertionError("SOS marker not found")
+    sos_end = sos + 14
+    shortened_sos = bytes(
+        [
+            0xFF,
+            0xDA,
+            0x00,
+            0x0A,
+            0x02,
+            jpeg[sos + 5],
+            jpeg[sos + 6],
+            jpeg[sos + 7],
+            jpeg[sos + 8],
+            0x00,
+            0x3F,
+            0x00,
+        ]
+    )
+    return jpeg[:sos] + shortened_sos + jpeg[sos_end:]
+
+
 def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
     data = minimal_jpeg(width, height)
     return hjpeg_host.JpegInfo(
@@ -920,6 +956,29 @@ class HjpegHostTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "missing DC DHT table 2"):
                 hjpeg_host.validate_jpeg(
                     missing_referenced_dht,
+                    expected_width=17,
+                    expected_height=13,
+                )
+
+    def test_validate_jpeg_rejects_sos_component_shape_mismatches(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            two_component_sos = root / "two-component-sos.jpg"
+            duplicate_component_sos = root / "duplicate-component-sos.jpg"
+            two_component_sos.write_bytes(with_two_component_sos(minimal_jpeg(width=17, height=13)))
+            duplicate_component_sos.write_bytes(
+                with_duplicate_sos_component(minimal_jpeg(width=17, height=13))
+            )
+
+            with self.assertRaisesRegex(ValueError, "SOS component count"):
+                hjpeg_host.validate_jpeg(
+                    two_component_sos,
+                    expected_width=17,
+                    expected_height=13,
+                )
+            with self.assertRaisesRegex(ValueError, "SOS component IDs must be unique"):
+                hjpeg_host.validate_jpeg(
+                    duplicate_component_sos,
                     expected_width=17,
                     expected_height=13,
                 )

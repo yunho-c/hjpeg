@@ -189,9 +189,10 @@ Expected evidence:
   value; `run-stream-devices` checks this automatically against the configured
   register value.
 - The helper records SOF0 component sampling factors and the inferred chroma
-  mode. Pass `--check-chroma-mode` to standalone `validate-jpeg`;
-  `run-stream-devices` checks this automatically against the configured chroma
-  mode.
+  mode, and requires the SOS component list to cover the same three SOF0
+  components exactly once. Pass `--check-chroma-mode` to standalone
+  `validate-jpeg`; `run-stream-devices` checks this automatically against the
+  configured chroma mode.
 - The helper records APP0 marker count and JFIF APP0 signature count, and can
   enforce the JFIF signature with `--expect-jfif present` or `absent`;
   `run-stream-devices` checks this automatically against the configured JFIF
