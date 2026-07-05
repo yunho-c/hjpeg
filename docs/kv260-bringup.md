@@ -54,6 +54,7 @@ python3 scripts/vivado/check_reports.py \
   --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt \
   --drc build/vivado/hjpeg-kv260-artifacts/post_impl_drc.rpt \
   --route-status build/vivado/hjpeg-kv260-artifacts/post_impl_route_status.rpt \
+  --clock-utilization build/vivado/hjpeg-kv260-artifacts/post_impl_clock_utilization.rpt \
   --clock-period-ns 10.0 \
   --json
 ```
@@ -83,13 +84,13 @@ Pass criteria:
   reports zero unrouted nets and zero routing errors.
 - Resource use leaves enough headroom for the intended KV260 platform shell.
 - `check_reports.py` exits successfully for the generated timing, utilization,
-  DRC, and route-status reports, with hold timing gated on the
-  post-implementation timing report.
+  DRC, route-status, and clock-utilization reports, with hold timing gated on
+  the post-implementation timing report.
 - The JSON evidence records artifact/report paths, byte lengths, SHA-256
   hashes, target clock period/frequency, parsed setup WNS and hold WHS values,
-  utilization rows, thresholds, DRC violations, route-status counts, and
-  pass/fail state. Missing, non-file, or unparseable reports are recorded as
-  structured JSON failures.
+  utilization rows, thresholds, DRC violations, route-status counts, required
+  clock-utilization report hashes, and pass/fail state. Missing, non-file, or
+  unparseable reports are recorded as structured JSON failures.
 
 Latest local Vivado 2026.1 evidence:
 

@@ -105,16 +105,18 @@ hardware-tool entry points:
   reports, copies `hjpeg_kv260.bit`, and exports `hjpeg_kv260.xsa` with the
   bitstream included.
 - `check_reports.py` hashes generated artifacts, parses Vivado
-  timing/utilization/DRC/route-status reports, and fails when a requested
-  artifact is missing, setup WNS is below the requested threshold, hold WHS is
-  below the requested threshold for reports passed with `--hold-timing`, any
-  utilization row exceeds the configured percentage, DRC reports Error or
-  Critical Warning violations, or route status reports unrouted nets or routing
-  errors. Its `--json` mode emits artifact/report hashes, byte lengths, target
-  clock period/frequency, parsed WNS/WHS values, utilization rows, thresholds,
-  DRC violations, route-status counts, and pass/fail state for build evidence
-  logs, including structured failure records for missing or unparseable
-  reports.
+  timing/utilization/DRC/route-status reports, requires requested
+  clock-utilization reports, and fails when a requested artifact is missing,
+  setup WNS is below the requested threshold, hold WHS is below the requested
+  threshold for reports passed with `--hold-timing`, any utilization row
+  exceeds the configured percentage, DRC reports Error or Critical Warning
+  violations, route status reports unrouted nets or routing errors, or a
+  required clock-utilization report is missing. Its `--json` mode emits
+  artifact/report hashes, byte lengths, target clock period/frequency, parsed
+  WNS/WHS values, utilization rows, thresholds, DRC violations, route-status
+  counts, clock-utilization report hashes, and pass/fail state for build
+  evidence logs, including structured failure records for missing or
+  unparseable reports.
 
 These scripts are intended to be run after:
 

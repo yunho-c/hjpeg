@@ -219,6 +219,16 @@ def artifact_record(path: Path) -> tuple[dict[str, object], list[str]]:
     return record, []
 
 
+def evidence_file_record(path: Path, report_kind: str) -> tuple[dict[str, object], list[str]]:
+    missing_record = missing_report_record(path, report_kind)
+    if missing_record is not None:
+        return missing_record
+
+    record = _file_record(path, path.read_bytes())
+    record.update({"exists": True, "passed": True})
+    return record, []
+
+
 def missing_report_record(path: Path, report_kind: str) -> tuple[dict[str, object], list[str]] | None:
     if not path.exists():
         return (
@@ -436,6 +446,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Vivado route status report to check for unrouted nets or routing errors; may be passed multiple times",
     )
     parser.add_argument(
+        "--clock-utilization",
+        type=Path,
+        action="append",
+        default=[],
+        help="Vivado clock utilization report to require and hash in evidence; may be passed multiple times",
+    )
+    parser.add_argument(
         "--artifact",
         type=Path,
         action="append",
@@ -463,6 +480,7 @@ def main(argv: list[str] | None = None) -> int:
     utilization_records = []
     drc_records = []
     route_status_records = []
+    clock_utilization_records = []
 
     for artifact in args.artifact:
         record, record_failures = artifact_record(artifact)
@@ -499,6 +517,10 @@ def main(argv: list[str] | None = None) -> int:
         record, record_failures = route_status_record(route_status)
         route_status_records.append(record)
         failures.extend(record_failures)
+    for clock_utilization in args.clock_utilization:
+        record, record_failures = evidence_file_record(clock_utilization, "clock utilization")
+        clock_utilization_records.append(record)
+        failures.extend(record_failures)
 
     if args.json:
         print(
@@ -513,6 +535,7 @@ def main(argv: list[str] | None = None) -> int:
                     "utilization": utilization_records,
                     "drc": drc_records,
                     "route_status": route_status_records,
+                    "clock_utilization": clock_utilization_records,
                 },
                 sort_keys=True,
             )
@@ -529,6 +552,7 @@ def main(argv: list[str] | None = None) -> int:
         + len(args.utilization)
         + len(args.drc)
         + len(args.route_status)
+        + len(args.clock_utilization)
     )
     if not args.json:
         print(f"PASS: checked {checked} Vivado report(s)")

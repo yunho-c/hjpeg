@@ -212,10 +212,12 @@ class CheckReportsTest(unittest.TestCase):
             utilization = root / "util.rpt"
             drc = root / "post_impl_drc.rpt"
             route_status = root / "post_impl_route_status.rpt"
+            clock_utilization = root / "post_impl_clock_utilization.rpt"
             timing.write_text(TIMING_TABLE)
             utilization.write_text(UTILIZATION_TABLE)
             drc.write_text(DRC_CLEAN_REPORT)
             route_status.write_text(ROUTE_STATUS_CLEAN_REPORT)
+            clock_utilization.write_text("Clock Utilization\n")
 
             self.assertEqual(
                 check_reports.main(
@@ -228,6 +230,8 @@ class CheckReportsTest(unittest.TestCase):
                         str(drc),
                         "--route-status",
                         str(route_status),
+                        "--clock-utilization",
+                        str(clock_utilization),
                         "--min-wns",
                         "0",
                         "--min-whs",
@@ -247,11 +251,13 @@ class CheckReportsTest(unittest.TestCase):
             utilization = root / "util.rpt"
             drc = root / "post_impl_drc.rpt"
             route_status = root / "post_impl_route_status.rpt"
+            clock_utilization = root / "post_impl_clock_utilization.rpt"
             artifact.write_bytes(b"bitstream")
             timing.write_text(TIMING_TABLE)
             utilization.write_text(VIVADO_UTILIZATION_TABLE)
             drc.write_text(DRC_CLEAN_REPORT)
             route_status.write_text(ROUTE_STATUS_CLEAN_REPORT)
+            clock_utilization.write_text("Clock Utilization\n")
 
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
@@ -270,6 +276,8 @@ class CheckReportsTest(unittest.TestCase):
                             str(drc),
                             "--route-status",
                             str(route_status),
+                            "--clock-utilization",
+                            str(clock_utilization),
                             "--clock-period-ns",
                             "8.0",
                             "--json",
@@ -327,6 +335,13 @@ class CheckReportsTest(unittest.TestCase):
                 },
             )
             self.assertTrue(record["route_status"][0]["passed"])
+            self.assertEqual(record["clock_utilization"][0]["path"], str(clock_utilization))
+            self.assertEqual(
+                record["clock_utilization"][0]["sha256"],
+                hashlib.sha256(clock_utilization.read_bytes()).hexdigest(),
+            )
+            self.assertTrue(record["clock_utilization"][0]["exists"])
+            self.assertTrue(record["clock_utilization"][0]["passed"])
 
     def test_cli_json_records_failures(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -368,6 +383,7 @@ class CheckReportsTest(unittest.TestCase):
             root = Path(tmp)
             missing_timing = root / "missing_timing.rpt"
             missing_utilization = root / "missing_utilization.rpt"
+            missing_clock_utilization = root / "missing_clock_utilization.rpt"
 
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
@@ -378,6 +394,8 @@ class CheckReportsTest(unittest.TestCase):
                             str(missing_timing),
                             "--utilization",
                             str(missing_utilization),
+                            "--clock-utilization",
+                            str(missing_clock_utilization),
                             "--json",
                         ]
                     ),
@@ -393,9 +411,14 @@ class CheckReportsTest(unittest.TestCase):
             self.assertFalse(record["utilization"][0]["exists"])
             self.assertFalse(record["utilization"][0]["passed"])
             self.assertEqual(record["utilization"][0]["rows"], [])
+            self.assertFalse(record["clock_utilization"][0]["exists"])
+            self.assertFalse(record["clock_utilization"][0]["passed"])
             self.assertTrue(any("timing report not found" in failure for failure in record["failures"]))
             self.assertTrue(
                 any("utilization report not found" in failure for failure in record["failures"])
+            )
+            self.assertTrue(
+                any("clock utilization report not found" in failure for failure in record["failures"])
             )
 
     def test_cli_json_records_unparseable_timing_report(self) -> None:
