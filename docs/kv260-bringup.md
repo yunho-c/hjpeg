@@ -215,7 +215,8 @@ Expected evidence:
 - For `run-stream-devices`, the helper reports the input RGB stream byte length
   and SHA-256 so the output can be tied to the exact input payload, and rejects
   trailing bytes already returned after the first JPEG EOI instead of writing a
-  truncated artifact.
+  truncated artifact. JSON evidence records the host capture limits used for
+  maximum output bytes and RX timeout.
 - For `run-stream-devices --json`, the helper records the AXI-Lite status
   checkpoints enforced after configuration, before transfer, and after
   transfer.

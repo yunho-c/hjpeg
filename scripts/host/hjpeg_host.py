@@ -949,6 +949,7 @@ def run_evidence_record(
     input_info: FileInfo | None = None,
     axi_lite: dict[str, object] | None = None,
     encoder_config: dict[str, object] | None = None,
+    capture_config: dict[str, object] | None = None,
     status_checks: list[dict[str, object]] | None = None,
     decoder_passed: bool | None = None,
     decoder_command: str | None = None,
@@ -973,9 +974,18 @@ def run_evidence_record(
         record["axi_lite"] = axi_lite
     if encoder_config is not None:
         record["encoder_config"] = encoder_config
+    if capture_config is not None:
+        record["capture_config"] = capture_config
     if status_checks is not None:
         record["status_checks"] = status_checks
     return record
+
+
+def capture_config_record(max_output_bytes: int, timeout_seconds: float | None) -> dict[str, object]:
+    return {
+        "max_output_bytes": max_output_bytes,
+        "timeout_seconds": timeout_seconds,
+    }
 
 
 def read_until_jpeg_eoi(stream: BinaryIO, max_bytes: int) -> bytes:
@@ -1018,6 +1028,8 @@ def run_stream_devices(
     decoder_results: list[DecoderCommandResult] | None = None,
 ) -> tuple[JpegInfo, FileInfo]:
     require_supported_dimensions(expected_width, expected_height, max_width, max_height)
+    if timeout_seconds is not None and timeout_seconds <= 0:
+        raise ValueError("timeout seconds must be positive")
     rgb = input_rgb.read_bytes()
     input_info = file_info(input_rgb, rgb)
     expected_input_bytes = expected_width * expected_height * 4
@@ -1594,6 +1606,7 @@ def main(argv: list[str] | None = None) -> int:
                             max_width=args.max_width,
                             max_height=args.max_height,
                         ),
+                        capture_config_record(args.max_output_bytes, args.timeout_seconds),
                         status_checks,
                         decoder_passed,
                         args.decoder_command,

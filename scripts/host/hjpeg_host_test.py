@@ -1988,6 +1988,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["encoder_config"]["chroma_subsample"])
             self.assertTrue(record["encoder_config"]["emit_jfif"])
             self.assertFalse(record["encoder_config"]["clear_error"])
+            self.assertEqual(record["capture_config"]["max_output_bytes"], 16777216)
+            self.assertEqual(record["capture_config"]["timeout_seconds"], 30.0)
             self.assertTrue(record["decoder_passed"])
             self.assertEqual(record["decoder_command"], decoder_command)
             self.assertEqual(record["decoder_timeout_seconds"], 2.5)
@@ -2027,6 +2029,27 @@ class HjpegHostTest(unittest.TestCase):
                     expected_width=2,
                     expected_height=1,
                     timeout_seconds=1.0,
+                )
+
+    def test_run_stream_devices_rejects_nonpositive_timeout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_rgb = root / "input.rgb"
+            tx_device = root / "tx.dev"
+            rx_device = root / "rx.dev"
+            input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
+            rx_device.write_bytes(minimal_jpeg(width=2, height=1))
+
+            with self.assertRaisesRegex(ValueError, "timeout seconds"):
+                hjpeg_host.run_stream_devices(
+                    input_rgb=input_rgb,
+                    output_jpeg=root / "output.jpg",
+                    tx_device=tx_device,
+                    rx_device=rx_device,
+                    max_output_bytes=1024,
+                    expected_width=2,
+                    expected_height=1,
+                    timeout_seconds=0,
                 )
 
     def test_run_stream_devices_rejects_trailing_rx_data_after_eoi(self) -> None:

@@ -480,15 +480,15 @@ Hardware completion evidence should include:
   signature presence, and valid DQT/DHT table references from SOF0/SOS, with
   the expected baseline marker order through SOS and EOI.
 - JSON evidence records the bitstream/XSA/report hashes, PPM/RGB input hashes,
-  AXI-Lite target, encoder configuration, status checkpoints, output JPEG hash,
-  scan payload length, SOF0/SOS marker counts, SOF0 sample precision, SOF0/SOS
-  component ID order, SOS component coverage, SOS spectral fields, DQT
-  precision, DQT table set, DQT/DHT segment counts, component sampling factors,
-  marker counts, parsed marker sequence, stuffed entropy `0xff` byte count,
-  JFIF APP0 signature count, restart interval and RST sequence evidence,
-  DQT/DHT table IDs and payload hashes, Huffman table set, SOS table selectors,
-  chroma mode, JFIF evidence, decoder command, decoder timeout, and bounded
-  decoder stdout/stderr.
+  AXI-Lite target, encoder configuration, host capture limits, status
+  checkpoints, output JPEG hash, scan payload length, SOF0/SOS marker counts,
+  SOF0 sample precision, SOF0/SOS component ID order, SOS component coverage,
+  SOS spectral fields, DQT precision, DQT table set, DQT/DHT segment counts,
+  component sampling factors, marker counts, parsed marker sequence, stuffed
+  entropy `0xff` byte count, JFIF APP0 signature count, restart interval and
+  RST sequence evidence, DQT/DHT table IDs and payload hashes, Huffman table
+  set, SOS table selectors, chroma mode, JFIF evidence, decoder command,
+  decoder timeout, and bounded decoder stdout/stderr.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 
