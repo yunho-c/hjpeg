@@ -281,6 +281,21 @@ def with_nonstandard_jfif_app0_fields(jpeg: bytes) -> bytes:
     return bytes(mutated)
 
 
+def with_padded_jfif_app0(jpeg: bytes) -> bytes:
+    app0 = jpeg.find(b"\xff\xe0")
+    if app0 < 0:
+        raise AssertionError("APP0 marker not found")
+    length = (jpeg[app0 + 2] << 8) | jpeg[app0 + 3]
+    padded_length = length + 1
+    return (
+        jpeg[: app0 + 2]
+        + bytes([(padded_length >> 8) & 0xFF, padded_length & 0xFF])
+        + jpeg[app0 + 4 : app0 + 2 + length]
+        + b"\x00"
+        + jpeg[app0 + 2 + length :]
+    )
+
+
 def with_duplicate_app0(jpeg: bytes) -> bytes:
     app0_start, app0_end = segment_bounds(jpeg, b"\xff\xe0")
     segment = jpeg[app0_start:app0_end]
@@ -1901,11 +1916,15 @@ class HjpegHostTest(unittest.TestCase):
             root = Path(tmp)
             short_jpeg = root / "short-jfif-app0.jpg"
             fields_jpeg = root / "nonstandard-jfif-app0.jpg"
+            padded_jpeg = root / "padded-jfif-app0.jpg"
             short_jpeg.write_bytes(
                 with_short_jfif_app0(minimal_jpeg(width=17, height=13))
             )
             fields_jpeg.write_bytes(
                 with_nonstandard_jfif_app0_fields(minimal_jpeg(width=17, height=13))
+            )
+            padded_jpeg.write_bytes(
+                with_padded_jfif_app0(minimal_jpeg(width=17, height=13))
             )
 
             with self.assertRaisesRegex(ValueError, "JFIF APP0 segment is too short"):
@@ -1917,6 +1936,12 @@ class HjpegHostTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "JFIF APP0 fields"):
                 hjpeg_host.validate_jpeg(
                     fields_jpeg,
+                    expected_width=17,
+                    expected_height=13,
+                )
+            with self.assertRaisesRegex(ValueError, "thumbnail size"):
+                hjpeg_host.validate_jpeg(
+                    padded_jpeg,
                     expected_width=17,
                     expected_height=13,
                 )
