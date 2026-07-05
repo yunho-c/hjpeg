@@ -317,6 +317,7 @@ def run_evidence_record(
     jpeg: Path,
     info: JpegInfo,
     input_info: FileInfo | None = None,
+    status_checks: list[dict[str, object]] | None = None,
     decoder_passed: bool | None = None,
 ) -> dict[str, object]:
     record = jpeg_info_record(jpeg, info, decoder_passed)
@@ -326,6 +327,8 @@ def run_evidence_record(
             "byte_length": input_info.byte_length,
             "sha256": input_info.sha256,
         }
+    if status_checks is not None:
+        record["status_checks"] = status_checks
     return record
 
 
@@ -508,12 +511,15 @@ def status_record(status: int) -> dict[str, object]:
     }
 
 
-def require_idle_status(regs: AxiLiteWindow, context: str = "status") -> None:
-    status = regs.read32(REG_STATUS)
+def require_idle_status_value(status: int, context: str = "status") -> None:
     if status & STATUS_BUSY:
         raise RuntimeError(f"{context}: encoder is busy (status 0x{status:08x})")
     if status & STATUS_PROTOCOL_ERROR:
         raise RuntimeError(f"{context}: protocol_error is set (status 0x{status:08x})")
+
+
+def require_idle_status(regs: AxiLiteWindow, context: str = "status") -> None:
+    require_idle_status_value(regs.read32(REG_STATUS), context)
 
 
 def clear_protocol_error(regs: AxiLiteWindow) -> None:
@@ -676,6 +682,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "run-stream-devices":
+        status_checks: list[dict[str, object]] = []
+
+        def record_status(context: str, status: int) -> None:
+            record = status_record(status)
+            record["context"] = context
+            status_checks.append(record)
+
         def configure() -> None:
             with AxiLiteWindow(args.dev, args.base_addr) as regs:
                 configure_registers(
@@ -688,11 +701,15 @@ def main(argv: list[str] | None = None) -> int:
                     emit_jfif=not args.no_jfif,
                     clear_error=args.clear_error,
                 )
-                require_idle_status(regs, "after configuration")
+                status = regs.read32(REG_STATUS)
+                require_idle_status_value(status, "after configuration")
+                record_status("after configuration", status)
 
         def check_status(context: str) -> None:
             with AxiLiteWindow(args.dev, args.base_addr) as regs:
-                require_idle_status(regs, context)
+                status = regs.read32(REG_STATUS)
+                require_idle_status_value(status, context)
+                record_status(context, status)
 
         info, input_info = run_stream_devices(
             input_rgb=args.input_rgb,
@@ -711,7 +728,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.json:
             print(
                 json.dumps(
-                    run_evidence_record(args.output_jpeg, info, input_info, decoder_passed),
+                    run_evidence_record(
+                        args.output_jpeg,
+                        info,
+                        input_info,
+                        status_checks,
+                        decoder_passed,
+                    ),
                     sort_keys=True,
                 )
             )

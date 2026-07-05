@@ -439,6 +439,16 @@ class HjpegHostTest(unittest.TestCase):
                 record["input_rgb"]["sha256"],
                 hashlib.sha256(input_rgb.read_bytes()).hexdigest(),
             )
+            self.assertEqual(
+                [status["context"] for status in record["status_checks"]],
+                ["after configuration", "before transfer", "after transfer"],
+            )
+            for status in record["status_checks"]:
+                self.assertEqual(status["status"], 0)
+                self.assertEqual(status["status_hex"], "0x00000000")
+                self.assertFalse(status["busy"])
+                self.assertFalse(status["protocol_error"])
+                self.assertEqual(status["text"], "idle")
 
     def test_run_stream_devices_rejects_wrong_input_size(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

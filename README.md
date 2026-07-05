@@ -195,7 +195,7 @@ Add `--json` to `status`, `validate-jpeg`, or `run-stream-devices` when you
 want evidence in a machine-readable form for logs. JPEG validation evidence
 includes dimensions, scan-data byte count, total JPEG byte length, and SHA-256.
 For `run-stream-devices`, it also includes the input RGB stream byte length and
-SHA-256.
+SHA-256 plus the AXI-Lite status checkpoints enforced during the run.
 
 ## Versions
 
