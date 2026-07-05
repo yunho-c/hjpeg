@@ -246,6 +246,28 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
     }
   }
 
+  "HjpegKv260AxiLiteTop should ignore unmapped AXI-Lite writes and return zero for unmapped reads" in {
+    simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      init(dut)
+
+      configure(dut, width = 17, height = 13, subsample = true, restartInterval = 4, emitJfif = false)
+
+      readReg(dut, 0x100) mustBe 0
+
+      writeReg(dut, 0x100, 0xffffffffL)
+      readReg(dut, HjpegAxiLiteRegisters.XSize) mustBe 17
+      readReg(dut, HjpegAxiLiteRegisters.YSize) mustBe 13
+      readReg(dut, HjpegAxiLiteRegisters.Quality) mustBe 50
+      readReg(dut, HjpegAxiLiteRegisters.RestartInterval) mustBe 4
+      readReg(dut, HjpegAxiLiteRegisters.Control) mustBe
+        BigInt(1 << HjpegAxiLiteRegisters.ControlEnableChromaSubsampleBit)
+      readReg(dut, HjpegAxiLiteRegisters.Status) mustBe 0
+    }
+  }
+
   "HjpegKv260AxiLiteTop should clear protocol errors through AXI-Lite control" in {
     simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
       dut.reset.poke(true.B)
