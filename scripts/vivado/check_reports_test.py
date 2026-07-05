@@ -538,6 +538,25 @@ class CheckReportsTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             check_reports.main(["--clock-period-ns", "0", "--json"])
 
+    def test_cli_rejects_nonfinite_clock_period(self) -> None:
+        for value in ["nan", "inf", "-inf"]:
+            with self.subTest(value=value):
+                with self.assertRaises(SystemExit):
+                    check_reports.main([f"--clock-period-ns={value}", "--json"])
+
+    def test_cli_rejects_nonfinite_timing_thresholds(self) -> None:
+        for option in ["--min-wns", "--min-whs"]:
+            for value in ["nan", "inf", "-inf"]:
+                with self.subTest(option=option, value=value):
+                    with self.assertRaises(SystemExit):
+                        check_reports.main([f"{option}={value}", "--json"])
+
+    def test_cli_rejects_invalid_utilization_thresholds(self) -> None:
+        for value in ["-0.001", "nan", "inf", "-inf"]:
+            with self.subTest(value=value):
+                with self.assertRaises(SystemExit):
+                    check_reports.main([f"--max-utilization={value}", "--json"])
+
 
 if __name__ == "__main__":
     unittest.main()

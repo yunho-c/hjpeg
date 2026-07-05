@@ -172,6 +172,7 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `edc8706 docs: clarify finite host timeouts`
 - `26b5229 fix: reject nonfinite host timeouts`
 - `9167ec7 fix: reject nonfinite host transfer evidence`
 - `61c11ed test: cover positive host transfer rates`
@@ -345,7 +346,10 @@ before implementation fixes it. The utilization parser handles Vivado's
 them against the fabric utilization threshold. The DRC gate fails Error and
 Critical Warning violations, the route-status gate fails nonzero unrouted or
 routing-error counts, and clock-utilization reports are required and hashed as
-review evidence.
+review evidence. The checker rejects non-finite timing thresholds, non-finite
+clock periods, nonpositive clock periods, non-finite utilization thresholds,
+and negative utilization thresholds before JSON evidence can record meaningless
+gate values.
 
 ## Last Known Local Verification
 

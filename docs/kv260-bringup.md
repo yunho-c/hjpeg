@@ -90,7 +90,10 @@ Pass criteria:
   hashes, target clock period/frequency, parsed setup WNS and hold WHS values,
   utilization rows, thresholds, DRC violations, route-status counts, required
   clock-utilization report hashes, and pass/fail state. Missing, non-file, or
-  unparseable reports are recorded as structured JSON failures.
+  unparseable reports are recorded as structured JSON failures. Timing
+  thresholds, utilization threshold, and target clock period values must be
+  finite. The target clock period must be positive, and the utilization
+  threshold must be nonnegative.
 
 Latest local Vivado 2026.1 evidence:
 

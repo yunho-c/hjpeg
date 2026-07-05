@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import re
 import sys
 from dataclasses import dataclass
@@ -37,10 +38,24 @@ ROUTE_STATUS_RE = re.compile(
 IGNORED_UTILIZATION_ROWS = {"PS8"}
 
 
-def positive_float(value: str) -> float:
+def finite_float(value: str) -> float:
     parsed = float(value)
+    if not math.isfinite(parsed):
+        raise argparse.ArgumentTypeError("value must be finite")
+    return parsed
+
+
+def positive_float(value: str) -> float:
+    parsed = finite_float(value)
     if parsed <= 0:
-        raise argparse.ArgumentTypeError("value must be positive")
+        raise argparse.ArgumentTypeError("value must be finite and positive")
+    return parsed
+
+
+def nonnegative_float(value: str) -> float:
+    parsed = finite_float(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("value must be finite and nonnegative")
     return parsed
 
 
@@ -462,9 +477,9 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         help="Generated artifact to hash in evidence; may be passed multiple times",
     )
-    parser.add_argument("--min-wns", type=float, default=0.0)
-    parser.add_argument("--min-whs", type=float, default=0.0)
-    parser.add_argument("--max-utilization", type=float, default=90.0)
+    parser.add_argument("--min-wns", type=finite_float, default=0.0)
+    parser.add_argument("--min-whs", type=finite_float, default=0.0)
+    parser.add_argument("--max-utilization", type=nonnegative_float, default=90.0)
     parser.add_argument(
         "--clock-period-ns",
         type=positive_float,
