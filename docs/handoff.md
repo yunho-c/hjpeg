@@ -654,7 +654,9 @@ Hardware completion evidence should include:
   output metadata. The hardware-run summary cross-checks frame dimensions across
   the output JPEG, encoder configuration, validation expectations, source PPM,
   and expected RGB stream byte length, and requires the parsed marker sequence
-  to begin with SOI and end with EOI.
+  to begin with SOI and end with EOI. Input RGB evidence must include positive
+  byte length, a SHA-256 hash, a positive expected byte length, and an
+  actual-vs-expected length match.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 

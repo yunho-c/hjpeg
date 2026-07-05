@@ -1558,7 +1558,7 @@ def run_input_ppm_record(
 def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     evidence_present = {
         "jpeg_output": False,
-        "input_rgb": "input_rgb" in record,
+        "input_rgb": False,
         "axi_lite": "axi_lite" in record,
         "encoder_config": "encoder_config" in record,
         "capture_config": "capture_config" in record,
@@ -1635,10 +1635,35 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             )
 
     input_rgb = record.get("input_rgb")
-    if isinstance(input_rgb, dict) and "byte_length_matches_expected" in input_rgb:
-        checks["input_rgb_length_matches_expected"] = bool(
-            input_rgb["byte_length_matches_expected"]
+    if isinstance(input_rgb, dict):
+        input_rgb_byte_length = input_rgb.get("byte_length")
+        input_rgb_sha256 = input_rgb.get("sha256")
+        input_rgb_expected_byte_length = input_rgb.get("expected_byte_length")
+        input_rgb_byte_length_positive = (
+            isinstance(input_rgb_byte_length, int) and input_rgb_byte_length > 0
         )
+        input_rgb_sha256_present = (
+            isinstance(input_rgb_sha256, str) and len(input_rgb_sha256) == 64
+        )
+        input_rgb_expected_byte_length_positive = (
+            isinstance(input_rgb_expected_byte_length, int)
+            and input_rgb_expected_byte_length > 0
+        )
+        input_rgb_length_matches_expected = bool(
+            input_rgb.get("byte_length_matches_expected", False)
+        )
+        evidence_present["input_rgb"] = (
+            input_rgb_byte_length_positive
+            and input_rgb_sha256_present
+            and input_rgb_expected_byte_length_positive
+            and input_rgb_length_matches_expected
+        )
+        checks["input_rgb_byte_length_positive"] = input_rgb_byte_length_positive
+        checks["input_rgb_sha256_present"] = input_rgb_sha256_present
+        checks["input_rgb_expected_byte_length_positive"] = (
+            input_rgb_expected_byte_length_positive
+        )
+        checks["input_rgb_length_matches_expected"] = input_rgb_length_matches_expected
 
     input_ppm = record.get("input_ppm")
     if isinstance(input_ppm, dict) and "packed_rgb_matches_input" in input_ppm:

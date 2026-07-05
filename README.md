@@ -325,7 +325,9 @@ transfer timing with derived byte rates, and a passing decoder check from
 captured output evidence. The summary also cross-checks JPEG dimensions against
 the encoder configuration, validation expectations, source PPM dimensions, and
 expected RGB stream byte length, and requires the parsed marker sequence to
-begin with SOI and end with EOI.
+begin with SOI and end with EOI. Input RGB evidence must include positive byte
+length, a SHA-256 hash, a positive expected byte length, and an actual-vs-expected
+length match.
 Maximum output bytes must be positive, and RX timeout values must be finite and
 positive when present. It
 also records host-observed transfer elapsed seconds and derived byte rates when

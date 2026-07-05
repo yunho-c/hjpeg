@@ -1500,12 +1500,42 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(
                 matched["hardware_run_summary"]["evidence_present"]["decoder"]
             )
-            self.assertFalse(
-                matched["hardware_run_summary"]["evidence_present"]["input_ppm"]
-            )
+            self.assertTrue(matched["hardware_run_summary"]["evidence_present"]["input_rgb"])
+            self.assertFalse(matched["hardware_run_summary"]["evidence_present"]["input_ppm"])
             self.assertFalse(
                 matched["hardware_run_summary"]["complete_hardware_run_evidence"]
             )
+
+    def test_hardware_summary_requires_complete_input_rgb_evidence(self) -> None:
+        incomplete = {
+            "input_rgb": {
+                "byte_length": 8,
+                "sha256": "",
+                "expected_byte_length": 8,
+                "byte_length_matches_expected": True,
+            }
+        }
+        complete = {
+            "input_rgb": {
+                "byte_length": 8,
+                "sha256": "0" * 64,
+                "expected_byte_length": 8,
+                "byte_length_matches_expected": True,
+            }
+        }
+
+        incomplete_summary = hjpeg_host.hardware_run_summary_record(incomplete)
+        complete_summary = hjpeg_host.hardware_run_summary_record(complete)
+
+        self.assertFalse(incomplete_summary["evidence_present"]["input_rgb"])
+        self.assertFalse(incomplete_summary["checks"]["input_rgb_sha256_present"])
+        self.assertTrue(complete_summary["evidence_present"]["input_rgb"])
+        self.assertTrue(complete_summary["checks"]["input_rgb_byte_length_positive"])
+        self.assertTrue(complete_summary["checks"]["input_rgb_sha256_present"])
+        self.assertTrue(
+            complete_summary["checks"]["input_rgb_expected_byte_length_positive"]
+        )
+        self.assertTrue(complete_summary["checks"]["input_rgb_length_matches_expected"])
 
     def test_run_evidence_record_summarizes_status_checks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -3636,6 +3666,9 @@ class HjpegHostTest(unittest.TestCase):
                         "validation_expectations_match_jpeg_dimensions": True,
                         "input_ppm_dimensions_match_jpeg": True,
                         "input_rgb_expected_length_matches_dimensions": True,
+                        "input_rgb_byte_length_positive": True,
+                        "input_rgb_sha256_present": True,
+                        "input_rgb_expected_byte_length_positive": True,
                         "input_rgb_length_matches_expected": True,
                         "input_ppm_matches_input": True,
                         "input_ppm_non_flat": True,

@@ -215,7 +215,9 @@ Expected evidence:
   non-truncated captured output metadata. The summary cross-checks the output
   JPEG dimensions against the encoder configuration, validation expectations,
   source PPM dimensions, and expected RGB stream byte length, and requires the
-  parsed marker sequence to begin with SOI and end with EOI.
+  parsed marker sequence to begin with SOI and end with EOI. Input RGB evidence
+  must include positive byte length, a SHA-256 hash, a positive expected byte
+  length, and an actual-vs-expected length match.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after
