@@ -657,8 +657,9 @@ Hardware completion evidence should include:
   component selectors, expected SOS spectral fields, expected minimum scan-data
   length, expected DQT/DHT table order, expected JFIF APP0 baseline fields when
   JFIF is required, expected chroma mode when checked, and expected DQT/DHT
-  payload hashes, hardware-run evidence-presence bits, consolidated run-check
-  booleans, `all_recorded_checks_passed`, `complete_hardware_run_evidence` with
+  payload hashes, hardware-run evidence-presence bits, evidence/check counts,
+  failing check names, consolidated run-check booleans,
+  `all_recorded_checks_passed`, `complete_hardware_run_evidence` with
   hashed output JPEG, source PPM, positive transfer timing with finite positive
   derived input/output byte rates, and passing decoder evidence required,
   decoder command, resolved decoder argv, decoder timeout, decoder elapsed
@@ -690,7 +691,9 @@ Hardware completion evidence should include:
   idle/error/busy flags from the detailed status records. They also recompute
   RGB byte-count matches, PPM-to-input-RGB consistency, and transfer byte rates
   from the saved lengths, hashes, and elapsed time. Required boolean evidence
-  fields must be actual JSON booleans.
+  fields must be actual JSON booleans. The summary records total and present
+  evidence-group counts, total and passing check counts, and failing check names
+  for review.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 

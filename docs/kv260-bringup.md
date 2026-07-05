@@ -215,8 +215,9 @@ Expected evidence:
 - Standalone `clear-error --json` evidence records the AXI-Lite target and
   control word pulsed when recovering from a sticky protocol fault.
 - `run-stream-devices --json` evidence includes `hardware_run_summary` with
-  the required evidence groups, recorded run-check booleans, and
-  `complete_hardware_run_evidence`. A valid final board transcript should have
+  the required evidence groups, recorded run-check booleans, evidence/check
+  counts, failing check names, and `complete_hardware_run_evidence`. A valid
+  final board transcript should have
   `all_recorded_checks_passed` and `complete_hardware_run_evidence` true,
   which requires hashed output JPEG evidence with non-empty scan data,
   `--input-ppm` source evidence with non-flat/color stats, a passing
@@ -248,7 +249,9 @@ Expected evidence:
   idle/error/busy flags from the detailed status records. They also recompute
   RGB byte-count matches, PPM-to-input-RGB consistency, and transfer byte rates
   from the saved lengths, hashes, and elapsed time. Required boolean evidence
-  fields must be actual JSON booleans.
+  fields must be actual JSON booleans. The summary records total and present
+  evidence-group counts, total and passing check counts, and failing check names
+  for review.
 - Use `run-stream-devices --require-complete-evidence` for the final board
   transcript so missing source PPM, decoder, transfer timing, or status evidence
   fails the command. Omit it only for intentional partial smoke tests. Run JSON

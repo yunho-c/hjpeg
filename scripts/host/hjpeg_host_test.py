@@ -2450,7 +2450,15 @@ class HjpegHostTest(unittest.TestCase):
         summary = hjpeg_host.hardware_run_summary_record(record)
 
         self.assertFalse(summary["evidence_present"]["jpeg_output"])
+        self.assertEqual(summary["evidence_group_count"], 10)
+        self.assertEqual(summary["evidence_present_count"], 0)
         self.assertFalse(summary["all_recorded_checks_passed"])
+        self.assertEqual(summary["recorded_check_count"], 7)
+        self.assertEqual(summary["passing_check_count"], 5)
+        self.assertEqual(
+            summary["failing_checks"],
+            ["jpeg_sha256_present", "jpeg_scan_data_sha256_present"],
+        )
         self.assertTrue(summary["checks"]["jpeg_byte_length_positive"])
         self.assertTrue(summary["checks"]["jpeg_scan_data_bytes_positive"])
         self.assertFalse(summary["checks"]["jpeg_sha256_present"])
@@ -4545,6 +4553,8 @@ class HjpegHostTest(unittest.TestCase):
                         "transfer_timing": True,
                         "decoder": True,
                     },
+                    "evidence_group_count": 10,
+                    "evidence_present_count": 10,
                     "checks": {
                         "jpeg_validation_passed": True,
                         "jpeg_byte_length_positive": True,
@@ -4622,6 +4632,9 @@ class HjpegHostTest(unittest.TestCase):
                         "host_input_rgb_rate_matches_elapsed": True,
                         "host_output_jpeg_rate_matches_elapsed": True,
                     },
+                    "recorded_check_count": 75,
+                    "passing_check_count": 75,
+                    "failing_checks": [],
                     "all_recorded_checks_passed": True,
                     "complete_hardware_run_evidence": True,
                 },

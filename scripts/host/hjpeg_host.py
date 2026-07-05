@@ -2201,12 +2201,26 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             host_output_jpeg_rate_matches_elapsed
         )
 
-    all_recorded_checks_passed = all(checks.values())
+    evidence_group_count = len(evidence_present)
+    evidence_present_count = sum(
+        1 for present in evidence_present.values() if present is True
+    )
+    recorded_check_count = len(checks)
+    passing_check_count = sum(1 for passed in checks.values() if passed is True)
+    failing_checks = [
+        str(name) for name, passed in checks.items() if passed is not True
+    ]
+    all_recorded_checks_passed = not failing_checks
     return {
         "evidence_present": evidence_present,
+        "evidence_group_count": evidence_group_count,
+        "evidence_present_count": evidence_present_count,
         "checks": checks,
+        "recorded_check_count": recorded_check_count,
+        "passing_check_count": passing_check_count,
+        "failing_checks": failing_checks,
         "all_recorded_checks_passed": all_recorded_checks_passed,
-        "complete_hardware_run_evidence": all(evidence_present.values())
+        "complete_hardware_run_evidence": evidence_present_count == evidence_group_count
         and all_recorded_checks_passed,
     }
 
