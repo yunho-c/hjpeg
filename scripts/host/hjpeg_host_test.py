@@ -1564,6 +1564,8 @@ class HjpegHostTest(unittest.TestCase):
                     "jpeg_scan_data_bytes_positive": True,
                     "jpeg_sha256_present": True,
                     "jpeg_scan_data_sha256_present": True,
+                    "jpeg_marker_sequence_starts_with_soi": True,
+                    "jpeg_marker_sequence_ends_with_eoi": True,
                     "status_check_contexts_match_expected": True,
                     "status_checks_all_idle": True,
                     "status_checks_no_protocol_error": True,
@@ -1683,6 +1685,8 @@ class HjpegHostTest(unittest.TestCase):
         self.assertFalse(summary["checks"]["jpeg_scan_data_bytes_positive"])
         self.assertFalse(summary["checks"]["jpeg_sha256_present"])
         self.assertFalse(summary["checks"]["jpeg_scan_data_sha256_present"])
+        self.assertFalse(summary["checks"]["jpeg_marker_sequence_starts_with_soi"])
+        self.assertFalse(summary["checks"]["jpeg_marker_sequence_ends_with_eoi"])
 
     def test_hardware_summary_checks_frame_consistency(self) -> None:
         record = {
@@ -1692,6 +1696,7 @@ class HjpegHostTest(unittest.TestCase):
             "sha256": "0" * 64,
             "scan_data_bytes": 1,
             "scan_data_sha256": "1" * 64,
+            "marker_sequence": ["SOI", "SOS", "EOI"],
             "encoder_config": {"width": 3, "height": 1},
             "validation_expectations": {"width": 2, "height": 2},
             "input_ppm": {"width": 2, "height": 3},
@@ -1711,6 +1716,22 @@ class HjpegHostTest(unittest.TestCase):
         self.assertFalse(
             summary["checks"]["input_rgb_expected_length_matches_dimensions"]
         )
+
+    def test_hardware_summary_requires_soi_eoi_marker_sequence(self) -> None:
+        record = {
+            "byte_length": 16,
+            "sha256": "0" * 64,
+            "scan_data_bytes": 1,
+            "scan_data_sha256": "1" * 64,
+            "marker_sequence": ["APP0", "SOS"],
+        }
+
+        summary = hjpeg_host.hardware_run_summary_record(record)
+
+        self.assertFalse(summary["evidence_present"]["jpeg_output"])
+        self.assertFalse(summary["all_recorded_checks_passed"])
+        self.assertFalse(summary["checks"]["jpeg_marker_sequence_starts_with_soi"])
+        self.assertFalse(summary["checks"]["jpeg_marker_sequence_ends_with_eoi"])
 
     def test_run_evidence_record_rejects_invalid_elapsed_time(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -3609,6 +3630,8 @@ class HjpegHostTest(unittest.TestCase):
                         "jpeg_scan_data_bytes_positive": True,
                         "jpeg_sha256_present": True,
                         "jpeg_scan_data_sha256_present": True,
+                        "jpeg_marker_sequence_starts_with_soi": True,
+                        "jpeg_marker_sequence_ends_with_eoi": True,
                         "encoder_config_matches_jpeg_dimensions": True,
                         "validation_expectations_match_jpeg_dimensions": True,
                         "input_ppm_dimensions_match_jpeg": True,

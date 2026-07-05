@@ -214,7 +214,8 @@ Expected evidence:
   rates. Decoder evidence must include the resolved argv, zero return code, and
   non-truncated captured output metadata. The summary cross-checks the output
   JPEG dimensions against the encoder configuration, validation expectations,
-  source PPM dimensions, and expected RGB stream byte length.
+  source PPM dimensions, and expected RGB stream byte length, and requires the
+  parsed marker sequence to begin with SOI and end with EOI.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after

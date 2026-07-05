@@ -653,7 +653,8 @@ Hardware completion evidence should include:
   output lengths, and decoder output capture limit, with non-truncated decoder
   output metadata. The hardware-run summary cross-checks frame dimensions across
   the output JPEG, encoder configuration, validation expectations, source PPM,
-  and expected RGB stream byte length.
+  and expected RGB stream byte length, and requires the parsed marker sequence
+  to begin with SOI and end with EOI.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 

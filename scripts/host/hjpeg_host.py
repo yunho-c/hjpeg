@@ -1574,22 +1574,38 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     scan_data_bytes = record.get("scan_data_bytes")
     jpeg_sha256 = record.get("sha256")
     scan_data_sha256 = record.get("scan_data_sha256")
+    marker_sequence = record.get("marker_sequence")
     jpeg_byte_length_positive = isinstance(jpeg_byte_length, int) and jpeg_byte_length > 0
     scan_data_bytes_positive = isinstance(scan_data_bytes, int) and scan_data_bytes > 0
     jpeg_sha256_present = isinstance(jpeg_sha256, str) and len(jpeg_sha256) == 64
     scan_data_sha256_present = (
         isinstance(scan_data_sha256, str) and len(scan_data_sha256) == 64
     )
+    marker_sequence_values = (
+        marker_sequence if isinstance(marker_sequence, (list, tuple)) else ()
+    )
+    jpeg_marker_sequence_starts_with_soi = (
+        len(marker_sequence_values) > 0 and marker_sequence_values[0] == "SOI"
+    )
+    jpeg_marker_sequence_ends_with_eoi = (
+        len(marker_sequence_values) > 0 and marker_sequence_values[-1] == "EOI"
+    )
     evidence_present["jpeg_output"] = (
         jpeg_byte_length_positive
         and scan_data_bytes_positive
         and jpeg_sha256_present
         and scan_data_sha256_present
+        and jpeg_marker_sequence_starts_with_soi
+        and jpeg_marker_sequence_ends_with_eoi
     )
     checks["jpeg_byte_length_positive"] = jpeg_byte_length_positive
     checks["jpeg_scan_data_bytes_positive"] = scan_data_bytes_positive
     checks["jpeg_sha256_present"] = jpeg_sha256_present
     checks["jpeg_scan_data_sha256_present"] = scan_data_sha256_present
+    checks["jpeg_marker_sequence_starts_with_soi"] = (
+        jpeg_marker_sequence_starts_with_soi
+    )
+    checks["jpeg_marker_sequence_ends_with_eoi"] = jpeg_marker_sequence_ends_with_eoi
 
     width = record.get("width")
     height = record.get("height")

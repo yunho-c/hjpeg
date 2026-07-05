@@ -324,7 +324,8 @@ transfer timing with derived byte rates, and a passing decoder check from
 `--decoder-command` with resolved argv, zero return code, and non-truncated
 captured output evidence. The summary also cross-checks JPEG dimensions against
 the encoder configuration, validation expectations, source PPM dimensions, and
-expected RGB stream byte length.
+expected RGB stream byte length, and requires the parsed marker sequence to
+begin with SOI and end with EOI.
 Maximum output bytes must be positive, and RX timeout values must be finite and
 positive when present. It
 also records host-observed transfer elapsed seconds and derived byte rates when

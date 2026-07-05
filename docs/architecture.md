@@ -205,7 +205,8 @@ evidence with non-flat/color image stats, and positive host-observed transfer
 timing with derived byte rates. Decoder evidence must include the resolved argv,
 zero return code, and non-truncated captured output metadata. Frame dimensions
 are cross-checked across the output JPEG, encoder configuration, validation
-expectations, source PPM, and expected RGB stream byte length.
+expectations, source PPM, and expected RGB stream byte length, and the parsed
+marker sequence must begin with SOI and end with EOI.
 The `run-stream-devices` command supports Linux board images that expose DMA
 MM2S/S2MM endpoints as byte-stream device files by writing padded RGB bytes to
 the TX device and reading JPEG bytes from the RX device until EOI, while
