@@ -260,7 +260,8 @@ DQT/DHT table IDs, exact DC/AC Huffman table set, exact DQT table set, DQT table
 order, exact DHT table order, DQT 8-bit precision, DQT/DHT payload byte counts
 and SHA-256 hashes, APP0 and JFIF APP0 counts, parsed JFIF APP0
 version/density/thumbnail fields, exact DQT/DHT segment counts,
-DQT/DHT/DRI/restart marker counts, parsed marker sequence,
+DQT/DHT/DRI/restart marker counts, a grouped `marker_counts` object,
+parsed marker sequence,
 parsed DRI restart interval, RST marker sequence, total JPEG byte length,
 SHA-256, decoder command, and decoder timeout when one was provided, plus
 decoder return code and bounded stdout/stderr when a decoder command ran. JFIF

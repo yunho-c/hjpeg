@@ -236,13 +236,14 @@ Expected evidence:
   stuffed entropy `0xff` byte count and rejects unsupported header markers,
   non-JFIF or duplicate APP0 markers, unexpected non-RST/non-EOI markers after
   SOS, or trailing bytes after EOI.
-- The helper records APP0, DQT, DHT, DRI, and restart-marker counts, plus the
-  parsed DRI restart interval when present. It requires exactly two DQT
-  segments and four DHT segments for the current encoder contract. The helper
-  records DQT table IDs `{0, 1}`, DQT table order `[0, 1]`, DHT table order
-  DC0, DC1, AC0, AC1, 8-bit DQT precision, DQT/DHT payload byte counts and
-  SHA-256 hashes, DHT table class/ID pairs, and SOS component table selectors,
-  and rejects zero SOF0 dimensions, non-8-bit or non-three-component
+- The helper records APP0, DQT, DHT, DRI, and restart-marker counts as scalar
+  fields and as a grouped `marker_counts` object, plus the parsed DRI restart
+  interval when present. It requires exactly two DQT segments and four DHT
+  segments for the current encoder contract. The helper records DQT table IDs
+  `{0, 1}`, DQT table order `[0, 1]`, DHT table order DC0, DC1, AC0, AC1, 8-bit
+  DQT precision, DQT/DHT payload byte counts and SHA-256 hashes, DHT table
+  class/ID pairs, and SOS component table selectors, and rejects zero SOF0
+  dimensions, non-8-bit or non-three-component
   SOF0 frames, nonstandard DQT/DHT table sets or segment counts, duplicate
   DQT/DHT table definitions, swapped DQT or DHT table order, non-8-bit DQT
   tables, empty, oversized, oversubscribed, or invalid baseline DHT tables,

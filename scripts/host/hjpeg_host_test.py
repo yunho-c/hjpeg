@@ -1280,6 +1280,19 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["dri_segments"], 0)
             self.assertIsNone(record["restart_interval"])
             self.assertEqual(record["restart_markers"], 0)
+            self.assertEqual(
+                record["marker_counts"],
+                {
+                    "APP0": 1,
+                    "JFIF_APP0": 1,
+                    "DQT": 2,
+                    "SOF0": 1,
+                    "DHT": 4,
+                    "SOS": 1,
+                    "DRI": 0,
+                    "RST": 0,
+                },
+            )
             self.assertEqual(record["restart_marker_sequence"], [])
             self.assertEqual(
                 record["marker_sequence"],

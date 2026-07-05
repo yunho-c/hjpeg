@@ -144,9 +144,9 @@ interval, exactly one SOF0 and SOS, non-empty entropy-coded scan data, stuffed
 entropy `0xff` byte count, rejection of unsupported header markers, rejection of
 malformed, non-JFIF, or duplicate APP0 markers, rejection of unexpected
 non-RST/non-EOI markers after SOS, and rejection of trailing bytes after EOI. It
-also records SOF0 component sampling factors, APP0 and JFIF APP0 counts, DQT/DHT
-table IDs, DQT and DHT table order, table payload byte counts and SHA-256
-hashes, SOS component table selectors, and parsed JFIF APP0
+also records SOF0 component sampling factors, APP0 and JFIF APP0 counts, grouped
+marker counts, DQT/DHT table IDs, DQT and DHT table order, table payload byte
+counts and SHA-256 hashes, SOS component table selectors, and parsed JFIF APP0
 version/density/thumbnail fields, requires SOF0
 and SOS component IDs to be `[1, 2, 3]`, requires the SOS component list to match
 SOF0 exactly, requires SOF0 quantization table selectors to be Y `0` and Cb/Cr

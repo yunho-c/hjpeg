@@ -172,6 +172,7 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `d92bbce feat: validate jpeg dht table order`
 - `b5c1df9 feat: validate jpeg dqt table order`
 - `5299dd2 fix: validate jpeg quantization selectors`
 - `cc3ef2a fix: validate jpeg sos table selectors`
@@ -367,8 +368,9 @@ table order DC0, DC1, AC0, AC1, and 8-bit DQT precision, records DQT/DHT payload
 byte counts and SHA-256 hashes,
 requires exact DQT/DHT segment counts, requires the standard DC/AC Huffman table
 set, rejects duplicate DQT/DHT table definitions, records parsed marker
-sequence, stuffed entropy `0xff` byte count, RST marker sequence, and JFIF APP0
-signature count, requires JFIF APP0 fixed fields to match the encoder baseline,
+sequence, grouped marker counts, stuffed entropy `0xff` byte count, RST marker
+sequence, and JFIF APP0 signature count, requires JFIF APP0 fixed fields to
+match the encoder baseline,
 rejects empty, oversized, oversubscribed, or invalid baseline DHT tables,
 zero-valued DQT entries, unsupported header markers, malformed, non-JFIF, or
 duplicate APP0 markers, RST markers without DRI, out-of-sequence RST markers,
