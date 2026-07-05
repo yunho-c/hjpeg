@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+import contextlib
+import hashlib
+import io
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -88,6 +92,62 @@ class CheckReportsTest(unittest.TestCase):
                 ),
                 0,
             )
+
+    def test_cli_can_print_json_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            timing = root / "timing.rpt"
+            utilization = root / "util.rpt"
+            timing.write_text(TIMING_TABLE)
+            utilization.write_text(UTILIZATION_TABLE)
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    check_reports.main(
+                        [
+                            "--timing",
+                            str(timing),
+                            "--utilization",
+                            str(utilization),
+                            "--json",
+                        ]
+                    ),
+                    0,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertTrue(record["passed"])
+            self.assertEqual(record["failures"], [])
+            self.assertEqual(record["timing"][0]["path"], str(timing))
+            self.assertEqual(record["timing"][0]["wns_ns"], 0.125)
+            timing_bytes = timing.read_bytes()
+            self.assertEqual(record["timing"][0]["byte_length"], len(timing_bytes))
+            self.assertEqual(
+                record["timing"][0]["sha256"],
+                hashlib.sha256(timing_bytes).hexdigest(),
+            )
+            self.assertEqual(record["utilization"][0]["path"], str(utilization))
+            self.assertEqual(record["utilization"][0]["rows"][0]["name"], "LUT as Logic")
+            self.assertTrue(record["utilization"][0]["rows"][0]["passed"])
+
+    def test_cli_json_records_failures(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            timing = Path(tmp) / "timing.rpt"
+            timing.write_text("WNS(ns): -0.010\n")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    check_reports.main(["--timing", str(timing), "--json"]),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertEqual(record["timing"][0]["wns_ns"], -0.01)
+            self.assertFalse(record["timing"][0]["passed"])
+            self.assertIn("below required", record["failures"][0])
 
 
 if __name__ == "__main__":

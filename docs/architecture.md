@@ -106,7 +106,9 @@ hardware-tool entry points:
   bitstream included.
 - `check_reports.py` parses Vivado timing/utilization reports and fails when
   WNS is below the requested threshold or any utilization row exceeds the
-  configured percentage.
+  configured percentage. Its `--json` mode emits report hashes, byte lengths,
+  parsed WNS values, utilization rows, thresholds, and pass/fail state for
+  build evidence logs.
 
 These scripts are intended to be run after:
 

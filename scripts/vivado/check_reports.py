@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import re
 import sys
 from dataclasses import dataclass
@@ -83,6 +85,67 @@ def check_utilization(path: Path, max_percent: float) -> list[str]:
     return failures
 
 
+def _file_record(path: Path, data: bytes) -> dict[str, object]:
+    return {
+        "path": str(path),
+        "byte_length": len(data),
+        "sha256": hashlib.sha256(data).hexdigest(),
+    }
+
+
+def timing_record(path: Path, min_wns: float) -> tuple[dict[str, object], list[str]]:
+    report_bytes = path.read_bytes()
+    report = report_bytes.decode(errors="replace")
+    wns = parse_wns(report)
+    failures = []
+    if wns < min_wns:
+        failures.append(f"{path}: WNS {wns:.3f} ns is below required {min_wns:.3f} ns")
+    record = _file_record(path, report_bytes)
+    record.update(
+        {
+            "wns_ns": wns,
+            "min_wns_ns": min_wns,
+            "passed": not failures,
+        }
+    )
+    return record, failures
+
+
+def utilization_record(path: Path, max_percent: float) -> tuple[dict[str, object], list[str]]:
+    report_bytes = path.read_bytes()
+    report = report_bytes.decode(errors="replace")
+    rows = parse_utilization_rows(report)
+    failures = []
+    if not rows:
+        failures.append(f"{path}: no utilization rows found")
+
+    row_records = []
+    for row in rows:
+        row_record = {
+            "name": row.name,
+            "used": row.used,
+            "fixed": row.fixed,
+            "available": row.available,
+            "percent": row.percent,
+            "passed": row.available == 0 or row.percent <= max_percent,
+        }
+        row_records.append(row_record)
+        if not row_record["passed"]:
+            failures.append(
+                f"{path}: {row.name} utilization {row.percent:.2f}% exceeds {max_percent:.2f}%"
+            )
+
+    record = _file_record(path, report_bytes)
+    record.update(
+        {
+            "max_percent": max_percent,
+            "rows": row_records,
+            "passed": not failures,
+        }
+    )
+    return record, failures
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="check Vivado timing and utilization reports")
     parser.add_argument(
@@ -101,17 +164,37 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--min-wns", type=float, default=0.0)
     parser.add_argument("--max-utilization", type=float, default=90.0)
+    parser.add_argument("--json", action="store_true", help="print parsed report evidence as JSON")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     failures = []
+    timing_records = []
+    utilization_records = []
 
     for timing in args.timing:
-        failures.extend(check_timing(timing, args.min_wns))
+        record, record_failures = timing_record(timing, args.min_wns)
+        timing_records.append(record)
+        failures.extend(record_failures)
     for utilization in args.utilization:
-        failures.extend(check_utilization(utilization, args.max_utilization))
+        record, record_failures = utilization_record(utilization, args.max_utilization)
+        utilization_records.append(record)
+        failures.extend(record_failures)
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "passed": not failures,
+                    "failures": failures,
+                    "timing": timing_records,
+                    "utilization": utilization_records,
+                },
+                sort_keys=True,
+            )
+        )
 
     if failures:
         for failure in failures:
@@ -119,7 +202,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     checked = len(args.timing) + len(args.utilization)
-    print(f"PASS: checked {checked} Vivado report(s)")
+    if not args.json:
+        print(f"PASS: checked {checked} Vivado report(s)")
     return 0
 
 

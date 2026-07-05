@@ -124,6 +124,10 @@ python3 scripts/vivado/check_reports.py \
   --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt
 ```
 
+Add `--json` to include report paths, byte lengths, SHA-256 hashes, parsed WNS
+values, utilization rows, thresholds, and pass/fail state in machine-readable
+build evidence.
+
 These Vivado scripts consume `generated-kv260-axi-lite-top/filelist.f`. Generate
 the AXI-Lite top first. The IP packaging script maps the generated clock, reset,
 AXI-Lite, and AXI-stream ports onto Vivado bus interfaces and exposes a 4 KiB

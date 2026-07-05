@@ -48,7 +48,8 @@ python3 scripts/vivado/check_reports.py \
   --timing build/vivado/hjpeg-kv260-artifacts/post_synth_timing_summary.rpt \
   --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --utilization build/vivado/hjpeg-kv260-artifacts/post_synth_utilization.rpt \
-  --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt
+  --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt \
+  --json
 ```
 
 Expected evidence:
@@ -68,6 +69,8 @@ Pass criteria:
 - Resource use leaves enough headroom for the intended KV260 platform shell.
 - `check_reports.py` exits successfully for the generated timing/utilization
   reports.
+- The JSON evidence records report paths, byte lengths, SHA-256 hashes, parsed
+  WNS values, utilization rows, thresholds, and pass/fail state.
 
 Latest local Vivado 2026.1 evidence:
 
