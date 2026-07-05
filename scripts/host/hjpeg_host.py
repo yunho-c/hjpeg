@@ -2362,7 +2362,11 @@ def check_run_evidence_record(
             "complete_hardware_run_evidence": complete,
             "all_recorded_checks_passed": all_checks,
             "hardware_run_summary_matches_computed": summary_matches_computed,
+            "evidence_group_count": computed_summary.get("evidence_group_count"),
+            "evidence_present_count": computed_summary.get("evidence_present_count"),
             "missing_evidence": missing_evidence,
+            "recorded_check_count": computed_summary.get("recorded_check_count"),
+            "passing_check_count": computed_summary.get("passing_check_count"),
             "failing_checks": failing_checks,
         }
     )
