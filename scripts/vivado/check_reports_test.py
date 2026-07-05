@@ -106,6 +106,20 @@ Design Route Status
    ------------------------------------------- : ----------- :
 """
 
+ROUTE_STATUS_MISSING_ROUTING_ERRORS_REPORT = """
+Design Route Status
+-------------------
+
+Number of Unrouted Nets: 0
+"""
+
+ROUTE_STATUS_MISSING_UNROUTED_REPORT = """
+Design Route Status
+-------------------
+
+Number of Nets with Routing Errors: 0
+"""
+
 ROUTE_STATUS_BAD_REPORT = """
 Design Route Status
 -------------------
@@ -305,6 +319,26 @@ class CheckReportsTest(unittest.TestCase):
                     f"{report}: route status number_of_nets_with_routing_errors is 1, expected 0",
                     f"{report}: route status number_of_unrouted_nets is 2, expected 0",
                 ],
+            )
+
+    def test_check_route_status_requires_routing_error_count(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "post_impl_route_status.rpt"
+            report.write_text(ROUTE_STATUS_MISSING_ROUTING_ERRORS_REPORT)
+
+            self.assertEqual(
+                check_reports.check_route_status(report),
+                [f"{report}: route status missing number_of_nets_with_routing_errors count"],
+            )
+
+    def test_check_route_status_requires_unrouted_count(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "post_impl_route_status.rpt"
+            report.write_text(ROUTE_STATUS_MISSING_UNROUTED_REPORT)
+
+            self.assertEqual(
+                check_reports.check_route_status(report),
+                [f"{report}: route status missing number_of_unrouted_nets count"],
             )
 
     def test_parse_address_map_entries(self) -> None:

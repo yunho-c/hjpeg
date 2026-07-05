@@ -62,6 +62,10 @@ REQUIRED_REPORT_FILENAMES = {
     "route_status": ("post_impl_route_status.rpt",),
     "clock_utilization": ("post_impl_clock_utilization.rpt",),
 }
+REQUIRED_ROUTE_STATUS_COUNTS = (
+    "number_of_unrouted_nets",
+    "number_of_nets_with_routing_errors",
+)
 
 
 def finite_float(value: str) -> float:
@@ -403,6 +407,9 @@ def check_route_status(path: Path) -> list[str]:
         return [f"{path}: could not find route status counts"]
 
     failures = []
+    for label in REQUIRED_ROUTE_STATUS_COUNTS:
+        if label not in counts:
+            failures.append(f"{path}: route status missing {label} count")
     for label, count in counts.items():
         if count != 0:
             failures.append(f"{path}: route status {label} is {count}, expected 0")
@@ -610,6 +617,9 @@ def route_status_record(path: Path) -> tuple[dict[str, object], list[str]]:
     failures = []
     if not counts:
         failures.append(f"{path}: could not find route status counts")
+    for label in REQUIRED_ROUTE_STATUS_COUNTS:
+        if label not in counts:
+            failures.append(f"{path}: route status missing {label} count")
     for label, count in counts.items():
         if count != 0:
             failures.append(f"{path}: route status {label} is {count}, expected 0")
