@@ -498,6 +498,16 @@ def status_text(status: int) -> str:
     return ",".join(flags) if flags else "idle"
 
 
+def status_record(status: int) -> dict[str, object]:
+    return {
+        "status": status & 0xFFFFFFFF,
+        "status_hex": f"0x{status & 0xFFFFFFFF:08x}",
+        "busy": bool(status & STATUS_BUSY),
+        "protocol_error": bool(status & STATUS_PROTOCOL_ERROR),
+        "text": status_text(status),
+    }
+
+
 def require_idle_status(regs: AxiLiteWindow, context: str = "status") -> None:
     status = regs.read32(REG_STATUS)
     if status & STATUS_BUSY:
@@ -560,6 +570,7 @@ def build_parser() -> argparse.ArgumentParser:
     status = subparsers.add_parser("status", help="read encoder AXI-Lite status register")
     status.add_argument("--dev", type=Path, default=Path("/dev/mem"))
     status.add_argument("--base-addr", type=_parse_int, required=True)
+    status.add_argument("--json", action="store_true", help="print status evidence as JSON")
 
     clear = subparsers.add_parser("clear-error", help="pulse the protocol-error clear bit")
     clear.add_argument("--dev", type=Path, default=Path("/dev/mem"))
@@ -652,6 +663,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "status":
         with AxiLiteWindow(args.dev, args.base_addr) as regs:
             status = regs.read32(REG_STATUS)
+        if args.json:
+            print(json.dumps(status_record(status), sort_keys=True))
+            return 0
         print(f"0x{status:08x} {status_text(status)}")
         return 0
 

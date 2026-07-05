@@ -157,7 +157,7 @@ AXI DMA design:
 python3 scripts/host/hjpeg_host.py make-test-ppm input.ppm --width 640 --height 480
 python3 scripts/host/hjpeg_host.py pack-ppm input.ppm input.rgb
 python3 scripts/host/hjpeg_host.py config --base-addr 0xa0000000 --width 640 --height 480
-python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000
+python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000 --json
 python3 scripts/host/hjpeg_host.py run-stream-devices \
   --base-addr 0xa0000000 \
   --tx-device /dev/hjpeg-mm2s \
@@ -191,10 +191,10 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
   --decoder-command 'magick identify {jpeg}'
 ```
 
-Add `--json` to `validate-jpeg` or `run-stream-devices` when you want the
-validation evidence in a machine-readable form for logs. The evidence includes
-dimensions, scan-data byte count, total JPEG byte length, and SHA-256. For
-`run-stream-devices`, it also includes the input RGB stream byte length and
+Add `--json` to `status`, `validate-jpeg`, or `run-stream-devices` when you
+want evidence in a machine-readable form for logs. JPEG validation evidence
+includes dimensions, scan-data byte count, total JPEG byte length, and SHA-256.
+For `run-stream-devices`, it also includes the input RGB stream byte length and
 SHA-256.
 
 ## Versions

@@ -272,6 +272,50 @@ class HjpegHostTest(unittest.TestCase):
             hjpeg_host.status_text(hjpeg_host.STATUS_BUSY | hjpeg_host.STATUS_PROTOCOL_ERROR),
             "busy,protocol_error",
         )
+        self.assertEqual(
+            hjpeg_host.status_record(hjpeg_host.STATUS_PROTOCOL_ERROR),
+            {
+                "status": hjpeg_host.STATUS_PROTOCOL_ERROR,
+                "status_hex": "0x00000002",
+                "busy": False,
+                "protocol_error": True,
+                "text": "protocol_error",
+            },
+        )
+
+    def test_status_cli_can_print_json_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            mem = Path(tmp) / "mem.bin"
+            mem.write_bytes(bytes(hjpeg_host.AXI_LITE_APERTURE_BYTES))
+
+            with hjpeg_host.AxiLiteWindow(mem, 0) as regs:
+                regs.write32(
+                    hjpeg_host.REG_STATUS,
+                    hjpeg_host.STATUS_BUSY | hjpeg_host.STATUS_PROTOCOL_ERROR,
+                )
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "status",
+                            "--dev",
+                            str(mem),
+                            "--base-addr",
+                            "0",
+                            "--json",
+                        ]
+                    ),
+                    0,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertEqual(record["status"], 3)
+            self.assertEqual(record["status_hex"], "0x00000003")
+            self.assertTrue(record["busy"])
+            self.assertTrue(record["protocol_error"])
+            self.assertEqual(record["text"], "busy,protocol_error")
 
     def test_clear_error_preserves_persistent_control_bits(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

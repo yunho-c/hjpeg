@@ -118,7 +118,7 @@ python3 scripts/host/hjpeg_host.py run-stream-devices \
   --output-jpeg output.jpg \
   --width WIDTH \
   --height HEIGHT
-python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000
+python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000 --json
 ```
 
 Adjust the `--tx-device` and `--rx-device` paths to match the loaded board
@@ -131,6 +131,8 @@ Expected evidence:
 - Status is `idle` before the transfer starts.
 - Status returns to `idle` after the transfer completes.
 - `protocol_error` is never reported for the valid frame.
+- Standalone `status --json` evidence records the raw status word, decoded
+  `busy` and `protocol_error` flags, and text state.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after
@@ -154,8 +156,8 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
   --decoder-command 'magick identify {jpeg}'
 ```
 
-Use `--json` with `validate-jpeg` or `run-stream-devices` when saving evidence
-for automation or later comparison.
+Use `--json` with `status`, `validate-jpeg`, or `run-stream-devices` when
+saving evidence for automation or later comparison.
 
 Expected evidence:
 
