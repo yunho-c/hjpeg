@@ -38,7 +38,7 @@ Implemented and tested in simulation:
 - AXI-stream-shaped RGB input and JPEG-byte output wrapper.
 - AXI-Lite control/status wrapper for KV260-oriented IP packaging.
 - Host helpers for PPM packing, AXI-Lite register access, stream-device DMA
-  flow, and JPEG dimension validation.
+  flow, and JPEG validation/evidence checks.
 - Vivado TCL entry points for synthesis, IP packaging, block design creation,
   bitstream/XSA export, and report checking.
 
@@ -171,6 +171,16 @@ byte write strobes.
 
 Recent commits, newest first:
 
+- `58ea305 feat: verify jpeg jfif emission`
+- `3057e3b feat: verify jpeg chroma mode`
+- `65071d6 feat: verify jpeg restart interval`
+- `a351321 feat: record jpeg restart interval evidence`
+- `f800d3c feat: validate jpeg table markers`
+- `8b390e2 feat: gate host frames by rtl limits`
+- `818acc0 fix: parse vivado utilization columns`
+- `bbd42cc fix: gate vivado hold timing explicitly`
+- `c216ead feat: check vivado hold slack`
+- `9ac6010 docs: refresh evidence workflow handoff`
 - `347a537 feat: record encoder config evidence`
 - `42e4e7e feat: record decoder command in evidence`
 - `e699cce feat: emit host input evidence as json`
@@ -254,13 +264,26 @@ Recent host/Vivado helper work made the evidence path machine-readable. The
 host helper now supports JSON evidence for `make-test-ppm`, `pack-ppm`,
 `config`, `status`, `validate-jpeg`, and `run-stream-devices`. The run evidence
 ties together the input RGB stream hash, output JPEG hash, AXI-Lite target,
-encoder configuration, status checkpoints, and optional decoder command. The
-Vivado report checker supports `--json` plus repeated `--artifact` arguments so
-the bitstream, XSA, timing reports, and utilization reports can be recorded
-with byte lengths, hashes, parsed setup WNS and hold WHS, utilization rows,
-thresholds, and pass/fail state. Use `--hold-timing` for post-implementation
-timing reports; post-synthesis hold can be negative before implementation fixes
-it.
+encoder configuration, status checkpoints, and optional decoder command. Host
+JPEG validation now checks more than dimensions: it requires DQT and DHT
+markers, records APP0/DQT/DHT/DRI/RST marker counts, parses DRI restart
+intervals, records SOF0 component sampling factors, infers 4:4:4 versus 4:2:0,
+and can enforce expected restart interval, chroma mode, and JFIF APP0 presence.
+`run-stream-devices` enforces those expectations automatically from the
+configured AXI-Lite control fields.
+
+The host helper defaults input-prep and hardware-run dimensions to the current
+KV260 top's `1920x1080` limit. Use `--max-width` and `--max-height` only for a
+custom RTL elaboration with different `HjpegConfig` frame limits.
+
+The Vivado report checker supports `--json` plus repeated `--artifact`
+arguments so the bitstream, XSA, timing reports, and utilization reports can be
+recorded with byte lengths, hashes, parsed setup WNS and hold WHS, utilization
+rows, thresholds, and pass/fail state. Use `--hold-timing` for
+post-implementation timing reports; post-synthesis hold can be negative before
+implementation fixes it. The utilization parser handles Vivado's `Prohibited`
+column and records hard-system rows such as `PS8` without gating them against
+the fabric utilization threshold.
 
 ## Last Known Local Verification
 
@@ -397,16 +420,27 @@ python3 scripts/host/hjpeg_host.py run-stream-devices \
   --output-jpeg output.jpg \
   --width WIDTH \
   --height HEIGHT \
+  --restart-interval RESTART_INTERVAL \
+  --chroma-subsample \
   --decoder-command 'magick identify {jpeg}' \
   --json
 python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000 --json
-python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg --width WIDTH --height HEIGHT --json
+python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
+  --width WIDTH \
+  --height HEIGHT \
+  --restart-interval RESTART_INTERVAL \
+  --check-chroma-mode \
+  --chroma-subsample \
+  --expect-jfif present \
+  --json
 ```
 
 The device paths and base address may need adjustment for the actual board
 image. If the DMA driver exposes ioctls or descriptor queues instead of simple
 byte-stream device files, add a new backend around the existing packing,
-register, and validation helpers.
+register access, and validation helpers. Omit `--chroma-subsample` for a 4:4:4
+run. Pass `--no-jfif` to `run-stream-devices` and
+`--expect-jfif absent` to standalone validation if APP0 emission is disabled.
 
 Hardware completion evidence should include:
 
@@ -414,22 +448,26 @@ Hardware completion evidence should include:
 - Status is idle before and after the transfer.
 - No protocol error is reported for a valid frame.
 - Captured output starts with SOI and ends with EOI.
-- `validate-jpeg` confirms the expected dimensions and non-empty
-  entropy-coded scan data.
+- `validate-jpeg` confirms the expected dimensions, DQT/DHT presence, non-empty
+  entropy-coded scan data, SOF0 component sampling factors, chroma mode, DRI
+  restart interval, restart markers, and APP0/JFIF presence.
 - JSON evidence records the bitstream/XSA/report hashes, PPM/RGB input hashes,
   AXI-Lite target, encoder configuration, status checkpoints, output JPEG hash,
-  scan payload length, and decoder command.
+  scan payload length, component sampling factors, marker counts, restart
+  interval evidence, chroma mode, JFIF evidence, and decoder command.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 
 The `run-stream-devices` host helper now checks and records AXI-Lite status
 after configuration, before streaming RGB input, and after validating the
 captured JPEG. It fails if the encoder reports `busy` or `protocol_error` at
-any of those checkpoints. `make-test-ppm` can generate a deterministic
-non-flat/color P6 PPM fixture for repeatable visual checks when no external
-image is available. Pass `--decoder-command 'magick identify {jpeg}'` or an
-equivalent installed decoder command to `validate-jpeg` or `run-stream-devices`
-when you want the standard decoder-open check captured in JSON evidence.
+any of those points, or if the captured JPEG metadata contradicts the configured
+restart interval, chroma mode, or JFIF setting. `make-test-ppm` can generate a
+deterministic non-flat/color P6 PPM fixture for repeatable visual checks when
+no external image is available. Pass
+`--decoder-command 'magick identify {jpeg}'` or an equivalent installed decoder
+command to `validate-jpeg` or `run-stream-devices` when you want the standard
+decoder-open check captured in JSON evidence.
 
 ## Known Blockers And Bottlenecks
 
@@ -463,7 +501,8 @@ If the new PC has KV260 access too:
 1. Use the bitstream/XSA from the Vivado flow.
 2. Confirm the AXI-Lite base address and DMA device model.
 3. Run a small PPM through `hjpeg_host.py` using the JSON evidence options.
-4. Validate the captured JPEG with `--json` and a standard decoder command.
+4. Validate the captured JPEG with `--json`, marker/chroma/JFIF/restart
+   expectations, and a standard decoder command.
 5. Save the command JSON records and enough output evidence to update
    `docs/kv260-bringup.md`.
 
