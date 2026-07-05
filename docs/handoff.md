@@ -686,7 +686,8 @@ Hardware completion evidence should include:
   state. Summary checks recompute checkpoint order and aggregate
   idle/error/busy flags from the detailed status records. They also recompute
   RGB byte-count matches, PPM-to-input-RGB consistency, and transfer byte rates
-  from the saved lengths, hashes, and elapsed time.
+  from the saved lengths, hashes, and elapsed time. Required boolean evidence
+  fields must be actual JSON booleans.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 

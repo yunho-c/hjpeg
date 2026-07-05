@@ -1735,8 +1735,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and expected_sos_spectral.get("spectral_end") == 63
             and expected_sos_spectral.get("successive_approximation") == 0
         )
-        validation_requires_standard_huffman = bool(
-            validation_expectations.get("require_standard_huffman", False)
+        validation_requires_standard_huffman = (
+            validation_expectations.get("require_standard_huffman") is True
         )
         evidence_present["validation_expectations"] = (
             validation_baseline_shape
@@ -1841,7 +1841,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         input_ppm_rgb_bytes = input_ppm.get("rgb_bytes")
         input_ppm_packed_rgb_byte_length = input_ppm.get("packed_rgb_byte_length")
         input_ppm_packed_rgb_sha256 = input_ppm.get("packed_rgb_sha256")
-        input_ppm_matches = bool(input_ppm["packed_rgb_matches_input"])
+        input_ppm_matches = input_ppm["packed_rgb_matches_input"] is True
         input_ppm_byte_length_positive = (
             isinstance(input_ppm_byte_length, int) and input_ppm_byte_length > 0
         )
@@ -1897,8 +1897,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         input_ppm_has_color_pixels = False
         image_stats = input_ppm.get("image_stats")
         if isinstance(image_stats, dict):
-            input_ppm_non_flat = bool(image_stats.get("non_flat", False))
-            input_ppm_has_color_pixels = bool(image_stats.get("has_color_pixels", False))
+            input_ppm_non_flat = image_stats.get("non_flat") is True
+            input_ppm_has_color_pixels = image_stats.get("has_color_pixels") is True
         checks["input_ppm_non_flat"] = input_ppm_non_flat
         checks["input_ppm_has_color_pixels"] = input_ppm_has_color_pixels
         evidence_present["input_ppm"] = (
@@ -1960,8 +1960,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             isinstance(status_check, dict)
             and status_check.get("status") == 0
             and status_check.get("text") == "idle"
-            and not bool(status_check.get("busy", True))
-            and not bool(status_check.get("protocol_error", True))
+            and status_check.get("busy") is False
+            and status_check.get("protocol_error") is False
             for status_check in status_checks
         )
         status_checks_all_idle = status_checks_each_idle
@@ -1972,7 +1972,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             status_checks_list_present
             and any(
                 isinstance(status_check, dict)
-                and bool(status_check.get("protocol_error", False))
+                and status_check.get("protocol_error") is True
                 for status_check in status_checks
             )
         )
@@ -1988,7 +1988,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             status_checks_list_present
             and any(
                 isinstance(status_check, dict)
-                and bool(status_check.get("busy", False))
+                and status_check.get("busy") is True
                 for status_check in status_checks
             )
         )
@@ -2042,7 +2042,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
 
     if "decoder_passed" in record:
-        decoder_passed = bool(record.get("decoder_passed", False))
+        decoder_passed = record.get("decoder_passed") is True
         decoder_command = record.get("decoder_command")
         decoder_command_present = isinstance(decoder_command, str) and bool(
             decoder_command
@@ -2091,9 +2091,10 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         decoder_output_capture_chars_positive = isinstance(
             decoder_output_capture_chars, int
         ) and decoder_output_capture_chars > 0
-        decoder_output_not_truncated = not bool(
-            record.get("decoder_stdout_truncated", True)
-        ) and not bool(record.get("decoder_stderr_truncated", True))
+        decoder_output_not_truncated = (
+            record.get("decoder_stdout_truncated") is False
+            and record.get("decoder_stderr_truncated") is False
+        )
         evidence_present["decoder"] = (
             decoder_passed
             and decoder_command_present

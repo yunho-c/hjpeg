@@ -1699,6 +1699,29 @@ class HjpegHostTest(unittest.TestCase):
         self.assertTrue(complete_summary["checks"]["input_ppm_non_flat"])
         self.assertTrue(complete_summary["checks"]["input_ppm_has_color_pixels"])
 
+    def test_hardware_summary_requires_strict_input_ppm_booleans(self) -> None:
+        record = {
+            "input_ppm": {
+                "byte_length": 16,
+                "sha256": "0" * 64,
+                "width": 2,
+                "height": 1,
+                "rgb_bytes": 6,
+                "packed_rgb_byte_length": 8,
+                "packed_rgb_sha256": "1" * 64,
+                "packed_rgb_matches_input": "true",
+                "image_stats": {"non_flat": "true", "has_color_pixels": "true"},
+            }
+        }
+
+        summary = hjpeg_host.hardware_run_summary_record(record)
+
+        self.assertFalse(summary["evidence_present"]["input_ppm"])
+        self.assertFalse(summary["all_recorded_checks_passed"])
+        self.assertFalse(summary["checks"]["input_ppm_matches_input"])
+        self.assertFalse(summary["checks"]["input_ppm_non_flat"])
+        self.assertFalse(summary["checks"]["input_ppm_has_color_pixels"])
+
     def test_hardware_summary_cross_checks_input_ppm_against_input_rgb(self) -> None:
         record = {
             "input_rgb": {
@@ -1882,6 +1905,28 @@ class HjpegHostTest(unittest.TestCase):
         self.assertTrue(valid_summary["checks"]["validation_table_order_present"])
         self.assertTrue(valid_summary["checks"]["validation_sos_spectral_baseline"])
         self.assertTrue(valid_summary["checks"]["validation_requires_standard_huffman"])
+
+    def test_hardware_summary_requires_strict_validation_booleans(self) -> None:
+        record = {
+            "validation_expectations": hjpeg_host.validation_expectations_record(
+                minimal_jpeg_info(width=2, height=1),
+                width=2,
+                height=1,
+                restart_interval=0,
+                check_chroma_mode=True,
+                chroma_subsample=False,
+                expect_jfif="present",
+                quality=80,
+                require_standard_huffman=True,
+            )
+        }
+        record["validation_expectations"]["require_standard_huffman"] = "true"
+
+        summary = hjpeg_host.hardware_run_summary_record(record)
+
+        self.assertFalse(summary["evidence_present"]["validation_expectations"])
+        self.assertFalse(summary["all_recorded_checks_passed"])
+        self.assertFalse(summary["checks"]["validation_requires_standard_huffman"])
 
     def test_run_evidence_record_summarizes_status_checks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2072,6 +2117,56 @@ class HjpegHostTest(unittest.TestCase):
         self.assertTrue(summary["checks"]["status_checks_each_idle"])
         self.assertTrue(summary["checks"]["status_checks_all_idle"])
         self.assertTrue(summary["checks"]["status_checks_all_idle_flag_matches"])
+
+    def test_hardware_summary_requires_strict_status_booleans(self) -> None:
+        record = {
+            "status_check_count": 3,
+            "status_check_contexts": [
+                "after configuration",
+                "before transfer",
+                "after transfer",
+            ],
+            "expected_status_check_contexts": [
+                "after configuration",
+                "before transfer",
+                "after transfer",
+            ],
+            "status_check_contexts_match_expected": True,
+            "status_checks_all_idle": True,
+            "status_checks_any_protocol_error": False,
+            "status_checks_any_busy": False,
+            "status_checks": [
+                {
+                    "context": "after configuration",
+                    "status": 0,
+                    "text": "idle",
+                    "busy": "false",
+                    "protocol_error": "false",
+                },
+                {
+                    "context": "before transfer",
+                    "status": 0,
+                    "text": "idle",
+                    "busy": False,
+                    "protocol_error": False,
+                },
+                {
+                    "context": "after transfer",
+                    "status": 0,
+                    "text": "idle",
+                    "busy": False,
+                    "protocol_error": False,
+                },
+            ],
+        }
+
+        summary = hjpeg_host.hardware_run_summary_record(record)
+
+        self.assertFalse(summary["evidence_present"]["status_checks"])
+        self.assertFalse(summary["all_recorded_checks_passed"])
+        self.assertFalse(summary["checks"]["status_checks_each_idle"])
+        self.assertFalse(summary["checks"]["status_checks_all_idle"])
+        self.assertFalse(summary["checks"]["status_checks_all_idle_flag_matches"])
 
     def test_hardware_summary_requires_detailed_status_checkpoint_evidence(self) -> None:
         record = {
@@ -2277,6 +2372,40 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(
                 record["hardware_run_summary"]["checks"]["decoder_output_not_truncated"]
             )
+
+    def test_hardware_summary_requires_strict_decoder_booleans(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "output.jpg"
+            jpeg.write_bytes(minimal_jpeg(width=2, height=1))
+            record = hjpeg_host.jpeg_info_record(
+                jpeg,
+                minimal_jpeg_info(width=2, height=1),
+                decoder_passed=True,
+                decoder_command="decoder {jpeg}",
+                decoder_timeout_seconds=1.0,
+                decoder_result=hjpeg_host.DecoderCommandResult(
+                    argv=tuple(hjpeg_host.decoder_command_argv(jpeg, "decoder {jpeg}")),
+                    returncode=0,
+                    stdout="decoded\n",
+                    stderr="",
+                    elapsed_seconds=0.01,
+                    stdout_chars=len("decoded\n"),
+                    stderr_chars=0,
+                    output_capture_chars=hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS,
+                    stdout_truncated=False,
+                    stderr_truncated=False,
+                ),
+            )
+            record["decoder_passed"] = "true"
+            record["decoder_stdout_truncated"] = "false"
+            record["decoder_stderr_truncated"] = "false"
+
+            summary = hjpeg_host.hardware_run_summary_record(record)
+
+            self.assertFalse(summary["evidence_present"]["decoder"])
+            self.assertFalse(summary["all_recorded_checks_passed"])
+            self.assertFalse(summary["checks"]["decoder_passed"])
+            self.assertFalse(summary["checks"]["decoder_output_not_truncated"])
 
     def test_hardware_summary_recomputes_decoder_argv(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

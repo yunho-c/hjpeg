@@ -233,6 +233,7 @@ Summary checks recompute checkpoint order and aggregate idle/error/busy flags
 from the detailed status records. They also recompute RGB byte-count matches,
 PPM-to-input-RGB consistency, and transfer byte rates from the saved lengths,
 hashes, and elapsed time.
+Required boolean evidence fields must be actual JSON booleans.
 For final board transcripts, pass `run-stream-devices --require-complete-evidence`
 so missing evidence groups turn into a nonzero CLI result; omit it for partial
 smoke tests. Run JSON records whether complete evidence was required and which
