@@ -4619,6 +4619,9 @@ class HjpegHostTest(unittest.TestCase):
             record = json.loads(stdout.getvalue())
             self.assertTrue(record["complete_hardware_run_evidence_required"])
             self.assertEqual(record["complete_hardware_run_evidence_missing"], [])
+            self.assertEqual(
+                record["complete_hardware_run_evidence_failing_checks"], []
+            )
             self.assertEqual(record["jpeg"], str(output_jpeg))
             self.assertEqual(record["width"], 2)
             self.assertEqual(record["height"], 1)
@@ -5005,6 +5008,9 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(
                 record["complete_hardware_run_evidence_missing"],
                 ["input_ppm", "decoder"],
+            )
+            self.assertEqual(
+                record["complete_hardware_run_evidence_failing_checks"], []
             )
             self.assertFalse(
                 record["hardware_run_summary"]["complete_hardware_run_evidence"]

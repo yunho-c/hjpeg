@@ -3363,11 +3363,17 @@ def main(argv: list[str] | None = None) -> int:
             ].items()
             if not present
         ]
+        failing_complete_checks = list(
+            record["hardware_run_summary"]["failing_checks"]
+        )
         record["complete_hardware_run_evidence_required"] = (
             args.require_complete_evidence
         )
         record["complete_hardware_run_evidence_missing"] = (
             missing_complete_evidence
+        )
+        record["complete_hardware_run_evidence_failing_checks"] = (
+            failing_complete_checks
         )
         if args.json:
             print(

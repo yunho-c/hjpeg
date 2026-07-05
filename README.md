@@ -372,7 +372,8 @@ Required boolean evidence fields must be actual JSON booleans.
 Pass `run-stream-devices --require-complete-evidence` for final board evidence
 gates; omit it for partial hardware smoke tests that intentionally skip source
 PPM or decoder evidence. Run JSON records whether complete evidence was
-required and which evidence groups were missing.
+required, which evidence groups were missing, and which complete-evidence
+checks failed.
 Saved run JSON can be checked later with:
 
 ```sh

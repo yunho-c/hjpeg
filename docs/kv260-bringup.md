@@ -263,7 +263,7 @@ Expected evidence:
   transcript so missing source PPM, decoder, transfer timing, or status evidence
   fails the command. Omit it only for intentional partial smoke tests. Run JSON
   records whether complete evidence was required and which evidence groups were
-  missing.
+  missing, plus which complete-evidence checks failed.
 - Saved run JSON can be checked later with `check-run-evidence`, which fails if
   `hardware_run_summary` is missing, `all_recorded_checks_passed` is false, or
   `complete_hardware_run_evidence` is false. The checker recomputes
