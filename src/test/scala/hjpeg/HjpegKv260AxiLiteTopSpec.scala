@@ -120,7 +120,7 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
     writeReg(dut, HjpegAxiLiteRegisters.Control, control)
   }
 
-  private def emitFrame(dut: HjpegKv260AxiLiteTop, width: Int, height: Int): Seq[Int] = {
+  private def emitFrame(dut: HjpegKv260AxiLiteTop, width: Int, height: Int, inputKeep: Int = 0xf): Seq[Int] = {
     val bytes = scala.collection.mutable.ArrayBuffer.empty[Int]
     val pixels = width * height
     var nextPixel = 0
@@ -139,7 +139,7 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
         val gray = BigInt(128) | (BigInt(128) << 8) | (BigInt(128) << 16)
         dut.io.sAxisRgb.valid.poke(true.B)
         dut.io.sAxisRgb.bits.data.poke(gray.U)
-        dut.io.sAxisRgb.bits.keep.poke("b1111".U)
+        dut.io.sAxisRgb.bits.keep.poke(inputKeep.U)
         dut.io.sAxisRgb.bits.last.poke((nextPixel == pixels - 1).B)
         nextPixel += 1
       } else {
@@ -276,6 +276,25 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
       image.getWidth mustBe 8
       image.getHeight mustBe 8
       readReg(dut, HjpegAxiLiteRegisters.Control) mustBe 0
+      readReg(dut, HjpegAxiLiteRegisters.Status) mustBe 0
+    }
+  }
+
+  "HjpegKv260AxiLiteTop should ignore keep for the unused fourth input byte" in {
+    simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      init(dut)
+      configure(dut, width = 8, height = 8, subsample = false)
+
+      val bytes = emitFrame(dut, width = 8, height = 8, inputKeep = 0x7)
+      bytes.take(2) mustBe Seq(0xff, 0xd8)
+      bytes.takeRight(2) mustBe Seq(0xff, 0xd9)
+      val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
+      image must not be null
+      image.getWidth mustBe 8
+      image.getHeight mustBe 8
       readReg(dut, HjpegAxiLiteRegisters.Status) mustBe 0
     }
   }
