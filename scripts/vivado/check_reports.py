@@ -702,9 +702,11 @@ def main(argv: list[str] | None = None) -> int:
         evidence_categories["all_required_present"]
         and artifact_suffixes["all_required_suffixes_present"]
     )
+    missing_categories = evidence_categories["missing_required_categories"]
+    missing_suffixes = artifact_suffixes["missing_required_suffixes"]
+    failing_categories = evidence_categories["failing_categories"]
+    failing_suffixes = artifact_suffixes["failing_required_suffixes"]
     if args.require_complete_evidence and not complete_vivado_flow_evidence:
-        missing_categories = evidence_categories["missing_required_categories"]
-        missing_suffixes = artifact_suffixes["missing_required_suffixes"]
         if missing_categories:
             failures.append(
                 "complete Vivado flow evidence missing required categories: "
@@ -747,6 +749,21 @@ def main(argv: list[str] | None = None) -> int:
                     "evidence_categories": evidence_categories,
                     "artifact_suffixes": artifact_suffixes,
                     "complete_vivado_flow_evidence": complete_vivado_flow_evidence,
+                    "complete_vivado_flow_evidence_required": (
+                        args.require_complete_evidence
+                    ),
+                    "complete_vivado_flow_evidence_missing_categories": (
+                        missing_categories
+                    ),
+                    "complete_vivado_flow_evidence_missing_suffixes": (
+                        missing_suffixes
+                    ),
+                    "complete_vivado_flow_evidence_failing_categories": (
+                        failing_categories
+                    ),
+                    "complete_vivado_flow_evidence_failing_suffixes": (
+                        failing_suffixes
+                    ),
                     "arguments": arguments,
                     "clock_period_ns": args.clock_period_ns,
                     "clock_frequency_mhz": 1000.0 / args.clock_period_ns,

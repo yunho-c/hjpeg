@@ -448,6 +448,19 @@ class CheckReportsTest(unittest.TestCase):
                 },
             )
             self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertFalse(record["complete_vivado_flow_evidence_required"])
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_missing_categories"], []
+            )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_missing_suffixes"], []
+            )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_failing_categories"], []
+            )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_failing_suffixes"], []
+            )
             self.assertEqual(record["clock_period_ns"], 8.0)
             self.assertEqual(record["clock_frequency_mhz"], 125.0)
             self.assertEqual(record["artifacts"][0]["path"], str(artifact))
@@ -533,6 +546,27 @@ class CheckReportsTest(unittest.TestCase):
             record = json.loads(stdout.getvalue())
             self.assertFalse(record["passed"])
             self.assertFalse(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["complete_vivado_flow_evidence_required"])
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_missing_categories"],
+                [
+                    "artifacts",
+                    "utilization",
+                    "drc",
+                    "route_status",
+                    "clock_utilization",
+                ],
+            )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_missing_suffixes"],
+                [".bit", ".xsa"],
+            )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_failing_categories"], []
+            )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_failing_suffixes"], []
+            )
             self.assertTrue(record["evidence_categories"]["present"]["timing"])
             self.assertFalse(record["evidence_categories"]["present"]["artifacts"])
             self.assertFalse(record["artifact_suffixes"]["all_required_suffixes_present"])
@@ -653,6 +687,31 @@ class CheckReportsTest(unittest.TestCase):
             self.assertEqual(record["checked_paths"], [str(missing), str(timing)])
             self.assertEqual(record["passed_paths"], [])
             self.assertEqual(record["failed_paths"], [str(missing), str(timing)])
+            self.assertFalse(record["complete_vivado_flow_evidence"])
+            self.assertFalse(record["complete_vivado_flow_evidence_required"])
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_missing_categories"],
+                [
+                    "artifacts",
+                    "timing",
+                    "utilization",
+                    "drc",
+                    "route_status",
+                    "clock_utilization",
+                ],
+            )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_missing_suffixes"],
+                [".bit", ".xsa"],
+            )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_failing_categories"],
+                ["artifacts", "timing"],
+            )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_failing_suffixes"],
+                [".xsa"],
+            )
             self.assertEqual(
                 record["checked_counts"],
                 {

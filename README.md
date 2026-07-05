@@ -154,8 +154,9 @@ category names, failing category names, required `.bit`/`.xsa` artifact suffix
 presence, present and missing required suffix names, failing required suffix
 names, required suffix passing/failing counts,
 required/present/missing category and suffix counts, aggregate pass/fail counts,
-diagnostic failure count, checked/passed/failed path lists, and pass/fail state
-in machine-readable build evidence.
+diagnostic failure count, checked/passed/failed path lists, complete-evidence
+required/missing/failing lists, and pass/fail state in machine-readable build
+evidence.
 Required evidence category presence is based on at least one passing record in
 that category, not just a requested input path. Complete Vivado evidence counts
 only records whose `passed` field is an actual JSON boolean `true`. Use
