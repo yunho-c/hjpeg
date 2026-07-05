@@ -24,6 +24,12 @@ def minimal_jpeg(width: int, height: int) -> bytes:
             0x00,
             0x00,
             0xFF,
+            0xDB,
+            0x00,
+            0x43,
+            0x00,
+            *([0x10] * 64),
+            0xFF,
             0xC0,
             0x00,
             0x0B,
@@ -35,6 +41,14 @@ def minimal_jpeg(width: int, height: int) -> bytes:
             0x01,
             0x01,
             0x11,
+            0x00,
+            0xFF,
+            0xC4,
+            0x00,
+            0x14,
+            0x00,
+            *([0x00] * 15),
+            0x01,
             0x00,
             0xFF,
             0xDA,
@@ -57,6 +71,15 @@ def header_only_jpeg(width: int, height: int) -> bytes:
     return minimal_jpeg(width, height).split(b"\xff\xda", maxsplit=1)[0] + b"\xff\xd9"
 
 
+def without_segment(jpeg: bytes, marker: bytes) -> bytes:
+    marker_offset = jpeg.find(marker)
+    if marker_offset < 0:
+        raise AssertionError(f"marker {marker.hex()} not found")
+    length_offset = marker_offset + 2
+    segment_length = (jpeg[length_offset] << 8) | jpeg[length_offset + 1]
+    return jpeg[:marker_offset] + jpeg[length_offset + segment_length :]
+
+
 def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
     data = minimal_jpeg(width, height)
     return hjpeg_host.JpegInfo(
@@ -65,6 +88,10 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
         scan_data_bytes=1,
         byte_length=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
+        app0_segments=1,
+        dqt_segments=1,
+        dht_segments=1,
+        restart_markers=0,
     )
 
 
@@ -259,7 +286,12 @@ class HjpegHostTest(unittest.TestCase):
             jpeg.write_bytes(minimal_jpeg(width=17, height=13))
 
             self.assertEqual(hjpeg_host.jpeg_dimensions(jpeg.read_bytes()), (17, 13))
-            self.assertEqual(hjpeg_host.jpeg_info(jpeg.read_bytes()).scan_data_bytes, 1)
+            parsed = hjpeg_host.jpeg_info(jpeg.read_bytes())
+            self.assertEqual(parsed.scan_data_bytes, 1)
+            self.assertEqual(parsed.app0_segments, 1)
+            self.assertEqual(parsed.dqt_segments, 1)
+            self.assertEqual(parsed.dht_segments, 1)
+            self.assertEqual(parsed.restart_markers, 0)
             self.assertEqual(
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13),
                 minimal_jpeg_info(width=17, height=13),
@@ -331,6 +363,10 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["width"], 17)
             self.assertEqual(record["height"], 13)
             self.assertEqual(record["scan_data_bytes"], 1)
+            self.assertEqual(record["app0_segments"], 1)
+            self.assertEqual(record["dqt_segments"], 1)
+            self.assertEqual(record["dht_segments"], 1)
+            self.assertEqual(record["restart_markers"], 0)
             self.assertEqual(record["byte_length"], len(minimal_jpeg(width=17, height=13)))
             self.assertEqual(
                 record["sha256"],
@@ -411,6 +447,27 @@ class HjpegHostTest(unittest.TestCase):
                 hjpeg_host.validate_jpeg(header_only, expected_width=17, expected_height=13)
             with self.assertRaisesRegex(ValueError, "entropy-coded scan data"):
                 hjpeg_host.validate_jpeg(empty_scan, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_requires_quantization_and_huffman_tables(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            missing_dqt = root / "missing-dqt.jpg"
+            missing_dht = root / "missing-dht.jpg"
+            missing_dqt.write_bytes(without_segment(minimal_jpeg(width=17, height=13), b"\xff\xdb"))
+            missing_dht.write_bytes(without_segment(minimal_jpeg(width=17, height=13), b"\xff\xc4"))
+
+            with self.assertRaisesRegex(ValueError, "DQT"):
+                hjpeg_host.validate_jpeg(missing_dqt, expected_width=17, expected_height=13)
+            with self.assertRaisesRegex(ValueError, "DHT"):
+                hjpeg_host.validate_jpeg(missing_dht, expected_width=17, expected_height=13)
+
+    def test_jpeg_info_counts_restart_markers_in_scan_data(self) -> None:
+        jpeg = minimal_jpeg(width=17, height=13).replace(b"\x7f\xff\xd9", b"\x7f\xff\xd0\x55\xff\xd9")
+
+        info = hjpeg_host.jpeg_info(jpeg)
+
+        self.assertEqual(info.scan_data_bytes, 2)
+        self.assertEqual(info.restart_markers, 1)
 
     def test_configure_registers_writes_axi_lite_map(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

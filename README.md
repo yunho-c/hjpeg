@@ -183,9 +183,9 @@ outside the default RTL top's `1920x1080` limit; pass `--max-width` and
 endpoints as byte-stream device files: it configures AXI-Lite registers through
 `/dev/mem`, writes the padded RGB stream to the TX device, captures bytes from
 the RX device until JPEG EOI, checks status for `busy` / `protocol_error`, and
-validates the resulting dimensions and non-empty scan data. DMA drivers that
-use ioctls or buffer queues still need a small adapter around the same host-side
-packing and validation helpers.
+validates the resulting dimensions, quantization/Huffman table markers, and
+non-empty scan data. DMA drivers that use ioctls or buffer queues still need a
+small adapter around the same host-side packing and validation helpers.
 
 To fold a standard decoder into the validation transcript, pass a command with
 `--decoder-command`. The helper replaces `{jpeg}` with the output path, or
@@ -206,9 +206,10 @@ frame limits, byte lengths, and SHA-256 hashes for the generated PPM and packed
 RGB stream. Configuration evidence includes the AXI-Lite target, frame settings,
 checked frame limits, quality, restart interval, chroma mode, JFIF setting, and
 control word. JPEG validation evidence includes dimensions, scan-data byte
-count, total JPEG byte length, SHA-256, and decoder command when one was
-provided. For `run-stream-devices`, it also includes the input RGB stream byte
-length and SHA-256 plus the AXI-Lite status checkpoints enforced during the run.
+count, APP0/DQT/DHT/restart marker counts, total JPEG byte length, SHA-256, and
+decoder command when one was provided. For `run-stream-devices`, it also
+includes the input RGB stream byte length and SHA-256 plus the AXI-Lite status
+checkpoints enforced during the run.
 
 ## Versions
 

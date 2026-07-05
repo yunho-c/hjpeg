@@ -64,6 +64,10 @@ class JpegInfo:
     scan_data_bytes: int
     byte_length: int
     sha256: str
+    app0_segments: int
+    dqt_segments: int
+    dht_segments: int
+    restart_markers: int
 
 
 @dataclass(frozen=True)
@@ -177,6 +181,10 @@ def jpeg_info(data: bytes) -> JpegInfo:
     offset = 2
     dimensions: tuple[int, int] | None = None
     scan_data_bytes = 0
+    app0_segments = 0
+    dqt_segments = 0
+    dht_segments = 0
+    restart_markers = 0
     saw_sos = False
     saw_eoi = False
     while offset < len(data):
@@ -191,6 +199,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
             saw_eoi = True
             break
         if 0xD0 <= marker <= 0xD7:
+            restart_markers += 1
             continue
         if offset + 2 > len(data):
             break
@@ -199,12 +208,19 @@ def jpeg_info(data: bytes) -> JpegInfo:
         if segment_length < 2 or offset + segment_length > len(data):
             raise ValueError(f"invalid JPEG segment length at byte {offset - 1}")
 
+        if marker == 0xE0:
+            app0_segments += 1
+        if marker == 0xDB:
+            dqt_segments += 1
         if marker == 0xC0:
             if segment_length < 8:
                 raise ValueError("SOF0 segment is too short")
             height = _read_be16(data, offset + 3)
             width = _read_be16(data, offset + 5)
             dimensions = (width, height)
+
+        if marker == 0xC4:
+            dht_segments += 1
 
         if marker == 0xDA:
             saw_sos = True
@@ -222,6 +238,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
                 elif following == 0xFF:
                     offset += 1
                 elif 0xD0 <= following <= 0xD7:
+                    restart_markers += 1
                     offset += 2
                 else:
                     break
@@ -233,6 +250,10 @@ def jpeg_info(data: bytes) -> JpegInfo:
         raise ValueError("JPEG output does not contain EOI")
     if dimensions is None:
         raise ValueError("JPEG output does not contain a baseline SOF0 segment")
+    if dqt_segments == 0:
+        raise ValueError("JPEG output does not contain a DQT segment")
+    if dht_segments == 0:
+        raise ValueError("JPEG output does not contain a DHT segment")
     if not saw_sos:
         raise ValueError("JPEG output does not contain an SOS segment")
     if scan_data_bytes == 0:
@@ -243,6 +264,10 @@ def jpeg_info(data: bytes) -> JpegInfo:
         scan_data_bytes=scan_data_bytes,
         byte_length=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
+        app0_segments=app0_segments,
+        dqt_segments=dqt_segments,
+        dht_segments=dht_segments,
+        restart_markers=restart_markers,
     )
 
 
@@ -319,6 +344,10 @@ def jpeg_info_record(
         "width": info.width,
         "height": info.height,
         "scan_data_bytes": info.scan_data_bytes,
+        "app0_segments": info.app0_segments,
+        "dqt_segments": info.dqt_segments,
+        "dht_segments": info.dht_segments,
+        "restart_markers": info.restart_markers,
         "byte_length": info.byte_length,
         "sha256": info.sha256,
     }
