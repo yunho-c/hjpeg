@@ -41,6 +41,38 @@ VIVADO_UTILIZATION_TABLE = """
 | PS8 | 1 | 0 | 0 | 1 | 100.00 |
 """
 
+DRC_CLEAN_REPORT = """
+Report DRC
+----------
+
+No DRC violations found.
+"""
+
+DRC_VIOLATION_TABLE = """
+Report DRC
+----------
+
+| Rule | Severity | Description |
+| UCIO-1 | Critical Warning | Unconstrained Logical Port |
+| NSTD-1 | Warning | Unspecified I/O Standard |
+"""
+
+ROUTE_STATUS_CLEAN_REPORT = """
+Design Route Status
+-------------------
+
+Number of Unrouted Nets: 0
+Number of Nets with Routing Errors: 0
+"""
+
+ROUTE_STATUS_BAD_REPORT = """
+Design Route Status
+-------------------
+
+Number of Unrouted Nets: 2
+Number of Nets with Routing Errors: 1
+"""
+
 
 class CheckReportsTest(unittest.TestCase):
     def test_parse_wns_from_timing_table(self) -> None:
@@ -76,6 +108,24 @@ class CheckReportsTest(unittest.TestCase):
         self.assertEqual(rows[0].percent, 22.45)
         self.assertEqual(rows[3].available, 1)
         self.assertEqual(rows[3].percent, 100.0)
+
+    def test_parse_drc_violations(self) -> None:
+        violations, saw_zero_summary = check_reports.parse_drc_violations(DRC_VIOLATION_TABLE)
+        self.assertFalse(saw_zero_summary)
+        self.assertEqual([violation.rule for violation in violations], ["UCIO-1", "NSTD-1"])
+        self.assertEqual(
+            [violation.severity for violation in violations],
+            ["critical warning", "warning"],
+        )
+
+    def test_parse_route_status_counts(self) -> None:
+        self.assertEqual(
+            check_reports.parse_route_status_counts(ROUTE_STATUS_CLEAN_REPORT),
+            {
+                "number_of_unrouted_nets": 0,
+                "number_of_nets_with_routing_errors": 0,
+            },
+        )
 
     def test_check_utilization_ignores_expected_hard_system_rows(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -118,13 +168,54 @@ class CheckReportsTest(unittest.TestCase):
                 [f"{report}: LUT as Logic utilization 95.00% exceeds 90.00%"],
             )
 
+    def test_check_drc_reports_blocking_violations(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "post_impl_drc.rpt"
+            report.write_text(DRC_VIOLATION_TABLE)
+
+            failures = check_reports.check_drc(report)
+            self.assertEqual(len(failures), 1)
+            self.assertIn("critical warning", failures[0])
+            self.assertIn("UCIO-1", failures[0])
+
+    def test_check_drc_accepts_zero_violation_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "post_impl_drc.rpt"
+            report.write_text(DRC_CLEAN_REPORT)
+
+            self.assertEqual(check_reports.check_drc(report), [])
+
+    def test_check_route_status_reports_unrouted_nets(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "post_impl_route_status.rpt"
+            report.write_text(ROUTE_STATUS_BAD_REPORT)
+
+            self.assertEqual(
+                check_reports.check_route_status(report),
+                [
+                    f"{report}: route status number_of_unrouted_nets is 2, expected 0",
+                    f"{report}: route status number_of_nets_with_routing_errors is 1, expected 0",
+                ],
+            )
+
+    def test_check_route_status_accepts_zero_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "post_impl_route_status.rpt"
+            report.write_text(ROUTE_STATUS_CLEAN_REPORT)
+
+            self.assertEqual(check_reports.check_route_status(report), [])
+
     def test_cli_passes_valid_reports(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             timing = root / "timing.rpt"
             utilization = root / "util.rpt"
+            drc = root / "post_impl_drc.rpt"
+            route_status = root / "post_impl_route_status.rpt"
             timing.write_text(TIMING_TABLE)
             utilization.write_text(UTILIZATION_TABLE)
+            drc.write_text(DRC_CLEAN_REPORT)
+            route_status.write_text(ROUTE_STATUS_CLEAN_REPORT)
 
             self.assertEqual(
                 check_reports.main(
@@ -133,6 +224,10 @@ class CheckReportsTest(unittest.TestCase):
                         str(timing),
                         "--utilization",
                         str(utilization),
+                        "--drc",
+                        str(drc),
+                        "--route-status",
+                        str(route_status),
                         "--min-wns",
                         "0",
                         "--min-whs",
@@ -150,9 +245,13 @@ class CheckReportsTest(unittest.TestCase):
             artifact = root / "hjpeg_kv260.bit"
             timing = root / "timing.rpt"
             utilization = root / "util.rpt"
+            drc = root / "post_impl_drc.rpt"
+            route_status = root / "post_impl_route_status.rpt"
             artifact.write_bytes(b"bitstream")
             timing.write_text(TIMING_TABLE)
             utilization.write_text(VIVADO_UTILIZATION_TABLE)
+            drc.write_text(DRC_CLEAN_REPORT)
+            route_status.write_text(ROUTE_STATUS_CLEAN_REPORT)
 
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
@@ -167,6 +266,10 @@ class CheckReportsTest(unittest.TestCase):
                             str(timing),
                             "--utilization",
                             str(utilization),
+                            "--drc",
+                            str(drc),
+                            "--route-status",
+                            str(route_status),
                             "--clock-period-ns",
                             "8.0",
                             "--json",
@@ -210,6 +313,20 @@ class CheckReportsTest(unittest.TestCase):
             self.assertTrue(record["utilization"][0]["rows"][0]["passed"])
             self.assertFalse(record["utilization"][0]["rows"][3]["checked"])
             self.assertTrue(record["utilization"][0]["rows"][3]["passed"])
+            self.assertEqual(record["drc"][0]["path"], str(drc))
+            self.assertTrue(record["drc"][0]["exists"])
+            self.assertTrue(record["drc"][0]["saw_zero_summary"])
+            self.assertEqual(record["drc"][0]["violations"], [])
+            self.assertTrue(record["drc"][0]["passed"])
+            self.assertEqual(record["route_status"][0]["path"], str(route_status))
+            self.assertEqual(
+                record["route_status"][0]["counts"],
+                {
+                    "number_of_unrouted_nets": 0,
+                    "number_of_nets_with_routing_errors": 0,
+                },
+            )
+            self.assertTrue(record["route_status"][0]["passed"])
 
     def test_cli_json_records_failures(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -20,6 +20,17 @@ UTIL_ROW_RE = re.compile(
     r"(?:(?P<prohibited>\d+)\s*\|\s*)?"
     r"(?P<available>\d+)\s*\|\s*(?P<percent>[0-9.]+)\s*\|"
 )
+DRC_TABLE_ROW_RE = re.compile(
+    r"^\|\s*(?P<rule>[A-Za-z0-9_.-]+)\s*\|\s*"
+    r"(?P<severity>Critical Warning|Error|Warning|Advisory)\s*\|",
+    re.IGNORECASE,
+)
+DRC_MESSAGE_RE = re.compile(r"\b(?P<severity>CRITICAL WARNING|ERROR):\s*(?P<message>.+)", re.IGNORECASE)
+DRC_ZERO_RE = re.compile(r"\b(?:no drc violations found|violations found\s*[:=]\s*0)\b", re.IGNORECASE)
+ROUTE_STATUS_RE = re.compile(
+    r"^\s*(?:#\s*)?(?P<label>[A-Za-z0-9_ /-]*(?:unrouted|routing errors?)[A-Za-z0-9_ /-]*)\s*[:=]\s*(?P<count>\d+)\b",
+    re.IGNORECASE,
+)
 IGNORED_UTILIZATION_ROWS = {"PS8"}
 
 
@@ -38,6 +49,13 @@ class UtilizationRow:
     prohibited: int
     available: int
     percent: float
+
+
+@dataclass(frozen=True)
+class DrcViolation:
+    rule: str
+    severity: str
+    message: str
 
 
 def parse_timing_metric(report: str, metric: str) -> float:
@@ -93,6 +111,45 @@ def parse_utilization_rows(report: str) -> list[UtilizationRow]:
     return rows
 
 
+def parse_drc_violations(report: str) -> tuple[list[DrcViolation], bool]:
+    violations = []
+    saw_zero_summary = DRC_ZERO_RE.search(report) is not None
+    for line in report.splitlines():
+        table_match = DRC_TABLE_ROW_RE.match(line)
+        if table_match is not None:
+            violations.append(
+                DrcViolation(
+                    rule=table_match.group("rule"),
+                    severity=" ".join(table_match.group("severity").lower().split()),
+                    message=line.strip(),
+                )
+            )
+            continue
+
+        message_match = DRC_MESSAGE_RE.search(line)
+        if message_match is not None:
+            violations.append(
+                DrcViolation(
+                    rule="",
+                    severity=" ".join(message_match.group("severity").lower().split()),
+                    message=message_match.group("message").strip(),
+                )
+            )
+    return violations, saw_zero_summary
+
+
+def parse_route_status_counts(report: str) -> dict[str, int]:
+    counts = {}
+    for line in report.splitlines():
+        match = ROUTE_STATUS_RE.match(line)
+        if match is None:
+            continue
+        label = "_".join(match.group("label").lower().split())
+        label = label.replace("-", "_").replace("/", "_")
+        counts[label] = int(match.group("count"))
+    return counts
+
+
 def check_timing(path: Path, min_wns: float, min_whs: float = 0.0, check_whs: bool = False) -> list[str]:
     report = path.read_text()
     wns = parse_wns(report)
@@ -118,6 +175,28 @@ def check_utilization(path: Path, max_percent: float) -> list[str]:
             failures.append(
                 f"{path}: {row.name} utilization {row.percent:.2f}% exceeds {max_percent:.2f}%"
             )
+    return failures
+
+
+def check_drc(path: Path) -> list[str]:
+    violations, saw_zero_summary = parse_drc_violations(path.read_text())
+    blocking = [violation for violation in violations if violation.severity in {"error", "critical warning"}]
+    if blocking:
+        return [f"{path}: DRC {violation.severity}: {violation.message}" for violation in blocking]
+    if not violations and not saw_zero_summary:
+        return [f"{path}: could not find DRC violation summary"]
+    return []
+
+
+def check_route_status(path: Path) -> list[str]:
+    counts = parse_route_status_counts(path.read_text())
+    if not counts:
+        return [f"{path}: could not find route status counts"]
+
+    failures = []
+    for label, count in counts.items():
+        if count != 0:
+            failures.append(f"{path}: route status {label} is {count}, expected 0")
     return failures
 
 
@@ -256,6 +335,69 @@ def utilization_record(path: Path, max_percent: float) -> tuple[dict[str, object
     return record, failures
 
 
+def drc_record(path: Path) -> tuple[dict[str, object], list[str]]:
+    missing_record = missing_report_record(path, "DRC")
+    if missing_record is not None:
+        record, failures = missing_record
+        record.update({"violations": []})
+        return record, failures
+
+    report_bytes = path.read_bytes()
+    report = report_bytes.decode(errors="replace")
+    violations, saw_zero_summary = parse_drc_violations(report)
+    blocking = [violation for violation in violations if violation.severity in {"error", "critical warning"}]
+    failures = [f"{path}: DRC {violation.severity}: {violation.message}" for violation in blocking]
+    if not violations and not saw_zero_summary:
+        failures.append(f"{path}: could not find DRC violation summary")
+
+    record = _file_record(path, report_bytes)
+    record.update(
+        {
+            "exists": True,
+            "saw_zero_summary": saw_zero_summary,
+            "violations": [
+                {
+                    "rule": violation.rule,
+                    "severity": violation.severity,
+                    "message": violation.message,
+                    "blocking": violation.severity in {"error", "critical warning"},
+                }
+                for violation in violations
+            ],
+            "passed": not failures,
+        }
+    )
+    return record, failures
+
+
+def route_status_record(path: Path) -> tuple[dict[str, object], list[str]]:
+    missing_record = missing_report_record(path, "route status")
+    if missing_record is not None:
+        record, failures = missing_record
+        record.update({"counts": {}})
+        return record, failures
+
+    report_bytes = path.read_bytes()
+    report = report_bytes.decode(errors="replace")
+    counts = parse_route_status_counts(report)
+    failures = []
+    if not counts:
+        failures.append(f"{path}: could not find route status counts")
+    for label, count in counts.items():
+        if count != 0:
+            failures.append(f"{path}: route status {label} is {count}, expected 0")
+
+    record = _file_record(path, report_bytes)
+    record.update(
+        {
+            "exists": True,
+            "counts": counts,
+            "passed": not failures,
+        }
+    )
+    return record, failures
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="check Vivado timing and utilization reports")
     parser.add_argument(
@@ -278,6 +420,20 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         default=[],
         help="Vivado utilization report to check; may be passed multiple times",
+    )
+    parser.add_argument(
+        "--drc",
+        type=Path,
+        action="append",
+        default=[],
+        help="Vivado DRC report to check for Error or Critical Warning violations; may be passed multiple times",
+    )
+    parser.add_argument(
+        "--route-status",
+        type=Path,
+        action="append",
+        default=[],
+        help="Vivado route status report to check for unrouted nets or routing errors; may be passed multiple times",
     )
     parser.add_argument(
         "--artifact",
@@ -305,6 +461,8 @@ def main(argv: list[str] | None = None) -> int:
     artifact_records = []
     timing_records = []
     utilization_records = []
+    drc_records = []
+    route_status_records = []
 
     for artifact in args.artifact:
         record, record_failures = artifact_record(artifact)
@@ -333,6 +491,14 @@ def main(argv: list[str] | None = None) -> int:
         record, record_failures = utilization_record(utilization, args.max_utilization)
         utilization_records.append(record)
         failures.extend(record_failures)
+    for drc in args.drc:
+        record, record_failures = drc_record(drc)
+        drc_records.append(record)
+        failures.extend(record_failures)
+    for route_status in args.route_status:
+        record, record_failures = route_status_record(route_status)
+        route_status_records.append(record)
+        failures.extend(record_failures)
 
     if args.json:
         print(
@@ -345,6 +511,8 @@ def main(argv: list[str] | None = None) -> int:
                     "artifacts": artifact_records,
                     "timing": timing_records,
                     "utilization": utilization_records,
+                    "drc": drc_records,
+                    "route_status": route_status_records,
                 },
                 sort_keys=True,
             )
@@ -355,7 +523,13 @@ def main(argv: list[str] | None = None) -> int:
             print(f"FAIL: {failure}", file=sys.stderr)
         return 1
 
-    checked = len(args.artifact) + len(timing_paths) + len(args.utilization)
+    checked = (
+        len(args.artifact)
+        + len(timing_paths)
+        + len(args.utilization)
+        + len(args.drc)
+        + len(args.route_status)
+    )
     if not args.json:
         print(f"PASS: checked {checked} Vivado report(s)")
     return 0
