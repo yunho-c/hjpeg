@@ -298,9 +298,9 @@ Expected evidence:
   transfer, including the AXI-Lite target sampled for each checkpoint.
 - A standard JPEG decoder can open `output.jpg`; when `--decoder-command` is
   used, that decoder check, command string, resolved argv, timeout, return
-  code, bounded stdout/stderr, captured output lengths, and capture limit are
-  part of the JSON evidence, and decoder failure or timeout fails validation.
-  Decoder timeout values must be finite and positive.
+  code, elapsed seconds, bounded stdout/stderr, captured output lengths, and
+  capture limit are part of the JSON evidence, and decoder failure or timeout
+  fails validation. Decoder timeout values must be finite and positive.
 - The decoded dimensions match the input.
 - Visual content is recognizable for non-flat test images.
 

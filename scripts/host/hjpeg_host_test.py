@@ -1668,6 +1668,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["decoder_returncode"], 0)
             self.assertEqual(record["decoder_stdout"], "decoded 17x13\n")
             self.assertEqual(record["decoder_stderr"], "decoder warning\n")
+            self.assertGreaterEqual(record["decoder_elapsed_seconds"], 0.0)
             self.assertEqual(record["decoder_stdout_chars"], len("decoded 17x13\n"))
             self.assertEqual(record["decoder_stderr_chars"], len("decoder warning\n"))
             self.assertEqual(
@@ -1929,6 +1930,7 @@ class HjpegHostTest(unittest.TestCase):
                 tuple(hjpeg_host.decoder_command_argv(jpeg, command)),
             )
             self.assertEqual(result.returncode, 0)
+            self.assertGreaterEqual(result.elapsed_seconds, 0.0)
             self.assertEqual(result.stdout, "")
             self.assertEqual(result.stderr, "")
             self.assertFalse(result.stdout_truncated)
@@ -1956,6 +1958,7 @@ class HjpegHostTest(unittest.TestCase):
 
             self.assertEqual(len(result.stdout), hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS)
             self.assertEqual(len(result.stderr), hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS)
+            self.assertGreaterEqual(result.elapsed_seconds, 0.0)
             self.assertEqual(result.stdout_chars, hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS)
             self.assertEqual(result.stderr_chars, hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS)
             self.assertEqual(
@@ -3065,6 +3068,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["decoder_returncode"], 0)
             self.assertEqual(record["decoder_stdout"], "decoded 2x1\n")
             self.assertEqual(record["decoder_stderr"], "")
+            self.assertGreaterEqual(record["decoder_elapsed_seconds"], 0.0)
             self.assertEqual(record["decoder_stdout_chars"], len("decoded 2x1\n"))
             self.assertEqual(record["decoder_stderr_chars"], 0)
             self.assertEqual(

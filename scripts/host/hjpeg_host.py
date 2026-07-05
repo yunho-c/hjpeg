@@ -267,6 +267,7 @@ class DecoderCommandResult:
     returncode: int
     stdout: str
     stderr: str
+    elapsed_seconds: float
     stdout_chars: int
     stderr_chars: int
     output_capture_chars: int
@@ -1139,6 +1140,7 @@ def run_decoder_command(
     argv = decoder_command_argv(jpeg, command)
 
     try:
+        start = time.perf_counter()
         completed = subprocess.run(
             argv,
             check=False,
@@ -1147,6 +1149,7 @@ def run_decoder_command(
             text=True,
             timeout=timeout_seconds,
         )
+        elapsed_seconds = time.perf_counter() - start
     except FileNotFoundError as exc:
         raise RuntimeError(f"decoder command not found: {argv[0]}") from exc
     except subprocess.TimeoutExpired as exc:
@@ -1165,6 +1168,7 @@ def run_decoder_command(
         returncode=completed.returncode,
         stdout=stdout,
         stderr=stderr,
+        elapsed_seconds=elapsed_seconds,
         stdout_chars=len(stdout),
         stderr_chars=len(stderr),
         output_capture_chars=DECODER_OUTPUT_CAPTURE_CHARS,
@@ -1282,6 +1286,7 @@ def jpeg_info_record(
         record["decoder_returncode"] = decoder_result.returncode
         record["decoder_stdout"] = decoder_result.stdout
         record["decoder_stderr"] = decoder_result.stderr
+        record["decoder_elapsed_seconds"] = decoder_result.elapsed_seconds
         record["decoder_stdout_chars"] = decoder_result.stdout_chars
         record["decoder_stderr_chars"] = decoder_result.stderr_chars
         record["decoder_output_capture_chars"] = decoder_result.output_capture_chars

@@ -172,7 +172,8 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
-- current commit: `feat: record decoder output sizes`
+- current commit: `feat: record decoder elapsed evidence`
+- `9a92ff6 feat: record decoder output sizes`
 - `a37718b feat: record decoder argv evidence`
 - `779bf2c feat: record jpeg scan payload hash`
 - `3f9d9d2 feat: group jpeg marker count evidence`
@@ -613,8 +614,8 @@ Hardware completion evidence should include:
   signature count, restart interval and RST sequence evidence, DQT/DHT table
   IDs and payload hashes, Huffman table set, SOS table selectors, chroma mode,
   JFIF evidence, decoder command, resolved decoder argv, decoder timeout,
-  bounded decoder stdout/stderr, captured decoder output lengths, and decoder
-  output capture limit.
+  decoder elapsed seconds, bounded decoder stdout/stderr, captured decoder
+  output lengths, and decoder output capture limit.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 
@@ -632,9 +633,9 @@ command to `validate-jpeg` or `run-stream-devices` when you want the standard
 decoder-open check captured in JSON evidence. The evidence records the resolved
 argv after `{jpeg}` substitution or path appending. Use
 `--decoder-timeout-seconds` to bound that subprocess; the default is 30
-seconds. Successful decoder stdout/stderr are captured in bounded JSON fields
-with captured lengths and the configured capture limit, which is useful for
-commands that print decoded dimensions.
+seconds. Successful decoder elapsed seconds and stdout/stderr are captured in
+bounded JSON fields with captured lengths and the configured capture limit,
+which is useful for commands that print decoded dimensions.
 
 ## Known Blockers And Bottlenecks
 

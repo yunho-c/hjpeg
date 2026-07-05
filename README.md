@@ -223,8 +223,9 @@ To fold a standard decoder into the validation transcript, pass a command with
 appends the path when no placeholder is present. The decoder subprocess is
 bounded by `--decoder-timeout-seconds`, which defaults to 30 seconds. JSON
 evidence records that the decoder passed, the command string used, the timeout
-value, the resolved argv, the return code, bounded stdout/stderr, captured
-stdout/stderr lengths, and the capture limit. Decoder timeout values must
+value, the resolved argv, elapsed seconds, the return code, bounded
+stdout/stderr, captured stdout/stderr lengths, and the capture limit. Decoder
+timeout values must
 be finite and positive:
 
 ```sh
@@ -265,9 +266,10 @@ version/density/thumbnail fields, exact DQT/DHT segment counts,
 DQT/DHT/DRI/restart marker counts, a grouped `marker_counts` object,
 parsed marker sequence,
 parsed DRI restart interval, RST marker sequence, total JPEG byte length,
-SHA-256, decoder command, resolved decoder argv, and decoder timeout when one
-was provided, plus decoder return code and bounded stdout/stderr when a decoder
-command ran, including captured output lengths and the capture limit. JFIF
+SHA-256, decoder command, resolved decoder argv, decoder timeout, and decoder
+elapsed seconds when one was provided, plus decoder return code and bounded
+stdout/stderr when a decoder command ran, including captured output lengths and
+the capture limit. JFIF
 APP0 segments must match the encoder's baseline version, density, and
 no-thumbnail fields. The validator rejects non-8-bit or
 non-three-component SOF0 frames, zero SOF0 dimensions, duplicate SOF0/SOS
