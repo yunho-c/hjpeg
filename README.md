@@ -198,6 +198,7 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
   --height 480 \
   --restart-interval 0 \
   --check-chroma-mode \
+  --expect-jfif present \
   --decoder-command 'magick identify {jpeg}'
 ```
 
@@ -213,11 +214,12 @@ APP0/DQT/DHT/DRI/restart marker counts, parsed DRI restart interval, total JPEG
 byte length, SHA-256, and decoder command when one was provided. Pass
 `validate-jpeg --restart-interval N` to require the parsed DRI interval to match
 `N`, or `0` to require no DRI/RST markers. Pass `--check-chroma-mode` with
-`--chroma-subsample` when validating a standalone 4:2:0 file. For
-`run-stream-devices`, the configured restart interval and chroma mode are
-checked against the captured JPEG automatically; the run evidence also includes
-the input RGB stream byte length and SHA-256 plus the AXI-Lite status
-checkpoints enforced during the run.
+`--chroma-subsample` when validating a standalone 4:2:0 file. Pass
+`--expect-jfif present` or `absent` to check optional APP0/JFIF emission. For
+`run-stream-devices`, the configured restart interval, chroma mode, and JFIF
+setting are checked against the captured JPEG automatically; the run evidence
+also includes the input RGB stream byte length and SHA-256 plus the AXI-Lite
+status checkpoints enforced during the run.
 
 ## Versions
 

@@ -347,6 +347,13 @@ def require_chroma_mode(info: JpegInfo, expected_chroma_subsample: bool) -> None
         raise ValueError(f"JPEG chroma mode is {actual}, expected {expected}")
 
 
+def require_jfif(info: JpegInfo, expected_emit_jfif: bool) -> None:
+    if expected_emit_jfif and info.app0_segments == 0:
+        raise ValueError("JPEG does not contain APP0/JFIF, but JFIF emission was expected")
+    if not expected_emit_jfif and info.app0_segments != 0:
+        raise ValueError("JPEG contains APP0/JFIF, but JFIF emission was disabled")
+
+
 def require_restart_interval(info: JpegInfo, expected_restart_interval: int) -> None:
     if expected_restart_interval < 0:
         raise ValueError("expected restart interval must be nonnegative")
@@ -367,6 +374,7 @@ def validate_jpeg(
     expected_height: int,
     expected_restart_interval: int | None = None,
     expected_chroma_subsample: bool | None = None,
+    expected_emit_jfif: bool | None = None,
 ) -> JpegInfo:
     data = path.read_bytes()
     if len(data) < 4:
@@ -385,6 +393,8 @@ def validate_jpeg(
         require_restart_interval(info, expected_restart_interval)
     if expected_chroma_subsample is not None:
         require_chroma_mode(info, expected_chroma_subsample)
+    if expected_emit_jfif is not None:
+        require_jfif(info, expected_emit_jfif)
     return info
 
 
@@ -547,6 +557,7 @@ def run_stream_devices(
     expected_height: int,
     expected_restart_interval: int | None = None,
     expected_chroma_subsample: bool | None = None,
+    expected_emit_jfif: bool | None = None,
     max_width: int = DEFAULT_MAX_FRAME_WIDTH,
     max_height: int = DEFAULT_MAX_FRAME_HEIGHT,
     timeout_seconds: float | None = 30.0,
@@ -605,6 +616,7 @@ def run_stream_devices(
         expected_height,
         expected_restart_interval=expected_restart_interval,
         expected_chroma_subsample=expected_chroma_subsample,
+        expected_emit_jfif=expected_emit_jfif,
     )
     if decoder_command is not None:
         run_decoder_command(output_jpeg, decoder_command)
@@ -820,6 +832,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="check SOF0 sampling factors against --chroma-subsample",
     )
     validate.add_argument(
+        "--expect-jfif",
+        choices=("present", "absent"),
+        help="optionally require APP0/JFIF presence or absence",
+    )
+    validate.add_argument(
         "--decoder-command",
         help="optional external decoder command; {jpeg} is replaced with the JPEG path, otherwise the path is appended",
     )
@@ -926,12 +943,16 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "validate-jpeg":
+        expected_emit_jfif = None
+        if args.expect_jfif is not None:
+            expected_emit_jfif = args.expect_jfif == "present"
         info = validate_jpeg(
             args.jpeg,
             args.width,
             args.height,
             expected_restart_interval=args.restart_interval,
             expected_chroma_subsample=args.chroma_subsample if args.check_chroma_mode else None,
+            expected_emit_jfif=expected_emit_jfif,
         )
         decoder_passed = None
         if args.decoder_command is not None:
@@ -1052,6 +1073,7 @@ def main(argv: list[str] | None = None) -> int:
             expected_height=args.height,
             expected_restart_interval=args.restart_interval,
             expected_chroma_subsample=args.chroma_subsample,
+            expected_emit_jfif=not args.no_jfif,
             max_width=args.max_width,
             max_height=args.max_height,
             timeout_seconds=args.timeout_seconds,

@@ -133,9 +133,9 @@ non-empty entropy-coded scan data. It also records SOF0 component sampling
 factors and infers whether the output is 4:4:4 or 4:2:0. The helper can also run
 an external JPEG decoder command so decoder-open evidence is captured in the
 same transcript. Standalone validation can require an expected restart interval
-and chroma mode, and `run-stream-devices` checks the configured restart interval
-and chroma mode against the captured JPEG automatically. The `run-stream-devices`
-command supports Linux board images
+and chroma/JFIF mode, and `run-stream-devices` checks the configured restart
+interval, chroma mode, and JFIF setting against the captured JPEG automatically.
+The `run-stream-devices` command supports Linux board images
 that expose DMA MM2S/S2MM endpoints as byte-stream device files by writing
 padded RGB bytes to the TX device and reading JPEG bytes from the RX device
 until EOI.

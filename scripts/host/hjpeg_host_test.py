@@ -595,6 +595,67 @@ class HjpegHostTest(unittest.TestCase):
                 )
             self.assertEqual(json.loads(stdout.getvalue())["chroma_mode"], "4:2:0")
 
+    def test_validate_jpeg_can_check_expected_jfif_presence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with_jfif = root / "with-jfif.jpg"
+            without_jfif = root / "without-jfif.jpg"
+            with_jfif.write_bytes(minimal_jpeg(width=17, height=13))
+            without_jfif.write_bytes(without_segment(minimal_jpeg(width=17, height=13), b"\xff\xe0"))
+
+            hjpeg_host.validate_jpeg(
+                with_jfif,
+                expected_width=17,
+                expected_height=13,
+                expected_emit_jfif=True,
+            )
+            hjpeg_host.validate_jpeg(
+                without_jfif,
+                expected_width=17,
+                expected_height=13,
+                expected_emit_jfif=False,
+            )
+
+            with self.assertRaisesRegex(ValueError, "expected"):
+                hjpeg_host.validate_jpeg(
+                    without_jfif,
+                    expected_width=17,
+                    expected_height=13,
+                    expected_emit_jfif=True,
+                )
+            with self.assertRaisesRegex(ValueError, "disabled"):
+                hjpeg_host.validate_jpeg(
+                    with_jfif,
+                    expected_width=17,
+                    expected_height=13,
+                    expected_emit_jfif=False,
+                )
+
+    def test_validate_jpeg_cli_can_check_jfif_presence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "out.jpg"
+            jpeg.write_bytes(minimal_jpeg(width=17, height=13))
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "validate-jpeg",
+                            str(jpeg),
+                            "--width",
+                            "17",
+                            "--height",
+                            "13",
+                            "--expect-jfif",
+                            "present",
+                            "--json",
+                        ]
+                    ),
+                    0,
+                )
+            self.assertEqual(json.loads(stdout.getvalue())["app0_segments"], 1)
+
     def test_decoder_command_supports_placeholder_and_reports_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             jpeg = Path(tmp) / "out.jpg"
@@ -1078,6 +1139,29 @@ class HjpegHostTest(unittest.TestCase):
                     expected_width=2,
                     expected_height=1,
                     expected_chroma_subsample=True,
+                    timeout_seconds=1.0,
+                )
+
+    def test_run_stream_devices_rejects_jfif_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_rgb = root / "input.rgb"
+            output_jpeg = root / "output.jpg"
+            tx_device = root / "tx.dev"
+            rx_device = root / "rx.dev"
+            input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
+            rx_device.write_bytes(minimal_jpeg(width=2, height=1))
+
+            with self.assertRaisesRegex(ValueError, "disabled"):
+                hjpeg_host.run_stream_devices(
+                    input_rgb=input_rgb,
+                    output_jpeg=output_jpeg,
+                    tx_device=tx_device,
+                    rx_device=rx_device,
+                    max_output_bytes=1024,
+                    expected_width=2,
+                    expected_height=1,
+                    expected_emit_jfif=False,
                     timeout_seconds=1.0,
                 )
 
