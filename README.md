@@ -253,9 +253,10 @@ records the AXI-Lite target, raw status word, decoded flags, and text state.
 Clear-error evidence records the AXI-Lite target and control word pulsed to clear sticky protocol faults. JPEG validation
 evidence includes dimensions, SOF0 8-bit sample
 precision, exactly one SOF0 and one SOS segment, three-component frame shape,
-scan-data byte count, stuffed entropy `0xff` byte count, SOF0 component ID
-order, sampling factors, MCU count, decoded chroma mode, exact SOS component
-order and coverage, baseline SOS spectral fields, SOS component table selectors,
+scan-data byte count, unstuffed scan-data SHA-256, stuffed entropy `0xff` byte
+count, SOF0 component ID order, sampling factors, MCU count, decoded chroma
+mode, exact SOS component order and coverage, baseline SOS spectral fields,
+SOS component table selectors,
 DQT/DHT table IDs, exact DC/AC Huffman table set, exact DQT table set, DQT table
 order, exact DHT table order, DQT 8-bit precision, DQT/DHT payload byte counts
 and SHA-256 hashes, APP0 and JFIF APP0 counts, parsed JFIF APP0

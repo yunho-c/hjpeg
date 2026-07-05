@@ -236,6 +236,7 @@ class JpegInfo:
     huffman_tables: tuple[JpegHuffmanTable, ...]
     huffman_table_order: tuple[tuple[int, int], ...]
     scan_data_bytes: int
+    scan_data_sha256: str
     stuffed_ff_bytes: int
     byte_length: int
     sha256: str
@@ -435,6 +436,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
     quantization_table_details: dict[int, tuple[int, int, str]] = {}
     huffman_tables: dict[tuple[int, int], tuple[int, str]] = {}
     huffman_table_order: list[tuple[int, int]] = []
+    scan_data = bytearray()
     scan_data_bytes = 0
     stuffed_ff_bytes = 0
     app0_segments = 0
@@ -664,12 +666,14 @@ def jpeg_info(data: bytes) -> JpegInfo:
             offset += segment_length
             while offset + 1 < len(data):
                 if data[offset] != 0xFF:
+                    scan_data.append(data[offset])
                     scan_data_bytes += 1
                     offset += 1
                     continue
 
                 following = data[offset + 1]
                 if following == 0x00:
+                    scan_data.append(0xFF)
                     scan_data_bytes += 1
                     stuffed_ff_bytes += 1
                     offset += 2
@@ -865,6 +869,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
         ),
         huffman_table_order=tuple(huffman_table_order),
         scan_data_bytes=scan_data_bytes,
+        scan_data_sha256=hashlib.sha256(scan_data).hexdigest(),
         stuffed_ff_bytes=stuffed_ff_bytes,
         byte_length=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
@@ -1221,6 +1226,7 @@ def jpeg_info_record(
         ],
         "chroma_mode": jpeg_chroma_mode(info),
         "scan_data_bytes": info.scan_data_bytes,
+        "scan_data_sha256": info.scan_data_sha256,
         "stuffed_ff_bytes": info.stuffed_ff_bytes,
         "app0_segments": info.app0_segments,
         "jfif_app0_segments": info.jfif_app0_segments,
@@ -1959,6 +1965,7 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"{args.jpeg}: valid baseline JPEG dimensions {info.width}x{info.height}; "
             f"scan_data_bytes={info.scan_data_bytes} "
+            f"scan_data_sha256={info.scan_data_sha256} "
             f"stuffed_ff_bytes={info.stuffed_ff_bytes} "
             f"byte_length={info.byte_length} "
             f"sha256={info.sha256}{decoder_text}"
@@ -2132,6 +2139,7 @@ def main(argv: list[str] | None = None) -> int:
             f"captured validated JPEG to {args.output_jpeg}: "
             f"dimensions={info.width}x{info.height} "
             f"scan_data_bytes={info.scan_data_bytes} "
+            f"scan_data_sha256={info.scan_data_sha256} "
             f"stuffed_ff_bytes={info.stuffed_ff_bytes} "
             f"byte_length={info.byte_length} "
             f"sha256={info.sha256} "

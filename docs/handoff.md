@@ -172,6 +172,8 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- current commit: `feat: record jpeg scan payload hash`
+- `3f9d9d2 feat: group jpeg marker count evidence`
 - `d92bbce feat: validate jpeg dht table order`
 - `b5c1df9 feat: validate jpeg dqt table order`
 - `5299dd2 fix: validate jpeg quantization selectors`
@@ -368,9 +370,9 @@ table order DC0, DC1, AC0, AC1, and 8-bit DQT precision, records DQT/DHT payload
 byte counts and SHA-256 hashes,
 requires exact DQT/DHT segment counts, requires the standard DC/AC Huffman table
 set, rejects duplicate DQT/DHT table definitions, records parsed marker
-sequence, grouped marker counts, stuffed entropy `0xff` byte count, RST marker
-sequence, and JFIF APP0 signature count, requires JFIF APP0 fixed fields to
-match the encoder baseline,
+sequence, grouped marker counts, unstuffed scan-data SHA-256, stuffed entropy
+`0xff` byte count, RST marker sequence, and JFIF APP0 signature count, requires
+JFIF APP0 fixed fields to match the encoder baseline,
 rejects empty, oversized, oversubscribed, or invalid baseline DHT tables,
 zero-valued DQT entries, unsupported header markers, malformed, non-JFIF, or
 duplicate APP0 markers, RST markers without DRI, out-of-sequence RST markers,
@@ -602,12 +604,13 @@ Hardware completion evidence should include:
 - JSON evidence records the bitstream/XSA/report hashes, PPM/RGB input hashes,
   AXI-Lite target, encoder configuration, host capture limits, status
   checkpoints, output JPEG hash, scan payload length, SOF0/SOS marker counts,
-  SOF0 sample precision, SOF0/SOS component ID order, SOS component coverage,
-  SOS spectral fields, DQT precision, DQT table set, DQT/DHT segment counts,
-  component sampling factors, marker counts, parsed marker sequence, stuffed
-  entropy `0xff` byte count, JFIF APP0 signature count, restart interval and
-  RST sequence evidence, DQT/DHT table IDs and payload hashes, Huffman table
-  set, SOS table selectors, chroma mode, JFIF evidence, decoder command,
+  unstuffed scan-data SHA-256, SOF0 sample precision, SOF0/SOS component ID
+  order, SOS component coverage, SOS spectral fields, DQT precision, DQT table
+  set, DQT/DHT segment counts, component sampling factors, marker counts,
+  parsed marker sequence, stuffed entropy `0xff` byte count, JFIF APP0
+  signature count, restart interval and RST sequence evidence, DQT/DHT table
+  IDs and payload hashes, Huffman table set, SOS table selectors, chroma mode,
+  JFIF evidence, decoder command,
   decoder timeout, and bounded decoder stdout/stderr.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.

@@ -746,6 +746,7 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
         ),
         huffman_table_order=((0, 0), (0, 1), (1, 0), (1, 1)),
         scan_data_bytes=1,
+        scan_data_sha256=hashlib.sha256(b"\x7f").hexdigest(),
         stuffed_ff_bytes=0,
         byte_length=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
@@ -1048,6 +1049,7 @@ class HjpegHostTest(unittest.TestCase):
                 ),
             )
             self.assertEqual(parsed.scan_data_bytes, 1)
+            self.assertEqual(parsed.scan_data_sha256, hashlib.sha256(b"\x7f").hexdigest())
             self.assertEqual(parsed.stuffed_ff_bytes, 0)
             self.assertEqual(parsed.app0_segments, 1)
             self.assertEqual(parsed.jfif_app0_segments, 1)
@@ -1155,6 +1157,10 @@ class HjpegHostTest(unittest.TestCase):
                 )
             self.assertEqual(marker.read_text(), "ffd8")
             self.assertIn("scan_data_bytes=1", stdout.getvalue())
+            self.assertIn(
+                "scan_data_sha256=" + hashlib.sha256(b"\x7f").hexdigest(),
+                stdout.getvalue(),
+            )
             self.assertIn("stuffed_ff_bytes=0", stdout.getvalue())
             self.assertIn("byte_length=", stdout.getvalue())
             self.assertIn("sha256=", stdout.getvalue())
@@ -1258,6 +1264,7 @@ class HjpegHostTest(unittest.TestCase):
                 ],
             )
             self.assertEqual(record["scan_data_bytes"], 1)
+            self.assertEqual(record["scan_data_sha256"], hashlib.sha256(b"\x7f").hexdigest())
             self.assertEqual(record["stuffed_ff_bytes"], 0)
             self.assertEqual(record["app0_segments"], 1)
             self.assertEqual(record["jfif_app0_segments"], 1)
@@ -1995,6 +2002,7 @@ class HjpegHostTest(unittest.TestCase):
         info = hjpeg_host.jpeg_info(with_stuffed_entropy_ff(minimal_jpeg(17, 13)))
 
         self.assertEqual(info.scan_data_bytes, 2)
+        self.assertEqual(info.scan_data_sha256, hashlib.sha256(b"\x7f\xff").hexdigest())
         self.assertEqual(info.stuffed_ff_bytes, 1)
         self.assertEqual(info.marker_sequence[-2:], ("SOS", "EOI"))
 
@@ -2474,6 +2482,7 @@ class HjpegHostTest(unittest.TestCase):
         self.assertEqual(info.dri_segments, 1)
         self.assertEqual(info.restart_interval, 2)
         self.assertEqual(info.scan_data_bytes, 3)
+        self.assertEqual(info.scan_data_sha256, hashlib.sha256(b"\x7f\x40\x41").hexdigest())
         self.assertEqual(info.restart_markers, 2)
         self.assertEqual(info.restart_marker_sequence, (0, 1))
         self.assertEqual(info.marker_sequence[-4:], ("SOS", "RST0", "RST1", "EOI"))
@@ -2992,6 +3001,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["restart_interval"], 2)
             self.assertEqual(record["restart_marker_sequence"], [])
             self.assertEqual(record["scan_data_bytes"], 1)
+            self.assertEqual(record["scan_data_sha256"], hashlib.sha256(b"\x7f").hexdigest())
             self.assertEqual(record["byte_length"], len(captured_jpeg))
             self.assertEqual(
                 record["sha256"],

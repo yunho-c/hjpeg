@@ -233,9 +233,9 @@ Expected evidence:
   precision, three-component SOF0 frame shape, exactly one SOF0 and one SOS
   segment, and the number of entropy-coded scan data bytes, proving the file
   contains an SOS marker with non-empty scan payload. It also records the
-  stuffed entropy `0xff` byte count and rejects unsupported header markers,
-  non-JFIF or duplicate APP0 markers, unexpected non-RST/non-EOI markers after
-  SOS, or trailing bytes after EOI.
+  unstuffed scan-data SHA-256 and stuffed entropy `0xff` byte count and rejects
+  unsupported header markers, non-JFIF or duplicate APP0 markers, unexpected
+  non-RST/non-EOI markers after SOS, or trailing bytes after EOI.
 - The helper records APP0, DQT, DHT, DRI, and restart-marker counts as scalar
   fields and as a grouped `marker_counts` object, plus the parsed DRI restart
   interval when present. It requires exactly two DQT segments and four DHT
