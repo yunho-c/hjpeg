@@ -44,7 +44,8 @@ partial input word is accepted to avoid wedging the stream, but raises the
 sticky protocol-error flag.
 Frames that start with unsupported dimensions are discarded through input TLAST
 without entering the JPEG core, so clearing the error lets the next valid frame
-start cleanly.
+start cleanly. The AXI wrapper tests cover both single-beat and multi-beat
+unsupported frame discard/recovery paths.
 
 The AXI-Lite control wrapper accepts independent AW and W channel handshakes and
 honors byte write strobes on writable registers.

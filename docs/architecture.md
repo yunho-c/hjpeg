@@ -79,7 +79,8 @@ The AXI stream wrapper snapshots the full frame configuration on the first input
 pixel and holds it through the matching JPEG output frame, so register writes
 take effect on the next frame. Wrapper equivalence tests compare its output
 bytes against direct `HjpegCore` output for both the default 4:4:4 path and a
-configured 4:2:0/restart/no-JFIF path.
+configured 4:2:0/restart/no-JFIF path, and protocol tests cover draining a
+multi-beat unsupported input frame through TLAST before recovery.
 
 The current tops are not full Vivado block designs. They are named RTL tops that
 can be elaborated and wrapped in platform-specific IP packaging. Board-level

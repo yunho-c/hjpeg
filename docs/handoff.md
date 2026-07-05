@@ -137,6 +137,8 @@ frame-level tests.
   frame.
 - Bad `keep`, mismatched `last`, and unsupported frame dimensions set the
   sticky protocol-error flag.
+- Unsupported frames are accepted and drained through TLAST without feeding the
+  JPEG core; single-beat and multi-beat discard/recovery paths are covered.
 
 KV260 top-level input:
 
@@ -172,7 +174,11 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
-- current commit: `feat: record expected jpeg marker counts`
+- current commit: `test: cover unsupported axi frame drain`
+- `e40bcaa feat: record expected jpeg baseline tables`
+- `fb73c32 feat: record expected jpeg marker order`
+- `b71efd1 feat: record expected jpeg component shape`
+- `947ec29 feat: record expected jpeg marker counts`
 - `7d97243 feat: record expected jpeg table hashes`
 - `d95c542 feat: record expected rst marker count`
 - `11a5b0d test: cover configured axi wrapper equivalence`

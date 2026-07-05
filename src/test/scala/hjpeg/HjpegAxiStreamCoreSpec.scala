@@ -472,4 +472,63 @@ class HjpegAxiStreamCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
     }
   }
 
+  "HjpegAxiStreamCore should drain unsupported input frames until TLAST" in {
+    simulate(new HjpegAxiStreamCore()) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      pokeConfig(dut, width = 0, height = 8)
+      dut.io.clearProtocolError.poke(false.B)
+      dut.io.output.ready.poke(true.B)
+      dut.io.input.valid.poke(true.B)
+      dut.io.input.bits.keep.poke(7.U)
+      dut.io.input.bits.data.poke(0.U)
+
+      dut.io.input.bits.last.poke(false.B)
+      dut.io.input.ready.expect(true.B)
+      dut.clock.step()
+      dut.io.protocolError.expect(true.B)
+      dut.io.busy.expect(true.B)
+      dut.io.output.valid.expect(false.B)
+
+      dut.io.input.bits.last.poke(false.B)
+      dut.io.input.ready.expect(true.B)
+      dut.clock.step()
+      dut.io.protocolError.expect(true.B)
+      dut.io.busy.expect(true.B)
+      dut.io.output.valid.expect(false.B)
+
+      dut.io.input.bits.last.poke(true.B)
+      dut.io.input.ready.expect(true.B)
+      dut.clock.step()
+      dut.io.protocolError.expect(true.B)
+      dut.io.busy.expect(false.B)
+      dut.io.output.valid.expect(false.B)
+
+      dut.io.input.valid.poke(false.B)
+      dut.io.clearProtocolError.poke(true.B)
+      dut.clock.step()
+      dut.io.clearProtocolError.poke(false.B)
+      dut.io.protocolError.expect(false.B)
+      dut.io.busy.expect(false.B)
+
+      pokeConfig(dut, width = 8, height = 8)
+      for (index <- 0 until 8 * 8) {
+        pushPixel(dut, index, last = index == 8 * 8 - 1)
+      }
+      dut.io.input.valid.poke(false.B)
+
+      val bytes = collectFrame(dut, JpegHeaderBytes.HeaderLength + 128)
+
+      bytes.take(2) mustBe Seq(0xff, 0xd8)
+      bytes.takeRight(2) mustBe Seq(0xff, 0xd9)
+      val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
+      image must not be null
+      image.getWidth mustBe 8
+      image.getHeight mustBe 8
+      dut.io.protocolError.expect(false.B)
+    }
+  }
+
 }
