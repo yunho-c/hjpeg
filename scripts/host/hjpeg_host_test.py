@@ -322,6 +322,25 @@ def with_duplicate_sos(jpeg: bytes) -> bytes:
     return jpeg[:eoi] + segment + b"\x7f" + jpeg[eoi:]
 
 
+def with_extra_dht(jpeg: bytes) -> bytes:
+    sos = jpeg.find(b"\xff\xda")
+    if sos < 0:
+        raise AssertionError("SOS marker not found")
+    extra_dht = bytes(
+        [
+            0xFF,
+            0xC4,
+            0x00,
+            0x14,
+            0x02,
+            *([0x00] * 15),
+            0x01,
+            0x00,
+        ]
+    )
+    return jpeg[:sos] + extra_dht + jpeg[sos:]
+
+
 def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
     data = minimal_jpeg(width, height)
     return hjpeg_host.JpegInfo(
@@ -1053,6 +1072,14 @@ class HjpegHostTest(unittest.TestCase):
             jpeg.write_bytes(with_16bit_dqt(minimal_jpeg(width=17, height=13)))
 
             with self.assertRaisesRegex(ValueError, "DQT table 0 has precision 1"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_nonstandard_huffman_table_set(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "extra-dht.jpg"
+            jpeg.write_bytes(with_extra_dht(minimal_jpeg(width=17, height=13)))
+
+            with self.assertRaisesRegex(ValueError, "DHT table set"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_rejects_missing_referenced_tables(self) -> None:
