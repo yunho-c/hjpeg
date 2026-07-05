@@ -1018,6 +1018,13 @@ def run_evidence_record(
         record["status_checks"] = status_checks
     if transfer_elapsed_seconds is not None:
         record["transfer_elapsed_seconds"] = transfer_elapsed_seconds
+        if transfer_elapsed_seconds > 0 and input_info is not None:
+            record["host_transfer_rates"] = {
+                "input_rgb_bytes_per_second": input_info.byte_length
+                / transfer_elapsed_seconds,
+                "output_jpeg_bytes_per_second": info.byte_length
+                / transfer_elapsed_seconds,
+            }
     return record
 
 

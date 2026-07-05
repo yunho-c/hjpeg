@@ -268,8 +268,8 @@ decoded status word. Clear-error evidence records the AXI-Lite target and
 control word used to pulse sticky fault recovery. The run evidence
 ties together the input RGB stream hash, output JPEG hash, AXI-Lite target,
 encoder configuration, status checkpoints, host-observed transfer elapsed
-seconds, optional decoder command, decoder timeout, and bounded decoder
-stdout/stderr. Host JPEG validation now checks more
+seconds and derived byte rates, optional decoder command, decoder timeout, and
+bounded decoder stdout/stderr. Host JPEG validation now checks more
 than dimensions: it requires DQT and DHT
 markers, records DQT/DHT table IDs and SOS component table selectors, rejects
 dangling table references, records APP0/DQT/DHT/DRI/RST marker counts, parses

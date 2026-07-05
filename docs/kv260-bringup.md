@@ -221,9 +221,9 @@ Expected evidence:
   input payload, and rejects trailing bytes already returned after the first
   JPEG EOI instead of writing a truncated artifact. JSON evidence records the
   host capture limits used for maximum output bytes and RX timeout.
-- JSON evidence records host-observed transfer elapsed seconds for bring-up
-  comparisons. Use hardware counters or driver timestamps before making final
-  throughput claims.
+- JSON evidence records host-observed transfer elapsed seconds and derived byte
+  rates for bring-up comparisons. Use hardware counters or driver timestamps
+  before making final throughput claims.
 - For `run-stream-devices --json`, the helper records the AXI-Lite status
   checkpoints enforced after configuration, before transfer, and after
   transfer, including the AXI-Lite target sampled for each checkpoint.

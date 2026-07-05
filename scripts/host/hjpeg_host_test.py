@@ -2059,6 +2059,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["capture_config"]["max_output_bytes"], 16777216)
             self.assertEqual(record["capture_config"]["timeout_seconds"], 30.0)
             self.assertGreaterEqual(record["transfer_elapsed_seconds"], 0.0)
+            self.assertGreater(record["host_transfer_rates"]["input_rgb_bytes_per_second"], 0.0)
+            self.assertGreater(record["host_transfer_rates"]["output_jpeg_bytes_per_second"], 0.0)
             self.assertTrue(record["decoder_passed"])
             self.assertEqual(record["decoder_command"], decoder_command)
             self.assertEqual(record["decoder_timeout_seconds"], 2.5)
