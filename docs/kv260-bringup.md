@@ -249,7 +249,9 @@ Expected evidence:
   missing.
 - Saved run JSON can be checked later with `check-run-evidence`, which fails if
   `hardware_run_summary` is missing, `all_recorded_checks_passed` is false, or
-  `complete_hardware_run_evidence` is false.
+  `complete_hardware_run_evidence` is false. The checker recomputes
+  `hardware_run_summary` from the saved transcript and fails if the stored
+  summary does not match the recomputed evidence.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after

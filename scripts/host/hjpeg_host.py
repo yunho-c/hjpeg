@@ -2178,22 +2178,30 @@ def check_run_evidence_record(
         result["error"] = "missing hardware_run_summary"
         return result, failures
 
-    evidence_present = summary.get("evidence_present")
+    computed_summary = hardware_run_summary_record(record)
+    summary_matches_computed = summary == computed_summary
+    if not summary_matches_computed:
+        failures.append(
+            f"{path}: hardware_run_summary does not match recomputed summary"
+        )
+
+    if not isinstance(summary.get("evidence_present"), dict):
+        failures.append(
+            f"{path}: missing hardware_run_summary.evidence_present object"
+        )
+    evidence_present = computed_summary.get("evidence_present")
     missing_evidence = []
     if isinstance(evidence_present, dict):
         missing_evidence = [
             str(name) for name, present in evidence_present.items() if not bool(present)
         ]
-    else:
-        failures.append(
-            f"{path}: missing hardware_run_summary.evidence_present object"
-        )
-    complete = bool(summary.get("complete_hardware_run_evidence", False))
-    all_checks = bool(summary.get("all_recorded_checks_passed", False))
+    complete = bool(computed_summary.get("complete_hardware_run_evidence", False))
+    all_checks = bool(computed_summary.get("all_recorded_checks_passed", False))
     result.update(
         {
             "complete_hardware_run_evidence": complete,
             "all_recorded_checks_passed": all_checks,
+            "hardware_run_summary_matches_computed": summary_matches_computed,
             "missing_evidence": missing_evidence,
         }
     )

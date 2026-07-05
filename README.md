@@ -360,6 +360,9 @@ Saved run JSON can be checked later with:
 python3 scripts/host/hjpeg_host.py check-run-evidence run.json --json
 ```
 
+The saved-evidence checker recomputes `hardware_run_summary` from the transcript
+and fails if the stored summary does not match the recomputed evidence.
+
 Maximum output bytes must be positive, and RX timeout values must be finite and
 positive when present. It
 also records host-observed transfer elapsed seconds and derived byte rates when

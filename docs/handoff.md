@@ -716,7 +716,8 @@ gates; omit it for partial smoke tests that intentionally skip source PPM or
 decoder evidence. Run JSON records whether complete evidence was required and
 which evidence groups were missing. Saved run JSON can be checked later with
 `check-run-evidence`, which fails on malformed JSON, missing
-`hardware_run_summary`, failed recorded checks, or incomplete hardware evidence.
+`hardware_run_summary`, a stored summary that does not match recomputed
+evidence, failed recorded checks, or incomplete hardware evidence.
 
 ## Known Blockers And Bottlenecks
 

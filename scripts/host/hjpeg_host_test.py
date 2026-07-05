@@ -785,6 +785,80 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
     )
 
 
+def complete_run_evidence_record(root: Path) -> dict[str, object]:
+    jpeg = root / "output.jpg"
+    input_ppm = root / "input.ppm"
+    input_rgb = root / "input.rgb"
+    mem = root / "mem.bin"
+    width = 2
+    height = 1
+    image = hjpeg_host.PpmImage(width, height, bytes([1, 2, 3, 4, 5, 6]))
+    hjpeg_host.write_ppm(image, input_ppm)
+    hjpeg_host.write_rgb_stream(image, input_rgb)
+    jpeg.write_bytes(minimal_jpeg(width=width, height=height))
+    info = minimal_jpeg_info(width=width, height=height)
+    status_checks = []
+    for context in hjpeg_host.RUN_STATUS_CHECK_CONTEXTS:
+        status = hjpeg_host.status_evidence_record(mem, 0, 0)
+        status["context"] = context
+        status_checks.append(status)
+    return hjpeg_host.run_evidence_record(
+        jpeg,
+        info,
+        input_info=hjpeg_host.file_info(input_rgb, input_rgb.read_bytes()),
+        expected_input_rgb_bytes=width * height * 4,
+        axi_lite=hjpeg_host.axi_lite_target_record(mem, 0),
+        encoder_config=hjpeg_host.encoder_config_record(
+            width=width,
+            height=height,
+            quality=50,
+            restart_interval=0,
+            chroma_subsample=False,
+            emit_jfif=True,
+            clear_error=False,
+            max_width=hjpeg_host.DEFAULT_MAX_FRAME_WIDTH,
+            max_height=hjpeg_host.DEFAULT_MAX_FRAME_HEIGHT,
+        ),
+        capture_config=hjpeg_host.capture_config_record(1024, 1.0),
+        status_checks=status_checks,
+        decoder_passed=True,
+        decoder_command="decoder {jpeg}",
+        decoder_timeout_seconds=1.0,
+        decoder_result=hjpeg_host.DecoderCommandResult(
+            argv=("decoder", str(jpeg)),
+            returncode=0,
+            stdout="decoded\n",
+            stderr="",
+            elapsed_seconds=0.01,
+            stdout_chars=len("decoded\n"),
+            stderr_chars=0,
+            output_capture_chars=hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS,
+            stdout_truncated=False,
+            stderr_truncated=False,
+        ),
+        validation_expectations=hjpeg_host.validation_expectations_record(
+            info=info,
+            width=width,
+            height=height,
+            restart_interval=0,
+            check_chroma_mode=True,
+            chroma_subsample=False,
+            expect_jfif="present",
+            quality=50,
+            require_standard_huffman=True,
+        ),
+        transfer_elapsed_seconds=0.01,
+        input_ppm=hjpeg_host.run_input_ppm_record(
+            input_ppm,
+            width,
+            height,
+            input_rgb.read_bytes(),
+            hjpeg_host.DEFAULT_MAX_FRAME_WIDTH,
+            hjpeg_host.DEFAULT_MAX_FRAME_HEIGHT,
+        ),
+    )
+
+
 class HjpegHostTest(unittest.TestCase):
     def test_make_test_image_writes_non_flat_ppm(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2121,21 +2195,9 @@ class HjpegHostTest(unittest.TestCase):
 
     def test_check_run_evidence_file_reports_complete_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "run.json"
-            path.write_text(
-                json.dumps(
-                    {
-                        "hardware_run_summary": {
-                            "evidence_present": {
-                                "jpeg_output": True,
-                                "decoder": True,
-                            },
-                            "all_recorded_checks_passed": True,
-                            "complete_hardware_run_evidence": True,
-                        }
-                    }
-                )
-            )
+            root = Path(tmp)
+            path = root / "run.json"
+            path.write_text(json.dumps(complete_run_evidence_record(root)))
 
             record, failures = hjpeg_host.check_run_evidence_file(path)
 
@@ -2144,42 +2206,68 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["exists"])
             self.assertTrue(record["complete_hardware_run_evidence"])
             self.assertTrue(record["all_recorded_checks_passed"])
+            self.assertTrue(record["hardware_run_summary_matches_computed"])
             self.assertEqual(record["missing_evidence"], [])
+
+    def test_check_run_evidence_file_rejects_tampered_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "run.json"
+            evidence = complete_run_evidence_record(root)
+            evidence["hardware_run_summary"]["evidence_present"]["decoder"] = False
+            path.write_text(json.dumps(evidence))
+
+            record, failures = hjpeg_host.check_run_evidence_file(path)
+
+            self.assertFalse(record["passed"])
+            self.assertTrue(record["complete_hardware_run_evidence"])
+            self.assertTrue(record["all_recorded_checks_passed"])
+            self.assertFalse(record["hardware_run_summary_matches_computed"])
+            self.assertEqual(record["missing_evidence"], [])
+            self.assertTrue(
+                any(
+                    "does not match recomputed summary" in failure
+                    for failure in failures
+                )
+            )
 
     def test_check_run_evidence_file_reports_incomplete_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "run.json"
-            path.write_text(
-                json.dumps(
-                    {
-                        "hardware_run_summary": {
-                            "evidence_present": {
-                                "jpeg_output": True,
-                                "input_ppm": False,
-                                "decoder": False,
-                            },
-                            "all_recorded_checks_passed": False,
-                            "complete_hardware_run_evidence": False,
-                        }
-                    }
-                )
+            root = Path(tmp)
+            path = root / "run.json"
+            evidence = complete_run_evidence_record(root)
+            evidence.pop("input_ppm")
+            for key in (
+                "decoder_passed",
+                "decoder_command",
+                "decoder_timeout_seconds",
+                "decoder_argv",
+                "decoder_returncode",
+                "decoder_stdout",
+                "decoder_stderr",
+                "decoder_elapsed_seconds",
+                "decoder_stdout_chars",
+                "decoder_stderr_chars",
+                "decoder_output_capture_chars",
+                "decoder_stdout_truncated",
+                "decoder_stderr_truncated",
+            ):
+                evidence.pop(key)
+            evidence["hardware_run_summary"] = hjpeg_host.hardware_run_summary_record(
+                evidence
             )
+            path.write_text(json.dumps(evidence))
 
             record, failures = hjpeg_host.check_run_evidence_file(path)
 
             self.assertFalse(record["passed"])
             self.assertFalse(record["complete_hardware_run_evidence"])
-            self.assertFalse(record["all_recorded_checks_passed"])
+            self.assertTrue(record["all_recorded_checks_passed"])
+            self.assertTrue(record["hardware_run_summary_matches_computed"])
             self.assertEqual(record["missing_evidence"], ["input_ppm", "decoder"])
             self.assertTrue(
                 any(
                     "complete_hardware_run_evidence is false" in failure
-                    for failure in failures
-                )
-            )
-            self.assertTrue(
-                any(
-                    "all_recorded_checks_passed is false" in failure
                     for failure in failures
                 )
             )
@@ -2197,17 +2285,7 @@ class HjpegHostTest(unittest.TestCase):
             incomplete = root / "incomplete.json"
             malformed = root / "malformed.json"
             missing = root / "missing.json"
-            complete.write_text(
-                json.dumps(
-                    {
-                        "hardware_run_summary": {
-                            "evidence_present": {"jpeg_output": True},
-                            "all_recorded_checks_passed": True,
-                            "complete_hardware_run_evidence": True,
-                        }
-                    }
-                )
-            )
+            complete.write_text(json.dumps(complete_run_evidence_record(root)))
             incomplete.write_text(json.dumps({"hardware_run_summary": {}}))
             malformed.write_text("{")
 
