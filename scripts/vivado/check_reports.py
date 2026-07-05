@@ -666,6 +666,7 @@ def main(argv: list[str] | None = None) -> int:
     ]
     passed_count = sum(1 for record in checked_records if record.get("passed") is True)
     failed_count = len(checked_records) - passed_count
+    checked_paths = [str(record.get("path")) for record in checked_records]
     passed_paths = [
         str(record.get("path"))
         for record in checked_records
@@ -729,6 +730,7 @@ def main(argv: list[str] | None = None) -> int:
                     "checked_count": checked,
                     "passed_count": passed_count,
                     "failed_count": failed_count,
+                    "checked_paths": checked_paths,
                     "passed_paths": passed_paths,
                     "failed_paths": failed_paths,
                     "checked_counts": checked_counts,
