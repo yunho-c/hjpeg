@@ -113,23 +113,26 @@ hardware-tool entry points:
   bitstream included.
 - `check_reports.py` hashes generated artifacts, parses Vivado
   timing/utilization/DRC/route-status reports, requires requested
-  clock-utilization and address-map reports, and fails when a requested artifact
-  is missing or empty,
+  clock-utilization reports, parses requested address-map reports, and fails
+  when a requested artifact is missing or empty,
   setup WNS is below the requested threshold, hold WHS is below the requested
   threshold for reports passed with `--hold-timing`, any utilization row
   exceeds the configured percentage, DRC reports Error or Critical Warning
   violations, route status reports unrouted nets or routing errors, or a
-  required clock-utilization or address-map report is missing or empty. Its
-  `--json` mode emits
+  required clock-utilization report is missing or empty, or an address-map
+  report is missing, empty, lacks `hjpeg_0/s_axi_lite` or
+  `axi_dma_0/S_AXI_LITE` base addresses, or reports a high address below its
+  base address. Its `--json` mode emits
   artifact/report SHA-256 hex hashes, byte lengths, target clock
   period/frequency, parsed WNS/WHS values, utilization rows, thresholds, DRC
-  violations, route-status counts, clock-utilization and address-map report
-  hashes, requested input path lists and gate values, checked report/artifact
-  count, per-category checked counts, required evidence category presence, per-category
-  passing/failing counts, present and missing category names, failing category
-  names, required `.bit`/`.xsa` artifact suffix presence, present and missing
-  required suffix names, failing required suffix names, required suffix
-  passing/failing counts, aggregate pass/fail counts,
+  violations, route-status counts, clock-utilization report hashes, parsed
+  address-map AXI-Lite aperture base/high addresses, requested input path lists
+  and gate values, checked report/artifact count, per-category checked counts,
+  required evidence category presence, per-category passing/failing counts,
+  present and missing category names, failing category names, required
+  `.bit`/`.xsa` artifact suffix presence, present and missing required suffix
+  names, failing required suffix names, required suffix passing/failing counts,
+  aggregate pass/fail counts,
   required/present/missing category and suffix counts, diagnostic failure count,
   checked/passed/failed path lists, complete-evidence required/missing/failing
   lists, and pass/fail state for build evidence logs.

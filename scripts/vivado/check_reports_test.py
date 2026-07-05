@@ -88,6 +88,15 @@ Number of Unrouted Nets: 2
 Number of Nets with Routing Errors: 1
 """
 
+ADDRESS_MAP_REPORT = """
+Address Map
+-----------
+
+| Master | Slave | Base Address | High Address |
+| ps/M_AXI_HPM0_FPD | hjpeg_0/s_axi_lite/Reg | 0xA000_0000 | 0xA000_FFFF |
+| ps/M_AXI_HPM0_FPD | axi_dma_0/S_AXI_LITE/Reg | 0xA001_0000 | 0xA001_FFFF |
+"""
+
 
 class CheckReportsTest(unittest.TestCase):
     def test_parse_wns_from_timing_table(self) -> None:
@@ -234,6 +243,31 @@ class CheckReportsTest(unittest.TestCase):
 
             self.assertEqual(check_reports.check_route_status(report), [])
 
+    def test_parse_address_map_entries(self) -> None:
+        entries = check_reports.parse_address_map_entries(ADDRESS_MAP_REPORT)
+
+        self.assertEqual(
+            [entry.interface for entry in entries],
+            ["hjpeg_0/s_axi_lite", "axi_dma_0/s_axi_lite"],
+        )
+        self.assertEqual(entries[0].base_address, 0xA0000000)
+        self.assertEqual(entries[0].high_address, 0xA000FFFF)
+        self.assertEqual(entries[1].base_address, 0xA0010000)
+        self.assertEqual(entries[1].high_address, 0xA001FFFF)
+
+    def test_check_address_map_requires_control_apertures(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "hjpeg_kv260_address_map.rpt"
+            report.write_text(
+                "Address Map\n"
+                "| ps/M_AXI_HPM0_FPD | hjpeg_0/s_axi_lite/Reg | 0xA0000000 | 0xA000FFFF |\n"
+            )
+
+            self.assertEqual(
+                check_reports.check_address_map(report),
+                [f"{report}: address map missing axi_dma_0/s_axi_lite base address"],
+            )
+
     def test_cli_passes_valid_reports(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -285,7 +319,7 @@ class CheckReportsTest(unittest.TestCase):
             clock_utilization = root / "post_impl_clock_utilization.rpt"
             artifact.write_bytes(b"bitstream")
             xsa.write_bytes(b"xsa")
-            address_map.write_text("Address Map\nhjpeg_0/s_axi_lite\n")
+            address_map.write_text(ADDRESS_MAP_REPORT)
             timing.write_text(TIMING_TABLE)
             utilization.write_text(VIVADO_UTILIZATION_TABLE)
             drc.write_text(DRC_CLEAN_REPORT)
@@ -499,6 +533,26 @@ class CheckReportsTest(unittest.TestCase):
             )
             self.assertTrue(record["address_map"][0]["exists"])
             self.assertTrue(record["address_map"][0]["passed"])
+            self.assertEqual(
+                record["address_map"][0]["required_interfaces"],
+                ["hjpeg_0/s_axi_lite", "axi_dma_0/s_axi_lite"],
+            )
+            self.assertEqual(
+                record["address_map"][0]["present_interfaces"],
+                ["axi_dma_0/s_axi_lite", "hjpeg_0/s_axi_lite"],
+            )
+            self.assertEqual(record["address_map"][0]["missing_interfaces"], [])
+            self.assertEqual(
+                record["address_map"][0]["entries"][0],
+                {
+                    "interface": "hjpeg_0/s_axi_lite",
+                    "base_address": 0xA0000000,
+                    "base_address_hex": "0xa0000000",
+                    "high_address": 0xA000FFFF,
+                    "high_address_hex": "0xa000ffff",
+                    "high_address_valid": True,
+                },
+            )
             self.assertEqual(record["timing"][0]["path"], str(timing))
             self.assertTrue(record["timing"][0]["exists"])
             self.assertEqual(record["timing"][0]["wns_ns"], 0.125)
@@ -836,6 +890,40 @@ class CheckReportsTest(unittest.TestCase):
             self.assertTrue(any("artifact is empty" in failure for failure in record["failures"]))
             self.assertTrue(
                 any("clock utilization report is empty" in failure for failure in record["failures"])
+            )
+
+    def test_cli_json_rejects_incomplete_address_map(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            address_map = root / "hjpeg_kv260_address_map.rpt"
+            address_map.write_text("Address Map\nhjpeg_0/s_axi_lite\n")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    check_reports.main(
+                        [
+                            "--address-map",
+                            str(address_map),
+                            "--json",
+                        ]
+                    ),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertEqual(record["address_map"][0]["entries"], [])
+            self.assertEqual(
+                record["address_map"][0]["missing_interfaces"],
+                ["hjpeg_0/s_axi_lite", "axi_dma_0/s_axi_lite"],
+            )
+            self.assertFalse(record["address_map"][0]["passed"])
+            self.assertTrue(
+                any("address map missing hjpeg_0/s_axi_lite" in failure for failure in record["failures"])
+            )
+            self.assertTrue(
+                any("address map missing axi_dma_0/s_axi_lite" in failure for failure in record["failures"])
             )
 
     def test_cli_json_records_drc_and_route_failures(self) -> None:

@@ -35,7 +35,12 @@ ROUTE_STATUS_RE = re.compile(
     r"^\s*(?:#\s*)?(?P<label>[A-Za-z0-9_ /-]*(?:unrouted|routing errors?|not completely routed)[A-Za-z0-9_ /-]*)\s*[:=]\s*(?P<count>\d+)\b",
     re.IGNORECASE,
 )
+HEX_ADDRESS_RE = re.compile(r"0x[0-9a-fA-F_]+")
 IGNORED_UTILIZATION_ROWS = {"PS8"}
+REQUIRED_ADDRESS_MAP_INTERFACES = (
+    ("hjpeg_0", "s_axi_lite"),
+    ("axi_dma_0", "s_axi_lite"),
+)
 REQUIRED_EVIDENCE_CATEGORIES = (
     "artifacts",
     "address_map",
@@ -84,6 +89,13 @@ class DrcViolation:
     rule: str
     severity: str
     message: str
+
+
+@dataclass(frozen=True)
+class AddressMapEntry:
+    interface: str
+    base_address: int
+    high_address: int | None
 
 
 def parse_timing_metric(report: str, metric: str) -> float:
@@ -176,6 +188,61 @@ def parse_route_status_counts(report: str) -> dict[str, int]:
         label = label.replace("-", "_").replace("/", "_")
         counts[label] = int(match.group("count"))
     return counts
+
+
+def normalize_address_map_text(text: str) -> str:
+    return text.lower().replace("\\", "/")
+
+
+def parse_address_map_entries(report: str) -> list[AddressMapEntry]:
+    entries = []
+    for line in report.splitlines():
+        normalized_line = normalize_address_map_text(line)
+        for component, interface in REQUIRED_ADDRESS_MAP_INTERFACES:
+            interface_name = f"{component}/{interface}"
+            if component not in normalized_line or interface not in normalized_line:
+                continue
+            addresses = [
+                int(address.replace("_", ""), 16)
+                for address in HEX_ADDRESS_RE.findall(line)
+            ]
+            if not addresses:
+                continue
+            entries.append(
+                AddressMapEntry(
+                    interface=interface_name,
+                    base_address=addresses[0],
+                    high_address=addresses[1] if len(addresses) > 1 else None,
+                )
+            )
+    return entries
+
+
+def check_address_map(path: Path) -> list[str]:
+    missing_record = missing_report_record(path, "address map")
+    if missing_record is not None:
+        _, failures = missing_record
+        return failures
+
+    report = path.read_text()
+    if not report:
+        return [f"{path}: address map report is empty"]
+
+    entries = parse_address_map_entries(report)
+    present_interfaces = {entry.interface for entry in entries}
+    failures = []
+    for component, interface in REQUIRED_ADDRESS_MAP_INTERFACES:
+        interface_name = f"{component}/{interface}"
+        if interface_name not in present_interfaces:
+            failures.append(f"{path}: address map missing {interface_name} base address")
+
+    for entry in entries:
+        if entry.high_address is not None and entry.high_address < entry.base_address:
+            failures.append(
+                f"{path}: address map {entry.interface} high address "
+                f"0x{entry.high_address:08x} is below base address 0x{entry.base_address:08x}"
+            )
+    return failures
 
 
 def check_timing(path: Path, min_wns: float, min_whs: float = 0.0, check_whs: bool = False) -> list[str]:
@@ -444,6 +511,80 @@ def route_status_record(path: Path) -> tuple[dict[str, object], list[str]]:
     return record, failures
 
 
+def address_map_record(path: Path) -> tuple[dict[str, object], list[str]]:
+    missing_record = missing_report_record(path, "address map")
+    if missing_record is not None:
+        record, failures = missing_record
+        record.update(
+            {
+                "required_interfaces": [
+                    f"{component}/{interface}"
+                    for component, interface in REQUIRED_ADDRESS_MAP_INTERFACES
+                ],
+                "entries": [],
+            }
+        )
+        return record, failures
+
+    report_bytes = path.read_bytes()
+    report = report_bytes.decode(errors="replace")
+    entries = parse_address_map_entries(report)
+    present_interfaces = {entry.interface for entry in entries}
+    failures = []
+    if not report_bytes:
+        failures.append(f"{path}: address map report is empty")
+
+    required_interfaces = [
+        f"{component}/{interface}"
+        for component, interface in REQUIRED_ADDRESS_MAP_INTERFACES
+    ]
+    for interface_name in required_interfaces:
+        if interface_name not in present_interfaces:
+            failures.append(f"{path}: address map missing {interface_name} base address")
+
+    entry_records = []
+    for entry in entries:
+        high_address_valid = (
+            entry.high_address is None or entry.high_address >= entry.base_address
+        )
+        if not high_address_valid:
+            failures.append(
+                f"{path}: address map {entry.interface} high address "
+                f"0x{entry.high_address:08x} is below base address 0x{entry.base_address:08x}"
+            )
+        entry_records.append(
+            {
+                "interface": entry.interface,
+                "base_address": entry.base_address,
+                "base_address_hex": f"0x{entry.base_address:08x}",
+                "high_address": entry.high_address,
+                "high_address_hex": (
+                    f"0x{entry.high_address:08x}"
+                    if entry.high_address is not None
+                    else None
+                ),
+                "high_address_valid": high_address_valid,
+            }
+        )
+
+    record = _file_record(path, report_bytes)
+    record.update(
+        {
+            "exists": True,
+            "required_interfaces": required_interfaces,
+            "present_interfaces": sorted(present_interfaces),
+            "missing_interfaces": [
+                interface_name
+                for interface_name in required_interfaces
+                if interface_name not in present_interfaces
+            ],
+            "entries": entry_records,
+            "passed": not failures,
+        }
+    )
+    return record, failures
+
+
 def evidence_category_record(
     evidence_records: dict[str, list[dict[str, object]]]
 ) -> dict[str, object]:
@@ -588,7 +729,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         action="append",
         default=[],
-        help="Vivado block-design address map report to require and hash in evidence; may be passed multiple times",
+        help="Vivado block-design address map report to parse and hash in evidence; may be passed multiple times",
     )
     parser.add_argument("--min-wns", type=finite_float, default=0.0)
     parser.add_argument("--min-whs", type=finite_float, default=0.0)
@@ -624,7 +765,7 @@ def main(argv: list[str] | None = None) -> int:
         artifact_records.append(record)
         failures.extend(record_failures)
     for address_map in args.address_map:
-        record, record_failures = evidence_file_record(address_map, "address map")
+        record, record_failures = address_map_record(address_map)
         address_map_records.append(record)
         failures.extend(record_failures)
     timing_paths = []
