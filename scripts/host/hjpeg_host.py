@@ -58,6 +58,10 @@ VIVADO_REQUIRED_REPORT_FILENAMES = {
     "route_status": ("post_impl_route_status.rpt",),
     "clock_utilization": ("post_impl_clock_utilization.rpt",),
 }
+VIVADO_REQUIRED_ROUTE_STATUS_COUNTS = (
+    "number_of_unrouted_nets",
+    "number_of_nets_with_routing_errors",
+)
 RUN_STATUS_CHECK_CONTEXTS = [
     "after configuration",
     "before transfer",
@@ -2590,6 +2594,29 @@ def vivado_required_report_filenames_present(record: object) -> bool:
     return True
 
 
+def vivado_route_status_counts_present(record: object) -> bool:
+    if not isinstance(record, dict):
+        return False
+    route_records = record.get("route_status")
+    if not isinstance(route_records, list):
+        return False
+    for route_record in route_records:
+        if not isinstance(route_record, dict) or route_record.get("passed") is not True:
+            continue
+        counts = route_record.get("counts")
+        required_counts = route_record.get("required_counts")
+        missing_counts = route_record.get("missing_counts")
+        if (
+            isinstance(counts, dict)
+            and isinstance(required_counts, list)
+            and missing_counts == []
+            and all(counts.get(name) == 0 for name in VIVADO_REQUIRED_ROUTE_STATUS_COUNTS)
+            and all(name in required_counts for name in VIVADO_REQUIRED_ROUTE_STATUS_COUNTS)
+        ):
+            return True
+    return False
+
+
 def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str]]:
     result: dict[str, object] = {
         "path": str(path),
@@ -2617,6 +2644,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         vivado_required_address_map_filenames_present(parsed)
     )
     vivado_report_filenames_present = vivado_required_report_filenames_present(parsed)
+    route_status_counts_present = vivado_route_status_counts_present(parsed)
     bases = vivado_hjpeg_base_addresses_from_record(parsed)
     result.update(
         {
@@ -2626,6 +2654,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
             "vivado_artifact_filenames_present": vivado_artifact_filenames_present,
             "vivado_address_map_filenames_present": vivado_address_map_filenames_present,
             "vivado_report_filenames_present": vivado_report_filenames_present,
+            "vivado_route_status_counts_present": route_status_counts_present,
             "hjpeg_base_addresses": list(bases),
             "hjpeg_base_addresses_hex": [f"0x{base:x}" for base in bases],
             "passed": (
@@ -2636,6 +2665,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
                 and vivado_artifact_filenames_present
                 and vivado_address_map_filenames_present
                 and vivado_report_filenames_present
+                and route_status_counts_present
             ),
         }
     )
@@ -2657,6 +2687,10 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     if not vivado_report_filenames_present:
         failures.append(
             f"{path}: Vivado evidence missing required timing/utilization/implementation report filenames"
+        )
+    if not route_status_counts_present:
+        failures.append(
+            f"{path}: Vivado evidence missing required route-status unrouted/routing-error count records"
         )
     if not bases:
         failures.append(f"{path}: no passing hjpeg_0/s_axi_lite address-map evidence")

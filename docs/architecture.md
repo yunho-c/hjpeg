@@ -290,7 +290,8 @@ artifact suffix evidence, and the required `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`,
 `post_synth_utilization.rpt`, `post_impl_utilization.rpt`,
 `post_impl_drc.rpt`, `post_impl_route_status.rpt`, and
 `post_impl_clock_utilization.rpt` filename evidence true, with matching
-missing/failing filename and suffix lists empty. It fails run transcripts whose
+missing/failing filename and suffix lists empty, and a passing route-status
+record with zero unrouted nets and zero nets with routing errors. It fails run transcripts whose
 AXI-Lite base address does not match the Vivado build evidence, or whose
 supplied Vivado evidence files report conflicting HJPEG base addresses. JSON output includes
 aggregate checked/pass/fail transcript counts, diagnostic failure count,
