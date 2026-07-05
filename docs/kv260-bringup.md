@@ -194,11 +194,12 @@ Expected evidence:
   expected order: optional APP0/JFIF, DQT, SOF0, DHT, optional DRI, SOS, entropy
   data, then EOI. JSON evidence includes the parsed `marker_sequence`.
 - The helper records SOF0 component sampling factors and the inferred chroma
-  mode, and requires SOF0/SOS component IDs in `[1, 2, 3]` order with the SOS
-  component list covering the same three SOF0 components exactly once and SOS
-  spectral fields `Ss=0`, `Se=63`, `Ah/Al=0`. Pass `--check-chroma-mode` to
-  standalone `validate-jpeg`; `run-stream-devices` checks this automatically
-  against the configured chroma mode.
+  mode, records the parsed MCU count, requires supported 4:4:4 or 4:2:0
+  sampling factors, and requires SOF0/SOS component IDs in `[1, 2, 3]` order
+  with the SOS component list covering the same three SOF0 components exactly
+  once and SOS spectral fields `Ss=0`, `Se=63`, `Ah/Al=0`. Pass
+  `--check-chroma-mode` to standalone `validate-jpeg`; `run-stream-devices`
+  checks this automatically against the configured chroma mode.
 - The helper records APP0 marker count and JFIF APP0 signature count, and can
   enforce the JFIF signature with `--expect-jfif present` or `absent`;
   `run-stream-devices` checks this automatically against the configured JFIF

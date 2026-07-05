@@ -120,6 +120,7 @@ class JpegScanComponent:
 class JpegInfo:
     width: int
     height: int
+    mcu_count: int
     sample_precision: int
     components: tuple[JpegComponent, ...]
     scan_components: tuple[JpegScanComponent, ...]
@@ -452,6 +453,18 @@ def jpeg_info(data: bytes) -> JpegInfo:
         raise ValueError(
             f"JPEG SOF0 component IDs are {component_id_order}, expected [1, 2, 3]"
         )
+    component_sampling = tuple(
+        (component.horizontal_sampling, component.vertical_sampling)
+        for component in components
+    )
+    if component_sampling not in (
+        ((1, 1), (1, 1), (1, 1)),
+        ((2, 2), (1, 1), (1, 1)),
+    ):
+        raise ValueError(
+            f"JPEG SOF0 sampling factors are {component_sampling}, "
+            "expected 4:4:4 or 4:2:0"
+        )
     if dqt_segments == 0:
         raise ValueError("JPEG output does not contain a DQT segment")
     if quantization_tables != {0, 1}:
@@ -522,6 +535,11 @@ def jpeg_info(data: bytes) -> JpegInfo:
     return JpegInfo(
         width=dimensions[0],
         height=dimensions[1],
+        mcu_count=jpeg_mcu_count_from_components(
+            dimensions[0],
+            dimensions[1],
+            components,
+        ),
         sample_precision=sample_precision,
         components=components,
         scan_components=scan_components,
@@ -584,6 +602,24 @@ def jpeg_chroma_mode(info: JpegInfo) -> str:
     return "unknown"
 
 
+def jpeg_mcu_count_from_components(
+    width: int,
+    height: int,
+    components: tuple[JpegComponent, ...],
+) -> int:
+    max_horizontal_sampling = max(
+        component.horizontal_sampling for component in components
+    )
+    max_vertical_sampling = max(
+        component.vertical_sampling for component in components
+    )
+    mcu_width = max_horizontal_sampling * 8
+    mcu_height = max_vertical_sampling * 8
+    columns = (width + mcu_width - 1) // mcu_width
+    rows = (height + mcu_height - 1) // mcu_height
+    return columns * rows
+
+
 def require_chroma_mode(info: JpegInfo, expected_chroma_subsample: bool) -> None:
     expected = "4:2:0" if expected_chroma_subsample else "4:4:4"
     actual = jpeg_chroma_mode(info)
@@ -599,17 +635,7 @@ def require_jfif(info: JpegInfo, expected_emit_jfif: bool) -> None:
 
 
 def jpeg_mcu_count(info: JpegInfo) -> int:
-    max_horizontal_sampling = max(
-        component.horizontal_sampling for component in info.components
-    )
-    max_vertical_sampling = max(
-        component.vertical_sampling for component in info.components
-    )
-    mcu_width = max_horizontal_sampling * 8
-    mcu_height = max_vertical_sampling * 8
-    columns = (info.width + mcu_width - 1) // mcu_width
-    rows = (info.height + mcu_height - 1) // mcu_height
-    return columns * rows
+    return info.mcu_count
 
 
 def require_restart_interval(info: JpegInfo, expected_restart_interval: int) -> None:
@@ -724,6 +750,7 @@ def jpeg_info_record(
         "jpeg": str(jpeg),
         "width": info.width,
         "height": info.height,
+        "mcu_count": info.mcu_count,
         "sample_precision": info.sample_precision,
         "component_count": len(info.components),
         "components": [

@@ -271,12 +271,13 @@ dangling table references, records APP0/DQT/DHT/DRI/RST marker counts, parses
 DRI restart intervals, requires exactly one SOF0 and one SOS segment, requires
 8-bit three-component SOF0 shape, requires SOS components to match SOF0 exactly,
 requires SOF0/SOS component IDs in `[1, 2, 3]` order, requires baseline SOS
-spectral fields `0/63/0`, records SOF0 component sampling factors, requires
-standard DQT table IDs `{0, 1}` with 8-bit precision, requires exact DQT/DHT
-segment counts, requires the standard DC/AC Huffman table set, records parsed
-marker sequence and JFIF APP0 signature count, infers 4:4:4 versus 4:2:0, and
-can enforce expected restart interval, exact RST marker count for the parsed MCU
-count, chroma mode, and JFIF APP0 signature presence.
+spectral fields `0/63/0`, records SOF0 component sampling factors and MCU count,
+requires supported 4:4:4 or 4:2:0 sampling, requires standard DQT table IDs
+`{0, 1}` with 8-bit precision, requires exact DQT/DHT segment counts, requires
+the standard DC/AC Huffman table set, records parsed marker sequence and JFIF
+APP0 signature count, and can enforce expected restart interval, exact RST
+marker count for the parsed MCU count, chroma mode, and JFIF APP0 signature
+presence.
 `run-stream-devices` enforces those expectations automatically from the
 configured AXI-Lite control fields.
 

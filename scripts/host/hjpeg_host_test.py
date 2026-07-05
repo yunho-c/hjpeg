@@ -326,6 +326,16 @@ def with_sos_spectral_fields(jpeg: bytes, start: int, end: int, successive: int)
     return bytes(mutated)
 
 
+def with_sof0_sampling_factors(jpeg: bytes, factors: tuple[int, int, int]) -> bytes:
+    sof0 = jpeg.find(b"\xff\xc0\x00\x11")
+    if sof0 < 0:
+        raise AssertionError("SOF0 marker not found")
+    mutated = bytearray(jpeg)
+    for index, factor in enumerate(factors):
+        mutated[sof0 + 11 + index * 3] = factor
+    return bytes(mutated)
+
+
 def with_16bit_dqt(jpeg: bytes) -> bytes:
     dqt = jpeg.find(b"\xff\xdb\x00\x43\x00")
     if dqt < 0:
@@ -409,6 +419,7 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
     return hjpeg_host.JpegInfo(
         width=width,
         height=height,
+        mcu_count=((width + 7) // 8) * ((height + 7) // 8),
         sample_precision=8,
         components=(
             hjpeg_host.JpegComponent(1, 1, 1, 0),
@@ -654,6 +665,7 @@ class HjpegHostTest(unittest.TestCase):
 
             self.assertEqual(hjpeg_host.jpeg_dimensions(jpeg.read_bytes()), (17, 13))
             parsed = hjpeg_host.jpeg_info(jpeg.read_bytes())
+            self.assertEqual(parsed.mcu_count, 6)
             self.assertEqual(parsed.sample_precision, 8)
             self.assertEqual(len(parsed.components), 3)
             self.assertEqual(parsed.components[0], hjpeg_host.JpegComponent(1, 1, 1, 0))
@@ -803,6 +815,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["jpeg"], str(jpeg))
             self.assertEqual(record["width"], 17)
             self.assertEqual(record["height"], 13)
+            self.assertEqual(record["mcu_count"], 6)
             self.assertEqual(record["sample_precision"], 8)
             self.assertEqual(record["component_count"], 3)
             self.assertEqual(record["chroma_mode"], "4:4:4")
@@ -1001,6 +1014,8 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertEqual(hjpeg_host.jpeg_chroma_mode(info_444), "4:4:4")
             self.assertEqual(hjpeg_host.jpeg_chroma_mode(info_420), "4:2:0")
+            self.assertEqual(info_444.mcu_count, 6)
+            self.assertEqual(info_420.mcu_count, 2)
 
             with self.assertRaisesRegex(ValueError, "expected 4:2:0"):
                 hjpeg_host.validate_jpeg(
@@ -1357,6 +1372,19 @@ class HjpegHostTest(unittest.TestCase):
                     expected_width=17,
                     expected_height=13,
                 )
+
+    def test_validate_jpeg_rejects_unsupported_sampling_factors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "unsupported-sampling.jpg"
+            jpeg.write_bytes(
+                with_sof0_sampling_factors(
+                    minimal_jpeg(width=17, height=13),
+                    (0x21, 0x11, 0x11),
+                )
+            )
+
+            with self.assertRaisesRegex(ValueError, "sampling factors"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_rejects_non_baseline_sos_spectral_fields(self) -> None:
         cases = (
