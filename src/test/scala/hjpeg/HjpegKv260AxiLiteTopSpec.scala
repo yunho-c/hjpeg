@@ -127,7 +127,7 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
     var sawLast = false
     var cycles = 0
     while (!sawLast) {
-      assert(cycles < pixels * 8 + JpegHeaderBytes.HeaderLength + 512, "timeout waiting for AXI-Lite top JPEG output")
+      assert(cycles < pixels * 4096 + JpegHeaderBytes.HeaderLength + 4096, "timeout waiting for AXI-Lite top JPEG output")
 
       if (dut.io.mAxisJpeg.valid.peek().litToBoolean) {
         dut.io.mAxisJpeg.bits.keep.expect(1.U)

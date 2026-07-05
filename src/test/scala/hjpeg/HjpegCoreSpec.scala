@@ -70,7 +70,7 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
     var sawLast = false
     var cycles = 0
     while (!sawLast) {
-      assert(cycles < pixels * 8 + JpegHeaderBytes.MaxHeaderLength + 512, "timeout waiting for HjpegCore output")
+      assert(cycles < pixels * 4096 + JpegHeaderBytes.MaxHeaderLength + 4096, "timeout waiting for HjpegCore output")
       if (dut.io.output.valid.peek().litToBoolean) {
         bytes += dut.io.output.bits.byte.peek().litValue.toInt
         sawLast = dut.io.output.bits.last.peek().litToBoolean

@@ -14,6 +14,23 @@ class JpegBlockTransformStageSpec extends AnyFreeSpec with Matchers with ChiselS
     }
   }
 
+  private def pushConstantBlock(dut: JpegBlockTransformStage, value: Int): Unit = {
+    dut.io.input.valid.poke(true.B)
+    pokeConstantBlock(dut, value)
+    dut.io.input.ready.expect(true.B)
+    dut.clock.step()
+    dut.io.input.valid.poke(false.B)
+  }
+
+  private def waitForOutput(dut: JpegBlockTransformStage, maxCycles: Int = 1600): Unit = {
+    var cycles = 0
+    while (!dut.io.output.valid.peek().litToBoolean) {
+      assert(cycles < maxCycles, "timeout waiting for block transform output")
+      dut.clock.step()
+      cycles += 1
+    }
+  }
+
   "JpegBlockTransformStage should transform a flat luminance block to one DC coefficient" in {
     simulate(new JpegBlockTransformStage()) { dut =>
       dut.reset.poke(true.B)
@@ -22,10 +39,10 @@ class JpegBlockTransformStageSpec extends AnyFreeSpec with Matchers with ChiselS
 
       dut.io.quality.poke(50.U)
       dut.io.isLuminance.poke(true.B)
-      dut.io.input.valid.poke(true.B)
       dut.io.output.ready.poke(true.B)
-      pokeConstantBlock(dut, 32)
+      pushConstantBlock(dut, 32)
 
+      waitForOutput(dut)
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.coefficients(0).expect(16.S)
       for (index <- 1 until HjpegConstants.BlockSize) {
@@ -42,10 +59,10 @@ class JpegBlockTransformStageSpec extends AnyFreeSpec with Matchers with ChiselS
 
       dut.io.quality.poke(50.U)
       dut.io.isLuminance.poke(false.B)
-      dut.io.input.valid.poke(true.B)
       dut.io.output.ready.poke(true.B)
-      pokeConstantBlock(dut, 34)
+      pushConstantBlock(dut, 34)
 
+      waitForOutput(dut)
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.coefficients(0).expect(16.S)
       for (index <- 1 until HjpegConstants.BlockSize) {
@@ -62,14 +79,15 @@ class JpegBlockTransformStageSpec extends AnyFreeSpec with Matchers with ChiselS
 
       dut.io.quality.poke(50.U)
       dut.io.isLuminance.poke(true.B)
-      dut.io.input.valid.poke(true.B)
-      pokeConstantBlock(dut, 0)
+      pushConstantBlock(dut, 0)
+      waitForOutput(dut)
 
       dut.io.output.ready.poke(false.B)
       dut.io.input.ready.expect(false.B)
       dut.io.output.valid.expect(true.B)
 
       dut.io.output.ready.poke(true.B)
+      dut.clock.step()
       dut.io.input.ready.expect(true.B)
     }
   }

@@ -20,16 +20,33 @@ class Dct8x8StageSpec extends AnyFreeSpec with Matchers with ChiselSim {
     }
   }
 
+  private def pushBlock(dut: Dct8x8Stage, samples: Seq[Int]): Unit = {
+    dut.io.input.valid.poke(true.B)
+    pokeBlock(dut, samples)
+    dut.io.input.ready.expect(true.B)
+    dut.clock.step()
+    dut.io.input.valid.poke(false.B)
+  }
+
+  private def waitForOutput(dut: Dct8x8Stage, maxCycles: Int = 160): Unit = {
+    var cycles = 0
+    while (!dut.io.output.valid.peek().litToBoolean) {
+      assert(cycles < maxCycles, "timeout waiting for DCT output")
+      dut.clock.step()
+      cycles += 1
+    }
+  }
+
   "Dct8x8Stage should transform a constant block into DC only" in {
     simulate(new Dct8x8Stage()) { dut =>
       dut.reset.poke(true.B)
       dut.clock.step()
       dut.reset.poke(false.B)
 
-      dut.io.input.valid.poke(true.B)
       dut.io.output.ready.poke(true.B)
-      pokeBlock(dut, Seq.fill(HjpegConstants.BlockSize)(5))
+      pushBlock(dut, Seq.fill(HjpegConstants.BlockSize)(5))
 
+      waitForOutput(dut)
       dut.io.output.valid.expect(true.B)
       expectBlock(dut, Seq(40) ++ Seq.fill(HjpegConstants.BlockSize - 1)(0))
     }
@@ -41,10 +58,10 @@ class Dct8x8StageSpec extends AnyFreeSpec with Matchers with ChiselSim {
       dut.clock.step()
       dut.reset.poke(false.B)
 
-      dut.io.input.valid.poke(true.B)
       dut.io.output.ready.poke(true.B)
-      pokeBlock(dut, Seq.fill(HjpegConstants.BlockSize)(-128))
+      pushBlock(dut, Seq.fill(HjpegConstants.BlockSize)(-128))
 
+      waitForOutput(dut)
       dut.io.output.valid.expect(true.B)
       expectBlock(dut, Seq(-1024) ++ Seq.fill(HjpegConstants.BlockSize - 1)(0))
     }
@@ -56,10 +73,10 @@ class Dct8x8StageSpec extends AnyFreeSpec with Matchers with ChiselSim {
       dut.clock.step()
       dut.reset.poke(false.B)
 
-      dut.io.input.valid.poke(true.B)
       dut.io.output.ready.poke(true.B)
 
-      pokeBlock(dut, (0 until HjpegConstants.BlockSize).map(index => index / HjpegConstants.BlockDim))
+      pushBlock(dut, (0 until HjpegConstants.BlockSize).map(index => index / HjpegConstants.BlockDim))
+      waitForOutput(dut)
       dut.io.output.valid.expect(true.B)
       expectBlock(
         dut,
@@ -75,7 +92,9 @@ class Dct8x8StageSpec extends AnyFreeSpec with Matchers with ChiselSim {
         )
       )
 
-      pokeBlock(dut, (0 until HjpegConstants.BlockSize).map(index => index % HjpegConstants.BlockDim))
+      dut.clock.step()
+      pushBlock(dut, (0 until HjpegConstants.BlockSize).map(index => index % HjpegConstants.BlockDim))
+      waitForOutput(dut)
       dut.io.output.valid.expect(true.B)
       expectBlock(
         dut,
@@ -99,14 +118,15 @@ class Dct8x8StageSpec extends AnyFreeSpec with Matchers with ChiselSim {
       dut.clock.step()
       dut.reset.poke(false.B)
 
-      dut.io.input.valid.poke(true.B)
-      pokeBlock(dut, Seq.fill(HjpegConstants.BlockSize)(0))
+      pushBlock(dut, Seq.fill(HjpegConstants.BlockSize)(0))
+      waitForOutput(dut)
 
       dut.io.output.ready.poke(false.B)
       dut.io.input.ready.expect(false.B)
       dut.io.output.valid.expect(true.B)
 
       dut.io.output.ready.poke(true.B)
+      dut.clock.step()
       dut.io.input.ready.expect(true.B)
     }
   }

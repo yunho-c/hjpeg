@@ -26,6 +26,15 @@ class JpegRgb8x8ToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
     dut.io.input.valid.poke(false.B)
   }
 
+  private def waitForOutput(dut: JpegRgb8x8ToMcuStage, maxCycles: Int = 5000): Unit = {
+    var cycles = 0
+    while (!dut.io.output.valid.peek().litToBoolean) {
+      assert(cycles < maxCycles, "timeout waiting for RGB 8x8 MCU output")
+      dut.clock.step()
+      cycles += 1
+    }
+  }
+
   "JpegRgb8x8ToMcuStage should transform neutral gray into an all-zero MCU" in {
     simulate(new JpegRgb8x8ToMcuStage()) { dut =>
       dut.reset.poke(true.B)
@@ -36,6 +45,7 @@ class JpegRgb8x8ToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
       dut.io.output.ready.poke(true.B)
       pushFlatBlock(dut, 128, 128, 128)
 
+      waitForOutput(dut)
       dut.io.output.valid.expect(true.B)
       for (index <- 0 until HjpegConstants.BlockSize) {
         dut.io.output.bits.y.coefficients(index).expect(0.S)
@@ -57,6 +67,7 @@ class JpegRgb8x8ToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
       dut.io.output.ready.poke(false.B)
       pushFlatBlock(dut, 128, 128, 128)
 
+      waitForOutput(dut)
       dut.io.output.valid.expect(true.B)
       dut.io.input.ready.expect(false.B)
       dut.clock.step()
@@ -78,6 +89,7 @@ class JpegRgb8x8ToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
       dut.io.output.ready.poke(true.B)
       pushFlatBlock(dut, 160, 160, 160)
 
+      waitForOutput(dut)
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.y.coefficients(0).expect(16.S)
       dut.io.output.bits.cb.coefficients(0).expect(0.S)

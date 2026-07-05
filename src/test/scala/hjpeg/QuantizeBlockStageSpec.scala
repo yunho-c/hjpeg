@@ -14,6 +14,22 @@ class QuantizeBlockStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
     }
   }
 
+  private def pushBlock(dut: QuantizeBlockStage): Unit = {
+    dut.io.input.valid.poke(true.B)
+    dut.io.input.ready.expect(true.B)
+    dut.clock.step()
+    dut.io.input.valid.poke(false.B)
+  }
+
+  private def waitForOutput(dut: QuantizeBlockStage, maxCycles: Int = 1400): Unit = {
+    var cycles = 0
+    while (!dut.io.output.valid.peek().litToBoolean) {
+      assert(cycles < maxCycles, "timeout waiting for quantize output")
+      dut.clock.step()
+      cycles += 1
+    }
+  }
+
   "QuantizeBlockStage should quantize signed coefficients with luminance tables" in {
     simulate(new QuantizeBlockStage()) { dut =>
       dut.reset.poke(true.B)
@@ -22,7 +38,6 @@ class QuantizeBlockStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
 
       dut.io.quality.poke(50.U)
       dut.io.isLuminance.poke(true.B)
-      dut.io.input.valid.poke(true.B)
       dut.io.output.ready.poke(true.B)
       clearBlock(dut)
 
@@ -32,6 +47,8 @@ class QuantizeBlockStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
       dut.io.input.bits.coefficients(3).poke(7.S)
       dut.io.input.bits.coefficients(4).poke((-36).S)
 
+      pushBlock(dut)
+      waitForOutput(dut)
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.coefficients(0).expect(1.S)
       dut.io.output.bits.coefficients(1).expect((-1).S)
@@ -47,22 +64,31 @@ class QuantizeBlockStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
       dut.clock.step()
       dut.reset.poke(false.B)
 
-      dut.io.input.valid.poke(true.B)
       dut.io.output.ready.poke(true.B)
-      clearBlock(dut)
 
       dut.io.quality.poke(50.U)
       dut.io.isLuminance.poke(false.B)
+      clearBlock(dut)
       dut.io.input.bits.coefficients(0).poke(34.S)
+      pushBlock(dut)
+      waitForOutput(dut)
       dut.io.output.bits.coefficients(0).expect(2.S)
+      dut.clock.step()
 
       dut.io.quality.poke(100.U)
       dut.io.isLuminance.poke(true.B)
+      clearBlock(dut)
       dut.io.input.bits.coefficients(0).poke((-7).S)
+      pushBlock(dut)
+      waitForOutput(dut)
       dut.io.output.bits.coefficients(0).expect((-7).S)
+      dut.clock.step()
 
       dut.io.quality.poke(0.U)
+      clearBlock(dut)
       dut.io.input.bits.coefficients(0).poke(510.S)
+      pushBlock(dut)
+      waitForOutput(dut)
       dut.io.output.bits.coefficients(0).expect(2.S)
     }
   }
@@ -75,14 +101,16 @@ class QuantizeBlockStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
 
       dut.io.quality.poke(50.U)
       dut.io.isLuminance.poke(true.B)
-      dut.io.input.valid.poke(true.B)
       clearBlock(dut)
+      pushBlock(dut)
+      waitForOutput(dut)
 
       dut.io.output.ready.poke(false.B)
       dut.io.input.ready.expect(false.B)
       dut.io.output.valid.expect(true.B)
 
       dut.io.output.ready.poke(true.B)
+      dut.clock.step()
       dut.io.input.ready.expect(true.B)
     }
   }

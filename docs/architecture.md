@@ -34,6 +34,18 @@ transformed coefficients before emitting the MCU packet. This keeps the stripe
 memories to one read and one write port per component and avoids instantiating
 three or six parallel DCT/quantization paths per MCU.
 
+`Dct8x8Stage` is also multi-cycle. It captures one 8x8 sample block, computes
+the row transform one row/frequency element per cycle, computes the column
+transform one coefficient per cycle, then holds the completed coefficient block
+on its decoupled output. This intentionally trades latency for a much smaller
+synthesis problem than a fully combinational 8x8 two-dimensional DCT.
+
+`QuantizeBlockStage` follows the same area-first direction. It captures the DCT
+block, quantizes one coefficient at a time, and uses a small iterative divider
+for the rounded coefficient/table division. This removes the previous
+64-coefficient combinational divider fanout at the cost of additional cycles per
+block.
+
 ## Source Layout
 
 - `HjpegConfig.scala`: static widths and JPEG/KV260-facing constants

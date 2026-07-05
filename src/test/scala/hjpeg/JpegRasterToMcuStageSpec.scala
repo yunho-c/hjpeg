@@ -55,7 +55,7 @@ class JpegRasterToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
     }
   }
 
-  private def waitForOutput(dut: JpegRasterToMcuStage, maxCycles: Int = 128): Unit = {
+  private def waitForOutput(dut: JpegRasterToMcuStage, maxCycles: Int = 6000): Unit = {
     var cycles = 0
     while (!dut.io.output.valid.peek().litToBoolean) {
       assert(cycles < maxCycles, "timeout waiting for raster-to-MCU output")

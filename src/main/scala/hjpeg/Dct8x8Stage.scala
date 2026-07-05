@@ -31,6 +31,7 @@ class Dct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module
   })
 
   private val constants = Dct8x8Constants.CosineQ14
+  private val cosine = VecInit(constants.map(row => VecInit(row.map(_.S(16.W)))))
 
   private def sumSInt(values: Seq[SInt]): SInt =
     values.reduce(_ +& _)
@@ -42,26 +43,63 @@ class Dct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module
     Mux(negative, -rounded.asSInt, rounded.asSInt)
   }
 
-  io.input.ready := io.output.ready
-  io.output.valid := io.input.valid
+  val sIdle :: sRows :: sColumns :: sOutput :: Nil = Enum(4)
+  val state = RegInit(sIdle)
+  val rowIndex = RegInit(0.U(6.W))
+  val columnIndex = RegInit(0.U(6.W))
+  val samples = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
+  val rowTransformed = Reg(Vec(HjpegConstants.BlockSize, SInt(32.W)))
+  val coefficients = Reg(Vec(HjpegConstants.BlockSize, SInt(coefficientBits.W)))
 
-  val rowTransformed = Wire(Vec(HjpegConstants.BlockDim, Vec(HjpegConstants.BlockDim, SInt(32.W))))
-  for (x <- 0 until HjpegConstants.BlockDim) {
-    for (v <- 0 until HjpegConstants.BlockDim) {
-      val terms = (0 until HjpegConstants.BlockDim).map { y =>
-        (constants(v)(y).S(16.W) * io.input.bits.samples(x * HjpegConstants.BlockDim + y)).asSInt
-      }
-      rowTransformed(x)(v) := sumSInt(terms)
+  io.input.ready := state === sIdle
+  io.output.valid := state === sOutput
+  for (index <- 0 until HjpegConstants.BlockSize) {
+    io.output.bits.coefficients(index) := coefficients(index)
+  }
+
+  when(io.input.fire) {
+    for (index <- 0 until HjpegConstants.BlockSize) {
+      samples(index) := io.input.bits.samples(index)
+    }
+    rowIndex := 0.U
+    columnIndex := 0.U
+    state := sRows
+  }
+
+  val rowX = rowIndex(5, 3)
+  val rowV = rowIndex(2, 0)
+  val rowTerms = (0 until HjpegConstants.BlockDim).map { y =>
+    (cosine(rowV)(y) * samples(Cat(rowX, y.U(3.W)))).asSInt
+  }
+  val rowSum = sumSInt(rowTerms)
+
+  when(state === sRows) {
+    rowTransformed(rowIndex) := rowSum(31, 0).asSInt
+    when(rowIndex === (HjpegConstants.BlockSize - 1).U) {
+      columnIndex := 0.U
+      state := sColumns
+    }.otherwise {
+      rowIndex := rowIndex + 1.U
     }
   }
 
-  for (u <- 0 until HjpegConstants.BlockDim) {
-    for (v <- 0 until HjpegConstants.BlockDim) {
-      val terms = (0 until HjpegConstants.BlockDim).map { x =>
-        (constants(u)(x).S(16.W) * rowTransformed(x)(v)).asSInt
-      }
-      val rounded = roundShiftSigned(sumSInt(terms), Dct8x8Constants.FractionBits * 2)
-      io.output.bits.coefficients(u * HjpegConstants.BlockDim + v) := rounded(coefficientBits - 1, 0).asSInt
+  val columnU = columnIndex(5, 3)
+  val columnV = columnIndex(2, 0)
+  val columnTerms = (0 until HjpegConstants.BlockDim).map { x =>
+    (cosine(columnU)(x) * rowTransformed(Cat(x.U(3.W), columnV))).asSInt
+  }
+  val rounded = roundShiftSigned(sumSInt(columnTerms), Dct8x8Constants.FractionBits * 2)
+
+  when(state === sColumns) {
+    coefficients(columnIndex) := rounded(coefficientBits - 1, 0).asSInt
+    when(columnIndex === (HjpegConstants.BlockSize - 1).U) {
+      state := sOutput
+    }.otherwise {
+      columnIndex := columnIndex + 1.U
     }
+  }
+
+  when(io.output.fire) {
+    state := sIdle
   }
 }

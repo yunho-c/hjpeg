@@ -45,14 +45,14 @@ Implemented and tested in simulation:
 Proven locally with Vivado 2026.1:
 
 - KV260 AXI-Lite top SystemVerilog elaboration.
+- KV260 AXI-Lite top synthesis through post-synthesis report generation.
 - Vivado IP packaging.
 - Vivado block design creation and validation, with remaining non-fatal
   PS/SmartConnect/addressing warnings.
 
 Not yet proven:
 
-- Full Vivado synthesis completion, implementation, timing closure,
-  utilization headroom, bitstream, and XSA generation.
+- Vivado implementation, timing closure, bitstream, and XSA generation.
 - Programming a real KV260 and moving pixels through AXI DMA.
 - A hardware-produced JPEG captured from the board and validated with standard
   software.
@@ -203,6 +203,15 @@ read ports. A later source edit reuses one `JpegBlockTransformStage` per raster
 stage across the MCU's component blocks, reducing the 4:4:4 path from three
 parallel block transforms to one and the 4:2:0 path from six to one.
 
+The latest local source edits change `Dct8x8Stage` from a fully combinational
+two-dimensional DCT into a multi-cycle row/column engine and change
+`QuantizeBlockStage` into a one-coefficient-at-a-time quantizer with an
+iterative unsigned divider. The DCT accepts one block, computes 64 row-transform
+values over 64 cycles, computes 64 output coefficients over 64 more cycles, then
+presents the completed coefficient block. The quantizer captures a DCT block and
+serializes the rounded coefficient/table division so the 64 output coefficients
+are not all driven through parallel divider logic.
+
 The non-gray AXI wrapper regression compares the JPEG bytes emitted through
 `HjpegAxiStreamCore` against bytes emitted by direct `HjpegCore` input for the
 same RGB pattern. This catches wrapper lane/order mistakes without depending on
@@ -221,7 +230,7 @@ Known passing checks:
 
 ```sh
 CHISEL_FIRTOOL_PATH='C:\Users\G14\GitHub\hjpeg\null\org.chipsalliance\llvm-firtool\cache\1.149.0\bin' \
-  sbt 'testOnly hjpeg.HjpegElaborationSpec'
+  sbt 'testOnly hjpeg.HjpegElaborationSpec hjpeg.VivadoScriptsSpec'
 CHISEL_FIRTOOL_PATH='C:\Users\G14\GitHub\hjpeg\null\org.chipsalliance\llvm-firtool\cache\1.149.0\bin' \
   sbt 'runMain hjpeg.ElaborateKv260AxiLiteTop'
 python3 scripts/host/hjpeg_host_test.py
@@ -229,6 +238,7 @@ python3 scripts/vivado/check_reports_test.py
 git diff --check
 vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl
 vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl
+vivado -mode batch -source scripts/vivado/synth_kv260_axi_lite.tcl
 ```
 
 Known local limitations:
@@ -236,13 +246,15 @@ Known local limitations:
 - Full ChiselSim tests on Windows/MSYS currently fail before simulation because
   the generated `make clean` command uses Windows `cmd` syntax while MSYS
   `/bin/sh` executes the recipe.
-- A full `vivado -mode batch -source scripts/vivado/synth_kv260_axi_lite.tcl`
-  run no longer fails immediately on the raster-buffer memory port count, but it
-  ran for more than 20 minutes locally and was stopped before producing reports.
-  The next hardware bottleneck is likely overall synthesis/runtime/resource
-  pressure from the current highly combinational JPEG datapath. After the
-  transform-sharing edit, a second local synthesis attempt still exceeded 12
-  minutes and was stopped before reports were produced.
+- `scripts/vivado/check_reports.py` still fails the post-synthesis timing report
+  at the default 100 MHz threshold. The latest post-synthesis result has WNS
+  `-2.139 ns`; the worst setup path is from
+  `rasterToMcu/transform/dct/samples_24_reg[8]` to
+  `rasterToMcu/transform/dct/rowTransformed_0_reg[31]` through the DCT row
+  accumulation DSP chain. Post-synthesis utilization is approximately 47,961
+  CLB LUTs (40.95%), 24,960 LUTRAMs (43.33%), 0 BRAM tiles, and 61 DSPs
+  (4.89%). The earlier quantizer divider path with WNS around `-10.926 ns` is no
+  longer the worst path after the iterative quantizer edit.
 
 On a new machine, run these first:
 
@@ -349,12 +361,12 @@ Hardware completion evidence should include:
 ## Known Blockers And Bottlenecks
 
 - KV260 hardware access was unavailable. This blocks final completion.
-- Full Vivado synthesis has not completed locally. The previous hard failure on
-  too many raster-buffer memory read ports has been addressed by serial MCU
-  loading. The raster stages also now share one block transform across each MCU,
-  but a bounded synthesis run still did not produce reports. The next likely
-  hardware reduction is deeper DCT/quantization serialization or pipelining
-  inside `JpegBlockTransformStage`/`Dct8x8Stage`.
+- Vivado post-synthesis timing is not closed at 100 MHz. The previous hard
+  failure on too many raster-buffer memory read ports has been addressed by
+  serial MCU loading. The raster stages share one block transform across each
+  MCU, `Dct8x8Stage` is multi-cycle, and `QuantizeBlockStage` now uses an
+  iterative divider. The next concrete bottleneck is the DCT row accumulation
+  DSP chain reported at WNS `-2.139 ns`.
 - Chisel/Verilator frame-level tests are not instant. A focused AXI wrapper
   frame-level spec recently took about 76 seconds.
 - On Windows, avoid running multiple sbt commands in parallel; the launcher can
@@ -371,9 +383,11 @@ If the new PC has Vivado:
 2. Regenerate `generated-kv260-axi-lite-top/`.
 3. Run IP packaging.
 4. Run block design creation and confirm `validate_bd_design`.
-5. Run bitstream/XSA generation.
-6. Run `check_reports.py` on post-synth and post-impl reports.
-7. Fix the first concrete Vivado error rather than guessing from the Chisel.
+5. Improve or constrain the DCT row accumulation path enough for the
+   post-synthesis report gate to pass.
+6. Run bitstream/XSA generation.
+7. Run `check_reports.py` on post-synth and post-impl reports.
+8. Fix the first concrete Vivado error rather than guessing from the Chisel.
 
 If the new PC has KV260 access too:
 

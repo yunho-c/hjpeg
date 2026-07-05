@@ -62,6 +62,7 @@ set_property top $top_name [current_fileset]
 update_compile_order -fileset sources_1
 
 synth_design -top $top_name -part $part_name
+create_clock -period 10.000 -name pl_clk [get_ports clock]
 report_utilization -file [file join $project_dir post_synth_utilization.rpt]
 report_timing_summary -file [file join $project_dir post_synth_timing_summary.rpt]
 write_checkpoint -force [file join $project_dir post_synth.dcp]
