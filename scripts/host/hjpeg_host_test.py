@@ -1933,6 +1933,7 @@ class HjpegHostTest(unittest.TestCase):
 
             configured = []
             status_checks = []
+            transfer_elapsed_seconds = []
             info, input_info = hjpeg_host.run_stream_devices(
                 input_rgb=input_rgb,
                 output_jpeg=output_jpeg,
@@ -1949,9 +1950,12 @@ class HjpegHostTest(unittest.TestCase):
                     f"pathlib.Path(r'{root / 'decoder.txt'}').write_text(pathlib.Path(sys.argv[1]).read_bytes()[:2].hex()); "
                     f'print(\'ok\')"'
                 ),
+                transfer_elapsed_seconds=transfer_elapsed_seconds,
             )
 
             self.assertEqual(configured, [True])
+            self.assertEqual(len(transfer_elapsed_seconds), 1)
+            self.assertGreaterEqual(transfer_elapsed_seconds[0], 0.0)
             self.assertEqual(info, minimal_jpeg_info(width=2, height=1))
             self.assertEqual(input_info.path, str(input_rgb))
             self.assertEqual(input_info.byte_length, 8)
@@ -2054,6 +2058,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(record["encoder_config"]["clear_error"])
             self.assertEqual(record["capture_config"]["max_output_bytes"], 16777216)
             self.assertEqual(record["capture_config"]["timeout_seconds"], 30.0)
+            self.assertGreaterEqual(record["transfer_elapsed_seconds"], 0.0)
             self.assertTrue(record["decoder_passed"])
             self.assertEqual(record["decoder_command"], decoder_command)
             self.assertEqual(record["decoder_timeout_seconds"], 2.5)

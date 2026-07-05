@@ -26,6 +26,7 @@ import struct
 import subprocess
 import sys
 import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO, Callable
@@ -988,6 +989,7 @@ def run_evidence_record(
     decoder_command: str | None = None,
     decoder_timeout_seconds: float | None = None,
     decoder_result: DecoderCommandResult | None = None,
+    transfer_elapsed_seconds: float | None = None,
 ) -> dict[str, object]:
     record = jpeg_info_record(
         jpeg,
@@ -1014,6 +1016,8 @@ def run_evidence_record(
         record["capture_config"] = capture_config
     if status_checks is not None:
         record["status_checks"] = status_checks
+    if transfer_elapsed_seconds is not None:
+        record["transfer_elapsed_seconds"] = transfer_elapsed_seconds
     return record
 
 
@@ -1062,6 +1066,7 @@ def run_stream_devices(
     decoder_command: str | None = None,
     decoder_timeout_seconds: float = 30.0,
     decoder_results: list[DecoderCommandResult] | None = None,
+    transfer_elapsed_seconds: list[float] | None = None,
 ) -> tuple[JpegInfo, FileInfo]:
     require_supported_dimensions(expected_width, expected_height, max_width, max_height)
     if timeout_seconds is not None and timeout_seconds <= 0:
@@ -1093,11 +1098,15 @@ def run_stream_devices(
                 read_errors.append(exc)
 
         rx_thread = threading.Thread(target=read_rx, daemon=True)
+        transfer_start = time.perf_counter()
         rx_thread.start()
         tx_stream.write(rgb)
         if hasattr(tx_stream, "flush"):
             tx_stream.flush()
         rx_thread.join(timeout_seconds)
+        elapsed = time.perf_counter() - transfer_start
+        if transfer_elapsed_seconds is not None:
+            transfer_elapsed_seconds.append(elapsed)
         if rx_thread.is_alive():
             raise TimeoutError(
                 f"RX device did not produce JPEG EOI within {timeout_seconds} seconds"
@@ -1629,6 +1638,7 @@ def main(argv: list[str] | None = None) -> int:
                 record_status(context, status)
 
         decoder_results: list[DecoderCommandResult] = []
+        transfer_elapsed_seconds: list[float] = []
         info, input_info = run_stream_devices(
             input_rgb=args.input_rgb,
             output_jpeg=args.output_jpeg,
@@ -1648,12 +1658,16 @@ def main(argv: list[str] | None = None) -> int:
             decoder_command=args.decoder_command,
             decoder_timeout_seconds=args.decoder_timeout_seconds,
             decoder_results=decoder_results,
+            transfer_elapsed_seconds=transfer_elapsed_seconds,
         )
         decoder_passed = True if args.decoder_command is not None else None
         decoder_timeout = (
             args.decoder_timeout_seconds if args.decoder_command is not None else None
         )
         decoder_result = decoder_results[0] if decoder_results else None
+        transfer_elapsed = (
+            transfer_elapsed_seconds[0] if transfer_elapsed_seconds else None
+        )
         if args.json:
             print(
                 json.dumps(
@@ -1680,6 +1694,7 @@ def main(argv: list[str] | None = None) -> int:
                         args.decoder_command,
                         decoder_timeout,
                         decoder_result,
+                        transfer_elapsed,
                     ),
                     sort_keys=True,
                 )
