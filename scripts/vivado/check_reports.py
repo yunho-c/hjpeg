@@ -44,6 +44,7 @@ REQUIRED_EVIDENCE_CATEGORIES = (
     "route_status",
     "clock_utilization",
 )
+REQUIRED_ARTIFACT_SUFFIXES = (".bit", ".xsa")
 
 
 def finite_float(value: str) -> float:
@@ -456,6 +457,27 @@ def evidence_category_record(checked_counts: dict[str, int]) -> dict[str, object
     }
 
 
+def artifact_suffix_record(artifact_records: list[dict[str, object]]) -> dict[str, object]:
+    suffix_counts: dict[str, int] = {}
+    present = {suffix: False for suffix in REQUIRED_ARTIFACT_SUFFIXES}
+    for record in artifact_records:
+        suffix = Path(str(record.get("path", ""))).suffix.lower()
+        if not suffix:
+            continue
+        suffix_counts[suffix] = suffix_counts.get(suffix, 0) + 1
+        if bool(record.get("passed", False)) and suffix in present:
+            present[suffix] = True
+
+    missing = [suffix for suffix, is_present in present.items() if not is_present]
+    return {
+        "required_suffixes": list(REQUIRED_ARTIFACT_SUFFIXES),
+        "suffix_counts": suffix_counts,
+        "required_suffixes_present": present,
+        "missing_required_suffixes": missing,
+        "all_required_suffixes_present": not missing,
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="check Vivado timing and utilization reports")
     parser.add_argument(
@@ -609,6 +631,7 @@ def main(argv: list[str] | None = None) -> int:
                     "checked_count": checked,
                     "checked_counts": checked_counts,
                     "evidence_categories": evidence_category_record(checked_counts),
+                    "artifact_suffixes": artifact_suffix_record(artifact_records),
                     "arguments": arguments,
                     "clock_period_ns": args.clock_period_ns,
                     "clock_frequency_mhz": 1000.0 / args.clock_period_ns,

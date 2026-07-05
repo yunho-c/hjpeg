@@ -123,9 +123,9 @@ hardware-tool entry points:
   WNS/WHS values, utilization rows, thresholds, DRC violations, route-status
   counts, clock-utilization report hashes, requested input path lists and gate
   values, checked report/artifact count, per-category checked counts, required
-  evidence category presence, missing category names, and pass/fail state for
-  build evidence logs, including structured failure records for missing or
-  unparseable reports.
+  evidence category presence, missing category names, required `.bit`/`.xsa`
+  artifact suffix presence, and pass/fail state for build evidence logs,
+  including structured failure records for missing or unparseable reports.
 
 These scripts are intended to be run after:
 

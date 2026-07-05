@@ -120,11 +120,12 @@ Pass criteria:
   utilization rows, thresholds, DRC violations, route-status counts, required
   clock-utilization report hashes, requested input path lists and gate values,
   checked report/artifact count, per-category checked counts, required evidence
-  category presence, missing category names, and pass/fail state. Complete
-  Vivado flow evidence has `all_required_present` true. Missing, non-file, or
-  unparseable reports are recorded as structured JSON failures. Timing
-  thresholds, utilization threshold, and target clock period values must be
-  finite. The target clock period must be positive,
+  category presence, missing category names, required `.bit`/`.xsa` artifact
+  suffix presence, and pass/fail state. Complete Vivado flow evidence has
+  `all_required_present` and `all_required_suffixes_present` true. Missing,
+  non-file, or unparseable reports are recorded as structured JSON failures.
+  Timing thresholds, utilization threshold, and target clock period values must
+  be finite. The target clock period must be positive,
   and the utilization threshold must be nonnegative.
 
 Latest local Vivado 2026.1 evidence:
