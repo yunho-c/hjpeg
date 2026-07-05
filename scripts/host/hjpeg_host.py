@@ -3031,12 +3031,16 @@ def main(argv: list[str] | None = None) -> int:
             record, record_failures = check_run_evidence_file(evidence_path)
             records.append(record)
             failures.extend(record_failures)
+        passed_count = sum(1 for record in records if record.get("passed") is True)
+        failed_count = len(records) - passed_count
         if args.json:
             print(
                 json.dumps(
                     {
                         "passed": not failures,
                         "checked_count": len(records),
+                        "passed_count": passed_count,
+                        "failed_count": failed_count,
                         "records": records,
                         "failures": failures,
                     },
