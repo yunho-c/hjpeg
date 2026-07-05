@@ -26,7 +26,7 @@ class JpegRgb8x8ToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
     dut.io.input.valid.poke(false.B)
   }
 
-  private def waitForOutput(dut: JpegRgb8x8ToMcuStage, maxCycles: Int = 5000): Unit = {
+  private def waitForOutput(dut: JpegRgb8x8ToMcuStage, maxCycles: Int = 9000): Unit = {
     var cycles = 0
     while (!dut.io.output.valid.peek().litToBoolean) {
       assert(cycles < maxCycles, "timeout waiting for RGB 8x8 MCU output")

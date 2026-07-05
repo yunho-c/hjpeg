@@ -44,7 +44,7 @@ class JpegRasterToSubsampledMcuStageSpec extends AnyFreeSpec with Matchers with 
     }
   }
 
-  private def waitForOutput(dut: JpegRasterToSubsampledMcuStage, maxCycles: Int = 12000): Unit = {
+  private def waitForOutput(dut: JpegRasterToSubsampledMcuStage, maxCycles: Int = 18000): Unit = {
     var cycles = 0
     while (!dut.io.output.valid.peek().litToBoolean) {
       assert(cycles < maxCycles, "timeout waiting for subsampled raster-to-MCU output")

@@ -35,16 +35,22 @@ memories to one read and one write port per component and avoids instantiating
 three or six parallel DCT/quantization paths per MCU.
 
 `Dct8x8Stage` is also multi-cycle. It captures one 8x8 sample block, computes
-the row transform one row/frequency element per cycle, computes the column
-transform one coefficient per cycle, then holds the completed coefficient block
-on its decoupled output. This intentionally trades latency for a much smaller
-synthesis problem than a fully combinational 8x8 two-dimensional DCT.
+the row transform one product term per cycle, computes the column transform one
+product term per cycle, then holds the completed coefficient block on its
+decoupled output. This intentionally trades latency for a much smaller synthesis
+problem than a fully combinational 8x8 two-dimensional DCT or a one-cycle
+eight-term accumulation chain.
 
 `QuantizeBlockStage` follows the same area-first direction. It captures the DCT
 block, quantizes one coefficient at a time, and uses a small iterative divider
 for the rounded coefficient/table division. This removes the previous
 64-coefficient combinational divider fanout at the cost of additional cycles per
 block.
+
+`JpegHeaderStage` also avoids driving AXI output bytes directly from the
+quality-scaled quantization table arithmetic. It emits ordinary marker bytes
+through a small output FSM and prepares DQT payload bytes over multiple cycles
+before presenting them on the decoupled byte stream.
 
 ## Source Layout
 

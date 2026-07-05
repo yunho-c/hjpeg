@@ -28,7 +28,7 @@ class Dct8x8StageSpec extends AnyFreeSpec with Matchers with ChiselSim {
     dut.io.input.valid.poke(false.B)
   }
 
-  private def waitForOutput(dut: Dct8x8Stage, maxCycles: Int = 160): Unit = {
+  private def waitForOutput(dut: Dct8x8Stage, maxCycles: Int = 1200): Unit = {
     var cycles = 0
     while (!dut.io.output.valid.peek().litToBoolean) {
       assert(cycles < maxCycles, "timeout waiting for DCT output")

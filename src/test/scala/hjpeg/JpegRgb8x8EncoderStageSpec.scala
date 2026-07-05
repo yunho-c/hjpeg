@@ -46,7 +46,7 @@ class JpegRgb8x8EncoderStageSpec extends AnyFreeSpec with Matchers with ChiselSi
     var sawLast = false
     var cycles = 0
     while (!sawLast) {
-      assert(cycles < JpegHeaderBytes.HeaderLength + 8192, "timeout waiting for RGB 8x8 JPEG output")
+      assert(cycles < JpegHeaderBytes.HeaderLength + 20000, "timeout waiting for RGB 8x8 JPEG output")
       if (dut.io.output.valid.peek().litToBoolean) {
         bytes += dut.io.output.bits.byte.peek().litValue.toInt
         sawLast = dut.io.output.bits.last.peek().litToBoolean

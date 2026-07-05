@@ -37,10 +37,11 @@ class JpegHeaderStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
     var cycles = 0
 
     while (!sawLast) {
-      assert(cycles <= JpegHeaderBytes.MaxHeaderLength + 4, "timeout waiting for JPEG header")
-      dut.io.output.valid.expect(true.B)
-      bytes += dut.io.output.bits.byte.peek().litValue.toInt
-      sawLast = dut.io.output.bits.last.peek().litToBoolean
+      assert(cycles <= JpegHeaderBytes.MaxHeaderLength * 4, "timeout waiting for JPEG header")
+      if (dut.io.output.valid.peek().litToBoolean) {
+        bytes += dut.io.output.bits.byte.peek().litValue.toInt
+        sawLast = dut.io.output.bits.last.peek().litToBoolean
+      }
       dut.clock.step()
       cycles += 1
     }
@@ -154,6 +155,9 @@ class JpegHeaderStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
       dut.clock.step()
       dut.io.start.poke(false.B)
 
+      while (!dut.io.output.valid.peek().litToBoolean) {
+        dut.clock.step()
+      }
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.byte.expect(0xff.U)
       dut.io.busy.expect(true.B)
@@ -163,6 +167,9 @@ class JpegHeaderStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
 
       dut.io.output.ready.poke(true.B)
       dut.clock.step()
+      while (!dut.io.output.valid.peek().litToBoolean) {
+        dut.clock.step()
+      }
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.byte.expect(0xd8.U)
     }

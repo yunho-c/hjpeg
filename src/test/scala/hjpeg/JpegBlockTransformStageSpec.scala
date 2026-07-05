@@ -22,7 +22,7 @@ class JpegBlockTransformStageSpec extends AnyFreeSpec with Matchers with ChiselS
     dut.io.input.valid.poke(false.B)
   }
 
-  private def waitForOutput(dut: JpegBlockTransformStage, maxCycles: Int = 1600): Unit = {
+  private def waitForOutput(dut: JpegBlockTransformStage, maxCycles: Int = 2600): Unit = {
     var cycles = 0
     while (!dut.io.output.valid.peek().litToBoolean) {
       assert(cycles < maxCycles, "timeout waiting for block transform output")

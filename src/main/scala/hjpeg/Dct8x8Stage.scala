@@ -33,9 +33,6 @@ class Dct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module
   private val constants = Dct8x8Constants.CosineQ14
   private val cosine = VecInit(constants.map(row => VecInit(row.map(_.S(16.W)))))
 
-  private def sumSInt(values: Seq[SInt]): SInt =
-    values.reduce(_ +& _)
-
   private def roundShiftSigned(value: SInt, shift: Int): SInt = {
     val negative = value < 0.S
     val magnitude = Mux(negative, -value, value).asUInt
@@ -47,6 +44,8 @@ class Dct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module
   val state = RegInit(sIdle)
   val rowIndex = RegInit(0.U(6.W))
   val columnIndex = RegInit(0.U(6.W))
+  val termIndex = RegInit(0.U(3.W))
+  val accumulator = RegInit(0.S(56.W))
   val samples = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
   val rowTransformed = Reg(Vec(HjpegConstants.BlockSize, SInt(32.W)))
   val coefficients = Reg(Vec(HjpegConstants.BlockSize, SInt(coefficientBits.W)))
@@ -63,39 +62,52 @@ class Dct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module
     }
     rowIndex := 0.U
     columnIndex := 0.U
+    termIndex := 0.U
+    accumulator := 0.S
     state := sRows
   }
 
   val rowX = rowIndex(5, 3)
   val rowV = rowIndex(2, 0)
-  val rowTerms = (0 until HjpegConstants.BlockDim).map { y =>
-    (cosine(rowV)(y) * samples(Cat(rowX, y.U(3.W)))).asSInt
-  }
-  val rowSum = sumSInt(rowTerms)
+  val rowProduct = (cosine(rowV)(termIndex) * samples(Cat(rowX, termIndex))).asSInt
+  val rowAccumulated = accumulator +& rowProduct
 
   when(state === sRows) {
-    rowTransformed(rowIndex) := rowSum(31, 0).asSInt
-    when(rowIndex === (HjpegConstants.BlockSize - 1).U) {
-      columnIndex := 0.U
-      state := sColumns
+    when(termIndex === (HjpegConstants.BlockDim - 1).U) {
+      rowTransformed(rowIndex) := rowAccumulated(31, 0).asSInt
+      termIndex := 0.U
+      accumulator := 0.S
+      when(rowIndex === (HjpegConstants.BlockSize - 1).U) {
+        columnIndex := 0.U
+        state := sColumns
+      }.otherwise {
+        rowIndex := rowIndex + 1.U
+      }
     }.otherwise {
-      rowIndex := rowIndex + 1.U
+      accumulator := rowAccumulated
+      termIndex := termIndex + 1.U
     }
   }
 
   val columnU = columnIndex(5, 3)
   val columnV = columnIndex(2, 0)
-  val columnTerms = (0 until HjpegConstants.BlockDim).map { x =>
-    (cosine(columnU)(x) * rowTransformed(Cat(x.U(3.W), columnV))).asSInt
-  }
-  val rounded = roundShiftSigned(sumSInt(columnTerms), Dct8x8Constants.FractionBits * 2)
+  val columnProduct = (cosine(columnU)(termIndex) * rowTransformed(Cat(termIndex, columnV))).asSInt
+  val columnAccumulated = accumulator +& columnProduct
+  val rounded = roundShiftSigned(columnAccumulated, Dct8x8Constants.FractionBits * 2)
 
   when(state === sColumns) {
-    coefficients(columnIndex) := rounded(coefficientBits - 1, 0).asSInt
-    when(columnIndex === (HjpegConstants.BlockSize - 1).U) {
-      state := sOutput
+    when(termIndex === (HjpegConstants.BlockDim - 1).U) {
+      coefficients(columnIndex) := rounded(coefficientBits - 1, 0).asSInt
+      termIndex := 0.U
+      accumulator := 0.S
+      when(columnIndex === (HjpegConstants.BlockSize - 1).U) {
+        state := sOutput
+      }.otherwise {
+        columnIndex := columnIndex + 1.U
+      }
     }.otherwise {
-      columnIndex := columnIndex + 1.U
+      accumulator := columnAccumulated
+      termIndex := termIndex + 1.U
     }
   }
 

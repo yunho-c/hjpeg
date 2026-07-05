@@ -69,6 +69,18 @@ Pass criteria:
 - `check_reports.py` exits successfully for the generated timing/utilization
   reports.
 
+Latest local Vivado 2026.1 evidence:
+
+- `build_kv260_bitstream.tcl` completed and wrote `hjpeg_kv260.bit` and
+  `hjpeg_kv260.xsa`.
+- `check_reports.py` passed on post-synthesis and post-implementation timing
+  and utilization reports.
+- Latest post-implementation timing WNS is `+0.131 ns` setup and `+0.010 ns`
+  hold at the 100 MHz target clock.
+- Latest post-implementation utilization is approximately 50,662 CLB LUTs
+  (43.26%), 25,619 LUTRAMs (44.48%), 2 BRAM tiles (1.39%), and 17 DSPs
+  (1.36%).
+
 ## 5. Prepare Host Input
 
 ```sh

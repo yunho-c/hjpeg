@@ -86,10 +86,19 @@ class JpegHeaderStage extends Module {
     val done = Output(Bool())
   })
 
+  val sIdle :: sLoadByte :: sQuantMultiply :: sQuantDivide :: sOutput :: Nil = Enum(5)
+  val state = RegInit(sIdle)
   val index = RegInit(0.U(log2Ceil(JpegHeaderBytes.MaxHeaderLength).W))
-  val active = RegInit(false.B)
+  val outputValid = RegInit(false.B)
+  val outputByte = Reg(UInt(8.W))
+  val outputLast = Reg(Bool())
+  val quantBaseReg = Reg(UInt(8.W))
+  val quantScale = Reg(UInt(13.W))
+  val quantProduct = Reg(UInt(21.W))
   val staticBytes = VecInit(JpegHeaderBytes.HeaderWithDri.map(_.U(8.W)))
   val zigZag = VecInit(JpegTables.ZigZagOrder.map(_.U(6.W)))
+  val luminanceQuant = VecInit(JpegTables.StandardLuminanceQuant.map(_.U(8.W)))
+  val chrominanceQuant = VecInit(JpegTables.StandardChrominanceQuant.map(_.U(8.W)))
 
   val inLuminanceDqt =
     index >= JpegHeaderBytes.DqtLuminanceDataStart.U &&
@@ -102,10 +111,9 @@ class JpegHeaderStage extends Module {
   val quantScanIndex = Mux(inLuminanceDqt, luminanceQuantIndex(5, 0), chrominanceQuantIndex(5, 0))
   val quantIndex = zigZag(quantScanIndex)
 
-  val quantValue = Module(new JpegQuantTableValue())
-  quantValue.io.quality := io.config.quality
-  quantValue.io.isLuminance := inLuminanceDqt
-  quantValue.io.index := quantIndex
+  val clampedQuality = Mux(io.config.quality === 0.U, 1.U, Mux(io.config.quality > 100.U, 100.U, io.config.quality))
+  val qualityScale = Mux(clampedQuality < 50.U, 5000.U / clampedQuality, 200.U - (clampedQuality << 1))
+  val currentQuantBase = Mux(inLuminanceDqt, luminanceQuant(quantIndex), chrominanceQuant(quantIndex))
 
   val heightHigh = io.config.ysize(15, 8)
   val heightLow = io.config.ysize(7, 0)
@@ -114,8 +122,6 @@ class JpegHeaderStage extends Module {
   val dynamicByte = MuxCase(
     staticBytes(index),
     Seq(
-      inLuminanceDqt -> quantValue.io.value,
-      inChrominanceDqt -> quantValue.io.value,
       (index === JpegHeaderBytes.Sof0HeightHigh.U) -> heightHigh,
       (index === JpegHeaderBytes.Sof0HeightLow.U) -> heightLow,
       (index === JpegHeaderBytes.Sof0WidthHigh.U) -> widthHigh,
@@ -127,27 +133,64 @@ class JpegHeaderStage extends Module {
     )
   )
 
-  when(io.start && !active) {
-    active := true.B
+  when(io.start && state === sIdle) {
+    state := sLoadByte
     index := 0.U
   }
 
-  io.output.valid := active
-  io.output.bits.byte := dynamicByte
-  io.output.bits.last := index === (JpegHeaderBytes.MaxHeaderLength - 1).U
-  io.busy := active
-  io.done := io.output.fire && io.output.bits.last
+  io.output.valid := outputValid
+  io.output.bits.byte := outputByte
+  io.output.bits.last := outputLast
+  io.busy := state =/= sIdle
+  io.done := io.output.fire && outputLast
 
-  when(io.output.fire) {
-    when(io.output.bits.last) {
-      active := false.B
-      index := 0.U
-    }.elsewhen(!io.config.emitJfif && index === JpegHeaderBytes.SoiLast.U) {
-      index := (JpegHeaderBytes.App0Start + JpegHeaderBytes.App0.length).U
-    }.elsewhen(io.config.restartInterval === 0.U && index === (JpegHeaderBytes.DriStart - 1).U) {
-      index := (JpegHeaderBytes.DriStart + JpegHeaderBytes.Dri.length).U
+  val currentLast = index === (JpegHeaderBytes.MaxHeaderLength - 1).U
+  val currentIsDqt = inLuminanceDqt || inChrominanceDqt
+  val scaledQuant = quantProduct / 100.U
+  val quantByte = Mux(scaledQuant === 0.U, 1.U, Mux(scaledQuant > 255.U, 255.U, scaledQuant(7, 0)))
+  val nextIndex = MuxCase(
+    index + 1.U,
+    Seq(
+      (!io.config.emitJfif && index === JpegHeaderBytes.SoiLast.U) ->
+        (JpegHeaderBytes.App0Start + JpegHeaderBytes.App0.length).U,
+      (io.config.restartInterval === 0.U && index === (JpegHeaderBytes.DriStart - 1).U) ->
+        (JpegHeaderBytes.DriStart + JpegHeaderBytes.Dri.length).U
+    )
+  )
+
+  when(state === sLoadByte) {
+    when(currentIsDqt) {
+      quantBaseReg := currentQuantBase
+      quantScale := qualityScale
+      state := sQuantMultiply
     }.otherwise {
-      index := index + 1.U
+      outputValid := true.B
+      outputByte := dynamicByte
+      outputLast := currentLast
+      state := sOutput
+    }
+  }
+
+  when(state === sQuantMultiply) {
+    quantProduct := quantBaseReg * quantScale + 50.U
+    state := sQuantDivide
+  }
+
+  when(state === sQuantDivide) {
+    outputValid := true.B
+    outputByte := quantByte
+    outputLast := currentLast
+    state := sOutput
+  }
+
+  when(state === sOutput && io.output.fire) {
+    outputValid := false.B
+    when(currentLast) {
+      state := sIdle
+      index := 0.U
+    }.otherwise {
+      index := nextIndex
+      state := sLoadByte
     }
   }
 }

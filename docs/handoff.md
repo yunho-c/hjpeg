@@ -45,14 +45,17 @@ Implemented and tested in simulation:
 Proven locally with Vivado 2026.1:
 
 - KV260 AXI-Lite top SystemVerilog elaboration.
-- KV260 AXI-Lite top synthesis through post-synthesis report generation.
+- KV260 AXI-Lite top synthesis through post-synthesis report generation, with
+  the current post-synthesis setup timing/utilization report gate passing at
+  the default 100 MHz threshold.
 - Vivado IP packaging.
 - Vivado block design creation and validation, with remaining non-fatal
   PS/SmartConnect/addressing warnings.
+- Vivado bitstream generation, bitstream copy, XSA export with bitstream
+  included, and post-synthesis/post-implementation report checking.
 
 Not yet proven:
 
-- Vivado implementation, timing closure, bitstream, and XSA generation.
 - Programming a real KV260 and moving pixels through AXI DMA.
 - A hardware-produced JPEG captured from the board and validated with standard
   software.
@@ -206,11 +209,18 @@ parallel block transforms to one and the 4:2:0 path from six to one.
 The latest local source edits change `Dct8x8Stage` from a fully combinational
 two-dimensional DCT into a multi-cycle row/column engine and change
 `QuantizeBlockStage` into a one-coefficient-at-a-time quantizer with an
-iterative unsigned divider. The DCT accepts one block, computes 64 row-transform
-values over 64 cycles, computes 64 output coefficients over 64 more cycles, then
-presents the completed coefficient block. The quantizer captures a DCT block and
-serializes the rounded coefficient/table division so the 64 output coefficients
-are not all driven through parallel divider logic.
+iterative unsigned divider. The DCT accepts one block, serializes each 8-term
+row and column accumulation one product term per cycle, then presents the
+completed coefficient block. The quantizer captures a DCT block and serializes
+the rounded coefficient/table division so the 64 output coefficients are not all
+driven through parallel divider logic.
+
+`JpegHeaderStage` was also changed from a one-byte-per-cycle combinational
+header mux into a small byte-generation FSM. Static marker bytes still emit in
+order, but DQT payload bytes now latch the selected table entry and quality
+scale, multiply in a registered DSP stage, then divide/clamp before presenting
+the output byte. This removes the previous header-index-to-DMA-data timing path
+seen in the block-design implementation reports.
 
 The non-gray AXI wrapper regression compares the JPEG bytes emitted through
 `HjpegAxiStreamCore` against bytes emitted by direct `HjpegCore` input for the
@@ -239,6 +249,12 @@ git diff --check
 vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl
 vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl
 vivado -mode batch -source scripts/vivado/synth_kv260_axi_lite.tcl
+vivado -mode batch -source scripts/vivado/build_kv260_bitstream.tcl
+python3 scripts/vivado/check_reports.py \
+  --timing build/vivado/hjpeg-kv260-artifacts/post_synth_timing_summary.rpt \
+  --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
+  --utilization build/vivado/hjpeg-kv260-artifacts/post_synth_utilization.rpt \
+  --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt
 ```
 
 Known local limitations:
@@ -246,15 +262,12 @@ Known local limitations:
 - Full ChiselSim tests on Windows/MSYS currently fail before simulation because
   the generated `make clean` command uses Windows `cmd` syntax while MSYS
   `/bin/sh` executes the recipe.
-- `scripts/vivado/check_reports.py` still fails the post-synthesis timing report
-  at the default 100 MHz threshold. The latest post-synthesis result has WNS
-  `-2.139 ns`; the worst setup path is from
-  `rasterToMcu/transform/dct/samples_24_reg[8]` to
-  `rasterToMcu/transform/dct/rowTransformed_0_reg[31]` through the DCT row
-  accumulation DSP chain. Post-synthesis utilization is approximately 47,961
-  CLB LUTs (40.95%), 24,960 LUTRAMs (43.33%), 0 BRAM tiles, and 61 DSPs
-  (4.89%). The earlier quantizer divider path with WNS around `-10.926 ns` is no
-  longer the worst path after the iterative quantizer edit.
+- The current block-design Vivado reports pass the default 100 MHz
+  setup/utilization gates. Latest artifact reports show post-synthesis setup WNS
+  `+0.807 ns` and post-implementation setup WNS `+0.131 ns`; post-implementation
+  hold WNS is `+0.010 ns`. Post-implementation utilization is approximately
+  50,662 CLB LUTs (43.26%), 25,619 LUTRAMs (44.48%), 2 BRAM tiles (1.39%), and
+  17 DSPs (1.36%).
 
 On a new machine, run these first:
 
@@ -361,12 +374,9 @@ Hardware completion evidence should include:
 ## Known Blockers And Bottlenecks
 
 - KV260 hardware access was unavailable. This blocks final completion.
-- Vivado post-synthesis timing is not closed at 100 MHz. The previous hard
-  failure on too many raster-buffer memory read ports has been addressed by
-  serial MCU loading. The raster stages share one block transform across each
-  MCU, `Dct8x8Stage` is multi-cycle, and `QuantizeBlockStage` now uses an
-  iterative divider. The next concrete bottleneck is the DCT row accumulation
-  DSP chain reported at WNS `-2.139 ns`.
+- KV260 board execution is not proven. The Vivado flow now builds a bitstream
+  and XSA and passes post-synthesis/post-implementation report gates, but no
+  transfer has been run through AXI DMA on real hardware.
 - Chisel/Verilator frame-level tests are not instant. A focused AXI wrapper
   frame-level spec recently took about 76 seconds.
 - On Windows, avoid running multiple sbt commands in parallel; the launcher can
@@ -383,11 +393,9 @@ If the new PC has Vivado:
 2. Regenerate `generated-kv260-axi-lite-top/`.
 3. Run IP packaging.
 4. Run block design creation and confirm `validate_bd_design`.
-5. Improve or constrain the DCT row accumulation path enough for the
-   post-synthesis report gate to pass.
-6. Run bitstream/XSA generation.
-7. Run `check_reports.py` on post-synth and post-impl reports.
-8. Fix the first concrete Vivado error rather than guessing from the Chisel.
+5. Run bitstream/XSA generation.
+6. Run `check_reports.py` on post-synth and post-impl reports.
+7. Save the report/artifact evidence, then move to KV260 board validation.
 
 If the new PC has KV260 access too:
 
