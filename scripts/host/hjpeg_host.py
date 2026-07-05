@@ -365,6 +365,11 @@ def jpeg_info(data: bytes) -> JpegInfo:
         raise ValueError(
             f"JPEG SOF0 component count is {len(components)}, expected 3"
         )
+    component_id_order = [component.component_id for component in components]
+    if component_id_order != [1, 2, 3]:
+        raise ValueError(
+            f"JPEG SOF0 component IDs are {component_id_order}, expected [1, 2, 3]"
+        )
     if dqt_segments == 0:
         raise ValueError("JPEG output does not contain a DQT segment")
     if dht_segments == 0:
@@ -381,6 +386,10 @@ def jpeg_info(data: bytes) -> JpegInfo:
         )
     if len(set(scan_component_ids)) != len(scan_component_ids):
         raise ValueError("JPEG SOS component IDs must be unique")
+    if scan_component_ids != [1, 2, 3]:
+        raise ValueError(
+            f"JPEG SOS component IDs are {scan_component_ids}, expected [1, 2, 3]"
+        )
     if set(scan_component_ids) != component_ids:
         raise ValueError("JPEG SOS components do not match SOF0 components")
     for component in components:

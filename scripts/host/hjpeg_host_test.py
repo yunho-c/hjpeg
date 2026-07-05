@@ -250,6 +250,34 @@ def with_two_component_sos(jpeg: bytes) -> bytes:
     return jpeg[:sos] + shortened_sos + jpeg[sos_end:]
 
 
+def with_nonstandard_sof0_component_ids(jpeg: bytes) -> bytes:
+    sof0 = jpeg.find(b"\xff\xc0\x00\x11")
+    if sof0 < 0:
+        raise AssertionError("SOF0 marker not found")
+    ids = (4, 5, 6)
+    mutated = bytearray(jpeg)
+    for index, component_id in enumerate(ids):
+        mutated[sof0 + 10 + index * 3] = component_id
+    sos = jpeg.find(b"\xff\xda\x00\x0c\x03")
+    if sos < 0:
+        raise AssertionError("SOS marker not found")
+    for index, component_id in enumerate(ids):
+        mutated[sos + 5 + index * 2] = component_id
+    return bytes(mutated)
+
+
+def with_reordered_sos_components(jpeg: bytes) -> bytes:
+    sos = jpeg.find(b"\xff\xda\x00\x0c\x03")
+    if sos < 0:
+        raise AssertionError("SOS marker not found")
+    mutated = bytearray(jpeg)
+    first_pair = jpeg[sos + 5 : sos + 7]
+    second_pair = jpeg[sos + 7 : sos + 9]
+    mutated[sos + 5 : sos + 7] = second_pair
+    mutated[sos + 7 : sos + 9] = first_pair
+    return bytes(mutated)
+
+
 def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
     data = minimal_jpeg(width, height)
     return hjpeg_host.JpegInfo(
@@ -979,6 +1007,31 @@ class HjpegHostTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "SOS component IDs must be unique"):
                 hjpeg_host.validate_jpeg(
                     duplicate_component_sos,
+                    expected_width=17,
+                    expected_height=13,
+                )
+
+    def test_validate_jpeg_rejects_nonstandard_component_id_order(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            nonstandard_sof0_ids = root / "nonstandard-sof0-ids.jpg"
+            reordered_sos_ids = root / "reordered-sos-ids.jpg"
+            nonstandard_sof0_ids.write_bytes(
+                with_nonstandard_sof0_component_ids(minimal_jpeg(width=17, height=13))
+            )
+            reordered_sos_ids.write_bytes(
+                with_reordered_sos_components(minimal_jpeg(width=17, height=13))
+            )
+
+            with self.assertRaisesRegex(ValueError, "SOF0 component IDs"):
+                hjpeg_host.validate_jpeg(
+                    nonstandard_sof0_ids,
+                    expected_width=17,
+                    expected_height=13,
+                )
+            with self.assertRaisesRegex(ValueError, "SOS component IDs"):
+                hjpeg_host.validate_jpeg(
+                    reordered_sos_ids,
                     expected_width=17,
                     expected_height=13,
                 )
