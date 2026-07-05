@@ -25,6 +25,84 @@ EXPECTED_HARDWARE_EVIDENCE_GROUPS = [
     "decoder",
 ]
 
+EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES = [
+    "jpeg_validation_passed",
+    "jpeg_byte_length_positive",
+    "jpeg_scan_data_bytes_positive",
+    "jpeg_sha256_present",
+    "jpeg_scan_data_sha256_present",
+    "jpeg_marker_sequence_starts_with_soi",
+    "jpeg_marker_sequence_ends_with_eoi",
+    "encoder_config_matches_jpeg_dimensions",
+    "validation_expectations_match_jpeg_dimensions",
+    "input_ppm_dimensions_match_jpeg",
+    "input_rgb_expected_length_matches_dimensions",
+    "encoder_dimensions_supported",
+    "encoder_quality_valid",
+    "encoder_restart_interval_valid",
+    "encoder_flags_valid",
+    "encoder_control_matches_flags",
+    "validation_baseline_shape",
+    "validation_marker_order_present",
+    "validation_table_order_present",
+    "validation_sos_spectral_baseline",
+    "validation_requires_standard_huffman",
+    "input_rgb_byte_length_positive",
+    "input_rgb_sha256_present",
+    "input_rgb_expected_byte_length_positive",
+    "input_rgb_length_matches_expected",
+    "input_rgb_length_match_flag_matches",
+    "capture_max_output_bytes_positive",
+    "capture_timeout_valid",
+    "axi_lite_device_present",
+    "axi_lite_base_addr_nonnegative",
+    "axi_lite_base_addr_hex_matches",
+    "input_ppm_matches_input",
+    "input_ppm_matches_input_flag_matches",
+    "input_ppm_byte_length_positive",
+    "input_ppm_sha256_present",
+    "input_ppm_dimensions_positive",
+    "input_ppm_rgb_byte_length_matches_dimensions",
+    "input_ppm_packed_rgb_length_matches_dimensions",
+    "input_ppm_packed_rgb_sha256_present",
+    "input_ppm_non_flat",
+    "input_ppm_has_color_pixels",
+    "status_checks_list_present",
+    "status_check_count_matches",
+    "status_check_count_expected",
+    "expected_status_contexts_present",
+    "status_check_contexts_match_list",
+    "status_check_contexts_match_expected",
+    "status_check_contexts_expected_flag_matches",
+    "status_checks_have_status_words",
+    "status_checks_each_idle",
+    "status_checks_all_idle",
+    "status_checks_all_idle_flag_matches",
+    "status_checks_no_protocol_error",
+    "status_checks_any_protocol_error_flag_matches",
+    "status_checks_no_busy",
+    "status_checks_any_busy_flag_matches",
+    "decoder_passed",
+    "decoder_command_present",
+    "decoder_timeout_seconds_positive",
+    "decoder_elapsed_seconds_nonnegative",
+    "decoder_returncode_zero",
+    "decoder_argv_present",
+    "decoder_argv_matches_command",
+    "decoder_stdout_present",
+    "decoder_stderr_present",
+    "decoder_stdout_length_matches",
+    "decoder_stderr_length_matches",
+    "decoder_output_capture_chars_positive",
+    "decoder_output_not_truncated",
+    "transfer_elapsed_seconds_positive",
+    "host_transfer_rates_present",
+    "host_input_rgb_rate_positive",
+    "host_output_jpeg_rate_positive",
+    "host_input_rgb_rate_matches_elapsed",
+    "host_output_jpeg_rate_matches_elapsed",
+]
+
 
 def jpeg_segment(marker: int, payload: bytes) -> bytes:
     length = len(payload) + 2
@@ -2487,6 +2565,18 @@ class HjpegHostTest(unittest.TestCase):
         )
         self.assertFalse(summary["all_recorded_checks_passed"])
         self.assertEqual(summary["recorded_check_count"], 7)
+        self.assertEqual(
+            summary["recorded_check_names"],
+            [
+                "jpeg_validation_passed",
+                "jpeg_byte_length_positive",
+                "jpeg_scan_data_bytes_positive",
+                "jpeg_sha256_present",
+                "jpeg_scan_data_sha256_present",
+                "jpeg_marker_sequence_starts_with_soi",
+                "jpeg_marker_sequence_ends_with_eoi",
+            ],
+        )
         self.assertEqual(summary["passing_check_count"], 5)
         self.assertEqual(summary["failing_check_count"], 2)
         self.assertEqual(
@@ -2585,6 +2675,10 @@ class HjpegHostTest(unittest.TestCase):
                 complete_run_evidence_record(root)["hardware_run_summary"],
             )
             self.assertEqual(record["missing_evidence"], [])
+            self.assertEqual(
+                record["recorded_check_names"],
+                EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
+            )
             self.assertEqual(record["recorded_check_count"], 75)
             self.assertEqual(record["passing_check_count"], 75)
             self.assertEqual(record["failing_check_count"], 0)
@@ -2616,6 +2710,10 @@ class HjpegHostTest(unittest.TestCase):
                 hjpeg_host.hardware_run_summary_record(evidence),
             )
             self.assertEqual(record["missing_evidence"], [])
+            self.assertEqual(
+                record["recorded_check_names"],
+                EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
+            )
             self.assertEqual(record["recorded_check_count"], 75)
             self.assertEqual(record["passing_check_count"], 75)
             self.assertEqual(record["failing_check_count"], 0)
@@ -2672,6 +2770,10 @@ class HjpegHostTest(unittest.TestCase):
                 evidence["hardware_run_summary"],
             )
             self.assertEqual(record["missing_evidence"], ["input_ppm", "decoder"])
+            self.assertEqual(
+                record["recorded_check_names"],
+                list(evidence["hardware_run_summary"]["checks"].keys()),
+            )
             self.assertEqual(record["recorded_check_count"], 51)
             self.assertEqual(record["passing_check_count"], 51)
             self.assertEqual(record["failing_check_count"], 0)
@@ -2713,6 +2815,10 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 0)
             self.assertEqual(record["missing_evidence"], [])
+            self.assertEqual(
+                record["recorded_check_names"],
+                EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
+            )
             self.assertEqual(record["recorded_check_count"], 75)
             self.assertEqual(record["passing_check_count"], 74)
             self.assertEqual(record["failing_check_count"], 1)
@@ -4746,6 +4852,7 @@ class HjpegHostTest(unittest.TestCase):
                         "host_input_rgb_rate_matches_elapsed": True,
                         "host_output_jpeg_rate_matches_elapsed": True,
                     },
+                    "recorded_check_names": EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
                     "recorded_check_count": 75,
                     "passing_check_count": 75,
                     "failing_check_count": 0,

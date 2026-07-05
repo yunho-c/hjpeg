@@ -218,8 +218,9 @@ Expected evidence:
   control word pulsed when recovering from a sticky protocol fault.
 - `run-stream-devices --json` evidence includes `hardware_run_summary` with
   the ordered required evidence group list, recorded run-check booleans,
-  evidence/check counts, missing evidence group names, failing check names, and
-  `complete_hardware_run_evidence`. A valid final board transcript should have
+  ordered recorded check names, evidence/check counts, missing evidence group
+  names, failing check names, and `complete_hardware_run_evidence`. A valid
+  final board transcript should have
   `all_recorded_checks_passed` and `complete_hardware_run_evidence` true,
   which requires hashed output JPEG evidence with non-empty scan data,
   `--input-ppm` source evidence with non-flat/color stats, a passing
@@ -253,8 +254,8 @@ Expected evidence:
   from the saved lengths, hashes, and elapsed time. Required boolean evidence
   fields must be actual JSON booleans. The summary records the required
   evidence group names, total, present, and missing evidence-group counts,
-  total, passing, and failing check counts, missing evidence group names, and
-  failing check names for review.
+  recorded check names, total, passing, and failing check counts, missing
+  evidence group names, and failing check names for review.
 - Use `run-stream-devices --require-complete-evidence` for the final board
   transcript so missing source PPM, decoder, transfer timing, or status evidence
   fails the command. Omit it only for intentional partial smoke tests. Run JSON
