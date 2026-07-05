@@ -134,6 +134,11 @@ complete bootable KV260 image or prove on-board behavior.
 See `docs/kv260-bringup.md` for the end-to-end evidence checklist before calling
 the hardware path complete.
 
+For a new agent or developer taking over without project history, read
+`docs/handoff.md` first. It summarizes current implementation status, recent
+verification, known blockers, and the recommended next steps for Vivado/KV260
+bring-up.
+
 ## Host Helpers
 
 The host utility prepares payloads and register writes for the KV260 AXI-Lite /

@@ -21,6 +21,8 @@ correctly with ordinary JPEG decoders.
 Important entry points:
 
 - `README.md` and `docs/architecture.md` describe the intended shape.
+- `docs/handoff.md` is the current continuation handoff for agents that do not
+  have the prior conversation history.
 - `src/main/scala/hjpeg` contains the Chisel modules.
 - `src/test/scala/hjpeg` contains ChiselSim and elaboration smoke tests.
 
