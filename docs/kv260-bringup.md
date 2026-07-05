@@ -237,7 +237,8 @@ Expected evidence:
   input payload, and rejects trailing bytes already returned after the first
   JPEG EOI instead of writing a truncated artifact. JSON evidence records the
   host capture limits used for maximum output bytes and RX timeout. RX timeout
-  values must be finite and positive when present.
+  values must be finite and positive when present, and maximum output bytes
+  must be positive.
 - JSON evidence records host-observed transfer elapsed seconds and derived byte
   rates only when elapsed time is positive. Elapsed-time evidence must be finite
   and nonnegative. Use hardware counters or driver timestamps before making

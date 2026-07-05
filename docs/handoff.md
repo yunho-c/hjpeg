@@ -172,6 +172,7 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `e636357 fix: reject invalid vivado thresholds`
 - `edc8706 docs: clarify finite host timeouts`
 - `26b5229 fix: reject nonfinite host timeouts`
 - `9167ec7 fix: reject nonfinite host transfer evidence`
@@ -309,8 +310,8 @@ encoder configuration, status checkpoints, host-observed transfer elapsed
 seconds and derived byte rates when elapsed time is positive, optional decoder
 command, decoder timeout, and bounded decoder stdout/stderr. Non-finite or
 negative elapsed time is rejected as invalid evidence. RX and decoder timeout
-values must be finite and positive when present. Host JPEG validation now checks
-more than dimensions: it requires DQT and DHT
+values must be finite and positive when present, and maximum output bytes must
+be positive. Host JPEG validation now checks more than dimensions: it requires DQT and DHT
 markers, records DQT/DHT table IDs and SOS component table selectors, rejects
 dangling table references, records APP0/DQT/DHT/DRI/RST marker counts, parses
 DRI restart intervals, requires exactly one SOF0 and one SOS segment, requires

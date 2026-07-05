@@ -1049,6 +1049,23 @@ class HjpegHostTest(unittest.TestCase):
                             transfer_elapsed_seconds=elapsed,
                         )
 
+    def test_capture_config_record_rejects_invalid_limits(self) -> None:
+        for max_output_bytes in (0, -1):
+            with self.subTest(max_output_bytes=max_output_bytes):
+                with self.assertRaisesRegex(ValueError, "max output bytes"):
+                    hjpeg_host.capture_config_record(max_output_bytes, 1.0)
+
+        for timeout_seconds in (0, -1, float("nan"), float("inf"), float("-inf")):
+            with self.subTest(timeout_seconds=timeout_seconds):
+                with self.assertRaisesRegex(ValueError, "timeout seconds"):
+                    hjpeg_host.capture_config_record(1024, timeout_seconds)
+
+    def test_capture_config_record_allows_unbounded_timeout(self) -> None:
+        self.assertEqual(
+            hjpeg_host.capture_config_record(1024, None),
+            {"max_output_bytes": 1024, "timeout_seconds": None},
+        )
+
     def test_validate_jpeg_json_records_decoder_command(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             jpeg = Path(tmp) / "out.jpg"
@@ -2232,6 +2249,34 @@ class HjpegHostTest(unittest.TestCase):
                             expected_height=1,
                             timeout_seconds=timeout_seconds,
                         )
+
+    def test_run_stream_devices_rejects_nonpositive_max_output_before_io(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_rgb = root / "input.rgb"
+            tx_device = root / "tx.dev"
+            rx_device = root / "rx.dev"
+            input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
+            rx_device.write_bytes(minimal_jpeg(width=2, height=1))
+            configured = []
+
+            for max_output_bytes in (0, -1):
+                with self.subTest(max_output_bytes=max_output_bytes):
+                    with self.assertRaisesRegex(ValueError, "max output bytes"):
+                        hjpeg_host.run_stream_devices(
+                            input_rgb=input_rgb,
+                            output_jpeg=root / "output.jpg",
+                            tx_device=tx_device,
+                            rx_device=rx_device,
+                            max_output_bytes=max_output_bytes,
+                            expected_width=2,
+                            expected_height=1,
+                            timeout_seconds=1.0,
+                            configure=lambda: configured.append(True),
+                        )
+
+            self.assertEqual(configured, [])
+            self.assertFalse(tx_device.exists())
 
     def test_run_stream_devices_rejects_trailing_rx_data_after_eoi(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

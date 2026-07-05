@@ -1031,7 +1031,17 @@ def run_evidence_record(
     return record
 
 
+def require_capture_config(max_output_bytes: int, timeout_seconds: float | None) -> None:
+    if max_output_bytes <= 0:
+        raise ValueError("max output bytes must be positive")
+    if timeout_seconds is not None and (
+        not math.isfinite(timeout_seconds) or timeout_seconds <= 0
+    ):
+        raise ValueError("timeout seconds must be finite and positive")
+
+
 def capture_config_record(max_output_bytes: int, timeout_seconds: float | None) -> dict[str, object]:
+    require_capture_config(max_output_bytes, timeout_seconds)
     return {
         "max_output_bytes": max_output_bytes,
         "timeout_seconds": timeout_seconds,
@@ -1079,10 +1089,7 @@ def run_stream_devices(
     transfer_elapsed_seconds: list[float] | None = None,
 ) -> tuple[JpegInfo, FileInfo]:
     require_supported_dimensions(expected_width, expected_height, max_width, max_height)
-    if timeout_seconds is not None and (
-        not math.isfinite(timeout_seconds) or timeout_seconds <= 0
-    ):
-        raise ValueError("timeout seconds must be finite and positive")
+    require_capture_config(max_output_bytes, timeout_seconds)
     rgb = input_rgb.read_bytes()
     input_info = file_info(input_rgb, rgb)
     expected_input_bytes = expected_width * expected_height * 4
