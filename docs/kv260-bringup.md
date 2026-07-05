@@ -212,7 +212,9 @@ Expected evidence:
   `--input-ppm` source evidence with non-flat/color stats, a passing
   `--decoder-command` check, and positive transfer timing with derived byte
   rates. Decoder evidence must include the resolved argv, zero return code, and
-  non-truncated captured output metadata.
+  non-truncated captured output metadata. The summary cross-checks the output
+  JPEG dimensions against the encoder configuration, validation expectations,
+  source PPM dimensions, and expected RGB stream byte length.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after

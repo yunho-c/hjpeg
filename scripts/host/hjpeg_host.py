@@ -1591,6 +1591,33 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     checks["jpeg_sha256_present"] = jpeg_sha256_present
     checks["jpeg_scan_data_sha256_present"] = scan_data_sha256_present
 
+    width = record.get("width")
+    height = record.get("height")
+    encoder_config = record.get("encoder_config")
+    validation_expectations = record.get("validation_expectations")
+    input_rgb = record.get("input_rgb")
+    input_ppm = record.get("input_ppm")
+    if isinstance(width, int) and isinstance(height, int):
+        if isinstance(encoder_config, dict):
+            checks["encoder_config_matches_jpeg_dimensions"] = (
+                encoder_config.get("width") == width
+                and encoder_config.get("height") == height
+            )
+        if isinstance(validation_expectations, dict):
+            checks["validation_expectations_match_jpeg_dimensions"] = (
+                validation_expectations.get("width") == width
+                and validation_expectations.get("height") == height
+            )
+        if isinstance(input_ppm, dict):
+            checks["input_ppm_dimensions_match_jpeg"] = (
+                input_ppm.get("width") == width and input_ppm.get("height") == height
+            )
+        if isinstance(input_rgb, dict):
+            expected_byte_length = input_rgb.get("expected_byte_length")
+            checks["input_rgb_expected_length_matches_dimensions"] = (
+                expected_byte_length == width * height * 4
+            )
+
     input_rgb = record.get("input_rgb")
     if isinstance(input_rgb, dict) and "byte_length_matches_expected" in input_rgb:
         checks["input_rgb_length_matches_expected"] = bool(

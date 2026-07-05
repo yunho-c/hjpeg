@@ -1684,6 +1684,34 @@ class HjpegHostTest(unittest.TestCase):
         self.assertFalse(summary["checks"]["jpeg_sha256_present"])
         self.assertFalse(summary["checks"]["jpeg_scan_data_sha256_present"])
 
+    def test_hardware_summary_checks_frame_consistency(self) -> None:
+        record = {
+            "width": 2,
+            "height": 1,
+            "byte_length": 16,
+            "sha256": "0" * 64,
+            "scan_data_bytes": 1,
+            "scan_data_sha256": "1" * 64,
+            "encoder_config": {"width": 3, "height": 1},
+            "validation_expectations": {"width": 2, "height": 2},
+            "input_ppm": {"width": 2, "height": 3},
+            "input_rgb": {"expected_byte_length": 12},
+        }
+
+        summary = hjpeg_host.hardware_run_summary_record(record)
+
+        self.assertFalse(summary["all_recorded_checks_passed"])
+        self.assertFalse(
+            summary["checks"]["encoder_config_matches_jpeg_dimensions"]
+        )
+        self.assertFalse(
+            summary["checks"]["validation_expectations_match_jpeg_dimensions"]
+        )
+        self.assertFalse(summary["checks"]["input_ppm_dimensions_match_jpeg"])
+        self.assertFalse(
+            summary["checks"]["input_rgb_expected_length_matches_dimensions"]
+        )
+
     def test_run_evidence_record_rejects_invalid_elapsed_time(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             jpeg = Path(tmp) / "output.jpg"
@@ -3581,6 +3609,10 @@ class HjpegHostTest(unittest.TestCase):
                         "jpeg_scan_data_bytes_positive": True,
                         "jpeg_sha256_present": True,
                         "jpeg_scan_data_sha256_present": True,
+                        "encoder_config_matches_jpeg_dimensions": True,
+                        "validation_expectations_match_jpeg_dimensions": True,
+                        "input_ppm_dimensions_match_jpeg": True,
+                        "input_rgb_expected_length_matches_dimensions": True,
                         "input_rgb_length_matches_expected": True,
                         "input_ppm_matches_input": True,
                         "input_ppm_non_flat": True,

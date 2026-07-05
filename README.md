@@ -322,7 +322,9 @@ hashed output JPEG with non-empty scan data, source PPM supplied through
 `--input-ppm`, non-flat/color source-image stats, positive host-observed
 transfer timing with derived byte rates, and a passing decoder check from
 `--decoder-command` with resolved argv, zero return code, and non-truncated
-captured output evidence.
+captured output evidence. The summary also cross-checks JPEG dimensions against
+the encoder configuration, validation expectations, source PPM dimensions, and
+expected RGB stream byte length.
 Maximum output bytes must be positive, and RX timeout values must be finite and
 positive when present. It
 also records host-observed transfer elapsed seconds and derived byte rates when
