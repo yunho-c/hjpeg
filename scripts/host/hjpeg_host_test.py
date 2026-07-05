@@ -2036,6 +2036,7 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertEqual(record["input_rgb"]["path"], str(input_rgb))
             self.assertEqual(record["input_rgb"]["byte_length"], 8)
+            self.assertEqual(record["input_rgb"]["expected_byte_length"], 8)
             self.assertEqual(
                 record["input_rgb"]["sha256"],
                 hashlib.sha256(input_rgb.read_bytes()).hexdigest(),

@@ -979,6 +979,7 @@ def run_evidence_record(
     jpeg: Path,
     info: JpegInfo,
     input_info: FileInfo | None = None,
+    expected_input_rgb_bytes: int | None = None,
     axi_lite: dict[str, object] | None = None,
     encoder_config: dict[str, object] | None = None,
     capture_config: dict[str, object] | None = None,
@@ -997,11 +998,14 @@ def run_evidence_record(
         decoder_result,
     )
     if input_info is not None:
-        record["input_rgb"] = {
+        input_record: dict[str, object] = {
             "path": input_info.path,
             "byte_length": input_info.byte_length,
             "sha256": input_info.sha256,
         }
+        if expected_input_rgb_bytes is not None:
+            input_record["expected_byte_length"] = expected_input_rgb_bytes
+        record["input_rgb"] = input_record
     if axi_lite is not None:
         record["axi_lite"] = axi_lite
     if encoder_config is not None:
@@ -1657,6 +1661,7 @@ def main(argv: list[str] | None = None) -> int:
                         args.output_jpeg,
                         info,
                         input_info,
+                        args.width * args.height * 4,
                         axi_lite_target_record(args.dev, args.base_addr),
                         encoder_config_record(
                             width=args.width,

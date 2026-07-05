@@ -250,9 +250,9 @@ MCU count, or `0` to require no DRI/RST markers. Pass
 4:2:0 file. Pass `--expect-jfif present` or `absent` to check optional JFIF APP0
 signature emission. For `run-stream-devices`, the configured restart interval,
 chroma mode, and JFIF setting are checked against the captured JPEG
-automatically; the run evidence also includes the input RGB stream byte length
-and SHA-256, host capture limits, plus the AXI-Lite target and status
-checkpoints enforced during the run.
+automatically; the run evidence also includes the input RGB stream byte length,
+expected byte length, and SHA-256, host capture limits, plus the AXI-Lite target
+and status checkpoints enforced during the run.
 
 ## Versions
 
