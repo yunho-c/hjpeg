@@ -730,9 +730,10 @@ which evidence groups were missing. Saved run JSON can be checked later with
 `check-run-evidence`, which fails on malformed JSON, missing
 `hardware_run_summary`, a stored summary that does not match recomputed
 evidence, failed recorded checks, or incomplete hardware evidence. JSON output
-includes aggregate checked/pass/fail counts and passed/failed path lists plus
-the recomputed summary, evidence/check counts, missing evidence groups, and
-failing check names for each object-shaped transcript.
+includes aggregate checked/pass/fail transcript counts, diagnostic failure
+count, and passed/failed path lists plus the recomputed summary, evidence/check
+counts, missing evidence groups, and failing check names for each object-shaped
+transcript.
 
 ## Known Blockers And Bottlenecks
 

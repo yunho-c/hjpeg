@@ -2723,6 +2723,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["checked_count"], 4)
             self.assertEqual(record["passed_count"], 1)
             self.assertEqual(record["failed_count"], 3)
+            self.assertEqual(record["failure_count"], len(record["failures"]))
+            self.assertEqual(record["failure_count"], 8)
             self.assertEqual(record["passed_paths"], [str(complete)])
             self.assertEqual(
                 record["failed_paths"],

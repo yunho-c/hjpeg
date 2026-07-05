@@ -3057,6 +3057,7 @@ def main(argv: list[str] | None = None) -> int:
                         "checked_count": len(records),
                         "passed_count": passed_count,
                         "failed_count": failed_count,
+                        "failure_count": len(failures),
                         "passed_paths": passed_paths,
                         "failed_paths": failed_paths,
                         "records": records,
