@@ -381,8 +381,10 @@ class CheckReportsTest(unittest.TestCase):
                     "min_whs": 0.0,
                     "max_utilization": 90.0,
                     "clock_period_ns": 8.0,
+                    "require_complete_evidence": False,
                 },
             )
+            self.assertTrue(record["complete_vivado_flow_evidence"])
             self.assertEqual(record["clock_period_ns"], 8.0)
             self.assertEqual(record["clock_frequency_mhz"], 125.0)
             self.assertEqual(record["artifacts"][0]["path"], str(artifact))
@@ -444,6 +446,39 @@ class CheckReportsTest(unittest.TestCase):
             )
             self.assertTrue(record["clock_utilization"][0]["exists"])
             self.assertTrue(record["clock_utilization"][0]["passed"])
+
+    def test_cli_can_require_complete_vivado_flow_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            timing = root / "timing.rpt"
+            timing.write_text(TIMING_TABLE)
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    check_reports.main(
+                        [
+                            "--timing",
+                            str(timing),
+                            "--require-complete-evidence",
+                            "--json",
+                        ]
+                    ),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertFalse(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["evidence_categories"]["present"]["timing"])
+            self.assertFalse(record["evidence_categories"]["present"]["artifacts"])
+            self.assertFalse(record["artifact_suffixes"]["all_required_suffixes_present"])
+            self.assertTrue(
+                any("missing required categories" in failure for failure in record["failures"])
+            )
+            self.assertTrue(
+                any("missing required artifact suffixes" in failure for failure in record["failures"])
+            )
 
     def test_cli_json_records_failures(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

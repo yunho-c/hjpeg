@@ -79,6 +79,7 @@ python3 scripts/vivado/check_reports.py \
   --route-status build/vivado/hjpeg-kv260-artifacts/post_impl_route_status.rpt \
   --clock-utilization build/vivado/hjpeg-kv260-artifacts/post_impl_clock_utilization.rpt \
   --clock-period-ns 10.0 \
+  --require-complete-evidence \
   --json
 ```
 
@@ -125,7 +126,9 @@ Pass criteria:
   `all_required_present` and `all_required_suffixes_present` true.
   `all_required_present` requires at least one passing record in each required
   category, not just a requested input path. Missing, non-file, or unparseable
-  reports are recorded as structured JSON failures.
+  reports are recorded as structured JSON failures. Full bitstream evidence
+  gates should pass `--require-complete-evidence`; partial post-synthesis checks
+  can omit it.
   Timing thresholds, utilization threshold, and target clock period values must
   be finite. The target clock period must be positive,
   and the utilization threshold must be nonnegative.

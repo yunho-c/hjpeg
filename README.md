@@ -140,7 +140,8 @@ python3 scripts/vivado/check_reports.py \
   --drc build/vivado/hjpeg-kv260-artifacts/post_impl_drc.rpt \
   --route-status build/vivado/hjpeg-kv260-artifacts/post_impl_route_status.rpt \
   --clock-utilization build/vivado/hjpeg-kv260-artifacts/post_impl_clock_utilization.rpt \
-  --clock-period-ns 10.0
+  --clock-period-ns 10.0 \
+  --require-complete-evidence
 ```
 
 Add `--json` to include artifact/report paths, byte lengths, SHA-256 hex hashes,
@@ -151,7 +152,9 @@ checked report/artifact count, per-category checked counts, required evidence
 category presence, missing category names, required `.bit`/`.xsa` artifact
 suffix presence, and pass/fail state in machine-readable build evidence.
 Required evidence category presence is based on at least one passing record in
-that category, not just a requested input path.
+that category, not just a requested input path. Use
+`--require-complete-evidence` for full bitstream evidence gates; partial
+post-synthesis checks can omit it.
 Missing, non-file, or unparseable reports are recorded as structured
 JSON failures. Numeric report thresholds must be finite; `--clock-period-ns`
 must be finite and positive, and `--max-utilization` must be finite and

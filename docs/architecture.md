@@ -127,7 +127,9 @@ hardware-tool entry points:
   required `.bit`/`.xsa` artifact suffix presence, and pass/fail state for
   build evidence logs. Required evidence category presence is based on at least
   one passing record in that category, not just a requested input path. Missing
-  or unparseable reports are included as structured failure records.
+  or unparseable reports are included as structured failure records. Full
+  bitstream gates can pass `--require-complete-evidence` to fail unless all
+  required categories and `.bit`/`.xsa` artifact suffixes are present.
 
 These scripts are intended to be run after:
 

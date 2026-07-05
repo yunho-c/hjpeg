@@ -424,7 +424,8 @@ state. Complete Vivado flow evidence should have `all_required_present` and
 `all_required_suffixes_present` true. `all_required_present` requires at least
 one passing record in each required category, not just a requested input path.
 Missing, non-file, or unparseable reports are recorded as structured JSON
-failures instead of aborting the transcript.
+failures instead of aborting the transcript. Full bitstream gates should pass
+`--require-complete-evidence`; partial post-synthesis checks can omit it.
 Requested artifacts and clock-utilization reports must be non-empty. Use
 `--hold-timing` for post-implementation timing reports; post-synthesis hold can
 be negative before implementation fixes it. The utilization parser handles Vivado's
@@ -475,6 +476,7 @@ python3 scripts/vivado/check_reports.py \
   --drc build/vivado/hjpeg-kv260-artifacts/post_impl_drc.rpt \
   --route-status build/vivado/hjpeg-kv260-artifacts/post_impl_route_status.rpt \
   --clock-utilization build/vivado/hjpeg-kv260-artifacts/post_impl_clock_utilization.rpt \
+  --require-complete-evidence \
   --json
 ```
 

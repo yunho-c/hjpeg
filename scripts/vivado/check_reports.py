@@ -543,6 +543,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=10.0,
         help="target clock period to record in JSON evidence, default 10.0 ns",
     )
+    parser.add_argument(
+        "--require-complete-evidence",
+        action="store_true",
+        help="fail unless all required report categories and .bit/.xsa artifacts passed",
+    )
     parser.add_argument("--json", action="store_true", help="print parsed report evidence as JSON")
     return parser
 
@@ -613,6 +618,34 @@ def main(argv: list[str] | None = None) -> int:
         "route_status": len(args.route_status),
         "clock_utilization": len(args.clock_utilization),
     }
+    evidence_categories = evidence_category_record(
+        {
+            "artifacts": artifact_records,
+            "timing": timing_records,
+            "utilization": utilization_records,
+            "drc": drc_records,
+            "route_status": route_status_records,
+            "clock_utilization": clock_utilization_records,
+        }
+    )
+    artifact_suffixes = artifact_suffix_record(artifact_records)
+    complete_vivado_flow_evidence = bool(
+        evidence_categories["all_required_present"]
+        and artifact_suffixes["all_required_suffixes_present"]
+    )
+    if args.require_complete_evidence and not complete_vivado_flow_evidence:
+        missing_categories = evidence_categories["missing_required_categories"]
+        missing_suffixes = artifact_suffixes["missing_required_suffixes"]
+        if missing_categories:
+            failures.append(
+                "complete Vivado flow evidence missing required categories: "
+                + ", ".join(str(category) for category in missing_categories)
+            )
+        if missing_suffixes:
+            failures.append(
+                "complete Vivado flow evidence missing required artifact suffixes: "
+                + ", ".join(str(suffix) for suffix in missing_suffixes)
+            )
 
     if args.json:
         arguments = {
@@ -627,6 +660,7 @@ def main(argv: list[str] | None = None) -> int:
             "min_whs": args.min_whs,
             "max_utilization": args.max_utilization,
             "clock_period_ns": args.clock_period_ns,
+            "require_complete_evidence": args.require_complete_evidence,
         }
         print(
             json.dumps(
@@ -635,17 +669,9 @@ def main(argv: list[str] | None = None) -> int:
                     "failures": failures,
                     "checked_count": checked,
                     "checked_counts": checked_counts,
-                    "evidence_categories": evidence_category_record(
-                        {
-                            "artifacts": artifact_records,
-                            "timing": timing_records,
-                            "utilization": utilization_records,
-                            "drc": drc_records,
-                            "route_status": route_status_records,
-                            "clock_utilization": clock_utilization_records,
-                        }
-                    ),
-                    "artifact_suffixes": artifact_suffix_record(artifact_records),
+                    "evidence_categories": evidence_categories,
+                    "artifact_suffixes": artifact_suffixes,
+                    "complete_vivado_flow_evidence": complete_vivado_flow_evidence,
                     "arguments": arguments,
                     "clock_period_ns": args.clock_period_ns,
                     "clock_frequency_mhz": 1000.0 / args.clock_period_ns,
