@@ -148,6 +148,7 @@ The host utility prepares payloads and register writes for the KV260 AXI-Lite /
 AXI DMA design:
 
 ```sh
+python3 scripts/host/hjpeg_host.py make-test-ppm input.ppm --width 640 --height 480
 python3 scripts/host/hjpeg_host.py pack-ppm input.ppm input.rgb
 python3 scripts/host/hjpeg_host.py config --base-addr 0xa0000000 --width 640 --height 480
 python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000
@@ -162,12 +163,14 @@ python3 scripts/host/hjpeg_host.py run-stream-devices \
 python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg --width 640 --height 480
 ```
 
-`pack-ppm` accepts binary P6 PPM and writes one 32-bit little-endian stream beat
-per pixel: R, G, B, and one ignored zero byte. `run-stream-devices` targets
-Linux board images that expose AXI DMA MM2S/S2MM endpoints as byte-stream device
-files: it configures AXI-Lite registers through `/dev/mem`, writes the padded
-RGB stream to the TX device, captures bytes from the RX device until JPEG EOI,
-and validates the resulting dimensions. DMA drivers that use ioctls or buffer
+`make-test-ppm` writes a deterministic non-flat binary P6 PPM pattern for
+repeatable board bring-up. `pack-ppm` accepts binary P6 PPM and writes one
+32-bit little-endian stream beat per pixel: R, G, B, and one ignored zero byte.
+`run-stream-devices` targets Linux board images that expose AXI DMA MM2S/S2MM
+endpoints as byte-stream device files: it configures AXI-Lite registers through
+`/dev/mem`, writes the padded RGB stream to the TX device, captures bytes from
+the RX device until JPEG EOI, checks status for `busy` / `protocol_error`, and
+validates the resulting dimensions. DMA drivers that use ioctls or buffer
 queues still need a small adapter around the same host-side packing and
 validation helpers.
 

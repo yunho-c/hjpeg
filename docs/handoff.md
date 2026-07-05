@@ -343,6 +343,7 @@ driver stack that exposes the AXI-Lite aperture and AXI DMA channels.
 Prepare input:
 
 ```sh
+python3 scripts/host/hjpeg_host.py make-test-ppm input.ppm --width WIDTH --height HEIGHT
 python3 scripts/host/hjpeg_host.py pack-ppm input.ppm input.rgb
 ```
 
@@ -379,7 +380,8 @@ Hardware completion evidence should include:
 The `run-stream-devices` host helper now checks AXI-Lite status after
 configuration, before streaming RGB input, and after validating the captured
 JPEG. It fails if the encoder reports `busy` or `protocol_error` at any of those
-checkpoints.
+checkpoints. `make-test-ppm` can generate a deterministic non-flat/color P6 PPM
+fixture for repeatable visual checks when no external image is available.
 
 ## Known Blockers And Bottlenecks
 

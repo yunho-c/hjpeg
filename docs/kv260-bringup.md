@@ -84,11 +84,14 @@ Latest local Vivado 2026.1 evidence:
 ## 5. Prepare Host Input
 
 ```sh
+python3 scripts/host/hjpeg_host.py make-test-ppm input.ppm --width WIDTH --height HEIGHT
 python3 scripts/host/hjpeg_host.py pack-ppm input.ppm input.rgb
 ```
 
 Expected evidence:
 
+- `input.ppm` is a deterministic non-flat/color test pattern, or another known
+  binary P6 PPM fixture with recognizable visual content.
 - `input.rgb` size is exactly `width * height * 4` bytes: R, G, B, and one
   ignored padding byte per pixel.
 - The input image dimensions are within the configured `HjpegConfig` maximums.

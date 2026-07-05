@@ -38,6 +38,32 @@ def minimal_jpeg(width: int, height: int) -> bytes:
 
 
 class HjpegHostTest(unittest.TestCase):
+    def test_make_test_image_writes_non_flat_ppm(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ppm = Path(tmp) / "pattern.ppm"
+            image = hjpeg_host.make_test_image(width=17, height=9)
+
+            self.assertEqual(image.width, 17)
+            self.assertEqual(image.height, 9)
+            self.assertEqual(len(image.rgb), 17 * 9 * 3)
+            self.assertGreater(len(set(image.rgb)), 8)
+
+            hjpeg_host.write_ppm(image, ppm)
+            decoded = hjpeg_host.read_ppm(ppm)
+            self.assertEqual(decoded, image)
+
+    def test_make_test_ppm_cli(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ppm = Path(tmp) / "cli.ppm"
+
+            self.assertEqual(
+                hjpeg_host.main(["make-test-ppm", str(ppm), "--width", "3", "--height", "2"]),
+                0,
+            )
+
+            image = hjpeg_host.read_ppm(ppm)
+            self.assertEqual((image.width, image.height), (3, 2))
+
     def test_read_ppm_with_comment_and_pack_rgb_stream(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

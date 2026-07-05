@@ -49,6 +49,29 @@ class PpmImage:
     rgb: bytes
 
 
+def make_test_image(width: int, height: int) -> PpmImage:
+    if width <= 0 or height <= 0:
+        raise ValueError("PPM dimensions must be positive")
+
+    rgb = bytearray()
+    denom_x = max(width - 1, 1)
+    denom_y = max(height - 1, 1)
+    for y in range(height):
+        for x in range(width):
+            checker = 48 if ((x // 8) ^ (y // 8)) & 1 else 0
+            r = (x * 255) // denom_x
+            g = (y * 255) // denom_y
+            b = (((x + y) * 127) // max(width + height - 2, 1)) + checker
+            rgb.extend([r & 0xFF, g & 0xFF, min(b, 255)])
+    return PpmImage(width=width, height=height, rgb=bytes(rgb))
+
+
+def write_ppm(image: PpmImage, output: Path) -> None:
+    output.write_bytes(
+        f"P6\n{image.width} {image.height}\n255\n".encode("ascii") + image.rgb
+    )
+
+
 def _read_ppm_token(stream: BinaryIO) -> bytes:
     token = bytearray()
     while True:
@@ -355,6 +378,14 @@ def build_parser() -> argparse.ArgumentParser:
     pack.add_argument("--max-width", type=int, default=4096)
     pack.add_argument("--max-height", type=int, default=4096)
 
+    make_ppm = subparsers.add_parser(
+        "make-test-ppm",
+        help="write a deterministic non-flat binary P6 PPM test image",
+    )
+    make_ppm.add_argument("output", type=Path)
+    make_ppm.add_argument("--width", type=int, required=True)
+    make_ppm.add_argument("--height", type=int, required=True)
+
     validate = subparsers.add_parser("validate-jpeg", help="validate JPEG markers and dimensions")
     validate.add_argument("jpeg", type=Path)
     validate.add_argument("--width", type=int, required=True)
@@ -414,6 +445,12 @@ def main(argv: list[str] | None = None) -> int:
             )
         write_rgb_stream(image, args.output)
         print(f"wrote {image.width * image.height * 4} RGB stream bytes for {image.width}x{image.height}")
+        return 0
+
+    if args.command == "make-test-ppm":
+        image = make_test_image(args.width, args.height)
+        write_ppm(image, args.output)
+        print(f"wrote deterministic P6 PPM {args.width}x{args.height} to {args.output}")
         return 0
 
     if args.command == "validate-jpeg":
