@@ -94,6 +94,18 @@ Design Route Status
    ------------------------------------------- : ----------- :
 """
 
+ROUTE_STATUS_VIVADO_TABLE_UNROUTED_REPORT = """
+Design Route Status
+                                               :      # nets :
+   ------------------------------------------- : ----------- :
+   # of logical nets.......................... :      119470 :
+       # of nets not needing routing.......... :       44355 :
+       # of routable nets..................... :       75115 :
+           # of fully routed nets............. :       75113 :
+       # of nets with routing errors.......... :           1 :
+   ------------------------------------------- : ----------- :
+"""
+
 ROUTE_STATUS_BAD_REPORT = """
 Design Route Status
 -------------------
@@ -168,7 +180,19 @@ class CheckReportsTest(unittest.TestCase):
     def test_parse_route_status_counts_from_vivado_table(self) -> None:
         self.assertEqual(
             check_reports.parse_route_status_counts(ROUTE_STATUS_VIVADO_TABLE_REPORT),
-            {"number_of_nets_with_routing_errors": 0},
+            {
+                "number_of_nets_with_routing_errors": 0,
+                "number_of_unrouted_nets": 0,
+            },
+        )
+
+    def test_parse_route_status_counts_derives_unrouted_vivado_table_nets(self) -> None:
+        self.assertEqual(
+            check_reports.parse_route_status_counts(ROUTE_STATUS_VIVADO_TABLE_UNROUTED_REPORT),
+            {
+                "number_of_nets_with_routing_errors": 1,
+                "number_of_unrouted_nets": 2,
+            },
         )
 
     def test_check_utilization_ignores_expected_hard_system_rows(self) -> None:
@@ -269,6 +293,19 @@ class CheckReportsTest(unittest.TestCase):
             report.write_text(ROUTE_STATUS_VIVADO_TABLE_REPORT)
 
             self.assertEqual(check_reports.check_route_status(report), [])
+
+    def test_check_route_status_reports_vivado_table_unrouted_nets(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "post_impl_route_status.rpt"
+            report.write_text(ROUTE_STATUS_VIVADO_TABLE_UNROUTED_REPORT)
+
+            self.assertEqual(
+                check_reports.check_route_status(report),
+                [
+                    f"{report}: route status number_of_nets_with_routing_errors is 1, expected 0",
+                    f"{report}: route status number_of_unrouted_nets is 2, expected 0",
+                ],
+            )
 
     def test_parse_address_map_entries(self) -> None:
         entries = check_reports.parse_address_map_entries(ADDRESS_MAP_REPORT)

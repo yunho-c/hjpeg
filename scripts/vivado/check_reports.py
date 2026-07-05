@@ -33,7 +33,7 @@ DRC_ZERO_RE = re.compile(
 )
 ROUTE_STATUS_RE = re.compile(
     r"^\s*(?:#\s*)?"
-    r"(?P<label>[A-Za-z0-9_ /-]*(?:unrouted|routing errors?|not completely routed)[A-Za-z0-9_ /-]*)"
+    r"(?P<label>[A-Za-z0-9_ /-]*(?:unrouted|routing errors?|not completely routed|routable nets|fully routed nets)[A-Za-z0-9_ /-]*)"
     r"\s*(?:\.{2,})?\s*[:=]\s*(?P<count>\d+)\b\s*:?",
     re.IGNORECASE,
 )
@@ -190,6 +190,7 @@ def parse_drc_violations(report: str) -> tuple[list[DrcViolation], bool]:
 
 
 def parse_route_status_counts(report: str) -> dict[str, int]:
+    raw_counts = {}
     counts = {}
     for line in report.splitlines():
         match = ROUTE_STATUS_RE.match(line)
@@ -199,7 +200,25 @@ def parse_route_status_counts(report: str) -> dict[str, int]:
         label = label.replace("-", "_").replace("/", "_")
         if label.startswith("of_"):
             label = f"number_{label}"
-        counts[label] = int(match.group("count"))
+        count = int(match.group("count"))
+        raw_counts[label] = count
+
+        if label in {
+            "number_of_unrouted_nets",
+            "number_of_nets_with_routing_errors",
+        }:
+            counts[label] = count
+        elif label == "number_of_nets_not_completely_routed":
+            counts["number_of_unrouted_nets"] = count
+
+    if (
+        "number_of_unrouted_nets" not in counts
+        and "number_of_routable_nets" in raw_counts
+        and "number_of_fully_routed_nets" in raw_counts
+    ):
+        counts["number_of_unrouted_nets"] = (
+            raw_counts["number_of_routable_nets"] - raw_counts["number_of_fully_routed_nets"]
+        )
     return counts
 
 
