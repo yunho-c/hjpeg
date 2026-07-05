@@ -65,6 +65,9 @@ if {![string match "*write_bitstream Complete!*" [get_property STATUS [get_runs 
 open_run impl_1
 report_utilization -file [file join $artifacts_dir post_impl_utilization.rpt]
 report_timing_summary -file [file join $artifacts_dir post_impl_timing_summary.rpt]
+report_drc -file [file join $artifacts_dir post_impl_drc.rpt]
+report_route_status -file [file join $artifacts_dir post_impl_route_status.rpt]
+report_clock_utilization -file [file join $artifacts_dir post_impl_clock_utilization.rpt]
 
 set bit_candidates [glob -nocomplain -directory [file join $project_dir hjpeg_kv260_bd.runs impl_1] *.bit]
 if {[llength $bit_candidates] == 0} {

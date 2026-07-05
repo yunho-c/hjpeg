@@ -64,6 +64,9 @@ Expected evidence:
 - `post_synth_timing_summary.rpt`
 - `post_impl_utilization.rpt`
 - `post_impl_timing_summary.rpt`
+- `post_impl_drc.rpt`
+- `post_impl_route_status.rpt`
+- `post_impl_clock_utilization.rpt`
 
 Pass criteria:
 
@@ -72,6 +75,8 @@ Pass criteria:
   evidence.
 - Post-implementation timing has nonnegative setup WNS and hold WHS for the
   target clock.
+- Post-implementation DRC, route status, and clock utilization reports are
+  saved with the bitstream artifacts for implementation/floorplan review.
 - Resource use leaves enough headroom for the intended KV260 platform shell.
 - `check_reports.py` exits successfully for the generated timing/utilization
   reports, with hold timing gated on the post-implementation timing report.
