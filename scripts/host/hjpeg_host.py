@@ -363,6 +363,21 @@ def _read_be16(data: bytes, offset: int) -> int:
     return (data[offset] << 8) | data[offset + 1]
 
 
+def require_valid_huffman_code_counts(
+    count_bytes: bytes,
+    table_class: int,
+    table_id: int,
+) -> None:
+    class_name = "DC" if table_class == 0 else "AC"
+    open_codes = 1
+    for bit_length, count in enumerate(count_bytes, start=1):
+        open_codes = (open_codes << 1) - count
+        if open_codes < 0:
+            raise ValueError(
+                f"JPEG {class_name} DHT table {table_id} oversubscribes Huffman codes at length {bit_length}"
+            )
+
+
 def jpeg_info(data: bytes) -> JpegInfo:
     if len(data) < 4 or data[:2] != b"\xff\xd8":
         raise ValueError("JPEG output does not start with SOI")
@@ -521,6 +536,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
                     raise ValueError(
                         f"JPEG {class_name} DHT table {table_id} has {value_count} symbols, expected at most 256"
                     )
+                require_valid_huffman_code_counts(count_bytes, table_class, table_id)
                 symbol_bytes = data[table_offset + 17 : table_offset + 17 + value_count]
                 table_offset += 17 + value_count
                 if table_offset > segment_end:

@@ -503,6 +503,24 @@ def with_oversized_first_dht_table(jpeg: bytes) -> bytes:
     return jpeg[:dht] + replacement + jpeg[dht + 2 + length :]
 
 
+def with_oversubscribed_first_dht_table(jpeg: bytes) -> bytes:
+    dht = jpeg.find(b"\xff\xc4")
+    if dht < 0:
+        raise AssertionError("DHT marker not found")
+    length = (jpeg[dht + 2] << 8) | jpeg[dht + 3]
+    table_info = jpeg[dht + 4]
+    counts = bytes([0x03, *([0x00] * 15)])
+    symbols = bytes([0x00, 0x01, 0x02])
+    replacement_length = 2 + 1 + len(counts) + len(symbols)
+    replacement = (
+        bytes([0xFF, 0xC4, (replacement_length >> 8) & 0xFF, replacement_length & 0xFF])
+        + bytes([table_info])
+        + counts
+        + symbols
+    )
+    return jpeg[:dht] + replacement + jpeg[dht + 2 + length :]
+
+
 def with_mutated_first_dqt_payload(jpeg: bytes) -> bytes:
     dqt = jpeg.find(b"\xff\xdb")
     if dqt < 0:
@@ -1864,6 +1882,16 @@ class HjpegHostTest(unittest.TestCase):
             )
 
             with self.assertRaisesRegex(ValueError, "DC DHT table 0 has 257 symbols"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_oversubscribed_huffman_table(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "oversubscribed-dht-table.jpg"
+            jpeg.write_bytes(
+                with_oversubscribed_first_dht_table(minimal_jpeg(width=17, height=13))
+            )
+
+            with self.assertRaisesRegex(ValueError, "DC DHT table 0 oversubscribes"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_can_require_standard_table_payloads(self) -> None:

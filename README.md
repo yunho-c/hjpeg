@@ -267,10 +267,10 @@ duplicate SOF0/SOS markers, nonstandard SOF0/SOS component IDs, mismatched SOS
 component lists, unsupported SOF0 sampling factors, non-baseline SOS spectral
 fields, unexpected non-RST/non-EOI markers after SOS, nonstandard DQT/DHT table
 sets or segment counts, duplicate DQT/DHT table definitions, non-8-bit DQT
-tables, empty or oversized DHT tables, RST markers without DRI, RST markers
-that do not increment modulo 8 from RST0, trailing bytes after EOI, SOF0 or SOS
-references to missing DQT/DHT tables, and decoder commands that fail or time
-out. Pass
+tables, empty, oversized, or oversubscribed DHT tables, RST markers without DRI,
+RST markers that do not increment modulo 8 from RST0, trailing bytes after EOI,
+SOF0 or SOS references to missing DQT/DHT tables, and decoder commands that
+fail or time out. Pass
 `validate-jpeg --restart-interval N` to require the parsed DRI interval to match
 `N` and the scan to contain the expected number of RST markers for the parsed
 MCU count, or `0` to require no DRI/RST markers. Pass
