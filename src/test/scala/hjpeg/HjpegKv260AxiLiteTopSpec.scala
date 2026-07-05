@@ -202,6 +202,40 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
     }
   }
 
+  "HjpegKv260AxiLiteTop should clear protocol errors through AXI-Lite control" in {
+    simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      init(dut)
+      configure(dut, width = 1, height = 1, subsample = true, emitJfif = true)
+
+      dut.io.sAxisRgb.valid.poke(true.B)
+      dut.io.sAxisRgb.bits.data.poke(0.U)
+      dut.io.sAxisRgb.bits.keep.poke("b0011".U)
+      dut.io.sAxisRgb.bits.last.poke(true.B)
+      dut.io.sAxisRgb.ready.expect(true.B)
+      dut.clock.step()
+      dut.io.sAxisRgb.valid.poke(false.B)
+
+      (readReg(dut, HjpegAxiLiteRegisters.Status) &
+        BigInt(1 << HjpegAxiLiteRegisters.StatusProtocolErrorBit)) mustBe
+        BigInt(1 << HjpegAxiLiteRegisters.StatusProtocolErrorBit)
+
+      val clearAndPersistentControl =
+        BigInt(1 << HjpegAxiLiteRegisters.ControlClearProtocolErrorBit) |
+          BigInt(1 << HjpegAxiLiteRegisters.ControlEnableChromaSubsampleBit) |
+          BigInt(1 << HjpegAxiLiteRegisters.ControlEmitJfifBit)
+      writeReg(dut, HjpegAxiLiteRegisters.Control, clearAndPersistentControl)
+
+      (readReg(dut, HjpegAxiLiteRegisters.Status) &
+        BigInt(1 << HjpegAxiLiteRegisters.StatusProtocolErrorBit)) mustBe 0
+      readReg(dut, HjpegAxiLiteRegisters.Control) mustBe
+        (BigInt(1 << HjpegAxiLiteRegisters.ControlEnableChromaSubsampleBit) |
+          BigInt(1 << HjpegAxiLiteRegisters.ControlEmitJfifBit))
+    }
+  }
+
   "HjpegKv260AxiLiteTop should encode a configured frame through AXI streams" in {
     simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
       dut.reset.poke(true.B)
