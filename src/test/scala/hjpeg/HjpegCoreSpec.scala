@@ -10,6 +10,8 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
 class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
+  private case class FrameEmission(bytes: Seq[Int], cycles: Int)
+
   private def pokeConfig(
       dut: HjpegCore,
       width: Int = 8,
@@ -56,6 +58,16 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       subsample: Boolean = false,
       restartInterval: Int = 0,
       emitJfif: Boolean = true)(pixelAt: Int => (Int, Int, Int)): Seq[Int] = {
+    emitFrameWithStats(dut, width, height, subsample, restartInterval, emitJfif)(pixelAt).bytes
+  }
+
+  private def emitFrameWithStats(
+      dut: HjpegCore,
+      width: Int,
+      height: Int,
+      subsample: Boolean = false,
+      restartInterval: Int = 0,
+      emitJfif: Boolean = true)(pixelAt: Int => (Int, Int, Int)): FrameEmission = {
     dut.reset.poke(true.B)
     dut.clock.step()
     dut.reset.poke(false.B)
@@ -88,7 +100,7 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       cycles += 1
     }
     dut.io.input.valid.poke(false.B)
-    bytes.toSeq
+    FrameEmission(bytes.toSeq, cycles)
   }
 
   private def averageLuma(image: java.awt.image.BufferedImage, xStart: Int, xEnd: Int): Double = {
@@ -165,6 +177,26 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       image.getWidth mustBe width
       image.getHeight mustBe height
       averageLuma(image, width / 2, width) - averageLuma(image, 0, width / 2) must be > 80.0
+      dut.io.protocolError.expect(false.B)
+    }
+  }
+
+  "HjpegCore should keep a small 4:4:4 frame within the local cycle budget" in {
+    simulate(new HjpegCore()) { dut =>
+      val width = 16
+      val height = 16
+      val emission = emitFrameWithStats(dut, width = width, height = height) { index =>
+        val x = index % width
+        val y = index / width
+        val value = (x * 13 + y * 17) & 0xff
+        (value, 255 - value, (value / 2) + 64)
+      }
+
+      emission.bytes.take(2) mustBe Seq(0xff, 0xd8)
+      emission.bytes.takeRight(2) mustBe Seq(0xff, 0xd9)
+      withClue(s"cycles=${emission.cycles}, pixels=${width * height}") {
+        emission.cycles must be < (width * height * 768)
+      }
       dut.io.protocolError.expect(false.B)
     }
   }

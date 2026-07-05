@@ -332,6 +332,12 @@ Known local limitations:
   of the flow as POSIX paths. A local shim proved the first `make clean` failure
   can be bypassed, but the generated harness then hit path normalization issues
   and a missing POSIX `getline` symbol in the MinGW build.
+- Latest focused attempt on this Windows/MSYS setup:
+  `sbt 'testOnly hjpeg.HjpegCoreSpec'` compiled the updated spec, then all
+  simulations failed at svsim `make clean` because the generated Makefile ran
+  `for /f "delims=" ...` under `/bin/sh`. This matches the known simulator
+  path/shell incompatibility above; it does not validate the new cycle-budget
+  regression until run on a compatible simulator setup.
 - The current block-design Vivado reports pass the default 100 MHz
   setup/hold/utilization gates. Latest artifact reports show post-synthesis
   setup WNS `+0.807 ns` and post-implementation setup WNS `+0.131 ns`;
@@ -497,6 +503,9 @@ decoder-open check captured in JSON evidence.
 - Current decoded-color checks are good for broad recognizability but should
   not be used as exact color-lane invariants. Prefer stage-level checks or
   wrapper-vs-core byte equivalence for precise lane/protocol claims.
+- `HjpegCoreSpec` includes a small 16x16 4:4:4 cycle-budget regression using
+  the existing ChiselSim frame driver. This is a local performance drift guard,
+  not proof of KV260 hardware throughput.
 
 ## Suggested Next Work
 
@@ -525,7 +534,8 @@ If the new PC does not have Vivado or hardware:
 
 1. Expand simulator coverage for backpressure and longer frames.
 2. Add more non-flat/color image regressions at frame level.
-3. Add performance-oriented counters or tests around cycles per pixel/frame.
+3. Broaden performance-oriented cycle checks beyond the current small
+   `HjpegCoreSpec` regression.
 4. Keep each slice committed and avoid large rewrites unless a test exposes a
    structural issue.
 
