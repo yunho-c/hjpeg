@@ -139,6 +139,9 @@ frame-level tests.
   sticky protocol-error flag.
 - Unsupported frames are accepted and drained through TLAST without feeding the
   JPEG core; single-beat and multi-beat discard/recovery paths are covered.
+- If the expected final pixel arrives without TLAST, the wrapper completes that
+  configured JPEG input frame, flags the protocol error, and drains extra input
+  beats until TLAST before a clear pulse permits the next frame.
 
 KV260 top-level input:
 
