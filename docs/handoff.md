@@ -130,6 +130,14 @@ frame-level tests.
 - Bad `keep`, mismatched `last`, and unsupported frame dimensions set the
   sticky protocol-error flag.
 
+KV260 top-level input:
+
+- `HjpegKv260Top` and `HjpegKv260AxiLiteTop` expose a 32-bit AXI-stream RGB
+  input for AXI DMA compatibility.
+- Bits `[7:0]`, `[15:8]`, and `[23:16]` are R, G, and B.
+- Bits `[31:24]` are ignored.
+- The low three `keep` bits must be set. The fourth `keep` bit is ignored.
+
 Frame configuration:
 
 - The AXI-stream wrapper snapshots `FrameConfig` on the first accepted input

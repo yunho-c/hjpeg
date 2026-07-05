@@ -41,8 +41,10 @@ markers and reset DC predictors at MCU boundaries.
 The hardware-facing boundary is an AXI4-Stream-shaped RGB input and byte output.
 `HjpegKv260AxiLiteTop` adds a small AXI-Lite register map for frame dimensions,
 quality, restart interval, chroma mode, JFIF marker emission, and status.
-RGB input words use one byte per component and require all three `keep` bits set
-for every pixel; malformed input words raise the sticky protocol-error status.
+The internal `HjpegAxiStreamCore` RGB stream is 24 bits wide, but the KV260
+wrappers expose a DMA-compatible 32-bit input stream. Input bytes 0, 1, and 2
+are R, G, and B; byte 3 is ignored; and the low three `keep` bits must be set
+for every pixel. Malformed input words raise the sticky protocol-error status.
 Frames that start with unsupported dimensions are drained to input TLAST without
 feeding the JPEG core, then a clear pulse permits the next valid frame to start.
 The AXI-Lite control wrapper captures write address and data independently and
@@ -92,10 +94,10 @@ packaging, or on-board validation.
 ## Host-Side Flow
 
 `scripts/host/hjpeg_host.py` provides the first userspace helpers around the
-KV260 design. It packs binary P6 PPM files into raw RGB byte streams for the AXI
-DMA MM2S channel, writes the encoder AXI-Lite configuration/status registers via
-`/dev/mem`, and validates returned JPEG files by checking SOI/EOI markers and
-SOF0 dimensions. The `run-stream-devices` command also supports Linux board
-images that expose DMA MM2S/S2MM endpoints as byte-stream device files by
-writing RGB bytes to the TX device and reading JPEG bytes from the RX device
-until EOI.
+KV260 design. It packs binary P6 PPM files into 32-bit-per-pixel RGB stream
+beats for the AXI DMA MM2S channel, writes the encoder AXI-Lite
+configuration/status registers via `/dev/mem`, and validates returned JPEG files
+by checking SOI/EOI markers and SOF0 dimensions. The `run-stream-devices`
+command also supports Linux board images that expose DMA MM2S/S2MM endpoints as
+byte-stream device files by writing padded RGB bytes to the TX device and
+reading JPEG bytes from the RX device until EOI.

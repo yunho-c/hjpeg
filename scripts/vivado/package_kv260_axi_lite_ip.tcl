@@ -66,6 +66,13 @@ set_property description {Baseline JPEG encoder with AXI-Lite control and AXI-st
 set_property version 1.0 $core
 set_property supported_families {zynquplus Production} $core
 
+foreach inferred_bus [ipx::get_bus_interfaces io_sAxiLite -of_objects $core -quiet] {
+  ipx::remove_bus_interface $inferred_bus $core
+}
+foreach inferred_map [ipx::get_memory_maps io_sAxiLite -of_objects $core -quiet] {
+  ipx::remove_memory_map $inferred_map $core
+}
+
 proc map_bus_port {bus logical physical} {
   ipx::add_port_map $logical $bus
   set_property physical_name $physical [ipx::get_port_maps $logical -of_objects $bus]
@@ -78,7 +85,7 @@ set_property bus_type_vlnv xilinx.com:signal:clock:1.0 $clock_bus
 set_property interface_mode slave $clock_bus
 map_bus_port $clock_bus CLK clock
 ipx::add_bus_parameter ASSOCIATED_BUSIF $clock_bus
-set_property value {s_axi_lite:s_axis_rgb:m_axis_jpeg} [ipx::get_bus_parameters ASSOCIATED_BUSIF -of_objects $clock_bus]
+set_property value {io_sAxiLite:s_axi_lite:s_axis_rgb:m_axis_jpeg} [ipx::get_bus_parameters ASSOCIATED_BUSIF -of_objects $clock_bus]
 ipx::add_bus_parameter ASSOCIATED_RESET $clock_bus
 set_property value reset [ipx::get_bus_parameters ASSOCIATED_RESET -of_objects $clock_bus]
 

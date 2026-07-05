@@ -77,7 +77,8 @@ python3 scripts/host/hjpeg_host.py pack-ppm input.ppm input.rgb
 
 Expected evidence:
 
-- `input.rgb` size is exactly `width * height * 3` bytes.
+- `input.rgb` size is exactly `width * height * 4` bytes: R, G, B, and one
+  ignored padding byte per pixel.
 - The input image dimensions are within the configured `HjpegConfig` maximums.
 
 ## 6. Configure and Run Hardware

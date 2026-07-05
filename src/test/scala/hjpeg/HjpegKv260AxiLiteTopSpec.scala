@@ -22,7 +22,7 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
     dut.io.sAxiLite.rready.poke(false.B)
     dut.io.sAxisRgb.valid.poke(false.B)
     dut.io.sAxisRgb.bits.data.poke(0.U)
-    dut.io.sAxisRgb.bits.keep.poke("b111".U)
+    dut.io.sAxisRgb.bits.keep.poke("b1111".U)
     dut.io.sAxisRgb.bits.last.poke(false.B)
     dut.io.mAxisJpeg.ready.poke(true.B)
   }
@@ -139,7 +139,7 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
         val gray = BigInt(128) | (BigInt(128) << 8) | (BigInt(128) << 16)
         dut.io.sAxisRgb.valid.poke(true.B)
         dut.io.sAxisRgb.bits.data.poke(gray.U)
-        dut.io.sAxisRgb.bits.keep.poke("b111".U)
+        dut.io.sAxisRgb.bits.keep.poke("b1111".U)
         dut.io.sAxisRgb.bits.last.poke((nextPixel == pixels - 1).B)
         nextPixel += 1
       } else {

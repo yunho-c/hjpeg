@@ -56,7 +56,7 @@ set_property -dict [list \
   CONFIG.c_include_sg {0} \
   CONFIG.c_include_mm2s {1} \
   CONFIG.c_include_s2mm {1} \
-  CONFIG.c_m_axis_mm2s_tdata_width {24} \
+  CONFIG.c_m_axis_mm2s_tdata_width {32} \
   CONFIG.c_s_axis_s2mm_tdata_width {8} \
 ] [get_bd_cells axi_dma_0]
 
@@ -72,6 +72,9 @@ set_property -dict [list CONFIG.NUM_PORTS {2}] [get_bd_cells dma_irq_concat]
 create_bd_cell -type ip -vlnv user.org:user:hjpeg_kv260_axi_lite:1.0 hjpeg_0
 
 connect_bd_net [get_bd_pins ps/pl_clk0] \
+  [get_bd_pins ps/maxihpm0_fpd_aclk] \
+  [get_bd_pins ps/maxihpm0_lpd_aclk] \
+  [get_bd_pins ps/saxihp0_fpd_aclk] \
   [get_bd_pins reset_pl0/slowest_sync_clk] \
   [get_bd_pins axi_dma_0/s_axi_lite_aclk] \
   [get_bd_pins axi_dma_0/m_axi_mm2s_aclk] \

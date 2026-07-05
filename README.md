@@ -36,9 +36,12 @@ The KV260-oriented wrappers are:
 - `HjpegKv260AxiLiteTop`: AXI-Lite control/status plus AXI-stream RGB/JPEG
   ports for easier IP packaging
 
-RGB AXI-stream input words pack R, G, and B in the low three bytes and must
-present `keep = 0b111` for every pixel. A partial input word is accepted to
-avoid wedging the stream, but raises the sticky protocol-error flag.
+`HjpegAxiStreamCore` uses a 24-bit internal RGB stream with R, G, and B in the
+low three bytes and requires `keep = 0b111`. The KV260 wrappers expose a
+DMA-compatible 32-bit RGB input stream: bytes 0, 1, and 2 are R, G, and B, byte
+3 is ignored, and the low three `keep` bits must be set for every pixel. A
+partial input word is accepted to avoid wedging the stream, but raises the
+sticky protocol-error flag.
 Frames that start with unsupported dimensions are discarded through input TLAST
 without entering the JPEG core, so clearing the error lets the next valid frame
 start cleanly.
@@ -159,13 +162,14 @@ python3 scripts/host/hjpeg_host.py run-stream-devices \
 python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg --width 640 --height 480
 ```
 
-`pack-ppm` accepts binary P6 PPM and writes raw RGB bytes in the same R, G, B
-order consumed by the AXI-stream input. `run-stream-devices` targets Linux board
-images that expose AXI DMA MM2S/S2MM endpoints as byte-stream device files: it
-configures AXI-Lite registers through `/dev/mem`, writes the RGB stream to the
-TX device, captures bytes from the RX device until JPEG EOI, and validates the
-resulting dimensions. DMA drivers that use ioctls or buffer queues still need a
-small adapter around the same host-side packing and validation helpers.
+`pack-ppm` accepts binary P6 PPM and writes one 32-bit little-endian stream beat
+per pixel: R, G, B, and one ignored zero byte. `run-stream-devices` targets
+Linux board images that expose AXI DMA MM2S/S2MM endpoints as byte-stream device
+files: it configures AXI-Lite registers through `/dev/mem`, writes the padded
+RGB stream to the TX device, captures bytes from the RX device until JPEG EOI,
+and validates the resulting dimensions. DMA drivers that use ioctls or buffer
+queues still need a small adapter around the same host-side packing and
+validation helpers.
 
 ## Versions
 

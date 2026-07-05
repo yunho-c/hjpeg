@@ -51,7 +51,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(image.rgb, bytes([1, 2, 3, 4, 5, 6]))
 
             hjpeg_host.write_rgb_stream(image, rgb)
-            self.assertEqual(rgb.read_bytes(), bytes([1, 2, 3, 4, 5, 6]))
+            self.assertEqual(rgb.read_bytes(), bytes([1, 2, 3, 0, 4, 5, 6, 0]))
 
     def test_validate_jpeg_checks_sof0_dimensions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -130,7 +130,7 @@ class HjpegHostTest(unittest.TestCase):
             output_jpeg = root / "output.jpg"
             tx_device = root / "tx.dev"
             rx_device = root / "rx.dev"
-            input_rgb.write_bytes(bytes([1, 2, 3, 4, 5, 6]))
+            input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
             rx_device.write_bytes(minimal_jpeg(width=2, height=1) + b"ignored")
 
             configured = []
@@ -147,7 +147,7 @@ class HjpegHostTest(unittest.TestCase):
             )
 
             self.assertEqual(configured, [True])
-            self.assertEqual(tx_device.read_bytes(), bytes([1, 2, 3, 4, 5, 6]))
+            self.assertEqual(tx_device.read_bytes(), bytes([1, 2, 3, 0, 4, 5, 6, 0]))
             self.assertEqual(output_jpeg.read_bytes(), minimal_jpeg(width=2, height=1))
 
     def test_run_stream_devices_rejects_wrong_input_size(self) -> None:
@@ -159,7 +159,7 @@ class HjpegHostTest(unittest.TestCase):
             input_rgb.write_bytes(bytes([1, 2, 3]))
             rx_device.write_bytes(minimal_jpeg(width=2, height=1))
 
-            with self.assertRaisesRegex(ValueError, "expected 6 RGB bytes"):
+            with self.assertRaisesRegex(ValueError, "expected 8 RGB stream bytes"):
                 hjpeg_host.run_stream_devices(
                     input_rgb=input_rgb,
                     output_jpeg=root / "output.jpg",

@@ -36,8 +36,10 @@ reporting.
 `HjpegAxiStreamCore` is the current hardware-facing shell. It accepts raster RGB
 AXI4-Stream-shaped words, generates pixel coordinates, forwards bytes from
 `HjpegCore`, and checks that input `last` matches the configured frame size.
-Input data packs R in bits `[7:0]`, G in `[15:8]`, and B in `[23:16]`.
-Input `keep` must be `0b111`; incomplete RGB words raise the sticky protocol
+The internal `HjpegAxiStreamCore` input packs R in bits `[7:0]`, G in
+`[15:8]`, and B in `[23:16]`, with `keep = 0b111`. The KV260 top-level wrappers
+expose a DMA-compatible 32-bit RGB input; the low three bytes carry R/G/B, the
+high byte is ignored, and incomplete low RGB bytes raise the sticky protocol
 error.
 
 `HjpegKv260Top` is a direct-config KV260-oriented elaboration target.

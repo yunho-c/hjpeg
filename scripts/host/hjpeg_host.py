@@ -3,8 +3,8 @@
 
 This utility keeps the software contract close to the RTL register map:
 
-* P6 PPM input is packed as one RGB pixel per AXI-stream beat, with byte order
-  R, G, B matching `HjpegAxiStreamCore`.
+* P6 PPM input is packed as one 32-bit AXI-stream beat per RGB pixel, with byte
+  order R, G, B, unused. The unused byte is ignored by the KV260 RTL wrapper.
 * AXI-Lite register writes configure `HjpegKv260AxiLiteTop`.
 * JPEG output validation checks SOI/EOI and SOF0 dimensions after a hardware run.
 
@@ -98,7 +98,11 @@ def read_ppm(path: Path) -> PpmImage:
 
 
 def write_rgb_stream(image: PpmImage, output: Path) -> None:
-    output.write_bytes(image.rgb)
+    stream = bytearray()
+    for offset in range(0, len(image.rgb), 3):
+        stream.extend(image.rgb[offset : offset + 3])
+        stream.append(0)
+    output.write_bytes(bytes(stream))
 
 
 def _read_be16(data: bytes, offset: int) -> int:
@@ -186,10 +190,10 @@ def run_stream_devices(
     configure: Callable[[], None] | None = None,
 ) -> None:
     rgb = input_rgb.read_bytes()
-    expected_input_bytes = expected_width * expected_height * 3
+    expected_input_bytes = expected_width * expected_height * 4
     if len(rgb) != expected_input_bytes:
         raise ValueError(
-            f"{input_rgb}: expected {expected_input_bytes} RGB bytes for "
+            f"{input_rgb}: expected {expected_input_bytes} RGB stream bytes for "
             f"{expected_width}x{expected_height}, found {len(rgb)}"
         )
 
@@ -396,7 +400,7 @@ def main(argv: list[str] | None = None) -> int:
                 f"{args.max_width}x{args.max_height}"
             )
         write_rgb_stream(image, args.output)
-        print(f"wrote {len(image.rgb)} RGB stream bytes for {image.width}x{image.height}")
+        print(f"wrote {image.width * image.height * 4} RGB stream bytes for {image.width}x{image.height}")
         return 0
 
     if args.command == "validate-jpeg":

@@ -36,10 +36,11 @@ object HjpegAxiLiteRegisters {
   */
 class HjpegKv260AxiLiteTop(c: HjpegConfig = HjpegConfig(), axiLiteAddrBits: Int = 12) extends Module {
   val pixelDataBits = c.pixelBits * HjpegConstants.Components
+  val dmaInputDataBits = 32
 
   val io = IO(new Bundle {
     val sAxiLite = new AxiLiteSlave(axiLiteAddrBits, 32)
-    val sAxisRgb = Flipped(Decoupled(new AxiStreamWord(pixelDataBits)))
+    val sAxisRgb = Flipped(Decoupled(new AxiStreamWord(dmaInputDataBits)))
     val mAxisJpeg = Decoupled(new AxiStreamWord(c.outputDataBits))
     val busy = Output(Bool())
     val protocolError = Output(Bool())
@@ -63,7 +64,11 @@ class HjpegKv260AxiLiteTop(c: HjpegConfig = HjpegConfig(), axiLiteAddrBits: Int 
   core.io.config.enableChromaSubsample := enableChromaSubsample
   core.io.config.emitJfif := emitJfif
   core.io.clearProtocolError := clearProtocolErrorPulse
-  core.io.input <> io.sAxisRgb
+  core.io.input.valid := io.sAxisRgb.valid
+  io.sAxisRgb.ready := core.io.input.ready
+  core.io.input.bits.data := io.sAxisRgb.bits.data(pixelDataBits - 1, 0)
+  core.io.input.bits.keep := io.sAxisRgb.bits.keep((pixelDataBits / 8) - 1, 0)
+  core.io.input.bits.last := io.sAxisRgb.bits.last
   io.mAxisJpeg <> core.io.output
   io.busy := core.io.busy
   io.protocolError := core.io.protocolError
