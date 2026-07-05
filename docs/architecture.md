@@ -134,8 +134,8 @@ non-empty entropy-coded scan data. It also records SOF0 component sampling
 factors, APP0 and JFIF APP0 counts, DQT/DHT table IDs, and SOS component table
 selectors, requires SOF0 and SOS component IDs to be `[1, 2, 3]`, requires the
 SOS component list to match SOF0 exactly, requires baseline SOS spectral fields
-`0/63/0`, rejects dangling table references, and infers whether the output is
-4:4:4 or 4:2:0. The helper
+`0/63/0`, requires 8-bit DQT precision, rejects dangling table references, and
+infers whether the output is 4:4:4 or 4:2:0. The helper
 can also run an external JPEG decoder command so decoder-open evidence is
 captured in the same transcript. Standalone validation can require an expected
 restart interval and chroma/JFIF mode, and `run-stream-devices` checks the

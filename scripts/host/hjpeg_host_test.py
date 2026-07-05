@@ -289,6 +289,18 @@ def with_sos_spectral_fields(jpeg: bytes, start: int, end: int, successive: int)
     return bytes(mutated)
 
 
+def with_16bit_dqt(jpeg: bytes) -> bytes:
+    dqt = jpeg.find(b"\xff\xdb\x00\x43\x00")
+    if dqt < 0:
+        raise AssertionError("DQT marker not found")
+    original_payload = jpeg[dqt + 5 : dqt + 69]
+    expanded_payload = bytearray()
+    for value in original_payload:
+        expanded_payload.extend([0x00, value])
+    replacement = bytes([0xFF, 0xDB, 0x00, 0x83, 0x10]) + bytes(expanded_payload)
+    return jpeg[:dqt] + replacement + jpeg[dqt + 69 :]
+
+
 def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
     data = minimal_jpeg(width, height)
     return hjpeg_host.JpegInfo(
@@ -309,6 +321,10 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
         spectral_end=63,
         successive_approximation=0,
         quantization_tables=(0, 1),
+        quantization_table_details=(
+            hjpeg_host.JpegQuantizationTable(0, 0),
+            hjpeg_host.JpegQuantizationTable(1, 0),
+        ),
         huffman_tables=(
             hjpeg_host.JpegHuffmanTable(0, 0),
             hjpeg_host.JpegHuffmanTable(0, 1),
@@ -539,6 +555,13 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(parsed.successive_approximation, 0)
             self.assertEqual(parsed.quantization_tables, (0, 1))
             self.assertEqual(
+                parsed.quantization_table_details,
+                (
+                    hjpeg_host.JpegQuantizationTable(0, 0),
+                    hjpeg_host.JpegQuantizationTable(1, 0),
+                ),
+            )
+            self.assertEqual(
                 parsed.huffman_tables,
                 (
                     hjpeg_host.JpegHuffmanTable(0, 0),
@@ -658,6 +681,13 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["spectral_end"], 63)
             self.assertEqual(record["successive_approximation"], 0)
             self.assertEqual(record["quantization_tables"], [0, 1])
+            self.assertEqual(
+                record["quantization_table_details"],
+                [
+                    {"table_id": 0, "precision": 0},
+                    {"table_id": 1, "precision": 0},
+                ],
+            )
             self.assertEqual(
                 record["huffman_tables"],
                 [
@@ -976,6 +1006,14 @@ class HjpegHostTest(unittest.TestCase):
                 hjpeg_host.validate_jpeg(missing_dqt, expected_width=17, expected_height=13)
             with self.assertRaisesRegex(ValueError, "DHT"):
                 hjpeg_host.validate_jpeg(missing_dht, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_non_baseline_dqt_precision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "dqt16.jpg"
+            jpeg.write_bytes(with_16bit_dqt(minimal_jpeg(width=17, height=13)))
+
+            with self.assertRaisesRegex(ValueError, "DQT table 0 has precision 1"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_rejects_missing_referenced_tables(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

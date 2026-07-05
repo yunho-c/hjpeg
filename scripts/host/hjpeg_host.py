@@ -73,6 +73,12 @@ class JpegHuffmanTable:
 
 
 @dataclass(frozen=True)
+class JpegQuantizationTable:
+    table_id: int
+    precision: int
+
+
+@dataclass(frozen=True)
 class JpegScanComponent:
     component_id: int
     dc_table: int
@@ -90,6 +96,7 @@ class JpegInfo:
     spectral_end: int
     successive_approximation: int
     quantization_tables: tuple[int, ...]
+    quantization_table_details: tuple[JpegQuantizationTable, ...]
     huffman_tables: tuple[JpegHuffmanTable, ...]
     scan_data_bytes: int
     byte_length: int
@@ -220,6 +227,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
     spectral_end: int | None = None
     successive_approximation: int | None = None
     quantization_tables: set[int] = set()
+    quantization_table_details: set[tuple[int, int]] = set()
     huffman_tables: set[tuple[int, int]] = set()
     scan_data_bytes = 0
     app0_segments = 0
@@ -266,11 +274,16 @@ def jpeg_info(data: bytes) -> JpegInfo:
                 table_id = table_info & 0x0F
                 if precision not in (0, 1):
                     raise ValueError("DQT segment has invalid table precision")
+                if precision != 0:
+                    raise ValueError(
+                        f"DQT table {table_id} has precision {precision}, expected 0"
+                    )
                 table_bytes = 64 * (2 if precision else 1)
                 table_offset += 1 + table_bytes
                 if table_offset > segment_end:
                     raise ValueError("DQT segment table overruns segment length")
                 quantization_tables.add(table_id)
+                quantization_table_details.add((table_id, precision))
         if marker == 0xDD:
             if segment_length != 4:
                 raise ValueError("DRI segment has invalid length")
@@ -438,6 +451,10 @@ def jpeg_info(data: bytes) -> JpegInfo:
         spectral_end=spectral_end,
         successive_approximation=successive_approximation,
         quantization_tables=tuple(sorted(quantization_tables)),
+        quantization_table_details=tuple(
+            JpegQuantizationTable(table_id=table_id, precision=precision)
+            for table_id, precision in sorted(quantization_table_details)
+        ),
         huffman_tables=tuple(
             JpegHuffmanTable(table_class=table_class, table_id=table_id)
             for table_class, table_id in sorted(huffman_tables)
@@ -617,6 +634,13 @@ def jpeg_info_record(
         "spectral_end": info.spectral_end,
         "successive_approximation": info.successive_approximation,
         "quantization_tables": list(info.quantization_tables),
+        "quantization_table_details": [
+            {
+                "table_id": table.table_id,
+                "precision": table.precision,
+            }
+            for table in info.quantization_table_details
+        ],
         "huffman_tables": [
             {
                 "table_class": table.table_class,
