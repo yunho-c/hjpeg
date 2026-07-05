@@ -1668,6 +1668,12 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["decoder_returncode"], 0)
             self.assertEqual(record["decoder_stdout"], "decoded 17x13\n")
             self.assertEqual(record["decoder_stderr"], "decoder warning\n")
+            self.assertEqual(record["decoder_stdout_chars"], len("decoded 17x13\n"))
+            self.assertEqual(record["decoder_stderr_chars"], len("decoder warning\n"))
+            self.assertEqual(
+                record["decoder_output_capture_chars"],
+                hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS,
+            )
             self.assertFalse(record["decoder_stdout_truncated"])
             self.assertFalse(record["decoder_stderr_truncated"])
 
@@ -1950,6 +1956,12 @@ class HjpegHostTest(unittest.TestCase):
 
             self.assertEqual(len(result.stdout), hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS)
             self.assertEqual(len(result.stderr), hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS)
+            self.assertEqual(result.stdout_chars, hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS)
+            self.assertEqual(result.stderr_chars, hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS)
+            self.assertEqual(
+                result.output_capture_chars,
+                hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS,
+            )
             self.assertTrue(result.stdout_truncated)
             self.assertTrue(result.stderr_truncated)
 
@@ -3053,6 +3065,12 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["decoder_returncode"], 0)
             self.assertEqual(record["decoder_stdout"], "decoded 2x1\n")
             self.assertEqual(record["decoder_stderr"], "")
+            self.assertEqual(record["decoder_stdout_chars"], len("decoded 2x1\n"))
+            self.assertEqual(record["decoder_stderr_chars"], 0)
+            self.assertEqual(
+                record["decoder_output_capture_chars"],
+                hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS,
+            )
             self.assertFalse(record["decoder_stdout_truncated"])
             self.assertFalse(record["decoder_stderr_truncated"])
             self.assertEqual(decoder_marker.read_text(), "ffd8")

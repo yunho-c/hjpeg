@@ -267,6 +267,9 @@ class DecoderCommandResult:
     returncode: int
     stdout: str
     stderr: str
+    stdout_chars: int
+    stderr_chars: int
+    output_capture_chars: int
     stdout_truncated: bool
     stderr_truncated: bool
 
@@ -1162,6 +1165,9 @@ def run_decoder_command(
         returncode=completed.returncode,
         stdout=stdout,
         stderr=stderr,
+        stdout_chars=len(stdout),
+        stderr_chars=len(stderr),
+        output_capture_chars=DECODER_OUTPUT_CAPTURE_CHARS,
         stdout_truncated=stdout_truncated,
         stderr_truncated=stderr_truncated,
     )
@@ -1276,6 +1282,9 @@ def jpeg_info_record(
         record["decoder_returncode"] = decoder_result.returncode
         record["decoder_stdout"] = decoder_result.stdout
         record["decoder_stderr"] = decoder_result.stderr
+        record["decoder_stdout_chars"] = decoder_result.stdout_chars
+        record["decoder_stderr_chars"] = decoder_result.stderr_chars
+        record["decoder_output_capture_chars"] = decoder_result.output_capture_chars
         record["decoder_stdout_truncated"] = decoder_result.stdout_truncated
         record["decoder_stderr_truncated"] = decoder_result.stderr_truncated
     return record
