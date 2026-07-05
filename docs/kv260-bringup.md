@@ -175,8 +175,9 @@ Expected evidence:
 - The helper reports valid baseline JPEG dimensions and the number of
   entropy-coded scan data bytes, proving the file contains an SOS marker with
   non-empty scan payload.
-- The helper records APP0, DQT, DHT, and restart-marker counts. At least one
-  DQT and one DHT segment are required for a standalone baseline JPEG.
+- The helper records APP0, DQT, DHT, DRI, and restart-marker counts, plus the
+  parsed DRI restart interval when present. At least one DQT and one DHT
+  segment are required for a standalone baseline JPEG.
 - The helper reports the total JPEG byte length and SHA-256 so the captured
   artifact can be matched against saved files and logs.
 - For `run-stream-devices`, the helper reports the input RGB stream byte length

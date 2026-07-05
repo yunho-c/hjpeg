@@ -128,10 +128,10 @@ KV260 design. It can generate deterministic non-flat P6 PPM fixtures, packs
 binary P6 PPM files into 32-bit-per-pixel RGB stream beats for the AXI DMA MM2S
 channel, writes the encoder AXI-Lite configuration/status registers via
 `/dev/mem`, and validates returned JPEG files by checking SOI/EOI markers, SOF0
-dimensions, DQT/DHT table markers, SOS, and non-empty entropy-coded scan data.
-The helper can also run an external JPEG decoder command so decoder-open
-evidence is captured in the same transcript. The `run-stream-devices` command
-supports Linux board images
+dimensions, DQT/DHT table markers, optional DRI restart interval, SOS, and
+non-empty entropy-coded scan data. The helper can also run an external JPEG
+decoder command so decoder-open evidence is captured in the same transcript.
+The `run-stream-devices` command supports Linux board images
 that expose DMA MM2S/S2MM endpoints as byte-stream device files by writing
 padded RGB bytes to the TX device and reading JPEG bytes from the RX device
 until EOI.

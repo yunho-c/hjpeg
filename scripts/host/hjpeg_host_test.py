@@ -71,6 +71,23 @@ def header_only_jpeg(width: int, height: int) -> bytes:
     return minimal_jpeg(width, height).split(b"\xff\xda", maxsplit=1)[0] + b"\xff\xd9"
 
 
+def with_dri_segment(jpeg: bytes, restart_interval: int) -> bytes:
+    sos_offset = jpeg.find(b"\xff\xda")
+    if sos_offset < 0:
+        raise AssertionError("SOS marker not found")
+    dri = bytes(
+        [
+            0xFF,
+            0xDD,
+            0x00,
+            0x04,
+            (restart_interval >> 8) & 0xFF,
+            restart_interval & 0xFF,
+        ]
+    )
+    return jpeg[:sos_offset] + dri + jpeg[sos_offset:]
+
+
 def without_segment(jpeg: bytes, marker: bytes) -> bytes:
     marker_offset = jpeg.find(marker)
     if marker_offset < 0:
@@ -91,6 +108,8 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
         app0_segments=1,
         dqt_segments=1,
         dht_segments=1,
+        dri_segments=0,
+        restart_interval=None,
         restart_markers=0,
     )
 
@@ -291,6 +310,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(parsed.app0_segments, 1)
             self.assertEqual(parsed.dqt_segments, 1)
             self.assertEqual(parsed.dht_segments, 1)
+            self.assertEqual(parsed.dri_segments, 0)
+            self.assertIsNone(parsed.restart_interval)
             self.assertEqual(parsed.restart_markers, 0)
             self.assertEqual(
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13),
@@ -366,6 +387,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["app0_segments"], 1)
             self.assertEqual(record["dqt_segments"], 1)
             self.assertEqual(record["dht_segments"], 1)
+            self.assertEqual(record["dri_segments"], 0)
+            self.assertIsNone(record["restart_interval"])
             self.assertEqual(record["restart_markers"], 0)
             self.assertEqual(record["byte_length"], len(minimal_jpeg(width=17, height=13)))
             self.assertEqual(
@@ -462,12 +485,32 @@ class HjpegHostTest(unittest.TestCase):
                 hjpeg_host.validate_jpeg(missing_dht, expected_width=17, expected_height=13)
 
     def test_jpeg_info_counts_restart_markers_in_scan_data(self) -> None:
-        jpeg = minimal_jpeg(width=17, height=13).replace(b"\x7f\xff\xd9", b"\x7f\xff\xd0\x55\xff\xd9")
+        jpeg = with_dri_segment(
+            minimal_jpeg(width=17, height=13).replace(
+                b"\x7f\xff\xd9",
+                b"\x7f\xff\xd0\x55\xff\xd9",
+            ),
+            restart_interval=2,
+        )
 
         info = hjpeg_host.jpeg_info(jpeg)
 
+        self.assertEqual(info.dri_segments, 1)
+        self.assertEqual(info.restart_interval, 2)
         self.assertEqual(info.scan_data_bytes, 2)
         self.assertEqual(info.restart_markers, 1)
+
+    def test_validate_jpeg_rejects_malformed_dri_segment(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "bad-dri.jpg"
+            malformed = with_dri_segment(minimal_jpeg(width=17, height=13), 2).replace(
+                b"\xff\xdd\x00\x04",
+                b"\xff\xdd\x00\x03",
+            )
+            jpeg.write_bytes(malformed)
+
+            with self.assertRaisesRegex(ValueError, "DRI"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_configure_registers_writes_axi_lite_map(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -6,8 +6,8 @@ This utility keeps the software contract close to the RTL register map:
 * P6 PPM input is packed as one 32-bit AXI-stream beat per RGB pixel, with byte
   order R, G, B, unused. The unused byte is ignored by the KV260 RTL wrapper.
 * AXI-Lite register writes configure `HjpegKv260AxiLiteTop`.
-* JPEG output validation checks SOI/EOI, SOF0 dimensions, SOS, and non-empty
-  entropy-coded scan data after a hardware run.
+* JPEG output validation checks SOI/EOI, SOF0 dimensions, DQT/DHT table
+  markers, SOS, and non-empty entropy-coded scan data after a hardware run.
 
 DMA buffer allocation and transfer submission are intentionally board-image
 specific, so this script prepares and validates the payloads around that layer.
@@ -67,6 +67,8 @@ class JpegInfo:
     app0_segments: int
     dqt_segments: int
     dht_segments: int
+    dri_segments: int
+    restart_interval: int | None
     restart_markers: int
 
 
@@ -184,6 +186,8 @@ def jpeg_info(data: bytes) -> JpegInfo:
     app0_segments = 0
     dqt_segments = 0
     dht_segments = 0
+    dri_segments = 0
+    restart_interval: int | None = None
     restart_markers = 0
     saw_sos = False
     saw_eoi = False
@@ -212,6 +216,11 @@ def jpeg_info(data: bytes) -> JpegInfo:
             app0_segments += 1
         if marker == 0xDB:
             dqt_segments += 1
+        if marker == 0xDD:
+            if segment_length != 4:
+                raise ValueError("DRI segment has invalid length")
+            dri_segments += 1
+            restart_interval = _read_be16(data, offset + 2)
         if marker == 0xC0:
             if segment_length < 8:
                 raise ValueError("SOF0 segment is too short")
@@ -267,6 +276,8 @@ def jpeg_info(data: bytes) -> JpegInfo:
         app0_segments=app0_segments,
         dqt_segments=dqt_segments,
         dht_segments=dht_segments,
+        dri_segments=dri_segments,
+        restart_interval=restart_interval,
         restart_markers=restart_markers,
     )
 
@@ -347,6 +358,8 @@ def jpeg_info_record(
         "app0_segments": info.app0_segments,
         "dqt_segments": info.dqt_segments,
         "dht_segments": info.dht_segments,
+        "dri_segments": info.dri_segments,
+        "restart_interval": info.restart_interval,
         "restart_markers": info.restart_markers,
         "byte_length": info.byte_length,
         "sha256": info.sha256,

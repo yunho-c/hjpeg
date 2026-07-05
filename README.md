@@ -206,10 +206,10 @@ frame limits, byte lengths, and SHA-256 hashes for the generated PPM and packed
 RGB stream. Configuration evidence includes the AXI-Lite target, frame settings,
 checked frame limits, quality, restart interval, chroma mode, JFIF setting, and
 control word. JPEG validation evidence includes dimensions, scan-data byte
-count, APP0/DQT/DHT/restart marker counts, total JPEG byte length, SHA-256, and
-decoder command when one was provided. For `run-stream-devices`, it also
-includes the input RGB stream byte length and SHA-256 plus the AXI-Lite status
-checkpoints enforced during the run.
+count, APP0/DQT/DHT/DRI/restart marker counts, parsed DRI restart interval,
+total JPEG byte length, SHA-256, and decoder command when one was provided. For
+`run-stream-devices`, it also includes the input RGB stream byte length and
+SHA-256 plus the AXI-Lite status checkpoints enforced during the run.
 
 ## Versions
 
