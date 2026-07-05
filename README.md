@@ -267,12 +267,11 @@ APP0 segments must match the encoder's baseline version, density, and
 no-thumbnail fields. The validator rejects non-8-bit or
 non-three-component SOF0 frames, zero SOF0 dimensions, duplicate SOF0/SOS
 markers, nonstandard SOF0/SOS component IDs, mismatched SOS component lists,
-unsupported SOF0 sampling factors,
-zero SOF0 sampling factors, non-baseline SOS spectral fields, unsupported header
-markers, malformed, non-JFIF, or duplicate APP0 markers, unexpected
-non-RST/non-EOI markers after SOS, nonstandard DQT/DHT table sets or segment
-counts, duplicate DQT/DHT table definitions, non-8-bit DQT tables, zero-valued
-DQT entries, empty,
+nonstandard SOS table selectors, unsupported SOF0 sampling factors, zero SOF0
+sampling factors, non-baseline SOS spectral fields, unsupported header markers,
+malformed, non-JFIF, or duplicate APP0 markers, unexpected non-RST/non-EOI
+markers after SOS, nonstandard DQT/DHT table sets or segment counts, duplicate
+DQT/DHT table definitions, non-8-bit DQT tables, zero-valued DQT entries, empty,
 oversized, oversubscribed, or invalid baseline DHT tables, RST markers without
 DRI, RST markers that do not increment modulo 8 from RST0, trailing bytes after
 EOI, SOF0 or SOS references to missing DQT/DHT tables, and decoder commands that

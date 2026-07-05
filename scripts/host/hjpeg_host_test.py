@@ -406,6 +406,16 @@ def with_reordered_sos_components(jpeg: bytes) -> bytes:
     return bytes(mutated)
 
 
+def with_sos_table_selectors(jpeg: bytes, selectors: tuple[int, int, int]) -> bytes:
+    sos = jpeg.find(b"\xff\xda\x00\x0c\x03")
+    if sos < 0:
+        raise AssertionError("SOS marker not found")
+    mutated = bytearray(jpeg)
+    for index, selector in enumerate(selectors):
+        mutated[sos + 6 + index * 2] = selector
+    return bytes(mutated)
+
+
 def with_sos_spectral_fields(jpeg: bytes, start: int, end: int, successive: int) -> bytes:
     sos = jpeg.find(b"\xff\xda\x00\x0c\x03")
     if sos < 0:
@@ -2285,6 +2295,19 @@ class HjpegHostTest(unittest.TestCase):
                     expected_width=17,
                     expected_height=13,
                 )
+
+    def test_validate_jpeg_rejects_nonstandard_sos_table_selectors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "sos-selectors.jpg"
+            jpeg.write_bytes(
+                with_sos_table_selectors(
+                    minimal_jpeg(width=17, height=13),
+                    (0x11, 0x11, 0x11),
+                )
+            )
+
+            with self.assertRaisesRegex(ValueError, "SOS table selectors"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_rejects_unsupported_sampling_factors(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -793,6 +793,15 @@ def jpeg_info(data: bytes) -> JpegInfo:
                 f"JPEG SOS component {scan_component.component_id} references missing AC DHT table "
                 f"{scan_component.ac_table}"
             )
+    scan_table_selectors = tuple(
+        (scan_component.dc_table, scan_component.ac_table)
+        for scan_component in scan_components
+    )
+    if scan_table_selectors != ((0, 0), (1, 1), (1, 1)):
+        raise ValueError(
+            f"JPEG SOS table selectors are {scan_table_selectors}, "
+            "expected Y=0/0 and Cb/Cr=1/1"
+        )
     return JpegInfo(
         width=dimensions[0],
         height=dimensions[1],
