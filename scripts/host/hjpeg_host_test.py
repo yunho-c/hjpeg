@@ -3157,6 +3157,27 @@ class HjpegHostTest(unittest.TestCase):
                 record["records"][0]["axi_lite_base_matches_vivado_evidence"]
             )
 
+    def test_vivado_evidence_file_record_rejects_missing_report_filenames(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            del vivado_record["report_filenames"]["clock_utilization"]
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertTrue(record["exists"])
+            self.assertTrue(record["vivado_passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["vivado_artifact_suffixes_present"])
+            self.assertTrue(record["vivado_artifact_filenames_present"])
+            self.assertTrue(record["vivado_address_map_filenames_present"])
+            self.assertFalse(record["vivado_report_filenames_present"])
+            self.assertFalse(record["passed"])
+            self.assertTrue(
+                any("report filenames" in failure for failure in failures)
+            )
+
     def test_check_run_evidence_cli_rejects_bad_vivado_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
