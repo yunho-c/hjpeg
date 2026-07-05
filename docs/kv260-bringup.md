@@ -128,6 +128,7 @@ python3 scripts/host/hjpeg_host.py run-stream-devices \
   --height HEIGHT \
   --json
 python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000 --json
+python3 scripts/host/hjpeg_host.py clear-error --base-addr 0xa0000000 --json
 ```
 
 Adjust the `--tx-device` and `--rx-device` paths to match the loaded board
@@ -144,6 +145,8 @@ Expected evidence:
   the run, including the frame limits checked by the host helper.
 - Standalone `status --json` evidence records the raw status word, decoded
   `busy` and `protocol_error` flags, and text state.
+- Standalone `clear-error --json` evidence records the AXI-Lite target and
+  control word pulsed when recovering from a sticky protocol fault.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after
@@ -172,7 +175,7 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
 ```
 
 Use `--json` with `make-test-ppm`, `pack-ppm`, `config`, `status`,
-`validate-jpeg`, or `run-stream-devices` when saving evidence for automation or
+`clear-error`, `validate-jpeg`, or `run-stream-devices` when saving evidence for automation or
 later comparison.
 
 Expected evidence:

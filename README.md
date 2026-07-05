@@ -167,6 +167,7 @@ python3 scripts/host/hjpeg_host.py make-test-ppm input.ppm --width 640 --height 
 python3 scripts/host/hjpeg_host.py pack-ppm input.ppm input.rgb --json
 python3 scripts/host/hjpeg_host.py config --base-addr 0xa0000000 --width 640 --height 480 --json
 python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000 --json
+python3 scripts/host/hjpeg_host.py clear-error --base-addr 0xa0000000 --json
 python3 scripts/host/hjpeg_host.py run-stream-devices \
   --base-addr 0xa0000000 \
   --tx-device /dev/hjpeg-mm2s \
@@ -214,12 +215,13 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
 ```
 
 Add `--json` to `make-test-ppm`, `pack-ppm`, `config`, `status`,
-`validate-jpeg`, or `run-stream-devices` when you want evidence in a
+`clear-error`, `validate-jpeg`, or `run-stream-devices` when you want evidence in a
 machine-readable form for logs. Input-prep evidence includes dimensions, checked
 frame limits, byte lengths, and SHA-256 hashes for the generated PPM and packed
 RGB stream. Configuration evidence includes the AXI-Lite target, frame settings,
 checked frame limits, quality, restart interval, chroma mode, JFIF setting, and
-control word. JPEG validation evidence includes dimensions, SOF0 8-bit sample
+control word. Clear-error evidence records the AXI-Lite target and control word
+pulsed to clear sticky protocol faults. JPEG validation evidence includes dimensions, SOF0 8-bit sample
 precision, exactly one SOF0 and one SOS segment, three-component frame shape,
 scan-data byte count, stuffed entropy `0xff` byte count, SOF0 component ID
 order, sampling factors, MCU count, decoded chroma mode, exact SOS component

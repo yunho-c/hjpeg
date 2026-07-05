@@ -1237,6 +1237,15 @@ def status_record(status: int) -> dict[str, object]:
     }
 
 
+def clear_error_record(device: Path, base_address: int, control: int) -> dict[str, object]:
+    return {
+        "axi_lite": axi_lite_target_record(device, base_address),
+        "clear_protocol_error": True,
+        "control": control & 0xFFFFFFFF,
+        "control_hex": f"0x{control & 0xFFFFFFFF:08x}",
+    }
+
+
 def require_idle_status_value(status: int, context: str = "status") -> None:
     if status & STATUS_BUSY:
         raise RuntimeError(f"{context}: encoder is busy (status 0x{status:08x})")
@@ -1248,12 +1257,14 @@ def require_idle_status(regs: AxiLiteWindow, context: str = "status") -> None:
     require_idle_status_value(regs.read32(REG_STATUS), context)
 
 
-def clear_protocol_error(regs: AxiLiteWindow) -> None:
+def clear_protocol_error(regs: AxiLiteWindow) -> int:
     current_control = regs.read32(REG_CONTROL)
     persistent_control = current_control & (
         CONTROL_ENABLE_CHROMA_SUBSAMPLE | CONTROL_EMIT_JFIF
     )
-    regs.write32(REG_CONTROL, persistent_control | CONTROL_CLEAR_PROTOCOL_ERROR)
+    control = persistent_control | CONTROL_CLEAR_PROTOCOL_ERROR
+    regs.write32(REG_CONTROL, control)
+    return control
 
 
 def _parse_int(value: str) -> int:
@@ -1340,6 +1351,7 @@ def build_parser() -> argparse.ArgumentParser:
     clear = subparsers.add_parser("clear-error", help="pulse the protocol-error clear bit")
     clear.add_argument("--dev", type=Path, default=Path("/dev/mem"))
     clear.add_argument("--base-addr", type=_parse_int, required=True)
+    clear.add_argument("--json", action="store_true", help="print clear-error evidence as JSON")
 
     run = subparsers.add_parser(
         "run-stream-devices",
@@ -1525,7 +1537,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "clear-error":
         with AxiLiteWindow(args.dev, args.base_addr) as regs:
-            clear_protocol_error(regs)
+            control = clear_protocol_error(regs)
+        if args.json:
+            print(
+                json.dumps(
+                    clear_error_record(args.dev, args.base_addr, control),
+                    sort_keys=True,
+                )
+            )
+            return 0
         print(f"cleared hjpeg protocol error at 0x{args.base_addr:x}")
         return 0
 

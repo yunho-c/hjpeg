@@ -1841,6 +1841,48 @@ class HjpegHostTest(unittest.TestCase):
                     | hjpeg_host.CONTROL_CLEAR_PROTOCOL_ERROR,
                 )
 
+    def test_clear_error_cli_can_print_json_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            mem = Path(tmp) / "mem.bin"
+            mem.write_bytes(bytes(hjpeg_host.AXI_LITE_APERTURE_BYTES))
+
+            with hjpeg_host.AxiLiteWindow(mem, 0) as regs:
+                regs.write32(
+                    hjpeg_host.REG_CONTROL,
+                    hjpeg_host.CONTROL_ENABLE_CHROMA_SUBSAMPLE,
+                )
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "clear-error",
+                            "--dev",
+                            str(mem),
+                            "--base-addr",
+                            "0",
+                            "--json",
+                        ]
+                    ),
+                    0,
+                )
+
+            record = json.loads(stdout.getvalue())
+            expected_control = (
+                hjpeg_host.CONTROL_ENABLE_CHROMA_SUBSAMPLE
+                | hjpeg_host.CONTROL_CLEAR_PROTOCOL_ERROR
+            )
+            self.assertEqual(record["axi_lite"]["device"], str(mem))
+            self.assertEqual(record["axi_lite"]["base_addr"], 0)
+            self.assertEqual(record["axi_lite"]["base_addr_hex"], "0x0")
+            self.assertTrue(record["clear_protocol_error"])
+            self.assertEqual(record["control"], expected_control)
+            self.assertEqual(record["control_hex"], f"0x{expected_control:08x}")
+
+            with hjpeg_host.AxiLiteWindow(mem, 0) as regs:
+                self.assertEqual(regs.read32(hjpeg_host.REG_CONTROL), expected_control)
+
     def test_read_until_jpeg_eoi_stops_at_marker(self) -> None:
         with tempfile.TemporaryFile() as stream:
             stream.write(b"\xff\xd8payload\xff\xd9")
