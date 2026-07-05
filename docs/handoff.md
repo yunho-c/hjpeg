@@ -172,6 +172,7 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `ccb8b6a fix: reject invalid jpeg huffman symbols`
 - `9c77d6e fix: reject oversubscribed jpeg huffman tables`
 - `c280b98 fix: reject oversized jpeg huffman tables`
 - `d93131f fix: reject empty jpeg huffman tables`
@@ -615,6 +616,14 @@ which is useful for commands that print decoded dimensions.
   frame-level spec recently took about 76 seconds.
 - On Windows, avoid running multiple sbt commands in parallel; the launcher can
   collide on boot locks and named pipes.
+- On the current Windows/MSYS setup, ChiselSim may fail before simulation when
+  `make` invokes `/bin/sh` on a generated Windows `cmd` clean rule containing
+  `for /f "delims="`. Treat that as a local simulator toolchain issue when
+  `sbt Test/compile` succeeds.
+- `HjpegCoreSpec` includes focused byte-equivalence coverage for output
+  backpressure on the core output stream. Broader long-frame and throughput
+  checks are still useful, but keep them focused because frame-level simulation
+  cost grows quickly.
 - Current decoded-color checks are good for broad recognizability but should
   not be used as exact color-lane invariants. Prefer stage-level checks or
   wrapper-vs-core byte equivalence for precise lane/protocol claims.

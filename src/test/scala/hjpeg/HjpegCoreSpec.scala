@@ -67,7 +67,8 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       height: Int,
       subsample: Boolean = false,
       restartInterval: Int = 0,
-      emitJfif: Boolean = true)(pixelAt: Int => (Int, Int, Int)): FrameEmission = {
+      emitJfif: Boolean = true,
+      outputReadyAt: Int => Boolean = _ => true)(pixelAt: Int => (Int, Int, Int)): FrameEmission = {
     dut.reset.poke(true.B)
     dut.clock.step()
     dut.reset.poke(false.B)
@@ -83,7 +84,9 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
     var cycles = 0
     while (!sawLast) {
       assert(cycles < pixels * 4096 + JpegHeaderBytes.MaxHeaderLength + 4096, "timeout waiting for HjpegCore output")
-      if (dut.io.output.valid.peek().litToBoolean) {
+      val outputReady = outputReadyAt(cycles)
+      dut.io.output.ready.poke(outputReady.B)
+      if (dut.io.output.valid.peek().litToBoolean && outputReady) {
         bytes += dut.io.output.bits.byte.peek().litValue.toInt
         sawLast = dut.io.output.bits.last.peek().litToBoolean
       }
@@ -100,6 +103,7 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       cycles += 1
     }
     dut.io.input.valid.poke(false.B)
+    dut.io.output.ready.poke(true.B)
     FrameEmission(bytes.toSeq, cycles)
   }
 
@@ -197,6 +201,37 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       withClue(s"cycles=${emission.cycles}, pixels=${width * height}") {
         emission.cycles must be < (width * height * 768)
       }
+      dut.io.protocolError.expect(false.B)
+    }
+  }
+
+  "HjpegCore should preserve output bytes under output backpressure" in {
+    val width = 8
+    val height = 8
+    def pixelAt(index: Int): (Int, Int, Int) = {
+      val x = index % width
+      val y = index / width
+      ((x * 31 + y * 5) & 0xff, (64 + x * 17) & 0xff, (255 - y * 29) & 0xff)
+    }
+
+    var expected = Seq.empty[Int]
+    simulate(new HjpegCore()) { dut =>
+      expected = emitFrame(dut, width = width, height = height)(pixelAt)
+      dut.io.protocolError.expect(false.B)
+    }
+
+    simulate(new HjpegCore()) { dut =>
+      val stalled = emitFrameWithStats(
+        dut,
+        width = width,
+        height = height,
+        outputReadyAt = cycle => (cycle % 4) != 1 && (cycle % 9) != 5)(pixelAt).bytes
+
+      stalled mustBe expected
+      val image = ImageIO.read(new ByteArrayInputStream(stalled.map(_.toByte).toArray))
+      image must not be null
+      image.getWidth mustBe width
+      image.getHeight mustBe height
       dut.io.protocolError.expect(false.B)
     }
   }
