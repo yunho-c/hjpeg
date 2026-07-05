@@ -44,6 +44,15 @@ class JpegRasterToSubsampledMcuStageSpec extends AnyFreeSpec with Matchers with 
     }
   }
 
+  private def waitForOutput(dut: JpegRasterToSubsampledMcuStage, maxCycles: Int = 640): Unit = {
+    var cycles = 0
+    while (!dut.io.output.valid.peek().litToBoolean) {
+      assert(cycles < maxCycles, "timeout waiting for subsampled raster-to-MCU output")
+      dut.clock.step()
+      cycles += 1
+    }
+  }
+
   "JpegRasterToSubsampledMcuStage should emit padded 4:2:0 MCUs" in {
     simulate(new JpegRasterToSubsampledMcuStage(testConfig)) { dut =>
       dut.reset.poke(true.B)
@@ -58,8 +67,10 @@ class JpegRasterToSubsampledMcuStageSpec extends AnyFreeSpec with Matchers with 
       }
       dut.io.input.valid.poke(false.B)
 
+      waitForOutput(dut)
       expectFlatMcu(dut, last = false)
       dut.clock.step()
+      waitForOutput(dut)
       expectFlatMcu(dut, last = true)
     }
   }

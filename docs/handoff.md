@@ -42,12 +42,17 @@ Implemented and tested in simulation:
 - Vivado TCL entry points for synthesis, IP packaging, block design creation,
   bitstream/XSA export, and report checking.
 
+Proven locally with Vivado 2026.1:
+
+- KV260 AXI-Lite top SystemVerilog elaboration.
+- Vivado IP packaging.
+- Vivado block design creation and validation, with remaining non-fatal
+  PS/SmartConnect/addressing warnings.
+
 Not yet proven:
 
-- Vivado IP packaging on a machine with Vivado.
-- Vivado block design validation.
-- Synthesis, implementation, timing closure, utilization headroom, bitstream,
-  and XSA generation.
+- Full Vivado synthesis completion, implementation, timing closure,
+  utilization headroom, bitstream, and XSA generation.
 - Programming a real KV260 and moving pixels through AXI DMA.
 - A hardware-produced JPEG captured from the board and validated with standard
   software.
@@ -163,6 +168,8 @@ byte write strobes.
 
 Recent commits, newest first:
 
+- `d3158ae fix: align kv260 dma stream width`
+- `2c2b15f fix: unblock windows vivado bringup`
 - `e1cdde3 test: validate AXI RGB lane order`
 - `e53b2e5 test: validate non-flat JPEG content`
 - `4285331 feat: check Vivado timing reports`
@@ -184,10 +191,20 @@ Recent commits, newest first:
 - `ace5d7e chore: scaffold Chisel JPEG encoder`
 - `2ad86d6 Initial commit`
 
-The most recent work added a non-gray AXI wrapper regression. It compares the
-JPEG bytes emitted through `HjpegAxiStreamCore` against bytes emitted by direct
-`HjpegCore` input for the same RGB pattern. This catches wrapper lane/order
-mistakes without depending on fragile decoded-color assertions.
+Recent local work aligned the KV260-facing input stream with AXI DMA's supported
+32-bit stream widths. The internal encoder still consumes 24-bit RGB pixels; the
+KV260 tops accept `R,G,B,unused` 32-bit beats and drop the unused byte.
+
+The raster-to-MCU stages were also changed to serially load each MCU from stripe
+or band memories into small block registers before DCT. Generated
+`mem_15360x9.sv` and `mem_30720x9.sv` now have one read port and one write port,
+which removes the previous Vivado synthesis failure caused by too many memory
+read ports.
+
+The non-gray AXI wrapper regression compares the JPEG bytes emitted through
+`HjpegAxiStreamCore` against bytes emitted by direct `HjpegCore` input for the
+same RGB pattern. This catches wrapper lane/order mistakes without depending on
+fragile decoded-color assertions.
 
 An attempted decoded-color half-frame assertion was too strict for the current
 quality/color path. Use decoded-image checks for broad recognizability, but use
@@ -195,23 +212,34 @@ stage or wrapper equivalence tests for exact protocol/lane invariants.
 
 ## Last Known Local Verification
 
-The last local checkout was clean after commit `e1cdde3`.
+The last clean committed checkout was `d3158ae`. After that, local source edits
+changed raster memory readout to serial MCU loading.
 
 Known passing checks:
 
 ```sh
-sbt 'testOnly hjpeg.HjpegAxiStreamCoreSpec'
+CHISEL_FIRTOOL_PATH='C:\Users\G14\GitHub\hjpeg\null\org.chipsalliance\llvm-firtool\cache\1.149.0\bin' \
+  sbt 'testOnly hjpeg.HjpegElaborationSpec'
+CHISEL_FIRTOOL_PATH='C:\Users\G14\GitHub\hjpeg\null\org.chipsalliance\llvm-firtool\cache\1.149.0\bin' \
+  sbt 'runMain hjpeg.ElaborateKv260AxiLiteTop'
 python3 scripts/host/hjpeg_host_test.py
 python3 scripts/vivado/check_reports_test.py
 git diff --check
+vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl
+vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl
 ```
 
-Known limitation from the previous environment:
+Known local limitations:
 
-- `sbt test` was not rerun after the final test slice because the execution
-  environment blocked the required escalation for user-level sbt caches.
-- `vivado` was not on `PATH`, so no Vivado/IP/block-design/bitstream evidence
-  was available there.
+- Full ChiselSim tests on Windows/MSYS currently fail before simulation because
+  the generated `make clean` command uses Windows `cmd` syntax while MSYS
+  `/bin/sh` executes the recipe.
+- A full `vivado -mode batch -source scripts/vivado/synth_kv260_axi_lite.tcl`
+  run no longer fails immediately on the raster-buffer memory port count, but it
+  ran for more than 20 minutes locally and was stopped before producing reports.
+  The next hardware bottleneck is likely overall synthesis/runtime/resource
+  pressure from the current highly combinational JPEG datapath, especially the
+  parallel DCT/quantization stages.
 
 On a new machine, run these first:
 
@@ -317,13 +345,15 @@ Hardware completion evidence should include:
 
 ## Known Blockers And Bottlenecks
 
-- Vivado was unavailable in the previous environment. This is the largest
-  practical blocker to moving from simulated RTL to hardware evidence.
 - KV260 hardware access was unavailable. This blocks final completion.
+- Full Vivado synthesis has not completed locally. The previous hard failure on
+  too many raster-buffer memory read ports has been addressed by serial MCU
+  loading, but the design still needs synthesis/runtime/resource reduction
+  before bitstream work is likely to be practical.
 - Chisel/Verilator frame-level tests are not instant. A focused AXI wrapper
   frame-level spec recently took about 76 seconds.
-- sbt may need write access to user-level caches such as `~/.sbt`, `~/.ivy2`,
-  or coursier caches. In sandboxed environments, this may require escalation.
+- On Windows, avoid running multiple sbt commands in parallel; the launcher can
+  collide on boot locks and named pipes.
 - Current decoded-color checks are good for broad recognizability but should
   not be used as exact color-lane invariants. Prefer stage-level checks or
   wrapper-vs-core byte equivalence for precise lane/protocol claims.

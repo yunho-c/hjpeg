@@ -24,15 +24,19 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
   private val StripeSamples = StripeRows * c.maxFrameWidth
   private val sampleIndexBits = log2Ceil(StripeSamples).max(1)
 
-  val sCollect :: sEmit :: Nil = Enum(2)
+  val sCollect :: sLoad :: sEmit :: Nil = Enum(3)
   val state = RegInit(sCollect)
   val blockX = RegInit(0.U(c.coordBits.W))
   val currentStripeLast = RegInit(false.B)
   val lastRowInStripe = RegInit(0.U(3.W))
+  val loadSample = RegInit(0.U(6.W))
 
   val ySamples = Mem(StripeSamples, SInt(sampleBits.W))
   val cbSamples = Mem(StripeSamples, SInt(sampleBits.W))
   val crSamples = Mem(StripeSamples, SInt(sampleBits.W))
+  val yBlock = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
+  val cbBlock = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
+  val crBlock = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
 
   val rowInStripe = io.input.bits.y(2, 0)
   val writeIndex = (rowInStripe * c.maxFrameWidth.U + io.input.bits.x)(sampleIndexBits - 1, 0)
@@ -50,10 +54,32 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
     cbSamples(writeIndex) := (cbComponent.zext - 128.S)(sampleBits - 1, 0).asSInt
     crSamples(writeIndex) := (crComponent.zext - 128.S)(sampleBits - 1, 0).asSInt
     when(lastPixelInStripe) {
-      state := sEmit
+      state := sLoad
       blockX := 0.U
       currentStripeLast := io.input.bits.y + 1.U >= io.config.ysize
       lastRowInStripe := rowInStripe
+      loadSample := 0.U
+    }
+  }
+
+  val loadRow = loadSample(5, 3)
+  val loadCol = loadSample(2, 0)
+  val readRow = Mux(loadRow > lastRowInStripe, lastRowInStripe, loadRow)
+  val requestedCol = blockX + loadCol
+  val readCol = Mux(requestedCol >= io.config.xsize, io.config.xsize - 1.U, requestedCol)
+  val readIndex = (readRow * c.maxFrameWidth.U + readCol)(sampleIndexBits - 1, 0)
+  val yLoadSample = ySamples(readIndex)
+  val cbLoadSample = cbSamples(readIndex)
+  val crLoadSample = crSamples(readIndex)
+
+  when(state === sLoad) {
+    yBlock(loadSample) := yLoadSample
+    cbBlock(loadSample) := cbLoadSample
+    crBlock(loadSample) := crLoadSample
+    when(loadSample === (HjpegConstants.BlockSize - 1).U) {
+      state := sEmit
+    }.otherwise {
+      loadSample := loadSample + 1.U
     }
   }
 
@@ -75,13 +101,9 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
   for (row <- 0 until HjpegConstants.BlockDim) {
     for (col <- 0 until HjpegConstants.BlockDim) {
       val blockSample = row * HjpegConstants.BlockDim + col
-      val readRow = Mux(row.U > lastRowInStripe, lastRowInStripe, row.U(2, 0))
-      val requestedCol = blockX + col.U
-      val readCol = Mux(requestedCol >= io.config.xsize, io.config.xsize - 1.U, requestedCol)
-      val readIndex = (readRow * c.maxFrameWidth.U + readCol)(sampleIndexBits - 1, 0)
-      yTransform.io.input.bits.samples(blockSample) := ySamples(readIndex)
-      cbTransform.io.input.bits.samples(blockSample) := cbSamples(readIndex)
-      crTransform.io.input.bits.samples(blockSample) := crSamples(readIndex)
+      yTransform.io.input.bits.samples(blockSample) := yBlock(blockSample)
+      cbTransform.io.input.bits.samples(blockSample) := cbBlock(blockSample)
+      crTransform.io.input.bits.samples(blockSample) := crBlock(blockSample)
     }
   }
 
@@ -111,6 +133,8 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
       blockX := 0.U
     }.otherwise {
       blockX := blockX + HjpegConstants.BlockDim.U
+      loadSample := 0.U
+      state := sLoad
     }
   }
 }

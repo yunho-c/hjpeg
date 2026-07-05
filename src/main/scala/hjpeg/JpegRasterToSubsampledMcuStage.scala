@@ -26,15 +26,26 @@ class JpegRasterToSubsampledMcuStage(
   private val BandSamples = McuDim * c.maxFrameWidth
   private val sampleIndexBits = log2Ceil(BandSamples).max(1)
 
-  val sCollect :: sEmit :: Nil = Enum(2)
+  val sCollect :: sLoad :: sEmit :: Nil = Enum(3)
   val state = RegInit(sCollect)
   val blockX = RegInit(0.U(c.coordBits.W))
   val currentBandLast = RegInit(false.B)
   val lastRowInBand = RegInit(0.U(4.W))
+  val loadPhase = RegInit(0.U(3.W))
+  val loadSample = RegInit(0.U(6.W))
+  val chromaSubSample = RegInit(0.U(2.W))
+  val cbAccumulator = RegInit(0.S((sampleBits + 2).W))
+  val crAccumulator = RegInit(0.S((sampleBits + 2).W))
 
   val ySamples = Mem(BandSamples, SInt(sampleBits.W))
   val cbSamples = Mem(BandSamples, SInt(sampleBits.W))
   val crSamples = Mem(BandSamples, SInt(sampleBits.W))
+  val y0Block = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
+  val y1Block = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
+  val y2Block = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
+  val y3Block = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
+  val cbBlock = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
+  val crBlock = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
 
   val rowInBand = io.input.bits.y(3, 0)
   val writeIndex = (rowInBand * c.maxFrameWidth.U + io.input.bits.x)(sampleIndexBits - 1, 0)
@@ -52,10 +63,70 @@ class JpegRasterToSubsampledMcuStage(
     cbSamples(writeIndex) := (cbComponent.zext - 128.S)(sampleBits - 1, 0).asSInt
     crSamples(writeIndex) := (crComponent.zext - 128.S)(sampleBits - 1, 0).asSInt
     when(lastPixelInBand) {
-      state := sEmit
+      state := sLoad
       blockX := 0.U
       currentBandLast := io.input.bits.y + 1.U >= io.config.ysize
       lastRowInBand := rowInBand
+      loadPhase := 0.U
+      loadSample := 0.U
+      chromaSubSample := 0.U
+      cbAccumulator := 0.S
+      crAccumulator := 0.S
+    }
+  }
+
+  val loadRow = loadSample(5, 3)
+  val loadCol = loadSample(2, 0)
+
+  val yBaseRow = Mux(loadPhase(1), HjpegConstants.BlockDim.U, 0.U(4.W))
+  val yBaseCol = Mux(loadPhase(0), HjpegConstants.BlockDim.U, 0.U(c.coordBits.W))
+  val yReadRow = yBaseRow + loadRow
+  val yReadCol = blockX + yBaseCol + loadCol
+
+  val chromaBaseRow = loadRow << 1
+  val chromaBaseCol = blockX + (loadCol << 1)
+  val chromaReadRow = chromaBaseRow + chromaSubSample(1)
+  val chromaReadCol = chromaBaseCol + chromaSubSample(0)
+
+  val yReadIndex = clampedIndex(yReadRow, yReadCol)
+  val chromaReadIndex = clampedIndex(chromaReadRow, chromaReadCol)
+  val yLoadSample = ySamples(yReadIndex)
+  val cbLoadSample = cbSamples(chromaReadIndex)
+  val crLoadSample = crSamples(chromaReadIndex)
+
+  when(state === sLoad) {
+    when(loadPhase < 4.U) {
+      switch(loadPhase) {
+        is(0.U) { y0Block(loadSample) := yLoadSample }
+        is(1.U) { y1Block(loadSample) := yLoadSample }
+        is(2.U) { y2Block(loadSample) := yLoadSample }
+        is(3.U) { y3Block(loadSample) := yLoadSample }
+      }
+      when(loadSample === (HjpegConstants.BlockSize - 1).U) {
+        loadSample := 0.U
+        loadPhase := loadPhase + 1.U
+      }.otherwise {
+        loadSample := loadSample + 1.U
+      }
+    }.otherwise {
+      val cbNextSum = Mux(chromaSubSample === 0.U, 0.S, cbAccumulator) + cbLoadSample
+      val crNextSum = Mux(chromaSubSample === 0.U, 0.S, crAccumulator) + crLoadSample
+      cbAccumulator := cbNextSum
+      crAccumulator := crNextSum
+      when(chromaSubSample === 3.U) {
+        cbBlock(loadSample) := (cbNextSum >> 2).asSInt
+        crBlock(loadSample) := (crNextSum >> 2).asSInt
+        chromaSubSample := 0.U
+        cbAccumulator := 0.S
+        crAccumulator := 0.S
+        when(loadSample === (HjpegConstants.BlockSize - 1).U) {
+          state := sEmit
+        }.otherwise {
+          loadSample := loadSample + 1.U
+        }
+      }.otherwise {
+        chromaSubSample := chromaSubSample + 1.U
+      }
     }
   }
 
@@ -84,29 +155,15 @@ class JpegRasterToSubsampledMcuStage(
     (readRow * c.maxFrameWidth.U + readCol)(sampleIndexBits - 1, 0)
   }
 
-  private def chromaAverage(samples: Mem[SInt], row: Int, col: Int): SInt = {
-    val row0 = (row * 2).U
-    val row1 = (row * 2 + 1).U
-    val col0 = blockX + (col * 2).U
-    val col1 = blockX + (col * 2 + 1).U
-    val sum =
-      samples(clampedIndex(row0, col0)) +&
-        samples(clampedIndex(row0, col1)) +&
-        samples(clampedIndex(row1, col0)) +&
-        samples(clampedIndex(row1, col1))
-    (sum >> 2).asSInt
-  }
-
   for (row <- 0 until HjpegConstants.BlockDim) {
     for (col <- 0 until HjpegConstants.BlockDim) {
       val sample = row * HjpegConstants.BlockDim + col
-      y0Transform.io.input.bits.samples(sample) := ySamples(clampedIndex(row.U, blockX + col.U))
-      y1Transform.io.input.bits.samples(sample) := ySamples(clampedIndex(row.U, blockX + (col + HjpegConstants.BlockDim).U))
-      y2Transform.io.input.bits.samples(sample) := ySamples(clampedIndex((row + HjpegConstants.BlockDim).U, blockX + col.U))
-      y3Transform.io.input.bits.samples(sample) :=
-        ySamples(clampedIndex((row + HjpegConstants.BlockDim).U, blockX + (col + HjpegConstants.BlockDim).U))
-      cbTransform.io.input.bits.samples(sample) := chromaAverage(cbSamples, row, col)
-      crTransform.io.input.bits.samples(sample) := chromaAverage(crSamples, row, col)
+      y0Transform.io.input.bits.samples(sample) := y0Block(sample)
+      y1Transform.io.input.bits.samples(sample) := y1Block(sample)
+      y2Transform.io.input.bits.samples(sample) := y2Block(sample)
+      y3Transform.io.input.bits.samples(sample) := y3Block(sample)
+      cbTransform.io.input.bits.samples(sample) := cbBlock(sample)
+      crTransform.io.input.bits.samples(sample) := crBlock(sample)
     }
   }
 
@@ -134,6 +191,12 @@ class JpegRasterToSubsampledMcuStage(
       blockX := 0.U
     }.otherwise {
       blockX := blockX + McuDim.U
+      loadPhase := 0.U
+      loadSample := 0.U
+      chromaSubSample := 0.U
+      cbAccumulator := 0.S
+      crAccumulator := 0.S
+      state := sLoad
     }
   }
 }

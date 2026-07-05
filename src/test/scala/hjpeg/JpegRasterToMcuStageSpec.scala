@@ -55,6 +55,15 @@ class JpegRasterToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
     }
   }
 
+  private def waitForOutput(dut: JpegRasterToMcuStage, maxCycles: Int = 128): Unit = {
+    var cycles = 0
+    while (!dut.io.output.valid.peek().litToBoolean) {
+      assert(cycles < maxCycles, "timeout waiting for raster-to-MCU output")
+      dut.clock.step()
+      cycles += 1
+    }
+  }
+
   "JpegRasterToMcuStage should emit left-to-right MCUs from one raster stripe" in {
     simulate(new JpegRasterToMcuStage(testConfig)) { dut =>
       dut.reset.poke(true.B)
@@ -68,6 +77,7 @@ class JpegRasterToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
       }
       dut.io.input.valid.poke(false.B)
 
+      waitForOutput(dut)
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.last.expect(false.B)
       for (index <- 0 until HjpegConstants.BlockSize) {
@@ -104,8 +114,10 @@ class JpegRasterToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
       }
       dut.io.input.valid.poke(false.B)
 
+      waitForOutput(dut)
       expectFlatMcu(dut, yDc = 0, last = false)
       dut.clock.step()
+      waitForOutput(dut)
       expectFlatMcu(dut, yDc = 0, last = false)
       dut.clock.step()
 
@@ -114,8 +126,10 @@ class JpegRasterToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
       }
       dut.io.input.valid.poke(false.B)
 
+      waitForOutput(dut)
       expectFlatMcu(dut, yDc = 0, last = false)
       dut.clock.step()
+      waitForOutput(dut)
       expectFlatMcu(dut, yDc = 0, last = true)
     }
   }
@@ -133,6 +147,7 @@ class JpegRasterToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
       }
       dut.io.input.valid.poke(false.B)
 
+      waitForOutput(dut)
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.last.expect(false.B)
       dut.io.input.ready.expect(false.B)

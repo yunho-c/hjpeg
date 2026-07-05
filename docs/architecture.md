@@ -26,6 +26,13 @@ replication, standard quantization/Huffman tables, optional JFIF APP0 emission,
 byte stuffing, and marker assembly. Nonzero restart intervals emit DRI/RST
 markers and reset DC predictors at MCU boundaries.
 
+The raster-to-MCU stages buffer one 8-row 4:4:4 stripe or one 16-row 4:2:0 band
+at a time. They then load one MCU into small block registers over multiple
+cycles before presenting it to the DCT/quantization path. This keeps the stripe
+memories to one read and one write port per component in generated RTL, which is
+more compatible with FPGA block RAM inference than fanning out a whole MCU as
+combinational memory reads.
+
 ## Source Layout
 
 - `HjpegConfig.scala`: static widths and JPEG/KV260-facing constants
