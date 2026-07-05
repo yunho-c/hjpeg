@@ -406,6 +406,8 @@ def jpeg_info(data: bytes) -> JpegInfo:
     if quantization_tables != {0, 1}:
         actual = sorted(quantization_tables)
         raise ValueError(f"JPEG DQT table set is {actual}, expected tables 0 and 1")
+    if dqt_segments != 2:
+        raise ValueError(f"JPEG DQT segment count is {dqt_segments}, expected 2")
     if dht_segments == 0:
         raise ValueError("JPEG output does not contain a DHT segment")
     expected_huffman_tables = {(0, 0), (0, 1), (1, 0), (1, 1)}
@@ -414,6 +416,8 @@ def jpeg_info(data: bytes) -> JpegInfo:
         raise ValueError(
             f"JPEG DHT table set is {actual}, expected DC/AC tables 0 and 1"
         )
+    if dht_segments != 4:
+        raise ValueError(f"JPEG DHT segment count is {dht_segments}, expected 4")
     if not saw_sos:
         raise ValueError("JPEG output does not contain an SOS segment")
     if sos_segments != 1:

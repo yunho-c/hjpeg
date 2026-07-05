@@ -135,8 +135,9 @@ component sampling factors, APP0 and JFIF APP0 counts, DQT/DHT table IDs, and
 SOS component table selectors, requires SOF0 and SOS component IDs to be
 `[1, 2, 3]`, requires the SOS component list to match SOF0 exactly, requires
 baseline SOS spectral fields `0/63/0`, requires DQT IDs `{0, 1}` with 8-bit
-precision, rejects nonstandard DHT table sets, rejects dangling table
-references, and infers whether the output is 4:4:4 or 4:2:0. The helper
+precision and exact DQT/DHT segment counts, rejects nonstandard DHT table sets,
+rejects dangling table references, and infers whether the output is 4:4:4 or
+4:2:0. The helper
 can also run an external JPEG decoder command so decoder-open evidence is
 captured in the same transcript. Standalone validation can require an expected
 restart interval and chroma/JFIF mode, and `run-stream-devices` checks the

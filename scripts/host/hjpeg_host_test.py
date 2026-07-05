@@ -309,6 +309,15 @@ def with_extra_dqt(jpeg: bytes) -> bytes:
     return jpeg[:sof0] + extra_dqt + jpeg[sof0:]
 
 
+def with_duplicate_dqt(jpeg: bytes) -> bytes:
+    dqt = jpeg.find(b"\xff\xdb")
+    if dqt < 0:
+        raise AssertionError("DQT marker not found")
+    length = (jpeg[dqt + 2] << 8) | jpeg[dqt + 3]
+    segment = jpeg[dqt : dqt + 2 + length]
+    return jpeg[:dqt] + segment + jpeg[dqt:]
+
+
 def with_duplicate_sof0(jpeg: bytes) -> bytes:
     sof0 = jpeg.find(b"\xff\xc0")
     if sof0 < 0:
@@ -347,6 +356,15 @@ def with_extra_dht(jpeg: bytes) -> bytes:
         ]
     )
     return jpeg[:sos] + extra_dht + jpeg[sos:]
+
+
+def with_duplicate_dht(jpeg: bytes) -> bytes:
+    dht = jpeg.find(b"\xff\xc4")
+    if dht < 0:
+        raise AssertionError("DHT marker not found")
+    length = (jpeg[dht + 2] << 8) | jpeg[dht + 3]
+    segment = jpeg[dht : dht + 2 + length]
+    return jpeg[:dht] + segment + jpeg[dht:]
 
 
 def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
@@ -1090,12 +1108,28 @@ class HjpegHostTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "DQT table set"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
+    def test_validate_jpeg_rejects_duplicate_quantization_table_segments(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "duplicate-dqt.jpg"
+            jpeg.write_bytes(with_duplicate_dqt(minimal_jpeg(width=17, height=13)))
+
+            with self.assertRaisesRegex(ValueError, "DQT segment count"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
     def test_validate_jpeg_rejects_nonstandard_huffman_table_set(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             jpeg = Path(tmp) / "extra-dht.jpg"
             jpeg.write_bytes(with_extra_dht(minimal_jpeg(width=17, height=13)))
 
             with self.assertRaisesRegex(ValueError, "DHT table set"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_duplicate_huffman_table_segments(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "duplicate-dht.jpg"
+            jpeg.write_bytes(with_duplicate_dht(minimal_jpeg(width=17, height=13)))
+
+            with self.assertRaisesRegex(ValueError, "DHT segment count"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_rejects_missing_referenced_tables(self) -> None:

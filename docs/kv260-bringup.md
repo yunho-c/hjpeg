@@ -184,8 +184,8 @@ Expected evidence:
   segment are required for a standalone baseline JPEG. The helper records DQT
   table IDs `{0, 1}` and 8-bit DQT precision, DHT table class/ID pairs, and SOS
   component table selectors, and rejects non-8-bit or non-three-component SOF0
-  frames, nonstandard DQT/DHT table sets, non-8-bit DQT tables, plus SOF0 or SOS
-  references to missing DQT/DHT tables. Pass
+  frames, nonstandard DQT/DHT table sets or segment counts, non-8-bit DQT
+  tables, plus SOF0 or SOS references to missing DQT/DHT tables. Pass
   `--restart-interval` to standalone `validate-jpeg` to check the expected
   value; `run-stream-devices` checks this automatically against the configured
   register value.
