@@ -49,6 +49,7 @@ STATUS_PROTOCOL_ERROR = 1 << 1
 
 DEFAULT_MAX_FRAME_WIDTH = 1920
 DEFAULT_MAX_FRAME_HEIGHT = 1080
+DECODER_OUTPUT_CAPTURE_CHARS = 4096
 
 JPEG_HEADER_MARKER_ORDER = {
     0xE0: (0, "APP0"),
@@ -156,6 +157,15 @@ class FileInfo:
     path: str
     byte_length: int
     sha256: str
+
+
+@dataclass(frozen=True)
+class DecoderCommandResult:
+    returncode: int
+    stdout: str
+    stderr: str
+    stdout_truncated: bool
+    stderr_truncated: bool
 
 
 def make_test_image(width: int, height: int) -> PpmImage:
@@ -772,11 +782,17 @@ def decoder_command_argv(jpeg: Path, command: str) -> list[str]:
     return argv
 
 
+def capture_decoder_text(text: str) -> tuple[str, bool]:
+    if len(text) <= DECODER_OUTPUT_CAPTURE_CHARS:
+        return text, False
+    return text[:DECODER_OUTPUT_CAPTURE_CHARS], True
+
+
 def run_decoder_command(
     jpeg: Path,
     command: str,
     timeout_seconds: float = 30.0,
-) -> None:
+) -> DecoderCommandResult:
     if timeout_seconds <= 0:
         raise ValueError("decoder timeout must be positive")
 
@@ -802,6 +818,15 @@ def run_decoder_command(
         detail = (completed.stderr or completed.stdout).strip()
         suffix = f": {detail}" if detail else ""
         raise RuntimeError(f"decoder command failed with exit code {completed.returncode}{suffix}")
+    stdout, stdout_truncated = capture_decoder_text(completed.stdout)
+    stderr, stderr_truncated = capture_decoder_text(completed.stderr)
+    return DecoderCommandResult(
+        returncode=completed.returncode,
+        stdout=stdout,
+        stderr=stderr,
+        stdout_truncated=stdout_truncated,
+        stderr_truncated=stderr_truncated,
+    )
 
 
 def jpeg_info_record(
@@ -810,6 +835,7 @@ def jpeg_info_record(
     decoder_passed: bool | None = None,
     decoder_command: str | None = None,
     decoder_timeout_seconds: float | None = None,
+    decoder_result: DecoderCommandResult | None = None,
 ) -> dict[str, object]:
     record: dict[str, object] = {
         "jpeg": str(jpeg),
@@ -880,6 +906,12 @@ def jpeg_info_record(
         record["decoder_command"] = decoder_command
     if decoder_timeout_seconds is not None:
         record["decoder_timeout_seconds"] = decoder_timeout_seconds
+    if decoder_result is not None:
+        record["decoder_returncode"] = decoder_result.returncode
+        record["decoder_stdout"] = decoder_result.stdout
+        record["decoder_stderr"] = decoder_result.stderr
+        record["decoder_stdout_truncated"] = decoder_result.stdout_truncated
+        record["decoder_stderr_truncated"] = decoder_result.stderr_truncated
     return record
 
 
@@ -921,6 +953,7 @@ def run_evidence_record(
     decoder_passed: bool | None = None,
     decoder_command: str | None = None,
     decoder_timeout_seconds: float | None = None,
+    decoder_result: DecoderCommandResult | None = None,
 ) -> dict[str, object]:
     record = jpeg_info_record(
         jpeg,
@@ -928,6 +961,7 @@ def run_evidence_record(
         decoder_passed,
         decoder_command,
         decoder_timeout_seconds,
+        decoder_result,
     )
     if input_info is not None:
         record["input_rgb"] = {
@@ -981,6 +1015,7 @@ def run_stream_devices(
     check_status: Callable[[str], None] | None = None,
     decoder_command: str | None = None,
     decoder_timeout_seconds: float = 30.0,
+    decoder_results: list[DecoderCommandResult] | None = None,
 ) -> tuple[JpegInfo, FileInfo]:
     require_supported_dimensions(expected_width, expected_height, max_width, max_height)
     rgb = input_rgb.read_bytes()
@@ -1036,7 +1071,13 @@ def run_stream_devices(
         expected_emit_jfif=expected_emit_jfif,
     )
     if decoder_command is not None:
-        run_decoder_command(output_jpeg, decoder_command, decoder_timeout_seconds)
+        decoder_result = run_decoder_command(
+            output_jpeg,
+            decoder_command,
+            decoder_timeout_seconds,
+        )
+        if decoder_results is not None:
+            decoder_results.append(decoder_result)
     if check_status is not None:
         check_status("after transfer")
     return info, input_info
@@ -1384,8 +1425,9 @@ def main(argv: list[str] | None = None) -> int:
             expected_emit_jfif=expected_emit_jfif,
         )
         decoder_passed = None
+        decoder_result = None
         if args.decoder_command is not None:
-            run_decoder_command(
+            decoder_result = run_decoder_command(
                 args.jpeg,
                 args.decoder_command,
                 args.decoder_timeout_seconds,
@@ -1403,6 +1445,7 @@ def main(argv: list[str] | None = None) -> int:
                         decoder_passed,
                         args.decoder_command,
                         decoder_timeout,
+                        decoder_result,
                     ),
                     sort_keys=True,
                 )
@@ -1506,6 +1549,7 @@ def main(argv: list[str] | None = None) -> int:
                 require_idle_status_value(status, context)
                 record_status(context, status)
 
+        decoder_results: list[DecoderCommandResult] = []
         info, input_info = run_stream_devices(
             input_rgb=args.input_rgb,
             output_jpeg=args.output_jpeg,
@@ -1524,11 +1568,13 @@ def main(argv: list[str] | None = None) -> int:
             check_status=check_status,
             decoder_command=args.decoder_command,
             decoder_timeout_seconds=args.decoder_timeout_seconds,
+            decoder_results=decoder_results,
         )
         decoder_passed = True if args.decoder_command is not None else None
         decoder_timeout = (
             args.decoder_timeout_seconds if args.decoder_command is not None else None
         )
+        decoder_result = decoder_results[0] if decoder_results else None
         if args.json:
             print(
                 json.dumps(
@@ -1552,6 +1598,7 @@ def main(argv: list[str] | None = None) -> int:
                         decoder_passed,
                         args.decoder_command,
                         decoder_timeout,
+                        decoder_result,
                     ),
                     sort_keys=True,
                 )

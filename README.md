@@ -199,8 +199,8 @@ To fold a standard decoder into the validation transcript, pass a command with
 `--decoder-command`. The helper replaces `{jpeg}` with the output path, or
 appends the path when no placeholder is present. The decoder subprocess is
 bounded by `--decoder-timeout-seconds`, which defaults to 30 seconds. JSON
-evidence records that the decoder passed, the command string used, and the
-timeout value:
+evidence records that the decoder passed, the command string used, the timeout
+value, the return code, and bounded stdout/stderr:
 
 ```sh
 python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
@@ -229,7 +229,8 @@ precision, DQT/DHT payload byte counts and SHA-256 hashes, APP0 and JFIF APP0
 counts, exact DQT/DHT segment counts, DQT/DHT/DRI/restart marker counts, parsed
 marker sequence, parsed DRI restart interval, RST marker sequence, total JPEG
 byte length, SHA-256, decoder command, and decoder timeout when one was
-provided. The validator rejects non-8-bit or non-three-component SOF0 frames,
+provided, plus decoder return code and bounded stdout/stderr when a decoder
+command ran. The validator rejects non-8-bit or non-three-component SOF0 frames,
 duplicate SOF0/SOS markers, nonstandard SOF0/SOS component IDs, mismatched SOS
 component lists, unsupported SOF0 sampling factors, non-baseline SOS spectral
 fields, unexpected non-RST/non-EOI markers after SOS, nonstandard DQT/DHT table

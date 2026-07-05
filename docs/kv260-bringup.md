@@ -220,8 +220,9 @@ Expected evidence:
   checkpoints enforced after configuration, before transfer, and after
   transfer.
 - A standard JPEG decoder can open `output.jpg`; when `--decoder-command` is
-  used, that decoder check, command string, and timeout are part of the JSON
-  evidence, and decoder failure or timeout fails validation.
+  used, that decoder check, command string, timeout, return code, and bounded
+  stdout/stderr are part of the JSON evidence, and decoder failure or timeout
+  fails validation.
 - The decoded dimensions match the input.
 - Visual content is recognizable for non-flat test images.
 

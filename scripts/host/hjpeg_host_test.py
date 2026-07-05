@@ -973,12 +973,20 @@ class HjpegHostTest(unittest.TestCase):
             self.assertNotIn("decoder_passed", record)
             self.assertNotIn("decoder_command", record)
             self.assertNotIn("decoder_timeout_seconds", record)
+            self.assertNotIn("decoder_returncode", record)
+            self.assertNotIn("decoder_stdout", record)
+            self.assertNotIn("decoder_stderr", record)
 
     def test_validate_jpeg_json_records_decoder_command(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             jpeg = Path(tmp) / "out.jpg"
             jpeg.write_bytes(minimal_jpeg(width=17, height=13))
-            command = f'"{sys.executable}" -c "import sys; open(sys.argv[1], \'rb\').read(2)"'
+            command = (
+                f'"{sys.executable}" -c "import sys; '
+                f'print(\'decoded 17x13\'); '
+                f'print(\'decoder warning\', file=sys.stderr); '
+                f'open(sys.argv[1], \'rb\').read(2)"'
+            )
 
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
@@ -1005,6 +1013,11 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["decoder_passed"])
             self.assertEqual(record["decoder_command"], command)
             self.assertEqual(record["decoder_timeout_seconds"], 2.5)
+            self.assertEqual(record["decoder_returncode"], 0)
+            self.assertEqual(record["decoder_stdout"], "decoded 17x13\n")
+            self.assertEqual(record["decoder_stderr"], "decoder warning\n")
+            self.assertFalse(record["decoder_stdout_truncated"])
+            self.assertFalse(record["decoder_stderr_truncated"])
 
     def test_validate_jpeg_can_check_expected_restart_interval(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1247,14 +1260,38 @@ class HjpegHostTest(unittest.TestCase):
                 f'"{sys.executable}" -c "import pathlib, sys; '
                 f'pathlib.Path(r\'{marker}\').write_text(pathlib.Path(sys.argv[1].split(\'=\', 1)[1]).name)" file={{jpeg}}'
             )
-            hjpeg_host.run_decoder_command(jpeg, command)
+            result = hjpeg_host.run_decoder_command(jpeg, command)
             self.assertEqual(marker.read_text(), "out.jpg")
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(result.stderr, "")
+            self.assertFalse(result.stdout_truncated)
+            self.assertFalse(result.stderr_truncated)
 
             with self.assertRaisesRegex(RuntimeError, "decoder command failed"):
                 hjpeg_host.run_decoder_command(
                     jpeg,
                     f'"{sys.executable}" -c "import sys; print(\'bad\', file=sys.stderr); sys.exit(3)"',
                 )
+
+    def test_decoder_command_output_is_bounded(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "out.jpg"
+            jpeg.write_bytes(minimal_jpeg(width=17, height=13))
+            stdout_text = "o" * (hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS + 3)
+            stderr_text = "e" * (hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS + 5)
+
+            result = hjpeg_host.run_decoder_command(
+                jpeg,
+                f'"{sys.executable}" -c "import sys; '
+                f'sys.stdout.write(\'{stdout_text}\'); '
+                f'sys.stderr.write(\'{stderr_text}\')"',
+            )
+
+            self.assertEqual(len(result.stdout), hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS)
+            self.assertEqual(len(result.stderr), hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS)
+            self.assertTrue(result.stdout_truncated)
+            self.assertTrue(result.stderr_truncated)
 
     def test_decoder_command_reports_timeout(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1879,7 +1916,8 @@ class HjpegHostTest(unittest.TestCase):
             mem.write_bytes(bytes(hjpeg_host.AXI_LITE_APERTURE_BYTES))
             decoder_command = (
                 f'"{sys.executable}" -c "import pathlib, sys; '
-                f'pathlib.Path(r\'{decoder_marker}\').write_text(pathlib.Path(sys.argv[1]).read_bytes()[:2].hex())"'
+                f'pathlib.Path(r\'{decoder_marker}\').write_text(pathlib.Path(sys.argv[1]).read_bytes()[:2].hex()); '
+                f'print(\'decoded 2x1\')"'
             )
 
             stdout = io.StringIO()
@@ -1953,6 +1991,11 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["decoder_passed"])
             self.assertEqual(record["decoder_command"], decoder_command)
             self.assertEqual(record["decoder_timeout_seconds"], 2.5)
+            self.assertEqual(record["decoder_returncode"], 0)
+            self.assertEqual(record["decoder_stdout"], "decoded 2x1\n")
+            self.assertEqual(record["decoder_stderr"], "")
+            self.assertFalse(record["decoder_stdout_truncated"])
+            self.assertFalse(record["decoder_stderr_truncated"])
             self.assertEqual(decoder_marker.read_text(), "ffd8")
             self.assertEqual(
                 [status["context"] for status in record["status_checks"]],

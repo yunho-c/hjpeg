@@ -264,9 +264,9 @@ Recent host/Vivado helper work made the evidence path machine-readable. The
 host helper now supports JSON evidence for `make-test-ppm`, `pack-ppm`,
 `config`, `status`, `validate-jpeg`, and `run-stream-devices`. The run evidence
 ties together the input RGB stream hash, output JPEG hash, AXI-Lite target,
-encoder configuration, status checkpoints, and optional decoder command plus
-the decoder timeout. Host JPEG validation now checks more than dimensions: it
-requires DQT and DHT
+encoder configuration, status checkpoints, optional decoder command, decoder
+timeout, and bounded decoder stdout/stderr. Host JPEG validation now checks more
+than dimensions: it requires DQT and DHT
 markers, records DQT/DHT table IDs and SOS component table selectors, rejects
 dangling table references, records APP0/DQT/DHT/DRI/RST marker counts, parses
 DRI restart intervals, requires exactly one SOF0 and one SOS segment, requires
@@ -487,7 +487,8 @@ Hardware completion evidence should include:
   marker counts, parsed marker sequence, stuffed entropy `0xff` byte count,
   JFIF APP0 signature count, restart interval and RST sequence evidence,
   DQT/DHT table IDs and payload hashes, Huffman table set, SOS table selectors,
-  chroma mode, JFIF evidence, decoder command, and decoder timeout.
+  chroma mode, JFIF evidence, decoder command, decoder timeout, and bounded
+  decoder stdout/stderr.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 
@@ -503,7 +504,8 @@ fixture for repeatable visual checks when no external image is available. Pass
 command to `validate-jpeg` or `run-stream-devices` when you want the standard
 decoder-open check captured in JSON evidence. Use
 `--decoder-timeout-seconds` to bound that subprocess; the default is 30
-seconds.
+seconds. Successful decoder stdout/stderr are captured in bounded JSON fields,
+which is useful for commands that print decoded dimensions.
 
 ## Known Blockers And Bottlenecks
 

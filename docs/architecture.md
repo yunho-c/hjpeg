@@ -145,12 +145,13 @@ DQT, SOF0, DHT, optional DRI, SOS, entropy, and EOI, records the parsed marker
 sequence, RST marker sequence, and MCU count in JSON evidence, rejects RST
 markers without DRI or out-of-sequence RST markers, and requires the SOF0
 sampling factors to match the supported 4:4:4 or 4:2:0 modes. The helper
-can also run an external JPEG decoder command with a configurable timeout so
-decoder-open evidence is captured in the same transcript without risking a hung
-validation run. Standalone validation can require an expected restart interval,
-exact RST marker count for the parsed MCU count, and chroma/JFIF mode, and
-`run-stream-devices` checks the configured restart interval, chroma mode, and
-JFIF setting against the captured JPEG automatically.
+can also run an external JPEG decoder command with a configurable timeout and
+bounded stdout/stderr capture so decoder-open evidence is captured in the same
+transcript without risking a hung or oversized validation run. Standalone
+validation can require an expected restart interval, exact RST marker count for
+the parsed MCU count, and chroma/JFIF mode, and `run-stream-devices` checks the
+configured restart interval, chroma mode, and JFIF setting against the captured
+JPEG automatically.
 The `run-stream-devices` command supports Linux board images that expose DMA
 MM2S/S2MM endpoints as byte-stream device files by writing padded RGB bytes to
 the TX device and reading JPEG bytes from the RX device until EOI, while
