@@ -187,8 +187,9 @@ Expected evidence:
   non-three-component SOF0 frames, nonstandard DQT/DHT table sets or segment
   counts, non-8-bit DQT tables, plus SOF0 or SOS references to missing DQT/DHT
   tables. Pass `--restart-interval` to standalone `validate-jpeg` to check the
-  expected value; `run-stream-devices` checks this automatically against the
-  configured register value.
+  expected DRI value and exact RST marker count for the parsed MCU count;
+  `run-stream-devices` checks this automatically against the configured
+  register value.
 - The helper rejects baseline header markers that move out of the encoder's
   expected order: optional APP0/JFIF, DQT, SOF0, DHT, optional DRI, SOS, entropy
   data, then EOI. JSON evidence includes the parsed `marker_sequence`.

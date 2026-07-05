@@ -198,6 +198,19 @@ def with_dri_segment(jpeg: bytes, restart_interval: int) -> bytes:
     return jpeg[:sos_offset] + dri + jpeg[sos_offset:]
 
 
+def with_scan_restart_marker(jpeg: bytes, restart_marker: int = 0) -> bytes:
+    if not 0 <= restart_marker <= 7:
+        raise AssertionError("restart marker must be in 0..7")
+    eoi_payload = b"\x7f\xff\xd9"
+    if eoi_payload not in jpeg:
+        raise AssertionError("minimal scan payload not found")
+    return jpeg.replace(
+        eoi_payload,
+        bytes([0x7F, 0xFF, 0xD0 + restart_marker, 0x55, 0xFF, 0xD9]),
+        1,
+    )
+
+
 def without_segment(jpeg: bytes, marker: bytes) -> bytes:
     marker_offset = jpeg.find(marker)
     if marker_offset < 0:
@@ -887,8 +900,15 @@ class HjpegHostTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             jpeg = root / "restart.jpg"
+            missing_rst = root / "missing-rst.jpg"
             no_restart = root / "no-restart.jpg"
-            jpeg.write_bytes(with_dri_segment(minimal_jpeg(width=17, height=13), 4))
+            jpeg.write_bytes(
+                with_dri_segment(
+                    with_scan_restart_marker(minimal_jpeg(width=17, height=13)),
+                    4,
+                )
+            )
+            missing_rst.write_bytes(with_dri_segment(minimal_jpeg(width=17, height=13), 4))
             no_restart.write_bytes(minimal_jpeg(width=17, height=13))
 
             info = hjpeg_host.validate_jpeg(
@@ -898,6 +918,7 @@ class HjpegHostTest(unittest.TestCase):
                 expected_restart_interval=4,
             )
             self.assertEqual(info.restart_interval, 4)
+            self.assertEqual(info.restart_markers, 1)
 
             with self.assertRaisesRegex(ValueError, "expected 3"):
                 hjpeg_host.validate_jpeg(
@@ -913,7 +934,14 @@ class HjpegHostTest(unittest.TestCase):
                     expected_height=13,
                     expected_restart_interval=0,
                 )
-            with self.assertRaisesRegex(ValueError, "expected 4"):
+            with self.assertRaisesRegex(ValueError, "restart marker count"):
+                hjpeg_host.validate_jpeg(
+                    missing_rst,
+                    expected_width=17,
+                    expected_height=13,
+                    expected_restart_interval=4,
+                )
+            with self.assertRaisesRegex(ValueError, "DRI segment count"):
                 hjpeg_host.validate_jpeg(
                     no_restart,
                     expected_width=17,
@@ -924,7 +952,12 @@ class HjpegHostTest(unittest.TestCase):
     def test_validate_jpeg_cli_can_check_restart_interval(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             jpeg = Path(tmp) / "restart.jpg"
-            jpeg.write_bytes(with_dri_segment(minimal_jpeg(width=17, height=13), 4))
+            jpeg.write_bytes(
+                with_dri_segment(
+                    with_scan_restart_marker(minimal_jpeg(width=17, height=13)),
+                    4,
+                )
+            )
 
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
@@ -1370,15 +1403,35 @@ class HjpegHostTest(unittest.TestCase):
 
     def test_validate_jpeg_rejects_malformed_dri_segment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            jpeg = Path(tmp) / "bad-dri.jpg"
+            root = Path(tmp)
+            jpeg = root / "bad-dri.jpg"
+            zero_dri = root / "zero-dri.jpg"
+            duplicate_dri = root / "duplicate-dri.jpg"
             malformed = with_dri_segment(minimal_jpeg(width=17, height=13), 2).replace(
                 b"\xff\xdd\x00\x04",
                 b"\xff\xdd\x00\x03",
             )
             jpeg.write_bytes(malformed)
+            zero_dri.write_bytes(
+                with_dri_segment(minimal_jpeg(width=17, height=13), 0)
+            )
+            duplicate_dri.write_bytes(
+                with_dri_segment(
+                    with_dri_segment(minimal_jpeg(width=17, height=13), 2),
+                    2,
+                )
+            )
 
             with self.assertRaisesRegex(ValueError, "DRI"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+            with self.assertRaisesRegex(ValueError, "restart interval is 0"):
+                hjpeg_host.validate_jpeg(zero_dri, expected_width=17, expected_height=13)
+            with self.assertRaisesRegex(ValueError, "DRI segment count"):
+                hjpeg_host.validate_jpeg(
+                    duplicate_dri,
+                    expected_width=17,
+                    expected_height=13,
+                )
 
     def test_configure_registers_writes_axi_lite_map(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1745,7 +1798,7 @@ class HjpegHostTest(unittest.TestCase):
             input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
             rx_device.write_bytes(minimal_jpeg(width=2, height=1))
 
-            with self.assertRaisesRegex(ValueError, "expected 2"):
+            with self.assertRaisesRegex(ValueError, "DRI segment count"):
                 hjpeg_host.run_stream_devices(
                     input_rgb=input_rgb,
                     output_jpeg=output_jpeg,

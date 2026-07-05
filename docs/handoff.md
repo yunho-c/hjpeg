@@ -273,9 +273,10 @@ DRI restart intervals, requires exactly one SOF0 and one SOS segment, requires
 requires SOF0/SOS component IDs in `[1, 2, 3]` order, requires baseline SOS
 spectral fields `0/63/0`, records SOF0 component sampling factors, requires
 standard DQT table IDs `{0, 1}` with 8-bit precision, requires exact DQT/DHT
-segment counts, requires the standard DC/AC Huffman table set, records JFIF APP0
-signature count, infers 4:4:4 versus 4:2:0, and can enforce expected restart
-interval, chroma mode, and JFIF APP0 signature presence.
+segment counts, requires the standard DC/AC Huffman table set, records parsed
+marker sequence and JFIF APP0 signature count, infers 4:4:4 versus 4:2:0, and
+can enforce expected restart interval, exact RST marker count for the parsed MCU
+count, chroma mode, and JFIF APP0 signature presence.
 `run-stream-devices` enforces those expectations automatically from the
 configured AXI-Lite control fields.
 
@@ -467,9 +468,9 @@ Hardware completion evidence should include:
   ID order, exact SOS component coverage, baseline SOS spectral fields, 8-bit
   DQT precision, exact DQT table set, exact DQT/DHT segment counts, standard
   DC/AC Huffman table set, SOF0 component sampling factors, chroma mode, DRI
-  restart interval, restart markers, JFIF APP0 signature presence, and valid
-  DQT/DHT table references from SOF0/SOS, with the expected baseline marker
-  order through SOS and EOI.
+  restart interval, exact RST marker count for the parsed MCU count, JFIF APP0
+  signature presence, and valid DQT/DHT table references from SOF0/SOS, with
+  the expected baseline marker order through SOS and EOI.
 - JSON evidence records the bitstream/XSA/report hashes, PPM/RGB input hashes,
   AXI-Lite target, encoder configuration, status checkpoints, output JPEG hash,
   scan payload length, SOF0/SOS marker counts, SOF0 sample precision, SOF0/SOS

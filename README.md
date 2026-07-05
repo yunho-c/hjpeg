@@ -228,7 +228,8 @@ mismatched SOS component lists, non-baseline SOS spectral fields, nonstandard
 DQT/DHT table sets or segment counts, non-8-bit DQT tables, and SOF0 or SOS
 references to missing DQT/DHT tables. Pass
 `validate-jpeg --restart-interval N` to require the parsed DRI interval to match
-`N`, or `0` to require no DRI/RST markers. Pass
+`N` and the scan to contain the expected number of RST markers for the parsed
+MCU count, or `0` to require no DRI/RST markers. Pass
 `--check-chroma-mode` with `--chroma-subsample` when validating a standalone
 4:2:0 file. Pass `--expect-jfif present` or `absent` to check optional JFIF APP0
 signature emission. For `run-stream-devices`, the configured restart interval,

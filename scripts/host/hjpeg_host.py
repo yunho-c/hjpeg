@@ -469,6 +469,10 @@ def jpeg_info(data: bytes) -> JpegInfo:
         )
     if dht_segments != 4:
         raise ValueError(f"JPEG DHT segment count is {dht_segments}, expected 4")
+    if dri_segments > 1:
+        raise ValueError(f"JPEG DRI segment count is {dri_segments}, expected 0 or 1")
+    if restart_interval == 0:
+        raise ValueError("JPEG DRI restart interval is 0, expected no DRI segment")
     if not saw_sos:
         raise ValueError("JPEG output does not contain an SOS segment")
     if sos_segments != 1:
@@ -594,17 +598,49 @@ def require_jfif(info: JpegInfo, expected_emit_jfif: bool) -> None:
         raise ValueError("JPEG contains APP0/JFIF, but JFIF emission was disabled")
 
 
+def jpeg_mcu_count(info: JpegInfo) -> int:
+    max_horizontal_sampling = max(
+        component.horizontal_sampling for component in info.components
+    )
+    max_vertical_sampling = max(
+        component.vertical_sampling for component in info.components
+    )
+    mcu_width = max_horizontal_sampling * 8
+    mcu_height = max_vertical_sampling * 8
+    columns = (info.width + mcu_width - 1) // mcu_width
+    rows = (info.height + mcu_height - 1) // mcu_height
+    return columns * rows
+
+
 def require_restart_interval(info: JpegInfo, expected_restart_interval: int) -> None:
     if expected_restart_interval < 0:
         raise ValueError("expected restart interval must be nonnegative")
     if expected_restart_interval == 0:
-        if info.dri_segments != 0 or info.restart_interval is not None or info.restart_markers != 0:
-            raise ValueError("JPEG contains restart markers or DRI, but restart interval 0 was expected")
+        if (
+            info.dri_segments != 0
+            or info.restart_interval is not None
+            or info.restart_markers != 0
+        ):
+            raise ValueError(
+                "JPEG contains restart markers or DRI, but restart interval 0 was expected"
+            )
         return
+    if info.dri_segments != 1:
+        raise ValueError(
+            f"JPEG DRI segment count is {info.dri_segments}, expected 1"
+        )
     if info.restart_interval != expected_restart_interval:
         actual = "none" if info.restart_interval is None else str(info.restart_interval)
         raise ValueError(
             f"JPEG restart interval is {actual}, expected {expected_restart_interval}"
+        )
+    expected_restart_markers = (
+        jpeg_mcu_count(info) - 1
+    ) // expected_restart_interval
+    if info.restart_markers != expected_restart_markers:
+        raise ValueError(
+            f"JPEG restart marker count is {info.restart_markers}, "
+            f"expected {expected_restart_markers}"
         )
 
 
