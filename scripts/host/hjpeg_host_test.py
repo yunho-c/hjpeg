@@ -1515,6 +1515,11 @@ class HjpegHostTest(unittest.TestCase):
                 record["status_check_contexts"],
                 ["after configuration", "before transfer", "after transfer"],
             )
+            self.assertEqual(
+                record["expected_status_check_contexts"],
+                ["after configuration", "before transfer", "after transfer"],
+            )
+            self.assertTrue(record["status_check_contexts_match_expected"])
             self.assertTrue(record["status_checks_all_idle"])
             self.assertFalse(record["status_checks_any_protocol_error"])
             self.assertFalse(record["status_checks_any_busy"])
@@ -1535,6 +1540,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(faulted["status_checks_all_idle"])
             self.assertTrue(faulted["status_checks_any_protocol_error"])
             self.assertTrue(faulted["status_checks_any_busy"])
+            self.assertFalse(faulted["status_check_contexts_match_expected"])
 
     def test_run_evidence_record_reports_transfer_rates_for_positive_elapsed_time(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -3426,6 +3432,11 @@ class HjpegHostTest(unittest.TestCase):
                 record["status_check_contexts"],
                 ["after configuration", "before transfer", "after transfer"],
             )
+            self.assertEqual(
+                record["expected_status_check_contexts"],
+                ["after configuration", "before transfer", "after transfer"],
+            )
+            self.assertTrue(record["status_check_contexts_match_expected"])
             self.assertTrue(record["status_checks_all_idle"])
             self.assertFalse(record["status_checks_any_protocol_error"])
             self.assertFalse(record["status_checks_any_busy"])

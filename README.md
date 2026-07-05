@@ -312,8 +312,9 @@ standard DHT payloads are checked against the captured JPEG automatically; the
 run evidence also records those validation expectations, the input RGB stream
 byte length, expected byte length, whether those lengths matched, and SHA-256,
 host capture limits, plus the AXI-Lite target, status checkpoints enforced
-during the run, status checkpoint count, status checkpoint context list, and
-run-level summaries for all-idle, any-busy, and any-protocol-error checkpoints.
+during the run, status checkpoint count, actual and expected status checkpoint
+context lists, whether those lists matched, and run-level summaries for
+all-idle, any-busy, and any-protocol-error checkpoints.
 Maximum output bytes must be positive, and RX timeout values must be finite and
 positive when present. It
 also records host-observed transfer elapsed seconds and derived byte rates when

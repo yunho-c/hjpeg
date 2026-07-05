@@ -659,9 +659,9 @@ restart interval, chroma mode, or JFIF setting. It also rejects trailing bytes
 already returned after the first JPEG EOI instead of writing a truncated
 artifact, and its JSON evidence records the dimensions, restart interval,
 chroma mode, JFIF setting, quality, standard Huffman expectations, status
-checkpoint count, ordered checkpoint context list, and run-level
-all-idle/any-busy/any-protocol-error summaries that were checked against the
-captured JPEG. `make-test-ppm` can generate a deterministic non-flat/color P6 PPM
+checkpoint count, actual and expected checkpoint context lists, context-list
+match result, and run-level all-idle/any-busy/any-protocol-error summaries that
+were checked against the captured JPEG. `make-test-ppm` can generate a deterministic non-flat/color P6 PPM
 fixture for repeatable visual checks when no external image is available; PPM
 JSON evidence records channel min/max values plus non-flat/color flags.
 `run-stream-devices --input-ppm` validates the source PPM dimensions and packed

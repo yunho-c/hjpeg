@@ -51,6 +51,11 @@ STATUS_PROTOCOL_ERROR = 1 << 1
 
 DEFAULT_MAX_FRAME_WIDTH = 1920
 DEFAULT_MAX_FRAME_HEIGHT = 1080
+RUN_STATUS_CHECK_CONTEXTS = [
+    "after configuration",
+    "before transfer",
+    "after transfer",
+]
 DECODER_OUTPUT_CAPTURE_CHARS = 4096
 
 JPEG_HEADER_MARKER_ORDER = {
@@ -1602,6 +1607,10 @@ def run_evidence_record(
         record["status_check_contexts"] = [
             str(status_check.get("context", "")) for status_check in status_checks
         ]
+        record["expected_status_check_contexts"] = RUN_STATUS_CHECK_CONTEXTS
+        record["status_check_contexts_match_expected"] = (
+            record["status_check_contexts"] == RUN_STATUS_CHECK_CONTEXTS
+        )
         record["status_checks_all_idle"] = all(
             status_check.get("text") == "idle" for status_check in status_checks
         )
