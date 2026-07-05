@@ -380,6 +380,18 @@ def with_sos_spectral_fields(jpeg: bytes, start: int, end: int, successive: int)
     return bytes(mutated)
 
 
+def with_sof0_dimensions(jpeg: bytes, width: int, height: int) -> bytes:
+    sof0 = jpeg.find(b"\xff\xc0\x00\x11")
+    if sof0 < 0:
+        raise AssertionError("SOF0 marker not found")
+    mutated = bytearray(jpeg)
+    mutated[sof0 + 5] = (height >> 8) & 0xFF
+    mutated[sof0 + 6] = height & 0xFF
+    mutated[sof0 + 7] = (width >> 8) & 0xFF
+    mutated[sof0 + 8] = width & 0xFF
+    return bytes(mutated)
+
+
 def with_sof0_sampling_factors(jpeg: bytes, factors: tuple[int, int, int]) -> bytes:
     sof0 = jpeg.find(b"\xff\xc0\x00\x11")
     if sof0 < 0:
@@ -969,6 +981,23 @@ class HjpegHostTest(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "expected 16x13"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=16, expected_height=13)
+
+    def test_validate_jpeg_rejects_zero_sof0_dimensions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            zero_width = root / "zero-width.jpg"
+            zero_height = root / "zero-height.jpg"
+            zero_width.write_bytes(
+                with_sof0_dimensions(minimal_jpeg(width=17, height=13), width=0, height=13)
+            )
+            zero_height.write_bytes(
+                with_sof0_dimensions(minimal_jpeg(width=17, height=13), width=17, height=0)
+            )
+
+            with self.assertRaisesRegex(ValueError, "expected nonzero dimensions"):
+                hjpeg_host.validate_jpeg(zero_width, expected_width=17, expected_height=13)
+            with self.assertRaisesRegex(ValueError, "expected nonzero dimensions"):
+                hjpeg_host.validate_jpeg(zero_height, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_rejects_non_eight_bit_sof0_precision(self) -> None:
         data = minimal_jpeg(width=17, height=13).replace(

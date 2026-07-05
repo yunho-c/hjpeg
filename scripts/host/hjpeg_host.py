@@ -528,6 +528,10 @@ def jpeg_info(data: bytes) -> JpegInfo:
             sample_precision = data[offset + 2]
             height = _read_be16(data, offset + 3)
             width = _read_be16(data, offset + 5)
+            if width == 0 or height == 0:
+                raise ValueError(
+                    f"JPEG SOF0 dimensions are {width}x{height}, expected nonzero dimensions"
+                )
             component_count = data[offset + 7]
             if segment_length != 8 + component_count * 3:
                 raise ValueError("SOF0 segment length does not match component count")
