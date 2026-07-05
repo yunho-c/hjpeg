@@ -262,9 +262,9 @@ Expected evidence:
   `complete_hardware_run_evidence` is false. The checker recomputes
   `hardware_run_summary` from the saved transcript and fails if the stored
   summary does not match the recomputed evidence. JSON output includes the
-  aggregate checked/pass/fail counts plus the recomputed summary, evidence/check
-  counts, missing evidence groups, and failing check names for each object-shaped
-  transcript.
+  aggregate checked/pass/fail counts and passed/failed path lists plus the
+  recomputed summary, evidence/check counts, missing evidence groups, and
+  failing check names for each object-shaped transcript.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after

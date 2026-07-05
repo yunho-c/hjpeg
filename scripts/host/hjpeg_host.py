@@ -3039,6 +3039,16 @@ def main(argv: list[str] | None = None) -> int:
             failures.extend(record_failures)
         passed_count = sum(1 for record in records if record.get("passed") is True)
         failed_count = len(records) - passed_count
+        passed_paths = [
+            str(record.get("path"))
+            for record in records
+            if record.get("passed") is True
+        ]
+        failed_paths = [
+            str(record.get("path"))
+            for record in records
+            if record.get("passed") is not True
+        ]
         if args.json:
             print(
                 json.dumps(
@@ -3047,6 +3057,8 @@ def main(argv: list[str] | None = None) -> int:
                         "checked_count": len(records),
                         "passed_count": passed_count,
                         "failed_count": failed_count,
+                        "passed_paths": passed_paths,
+                        "failed_paths": failed_paths,
                         "records": records,
                         "failures": failures,
                     },

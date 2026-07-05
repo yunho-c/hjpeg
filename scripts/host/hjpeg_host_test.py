@@ -2723,6 +2723,11 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["checked_count"], 4)
             self.assertEqual(record["passed_count"], 1)
             self.assertEqual(record["failed_count"], 3)
+            self.assertEqual(record["passed_paths"], [str(complete)])
+            self.assertEqual(
+                record["failed_paths"],
+                [str(incomplete), str(malformed), str(missing)],
+            )
             self.assertTrue(record["records"][0]["passed"])
             self.assertFalse(record["records"][1]["passed"])
             self.assertIn(
