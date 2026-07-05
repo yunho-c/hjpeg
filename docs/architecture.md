@@ -140,11 +140,13 @@ hardware-tool entry points:
   lists, and pass/fail state for build evidence logs.
   Required evidence category presence is based on at least
   one passing record in that category, not just a requested input path. Complete
+  Vivado evidence also requires every supplied required evidence category and
+  required `.bit`/`.xsa` artifact suffix to have no failing records. Complete
   Vivado evidence counts only records whose `passed` field is an actual JSON
   boolean `true`. Missing or unparseable reports are included as structured
   failure records. Full bitstream gates can pass `--require-complete-evidence`
   to fail unless all required categories, address-map evidence, and `.bit`/`.xsa`
-  artifact suffixes are present.
+  artifact suffixes are present and passing.
 
 These scripts are intended to be run after:
 

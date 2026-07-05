@@ -135,13 +135,14 @@ Pass criteria:
   checked/passed/failed path lists, complete-evidence required/missing/failing
   lists, and pass/fail state.
   Complete Vivado flow evidence has
-  `all_required_present` and `all_required_suffixes_present` true.
-  `all_required_present` requires at least one passing record in each required
-  category, not just a requested input path. Complete Vivado evidence counts
-  only records whose `passed` field is an actual JSON boolean `true`. Missing,
-  non-file, or unparseable reports are recorded as structured JSON failures.
-  Full bitstream evidence gates should pass `--require-complete-evidence`;
-  partial post-synthesis checks can omit it.
+  `all_required_present` and `all_required_suffixes_present` true, with no
+  failing records in the required evidence categories or required `.bit`/`.xsa`
+  artifact suffixes. `all_required_present` requires at least one passing record
+  in each required category, not just a requested input path. Complete Vivado
+  evidence counts only records whose `passed` field is an actual JSON boolean
+  `true`. Missing, non-file, or unparseable reports are recorded as structured
+  JSON failures. Full bitstream evidence gates should pass
+  `--require-complete-evidence`; partial post-synthesis checks can omit it.
   Timing thresholds, utilization threshold, and target clock period values must
   be finite. The target clock period must be positive,
   and the utilization threshold must be nonnegative.

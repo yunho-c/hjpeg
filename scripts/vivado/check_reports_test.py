@@ -656,6 +656,89 @@ class CheckReportsTest(unittest.TestCase):
                 any("missing required artifact suffixes" in failure for failure in record["failures"])
             )
 
+    def test_complete_vivado_flow_evidence_rejects_failing_supplied_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact = root / "hjpeg_kv260.bit"
+            xsa = root / "hjpeg_kv260.xsa"
+            empty_xsa = root / "empty.xsa"
+            address_map = root / "hjpeg_kv260_address_map.rpt"
+            timing = root / "timing.rpt"
+            bad_timing = root / "bad_timing.rpt"
+            utilization = root / "util.rpt"
+            drc = root / "post_impl_drc.rpt"
+            route_status = root / "post_impl_route_status.rpt"
+            clock_utilization = root / "post_impl_clock_utilization.rpt"
+            artifact.write_bytes(b"bitstream")
+            xsa.write_bytes(b"xsa")
+            empty_xsa.write_bytes(b"")
+            address_map.write_text(ADDRESS_MAP_REPORT)
+            timing.write_text(TIMING_TABLE)
+            bad_timing.write_text("WNS(ns): -0.010\nWHS(ns): 0.010\n")
+            utilization.write_text(VIVADO_UTILIZATION_TABLE)
+            drc.write_text(DRC_CLEAN_REPORT)
+            route_status.write_text(ROUTE_STATUS_CLEAN_REPORT)
+            clock_utilization.write_text("Clock Utilization\n")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    check_reports.main(
+                        [
+                            "--artifact",
+                            str(artifact),
+                            "--artifact",
+                            str(xsa),
+                            "--artifact",
+                            str(empty_xsa),
+                            "--address-map",
+                            str(address_map),
+                            "--timing",
+                            str(timing),
+                            "--timing",
+                            str(bad_timing),
+                            "--hold-timing",
+                            str(timing),
+                            "--utilization",
+                            str(utilization),
+                            "--drc",
+                            str(drc),
+                            "--route-status",
+                            str(route_status),
+                            "--clock-utilization",
+                            str(clock_utilization),
+                            "--require-complete-evidence",
+                            "--json",
+                        ]
+                    ),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertFalse(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["complete_vivado_flow_evidence_required"])
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_missing_categories"], []
+            )
+            self.assertEqual(record["complete_vivado_flow_evidence_missing_suffixes"], [])
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_failing_categories"],
+                ["artifacts", "timing"],
+            )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_failing_suffixes"], [".xsa"]
+            )
+            self.assertTrue(record["evidence_categories"]["all_required_present"])
+            self.assertTrue(record["artifact_suffixes"]["all_required_suffixes_present"])
+            self.assertEqual(record["artifact_suffixes"]["failing_suffix_counts"], {".xsa": 1})
+            self.assertTrue(
+                any("failing required categories" in failure for failure in record["failures"])
+            )
+            self.assertTrue(
+                any("failing required artifact suffixes" in failure for failure in record["failures"])
+            )
+
     def test_evidence_categories_require_strict_passed_booleans(self) -> None:
         record = check_reports.evidence_category_record(
             {

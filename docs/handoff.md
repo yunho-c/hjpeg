@@ -431,13 +431,14 @@ required/present/missing category and suffix counts, diagnostic failure count,
 checked/passed/failed path lists, complete-evidence required/missing/failing
 lists, and pass/fail state.
 Complete Vivado flow evidence should have `all_required_present` and
-`all_required_suffixes_present` true. `all_required_present` requires at least
-one passing record in each required category, not just a requested input path.
-Complete Vivado evidence counts only records whose `passed` field is an actual
-JSON boolean `true`. Missing, non-file, or unparseable reports are recorded as
-structured JSON failures instead of aborting the transcript. Full bitstream
-gates should pass `--require-complete-evidence`; partial post-synthesis checks
-can omit it.
+`all_required_suffixes_present` true, with no failing records in the required
+evidence categories or required `.bit`/`.xsa` artifact suffixes.
+`all_required_present` requires at least one passing record in each required
+category, not just a requested input path. Complete Vivado evidence counts only
+records whose `passed` field is an actual JSON boolean `true`. Missing, non-file,
+or unparseable reports are recorded as structured JSON failures instead of
+aborting the transcript. Full bitstream gates should pass
+`--require-complete-evidence`; partial post-synthesis checks can omit it.
 Requested artifacts, clock-utilization reports, and address-map reports must be
 non-empty. Address-map reports must include parseable base addresses for both
 the HJPEG AXI-Lite control aperture and the AXI DMA control aperture, and those

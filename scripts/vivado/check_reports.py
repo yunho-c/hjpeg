@@ -923,14 +923,16 @@ def main(argv: list[str] | None = None) -> int:
         }
     )
     artifact_suffixes = artifact_suffix_record(artifact_records)
-    complete_vivado_flow_evidence = bool(
-        evidence_categories["all_required_present"]
-        and artifact_suffixes["all_required_suffixes_present"]
-    )
     missing_categories = evidence_categories["missing_required_categories"]
     missing_suffixes = artifact_suffixes["missing_required_suffixes"]
     failing_categories = evidence_categories["failing_categories"]
     failing_suffixes = artifact_suffixes["failing_required_suffixes"]
+    complete_vivado_flow_evidence = bool(
+        evidence_categories["all_required_present"]
+        and artifact_suffixes["all_required_suffixes_present"]
+        and not failing_categories
+        and not failing_suffixes
+    )
     if args.require_complete_evidence and not complete_vivado_flow_evidence:
         if missing_categories:
             failures.append(
@@ -941,6 +943,16 @@ def main(argv: list[str] | None = None) -> int:
             failures.append(
                 "complete Vivado flow evidence missing required artifact suffixes: "
                 + ", ".join(str(suffix) for suffix in missing_suffixes)
+            )
+        if failing_categories:
+            failures.append(
+                "complete Vivado flow evidence has failing required categories: "
+                + ", ".join(str(category) for category in failing_categories)
+            )
+        if failing_suffixes:
+            failures.append(
+                "complete Vivado flow evidence has failing required artifact suffixes: "
+                + ", ".join(str(suffix) for suffix in failing_suffixes)
             )
 
     if args.json:
