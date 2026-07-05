@@ -50,6 +50,52 @@ class HjpegAxiStreamCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
     bytes.toSeq
   }
 
+  private def emitAxiFrame(
+      dut: HjpegAxiStreamCore,
+      width: Int,
+      height: Int,
+      readyAt: Int => Boolean = _ => true)(pixelAt: Int => (Int, Int, Int)): Seq[Int] = {
+    pokeConfig(dut, width = width, height = height)
+    dut.io.clearProtocolError.poke(false.B)
+    dut.io.input.valid.poke(false.B)
+    dut.io.output.ready.poke(false.B)
+
+    val bytes = scala.collection.mutable.ArrayBuffer.empty[Int]
+    val pixels = width * height
+    var nextPixel = 0
+    var sawLast = false
+    var cycles = 0
+    val maxCycles = pixels * 4096 + JpegHeaderBytes.MaxHeaderLength + 4096
+    while (!sawLast) {
+      assert(cycles < maxCycles, "timeout waiting for backpressured AXI JPEG output")
+
+      val outputReady = readyAt(cycles)
+      dut.io.output.ready.poke(outputReady.B)
+      if (dut.io.output.valid.peek().litToBoolean && outputReady) {
+        dut.io.output.bits.keep.expect(1.U)
+        bytes += dut.io.output.bits.data.peek().litValue.toInt
+        sawLast = dut.io.output.bits.last.peek().litToBoolean
+      }
+
+      if (nextPixel < pixels && dut.io.input.ready.peek().litToBoolean) {
+        val (r, g, b) = pixelAt(nextPixel)
+        dut.io.input.valid.poke(true.B)
+        dut.io.input.bits.keep.poke(7.U)
+        dut.io.input.bits.data.poke((BigInt(r) | (BigInt(g) << 8) | (BigInt(b) << 16)).U)
+        dut.io.input.bits.last.poke((nextPixel == pixels - 1).B)
+        nextPixel += 1
+      } else {
+        dut.io.input.valid.poke(false.B)
+      }
+
+      dut.clock.step()
+      cycles += 1
+    }
+    dut.io.input.valid.poke(false.B)
+    dut.io.output.ready.poke(true.B)
+    bytes.toSeq
+  }
+
   private def pokeCoreConfig(dut: HjpegCore, width: Int, height: Int): Unit = {
     dut.io.config.xsize.poke(width.U)
     dut.io.config.ysize.poke(height.U)
@@ -206,6 +252,45 @@ class HjpegAxiStreamCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       dut.io.input.valid.poke(false.B)
 
       collectFrame(dut, JpegHeaderBytes.HeaderLength + 512) mustBe expected
+      dut.io.protocolError.expect(false.B)
+    }
+  }
+
+  "HjpegAxiStreamCore should preserve output bytes under AXI backpressure" in {
+    val width = 8
+    val height = 8
+    def pixelAt(index: Int): (Int, Int, Int) = {
+      val x = index % width
+      val y = index / width
+      ((x * 29 + y * 7) & 0xff, (255 - x * 17) & 0xff, (y * 31 + 48) & 0xff)
+    }
+
+    var expected = Seq.empty[Int]
+    simulate(new HjpegAxiStreamCore()) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      expected = emitAxiFrame(dut, width, height)(pixelAt)
+      dut.io.protocolError.expect(false.B)
+    }
+
+    simulate(new HjpegAxiStreamCore()) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      val stalled = emitAxiFrame(
+        dut,
+        width,
+        height,
+        readyAt = cycle => (cycle % 5) != 2 && (cycle % 11) != 7)(pixelAt)
+
+      stalled mustBe expected
+      val image = ImageIO.read(new ByteArrayInputStream(stalled.map(_.toByte).toArray))
+      image must not be null
+      image.getWidth mustBe width
+      image.getHeight mustBe height
       dut.io.protocolError.expect(false.B)
     }
   }
