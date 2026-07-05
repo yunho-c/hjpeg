@@ -49,6 +49,10 @@ while {[gets $fp line] >= 0} {
 }
 close $fp
 
+if {[llength $rtl_files] == 0} {
+  error "No RTL files listed in $filelist"
+}
+
 add_files -norecurse -fileset sources_1 $rtl_files
 foreach rtl_file $rtl_files {
   if {[string match *.sv $rtl_file]} {
