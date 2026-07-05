@@ -244,7 +244,7 @@ class AxiLiteWindow:
         self.mapping: mmap.mmap | None = None
 
     def __enter__(self) -> "AxiLiteWindow":
-        self.fd = os.open(self.device, os.O_RDWR | os.O_SYNC)
+        self.fd = os.open(self.device, os.O_RDWR | getattr(os, "O_SYNC", 0))
         self.mapping = mmap.mmap(self.fd, self.map_size, offset=self.page_base)
         return self
 

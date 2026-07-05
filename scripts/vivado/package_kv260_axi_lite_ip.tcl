@@ -32,7 +32,7 @@ if {![file exists $filelist]} {
 
 file mkdir $ip_repo_dir
 create_project hjpeg_ip_packaging [file join $ip_repo_dir .package_project] -part $part_name -force
-set_property target_language SystemVerilog [current_project]
+set_property target_language Verilog [current_project]
 
 set fp [open $filelist r]
 set rtl_files {}
@@ -50,10 +50,15 @@ while {[gets $fp line] >= 0} {
 close $fp
 
 add_files -norecurse -fileset sources_1 $rtl_files
+foreach rtl_file $rtl_files {
+  if {[string match *.sv $rtl_file]} {
+    set_property file_type SystemVerilog [get_files $rtl_file]
+  }
+}
 set_property top $top_name [current_fileset]
 update_compile_order -fileset sources_1
 
-ipx::package_project -root_dir $ip_dir -vendor user.org -library user -taxonomy /UserIP -force
+ipx::package_project -root_dir $ip_dir -vendor user.org -library user -taxonomy /UserIP -import_files -force
 set core [ipx::current_core]
 set_property name hjpeg_kv260_axi_lite $core
 set_property display_name {hjpeg KV260 AXI-Lite JPEG Encoder} $core

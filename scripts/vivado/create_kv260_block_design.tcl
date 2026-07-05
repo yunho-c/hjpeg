@@ -35,7 +35,7 @@ if {![file exists $component_xml]} {
 
 file mkdir $project_dir
 create_project hjpeg_kv260_bd $project_dir -part $part_name -force
-set_property target_language SystemVerilog [current_project]
+set_property target_language Verilog [current_project]
 set_property ip_repo_paths $ip_repo_dir [current_project]
 update_ip_catalog
 

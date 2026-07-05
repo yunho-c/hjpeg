@@ -12,6 +12,8 @@ out/
 .sbt-global/
 __pycache__/
 *.py[cod]
+null/
+*.jou
 ### XilinxISE template
 # intermediate build files
 *.bgn

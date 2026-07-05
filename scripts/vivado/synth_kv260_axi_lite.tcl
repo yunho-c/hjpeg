@@ -31,7 +31,7 @@ if {![file exists $filelist]} {
 
 file mkdir $project_dir
 create_project hjpeg_kv260_axi_lite $project_dir -part $part_name -force
-set_property target_language SystemVerilog [current_project]
+set_property target_language Verilog [current_project]
 
 set fp [open $filelist r]
 set rtl_files {}
@@ -53,6 +53,11 @@ if {[llength $rtl_files] == 0} {
 }
 
 add_files -norecurse -fileset sources_1 $rtl_files
+foreach rtl_file $rtl_files {
+  if {[string match *.sv $rtl_file]} {
+    set_property file_type SystemVerilog [get_files $rtl_file]
+  }
+}
 set_property top $top_name [current_fileset]
 update_compile_order -fileset sources_1
 
