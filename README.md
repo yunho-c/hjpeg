@@ -420,9 +420,10 @@ and `.dcp` artifact suffix evidence true, and the required `hjpeg_kv260.bit`,
 `post_synth_timing_summary.rpt`, `post_impl_timing_summary.rpt`,
 `post_synth_utilization.rpt`, `post_impl_utilization.rpt`,
 `post_impl_drc.rpt`, `post_impl_route_status.rpt`, and
-`post_impl_clock_utilization.rpt` filename evidence true, with matching
-missing/failing filename and suffix lists empty. It also requires the Vivado
-evidence-category summary to show every required category present and passing,
+`post_impl_clock_utilization.rpt` filename evidence true, with
+`post_impl_timing_summary.rpt` also present as passing hold-timing evidence and
+matching missing/failing filename, hold-timing, and suffix lists empty. It also
+requires the Vivado evidence-category summary to show every required category present and passing,
 zero diagnostic failures and failed paths in the Vivado summary, plus a passing
 route-status record with zero unrouted nets and zero nets with routing errors.
 The checker fails if the run

@@ -62,6 +62,7 @@ REQUIRED_REPORT_FILENAMES = {
     "route_status": ("post_impl_route_status.rpt",),
     "clock_utilization": ("post_impl_clock_utilization.rpt",),
 }
+REQUIRED_HOLD_TIMING_FILENAMES = ("post_impl_timing_summary.rpt",)
 REQUIRED_ROUTE_STATUS_COUNTS = (
     "number_of_unrouted_nets",
     "number_of_nets_with_routing_errors",
@@ -1117,27 +1118,40 @@ def main(argv: list[str] | None = None) -> int:
             "clock_utilization": clock_utilization_records,
         }
     )
+    hold_timing_filenames = required_filename_record(
+        [
+            record
+            for record in timing_records
+            if record.get("check_whs") is True
+        ],
+        REQUIRED_HOLD_TIMING_FILENAMES,
+        "hold_timing",
+    )
     missing_categories = evidence_categories["missing_required_categories"]
     missing_suffixes = artifact_suffixes["missing_required_suffixes"]
     missing_filenames = artifact_filenames["missing_required_filenames"]
     missing_address_map_filenames = address_map_filenames["missing_required_filenames"]
     missing_report_filenames = missing_required_filenames_by_category(report_filenames)
+    missing_hold_timing_filenames = hold_timing_filenames["missing_required_filenames"]
     failing_categories = evidence_categories["failing_categories"]
     failing_suffixes = artifact_suffixes["failing_required_suffixes"]
     failing_filenames = artifact_filenames["failing_required_filenames"]
     failing_address_map_filenames = address_map_filenames["failing_required_filenames"]
     failing_report_filenames = failing_required_filenames_by_category(report_filenames)
+    failing_hold_timing_filenames = hold_timing_filenames["failing_required_filenames"]
     complete_vivado_flow_evidence = bool(
         evidence_categories["all_required_present"]
         and artifact_suffixes["all_required_suffixes_present"]
         and artifact_filenames["all_required_filenames_present"]
         and address_map_filenames["all_required_filenames_present"]
         and all_required_filenames_present(report_filenames)
+        and hold_timing_filenames["all_required_filenames_present"]
         and not failing_categories
         and not failing_suffixes
         and not failing_filenames
         and not failing_address_map_filenames
         and not failing_report_filenames
+        and not failing_hold_timing_filenames
     )
     if args.require_complete_evidence and not complete_vivado_flow_evidence:
         if missing_categories:
@@ -1165,6 +1179,11 @@ def main(argv: list[str] | None = None) -> int:
                 "complete Vivado flow evidence missing required report filenames: "
                 + json.dumps(missing_report_filenames, sort_keys=True)
             )
+        if missing_hold_timing_filenames:
+            failures.append(
+                "complete Vivado flow evidence missing required hold-timing filenames: "
+                + ", ".join(str(filename) for filename in missing_hold_timing_filenames)
+            )
         if failing_categories:
             failures.append(
                 "complete Vivado flow evidence has failing required categories: "
@@ -1189,6 +1208,11 @@ def main(argv: list[str] | None = None) -> int:
             failures.append(
                 "complete Vivado flow evidence has failing required report filenames: "
                 + json.dumps(failing_report_filenames, sort_keys=True)
+            )
+        if failing_hold_timing_filenames:
+            failures.append(
+                "complete Vivado flow evidence has failing required hold-timing filenames: "
+                + ", ".join(str(filename) for filename in failing_hold_timing_filenames)
             )
 
     if args.json:
@@ -1225,6 +1249,7 @@ def main(argv: list[str] | None = None) -> int:
                     "artifact_filenames": artifact_filenames,
                     "address_map_filenames": address_map_filenames,
                     "report_filenames": report_filenames,
+                    "hold_timing_filenames": hold_timing_filenames,
                     "complete_vivado_flow_evidence": complete_vivado_flow_evidence,
                     "complete_vivado_flow_evidence_required": (
                         args.require_complete_evidence
@@ -1244,6 +1269,9 @@ def main(argv: list[str] | None = None) -> int:
                     "complete_vivado_flow_evidence_missing_report_filenames": (
                         missing_report_filenames
                     ),
+                    "complete_vivado_flow_evidence_missing_hold_timing_filenames": (
+                        missing_hold_timing_filenames
+                    ),
                     "complete_vivado_flow_evidence_failing_categories": (
                         failing_categories
                     ),
@@ -1258,6 +1286,9 @@ def main(argv: list[str] | None = None) -> int:
                     ),
                     "complete_vivado_flow_evidence_failing_report_filenames": (
                         failing_report_filenames
+                    ),
+                    "complete_vivado_flow_evidence_failing_hold_timing_filenames": (
+                        failing_hold_timing_filenames
                     ),
                     "arguments": arguments,
                     "clock_period_ns": args.clock_period_ns,

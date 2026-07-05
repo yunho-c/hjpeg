@@ -796,6 +796,30 @@ class CheckReportsTest(unittest.TestCase):
                 },
             )
             self.assertEqual(
+                record["hold_timing_filenames"],
+                {
+                    "label": "hold_timing",
+                    "required_filenames": ["post_impl_timing_summary.rpt"],
+                    "required_filename_count": 1,
+                    "filename_counts": {"post_impl_timing_summary.rpt": 1},
+                    "passing_filename_counts": {
+                        "post_impl_timing_summary.rpt": 1,
+                    },
+                    "failing_filename_counts": {},
+                    "required_filenames_present": {
+                        "post_impl_timing_summary.rpt": True,
+                    },
+                    "present_filename_count": 1,
+                    "missing_filename_count": 0,
+                    "present_required_filenames": [
+                        "post_impl_timing_summary.rpt",
+                    ],
+                    "failing_required_filenames": [],
+                    "missing_required_filenames": [],
+                    "all_required_filenames_present": True,
+                },
+            )
+            self.assertEqual(
                 record["arguments"],
                 {
                     "artifacts": [str(artifact), str(xsa), str(dcp)],
@@ -829,6 +853,14 @@ class CheckReportsTest(unittest.TestCase):
             )
             self.assertEqual(
                 record["complete_vivado_flow_evidence_failing_suffixes"], []
+            )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_missing_hold_timing_filenames"],
+                [],
+            )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_failing_hold_timing_filenames"],
+                [],
             )
             self.assertEqual(record["clock_period_ns"], 8.0)
             self.assertEqual(record["clock_frequency_mhz"], 125.0)
@@ -1005,6 +1037,10 @@ class CheckReportsTest(unittest.TestCase):
                 },
             )
             self.assertEqual(
+                record["complete_vivado_flow_evidence_missing_hold_timing_filenames"],
+                ["post_impl_timing_summary.rpt"],
+            )
+            self.assertEqual(
                 record["complete_vivado_flow_evidence_failing_categories"], []
             )
             self.assertEqual(
@@ -1021,6 +1057,10 @@ class CheckReportsTest(unittest.TestCase):
                 record["complete_vivado_flow_evidence_failing_report_filenames"],
                 {},
             )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_failing_hold_timing_filenames"],
+                [],
+            )
             self.assertTrue(record["evidence_categories"]["present"]["timing"])
             self.assertFalse(record["evidence_categories"]["present"]["artifacts"])
             self.assertFalse(record["artifact_suffixes"]["all_required_suffixes_present"])
@@ -1029,6 +1069,95 @@ class CheckReportsTest(unittest.TestCase):
             )
             self.assertTrue(
                 any("missing required artifact suffixes" in failure for failure in record["failures"])
+            )
+
+    def test_complete_vivado_flow_evidence_requires_post_impl_hold_timing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact = root / "hjpeg_kv260.bit"
+            xsa = root / "hjpeg_kv260.xsa"
+            dcp = root / "post_impl.dcp"
+            address_map = root / "hjpeg_kv260_address_map.rpt"
+            post_synth_timing = root / "post_synth_timing_summary.rpt"
+            post_impl_timing = root / "post_impl_timing_summary.rpt"
+            post_synth_utilization = root / "post_synth_utilization.rpt"
+            post_impl_utilization = root / "post_impl_utilization.rpt"
+            drc = root / "post_impl_drc.rpt"
+            route_status = root / "post_impl_route_status.rpt"
+            clock_utilization = root / "post_impl_clock_utilization.rpt"
+            artifact.write_bytes(b"bitstream")
+            xsa.write_bytes(b"xsa")
+            dcp.write_bytes(b"checkpoint")
+            address_map.write_text(ADDRESS_MAP_REPORT)
+            post_synth_timing.write_text(TIMING_TABLE)
+            post_impl_timing.write_text(TIMING_TABLE)
+            post_synth_utilization.write_text(VIVADO_UTILIZATION_TABLE)
+            post_impl_utilization.write_text(VIVADO_UTILIZATION_TABLE)
+            drc.write_text(DRC_CLEAN_REPORT)
+            route_status.write_text(ROUTE_STATUS_CLEAN_REPORT)
+            clock_utilization.write_text("Clock Utilization\n")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    check_reports.main(
+                        [
+                            "--artifact",
+                            str(artifact),
+                            "--artifact",
+                            str(xsa),
+                            "--artifact",
+                            str(dcp),
+                            "--address-map",
+                            str(address_map),
+                            "--timing",
+                            str(post_synth_timing),
+                            "--timing",
+                            str(post_impl_timing),
+                            "--utilization",
+                            str(post_synth_utilization),
+                            "--utilization",
+                            str(post_impl_utilization),
+                            "--drc",
+                            str(drc),
+                            "--route-status",
+                            str(route_status),
+                            "--clock-utilization",
+                            str(clock_utilization),
+                            "--require-complete-evidence",
+                            "--json",
+                        ]
+                    ),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertFalse(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["evidence_categories"]["all_required_present"])
+            self.assertTrue(record["artifact_suffixes"]["all_required_suffixes_present"])
+            self.assertTrue(record["artifact_filenames"]["all_required_filenames_present"])
+            self.assertTrue(record["address_map_filenames"]["all_required_filenames_present"])
+            self.assertTrue(
+                all(
+                    item["all_required_filenames_present"]
+                    for item in record["report_filenames"].values()
+                )
+            )
+            self.assertEqual(
+                record["hold_timing_filenames"]["missing_required_filenames"],
+                ["post_impl_timing_summary.rpt"],
+            )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_missing_hold_timing_filenames"],
+                ["post_impl_timing_summary.rpt"],
+            )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_failing_hold_timing_filenames"],
+                [],
+            )
+            self.assertTrue(
+                any("missing required hold-timing filenames" in failure for failure in record["failures"])
             )
 
     def test_complete_vivado_flow_evidence_rejects_failing_supplied_evidence(self) -> None:
@@ -1119,6 +1248,10 @@ class CheckReportsTest(unittest.TestCase):
                 {},
             )
             self.assertEqual(
+                record["complete_vivado_flow_evidence_missing_hold_timing_filenames"],
+                [],
+            )
+            self.assertEqual(
                 record["complete_vivado_flow_evidence_failing_categories"],
                 ["artifacts", "timing"],
             )
@@ -1133,6 +1266,10 @@ class CheckReportsTest(unittest.TestCase):
             self.assertEqual(
                 record["complete_vivado_flow_evidence_failing_report_filenames"],
                 {},
+            )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_failing_hold_timing_filenames"],
+                [],
             )
             self.assertTrue(record["evidence_categories"]["all_required_present"])
             self.assertTrue(record["artifact_suffixes"]["all_required_suffixes_present"])
