@@ -3752,6 +3752,7 @@ class HjpegHostTest(unittest.TestCase):
                             decoder_command,
                             "--decoder-timeout-seconds",
                             "2.5",
+                            "--require-complete-evidence",
                             "--json",
                         ]
                     ),
@@ -3759,6 +3760,8 @@ class HjpegHostTest(unittest.TestCase):
                 )
 
             record = json.loads(stdout.getvalue())
+            self.assertTrue(record["complete_hardware_run_evidence_required"])
+            self.assertEqual(record["complete_hardware_run_evidence_missing"], [])
             self.assertEqual(record["jpeg"], str(output_jpeg))
             self.assertEqual(record["width"], 2)
             self.assertEqual(record["height"], 1)
@@ -4077,6 +4080,69 @@ class HjpegHostTest(unittest.TestCase):
                 self.assertFalse(status["busy"])
                 self.assertFalse(status["protocol_error"])
                 self.assertEqual(status["text"], "idle")
+
+    def test_run_stream_devices_cli_can_require_complete_json_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_rgb = root / "input.rgb"
+            output_jpeg = root / "output.jpg"
+            tx_device = root / "tx.dev"
+            rx_device = root / "rx.dev"
+            mem = root / "mem.bin"
+            input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
+            rx_device.write_bytes(minimal_jpeg(width=2, height=1))
+            mem.write_bytes(bytes(hjpeg_host.AXI_LITE_APERTURE_BYTES))
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "run-stream-devices",
+                            "--dev",
+                            str(mem),
+                            "--base-addr",
+                            "0",
+                            "--tx-device",
+                            str(tx_device),
+                            "--rx-device",
+                            str(rx_device),
+                            "--input-rgb",
+                            str(input_rgb),
+                            "--output-jpeg",
+                            str(output_jpeg),
+                            "--width",
+                            "2",
+                            "--height",
+                            "1",
+                            "--require-complete-evidence",
+                            "--json",
+                        ]
+                    ),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertTrue(record["complete_hardware_run_evidence_required"])
+            self.assertEqual(
+                record["complete_hardware_run_evidence_missing"],
+                ["input_ppm", "decoder"],
+            )
+            self.assertFalse(
+                record["hardware_run_summary"]["complete_hardware_run_evidence"]
+            )
+            self.assertFalse(
+                record["hardware_run_summary"]["evidence_present"]["input_ppm"]
+            )
+            self.assertFalse(
+                record["hardware_run_summary"]["evidence_present"]["decoder"]
+            )
+            self.assertTrue(
+                record["hardware_run_summary"]["evidence_present"]["jpeg_output"]
+            )
+            self.assertTrue(
+                record["hardware_run_summary"]["evidence_present"]["status_checks"]
+            )
 
     def test_run_stream_devices_cli_rejects_input_ppm_mismatch_before_io(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

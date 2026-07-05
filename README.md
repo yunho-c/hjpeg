@@ -349,6 +349,10 @@ dimension-consistent RGB and packed byte lengths, an input-byte match, and
 non-flat/color image stats. Status evidence must include the detailed checkpoint
 list, matching checkpoint count, expected ordered contexts, zero raw status
 words, and all checkpoints idle with no protocol error or busy state.
+Pass `run-stream-devices --require-complete-evidence` for final board evidence
+gates; omit it for partial hardware smoke tests that intentionally skip source
+PPM or decoder evidence. Run JSON records whether complete evidence was
+required and which evidence groups were missing.
 Maximum output bytes must be positive, and RX timeout values must be finite and
 positive when present. It
 also records host-observed transfer elapsed seconds and derived byte rates when

@@ -563,6 +563,7 @@ python3 scripts/vivado/check_reports.py \
   --drc build/vivado/hjpeg-kv260-artifacts/post_impl_drc.rpt \
   --route-status build/vivado/hjpeg-kv260-artifacts/post_impl_route_status.rpt \
   --clock-utilization build/vivado/hjpeg-kv260-artifacts/post_impl_clock_utilization.rpt \
+  --require-complete-evidence \
   --json
 ```
 
@@ -592,6 +593,7 @@ python3 scripts/host/hjpeg_host.py run-stream-devices \
   --tx-device /dev/hjpeg-mm2s \
   --rx-device /dev/hjpeg-s2mm \
   --input-rgb input.rgb \
+  --input-ppm input.ppm \
   --output-jpeg output.jpg \
   --width WIDTH \
   --height HEIGHT \
@@ -599,6 +601,7 @@ python3 scripts/host/hjpeg_host.py run-stream-devices \
   --chroma-subsample \
   --decoder-command 'magick identify {jpeg}' \
   --decoder-timeout-seconds 30 \
+  --require-complete-evidence \
   --json
 python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000 --json
 python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
@@ -707,6 +710,10 @@ argv after `{jpeg}` substitution or path appending. Use
 seconds. Successful decoder elapsed seconds and stdout/stderr are captured in
 bounded JSON fields with captured lengths and the configured capture limit,
 which is useful for commands that print decoded dimensions.
+Use `run-stream-devices --require-complete-evidence` for final board evidence
+gates; omit it for partial smoke tests that intentionally skip source PPM or
+decoder evidence. Run JSON records whether complete evidence was required and
+which evidence groups were missing.
 
 ## Known Blockers And Bottlenecks
 
@@ -746,7 +753,7 @@ If the new PC has Vivado:
 5. Run bitstream/XSA generation.
 6. Run `check_reports.py` with `--artifact`, timing/utilization/DRC,
    route-status, clock-utilization report paths, `--hold-timing` for
-   post-implementation timing, and `--json`.
+   post-implementation timing, `--require-complete-evidence`, and `--json`.
 7. Save the report/artifact JSON evidence, then move to KV260 board validation.
 
 If the new PC has KV260 access too:
@@ -756,7 +763,9 @@ If the new PC has KV260 access too:
 3. Run a small PPM through `hjpeg_host.py` using the JSON evidence options.
 4. Validate the captured JPEG with `--json`, marker/chroma/JFIF/restart
    expectations, a standard decoder command, and a decoder timeout.
-5. Save the command JSON records and enough output evidence to update
+5. Use `run-stream-devices --require-complete-evidence` for the final board
+   run transcript.
+6. Save the command JSON records and enough output evidence to update
    `docs/kv260-bringup.md`.
 
 If the new PC does not have Vivado or hardware:

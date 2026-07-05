@@ -2637,6 +2637,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=30.0,
         help="maximum seconds to wait for --decoder-command",
     )
+    run.add_argument(
+        "--require-complete-evidence",
+        action="store_true",
+        help="fail unless run JSON contains complete hardware evidence",
+    )
     run.add_argument("--json", action="store_true", help="print capture evidence as JSON")
 
     return parser
@@ -2896,50 +2901,74 @@ def main(argv: list[str] | None = None) -> int:
         transfer_elapsed = (
             transfer_elapsed_seconds[0] if transfer_elapsed_seconds else None
         )
+        record = run_evidence_record(
+            args.output_jpeg,
+            info,
+            input_info,
+            args.width * args.height * 4,
+            axi_lite_target_record(args.dev, args.base_addr),
+            encoder_config_record(
+                width=args.width,
+                height=args.height,
+                quality=args.quality,
+                restart_interval=args.restart_interval,
+                chroma_subsample=args.chroma_subsample,
+                emit_jfif=not args.no_jfif,
+                clear_error=args.clear_error,
+                max_width=args.max_width,
+                max_height=args.max_height,
+            ),
+            capture_config_record(args.max_output_bytes, args.timeout_seconds),
+            status_checks,
+            decoder_passed,
+            args.decoder_command,
+            decoder_timeout,
+            decoder_result,
+            validation_expectations_record(
+                info=info,
+                width=args.width,
+                height=args.height,
+                restart_interval=args.restart_interval,
+                check_chroma_mode=True,
+                chroma_subsample=args.chroma_subsample,
+                expect_jfif="absent" if args.no_jfif else "present",
+                quality=args.quality,
+                require_standard_huffman=True,
+            ),
+            transfer_elapsed,
+            input_ppm=input_ppm_record,
+        )
+        complete_evidence = bool(
+            record["hardware_run_summary"]["complete_hardware_run_evidence"]
+        )
+        missing_complete_evidence = [
+            name
+            for name, present in record["hardware_run_summary"][
+                "evidence_present"
+            ].items()
+            if not present
+        ]
+        record["complete_hardware_run_evidence_required"] = (
+            args.require_complete_evidence
+        )
+        record["complete_hardware_run_evidence_missing"] = (
+            missing_complete_evidence
+        )
         if args.json:
             print(
                 json.dumps(
-                    run_evidence_record(
-                        args.output_jpeg,
-                        info,
-                        input_info,
-                        args.width * args.height * 4,
-                        axi_lite_target_record(args.dev, args.base_addr),
-                        encoder_config_record(
-                            width=args.width,
-                            height=args.height,
-                            quality=args.quality,
-                            restart_interval=args.restart_interval,
-                            chroma_subsample=args.chroma_subsample,
-                            emit_jfif=not args.no_jfif,
-                            clear_error=args.clear_error,
-                            max_width=args.max_width,
-                            max_height=args.max_height,
-                        ),
-                        capture_config_record(args.max_output_bytes, args.timeout_seconds),
-                        status_checks,
-                        decoder_passed,
-                        args.decoder_command,
-                        decoder_timeout,
-                        decoder_result,
-                        validation_expectations_record(
-                            info=info,
-                            width=args.width,
-                            height=args.height,
-                            restart_interval=args.restart_interval,
-                            check_chroma_mode=True,
-                            chroma_subsample=args.chroma_subsample,
-                            expect_jfif="absent" if args.no_jfif else "present",
-                            quality=args.quality,
-                            require_standard_huffman=True,
-                        ),
-                        transfer_elapsed,
-                        input_ppm=input_ppm_record,
-                    ),
+                    record,
                     sort_keys=True,
                 )
             )
-            return 0
+            return 0 if complete_evidence or not args.require_complete_evidence else 1
+        if args.require_complete_evidence and not complete_evidence:
+            print(
+                "complete hardware run evidence missing: "
+                + ", ".join(missing_complete_evidence),
+                file=sys.stderr,
+            )
+            return 1
         decoder_text = " decoder=pass" if args.decoder_command is not None else ""
         print(
             f"captured validated JPEG to {args.output_jpeg}: "

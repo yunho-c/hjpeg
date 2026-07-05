@@ -184,6 +184,8 @@ python3 scripts/host/hjpeg_host.py run-stream-devices \
   --output-jpeg output.jpg \
   --width WIDTH \
   --height HEIGHT \
+  --decoder-command 'magick identify {jpeg}' \
+  --require-complete-evidence \
   --json
 python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000 --json
 python3 scripts/host/hjpeg_host.py clear-error --base-addr 0xa0000000 --json
@@ -239,6 +241,11 @@ Expected evidence:
   checkpoint list, matching checkpoint count, expected ordered contexts, zero
   raw status words, and all checkpoints idle with no protocol error or busy
   state.
+- Use `run-stream-devices --require-complete-evidence` for the final board
+  transcript so missing source PPM, decoder, transfer timing, or status evidence
+  fails the command. Omit it only for intentional partial smoke tests. Run JSON
+  records whether complete evidence was required and which evidence groups were
+  missing.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after
