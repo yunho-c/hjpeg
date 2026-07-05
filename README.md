@@ -175,6 +175,10 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg --width 640 --height
 `make-test-ppm` writes a deterministic non-flat binary P6 PPM pattern for
 repeatable board bring-up. `pack-ppm` accepts binary P6 PPM and writes one
 32-bit little-endian stream beat per pixel: R, G, B, and one ignored zero byte.
+By default, host-side input preparation and hardware configuration reject frames
+outside the default RTL top's `1920x1080` limit; pass `--max-width` and
+`--max-height` only when testing a custom elaboration with different
+`HjpegConfig` frame limits.
 `run-stream-devices` targets Linux board images that expose AXI DMA MM2S/S2MM
 endpoints as byte-stream device files: it configures AXI-Lite registers through
 `/dev/mem`, writes the padded RGB stream to the TX device, captures bytes from
@@ -197,14 +201,14 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
 
 Add `--json` to `make-test-ppm`, `pack-ppm`, `config`, `status`,
 `validate-jpeg`, or `run-stream-devices` when you want evidence in a
-machine-readable form for logs. Input-prep evidence includes dimensions, byte
-lengths, and SHA-256 hashes for the generated PPM and packed RGB stream.
-Configuration evidence includes the AXI-Lite target, frame settings, quality,
-restart interval, chroma mode, JFIF setting, and control word. JPEG validation
-evidence includes dimensions, scan-data byte count, total JPEG byte length,
-SHA-256, and decoder command when one was provided. For `run-stream-devices`, it
-also includes the input RGB stream byte length and SHA-256 plus the AXI-Lite
-status checkpoints enforced during the run.
+machine-readable form for logs. Input-prep evidence includes dimensions, checked
+frame limits, byte lengths, and SHA-256 hashes for the generated PPM and packed
+RGB stream. Configuration evidence includes the AXI-Lite target, frame settings,
+checked frame limits, quality, restart interval, chroma mode, JFIF setting, and
+control word. JPEG validation evidence includes dimensions, scan-data byte
+count, total JPEG byte length, SHA-256, and decoder command when one was
+provided. For `run-stream-devices`, it also includes the input RGB stream byte
+length and SHA-256 plus the AXI-Lite status checkpoints enforced during the run.
 
 ## Versions
 

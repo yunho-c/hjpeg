@@ -46,6 +46,9 @@ CONTROL_EMIT_JFIF = 1 << 2
 STATUS_BUSY = 1 << 0
 STATUS_PROTOCOL_ERROR = 1 << 1
 
+DEFAULT_MAX_FRAME_WIDTH = 1920
+DEFAULT_MAX_FRAME_HEIGHT = 1080
+
 
 @dataclass(frozen=True)
 class PpmImage:
@@ -85,6 +88,20 @@ def make_test_image(width: int, height: int) -> PpmImage:
             b = (((x + y) * 127) // max(width + height - 2, 1)) + checker
             rgb.extend([r & 0xFF, g & 0xFF, min(b, 255)])
     return PpmImage(width=width, height=height, rgb=bytes(rgb))
+
+
+def require_supported_dimensions(
+    width: int,
+    height: int,
+    max_width: int = DEFAULT_MAX_FRAME_WIDTH,
+    max_height: int = DEFAULT_MAX_FRAME_HEIGHT,
+) -> None:
+    if max_width <= 0 or max_height <= 0:
+        raise ValueError("maximum frame dimensions must be positive")
+    if not 1 <= width <= max_width:
+        raise ValueError(f"width must be in 1..{max_width}")
+    if not 1 <= height <= max_height:
+        raise ValueError(f"height must be in 1..{max_height}")
 
 
 def write_ppm(image: PpmImage, output: Path) -> None:
@@ -391,11 +408,14 @@ def run_stream_devices(
     max_output_bytes: int,
     expected_width: int,
     expected_height: int,
+    max_width: int = DEFAULT_MAX_FRAME_WIDTH,
+    max_height: int = DEFAULT_MAX_FRAME_HEIGHT,
     timeout_seconds: float | None = 30.0,
     configure: Callable[[], None] | None = None,
     check_status: Callable[[str], None] | None = None,
     decoder_command: str | None = None,
 ) -> tuple[JpegInfo, FileInfo]:
+    require_supported_dimensions(expected_width, expected_height, max_width, max_height)
     rgb = input_rgb.read_bytes()
     input_info = file_info(input_rgb, rgb)
     expected_input_bytes = expected_width * expected_height * 4
@@ -501,11 +521,10 @@ def configure_registers(
     chroma_subsample: bool,
     emit_jfif: bool,
     clear_error: bool,
+    max_width: int = DEFAULT_MAX_FRAME_WIDTH,
+    max_height: int = DEFAULT_MAX_FRAME_HEIGHT,
 ) -> None:
-    if not 1 <= width <= 0xFFFF:
-        raise ValueError("width must be in 1..65535")
-    if not 1 <= height <= 0xFFFF:
-        raise ValueError("height must be in 1..65535")
+    require_supported_dimensions(width, height, max_width, max_height)
     if not 1 <= quality <= 100:
         raise ValueError("quality must be in 1..100")
     if not 0 <= restart_interval <= 0xFFFF:
@@ -545,11 +564,15 @@ def encoder_config_record(
     chroma_subsample: bool,
     emit_jfif: bool,
     clear_error: bool,
+    max_width: int = DEFAULT_MAX_FRAME_WIDTH,
+    max_height: int = DEFAULT_MAX_FRAME_HEIGHT,
 ) -> dict[str, object]:
     control = control_value(chroma_subsample, emit_jfif, clear_error)
     return {
         "width": width,
         "height": height,
+        "max_width": max_width,
+        "max_height": max_height,
         "quality": quality,
         "restart_interval": restart_interval,
         "chroma_subsample": chroma_subsample,
@@ -617,8 +640,8 @@ def build_parser() -> argparse.ArgumentParser:
     pack = subparsers.add_parser("pack-ppm", help="pack a binary P6 PPM as RGB stream bytes")
     pack.add_argument("input", type=Path)
     pack.add_argument("output", type=Path)
-    pack.add_argument("--max-width", type=int, default=4096)
-    pack.add_argument("--max-height", type=int, default=4096)
+    pack.add_argument("--max-width", type=int, default=DEFAULT_MAX_FRAME_WIDTH)
+    pack.add_argument("--max-height", type=int, default=DEFAULT_MAX_FRAME_HEIGHT)
     pack.add_argument("--json", action="store_true", help="print packed stream evidence as JSON")
 
     make_ppm = subparsers.add_parser(
@@ -628,6 +651,8 @@ def build_parser() -> argparse.ArgumentParser:
     make_ppm.add_argument("output", type=Path)
     make_ppm.add_argument("--width", type=int, required=True)
     make_ppm.add_argument("--height", type=int, required=True)
+    make_ppm.add_argument("--max-width", type=int, default=DEFAULT_MAX_FRAME_WIDTH)
+    make_ppm.add_argument("--max-height", type=int, default=DEFAULT_MAX_FRAME_HEIGHT)
     make_ppm.add_argument("--json", action="store_true", help="print generated PPM evidence as JSON")
 
     validate = subparsers.add_parser("validate-jpeg", help="validate JPEG markers and dimensions")
@@ -645,6 +670,8 @@ def build_parser() -> argparse.ArgumentParser:
     config.add_argument("--base-addr", type=_parse_int, required=True)
     config.add_argument("--width", type=int, required=True)
     config.add_argument("--height", type=int, required=True)
+    config.add_argument("--max-width", type=int, default=DEFAULT_MAX_FRAME_WIDTH)
+    config.add_argument("--max-height", type=int, default=DEFAULT_MAX_FRAME_HEIGHT)
     config.add_argument("--quality", type=int, default=50)
     config.add_argument("--restart-interval", type=int, default=0)
     config.add_argument("--chroma-subsample", action="store_true")
@@ -673,6 +700,8 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--output-jpeg", type=Path, required=True)
     run.add_argument("--width", type=int, required=True)
     run.add_argument("--height", type=int, required=True)
+    run.add_argument("--max-width", type=int, default=DEFAULT_MAX_FRAME_WIDTH)
+    run.add_argument("--max-height", type=int, default=DEFAULT_MAX_FRAME_HEIGHT)
     run.add_argument("--quality", type=int, default=50)
     run.add_argument("--restart-interval", type=int, default=0)
     run.add_argument("--chroma-subsample", action="store_true")
@@ -694,11 +723,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "pack-ppm":
         image = read_ppm(args.input)
-        if image.width > args.max_width or image.height > args.max_height:
-            raise ValueError(
-                f"image {image.width}x{image.height} exceeds configured maximum "
-                f"{args.max_width}x{args.max_height}"
-        )
+        require_supported_dimensions(image.width, image.height, args.max_width, args.max_height)
         write_rgb_stream(image, args.output)
         if args.json:
             output_data = args.output.read_bytes()
@@ -709,6 +734,8 @@ def main(argv: list[str] | None = None) -> int:
                         "output_rgb": file_info_record(file_info(args.output, output_data)),
                         "width": image.width,
                         "height": image.height,
+                        "max_width": args.max_width,
+                        "max_height": args.max_height,
                         "expected_rgb_stream_bytes": image.width * image.height * 4,
                     },
                     sort_keys=True,
@@ -719,6 +746,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "make-test-ppm":
+        require_supported_dimensions(args.width, args.height, args.max_width, args.max_height)
         image = make_test_image(args.width, args.height)
         write_ppm(image, args.output)
         if args.json:
@@ -727,6 +755,8 @@ def main(argv: list[str] | None = None) -> int:
                     {
                         "output_ppm": ppm_evidence_record(args.output, image),
                         "deterministic_pattern": True,
+                        "max_width": args.max_width,
+                        "max_height": args.max_height,
                     },
                     sort_keys=True,
                 )
@@ -772,6 +802,8 @@ def main(argv: list[str] | None = None) -> int:
                 chroma_subsample=args.chroma_subsample,
                 emit_jfif=not args.no_jfif,
                 clear_error=args.clear_error,
+                max_width=args.max_width,
+                max_height=args.max_height,
             )
         if args.json:
             print(
@@ -786,6 +818,8 @@ def main(argv: list[str] | None = None) -> int:
                             chroma_subsample=args.chroma_subsample,
                             emit_jfif=not args.no_jfif,
                             clear_error=args.clear_error,
+                            max_width=args.max_width,
+                            max_height=args.max_height,
                         ),
                     },
                     sort_keys=True,
@@ -829,6 +863,8 @@ def main(argv: list[str] | None = None) -> int:
                     chroma_subsample=args.chroma_subsample,
                     emit_jfif=not args.no_jfif,
                     clear_error=args.clear_error,
+                    max_width=args.max_width,
+                    max_height=args.max_height,
                 )
                 status = regs.read32(REG_STATUS)
                 require_idle_status_value(status, "after configuration")
@@ -848,6 +884,8 @@ def main(argv: list[str] | None = None) -> int:
             max_output_bytes=args.max_output_bytes,
             expected_width=args.width,
             expected_height=args.height,
+            max_width=args.max_width,
+            max_height=args.max_height,
             timeout_seconds=args.timeout_seconds,
             configure=configure,
             check_status=check_status,
@@ -870,6 +908,8 @@ def main(argv: list[str] | None = None) -> int:
                             chroma_subsample=args.chroma_subsample,
                             emit_jfif=not args.no_jfif,
                             clear_error=args.clear_error,
+                            max_width=args.max_width,
+                            max_height=args.max_height,
                         ),
                         status_checks,
                         decoder_passed,

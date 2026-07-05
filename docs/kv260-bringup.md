@@ -106,6 +106,9 @@ Expected evidence:
 - The JSON evidence records input/output paths, dimensions, byte lengths, and
   SHA-256 hashes for the PPM fixture and packed RGB stream.
 - The input image dimensions are within the configured `HjpegConfig` maximums.
+  The host helper defaults to the current KV260 top limit of `1920x1080`; use
+  `--max-width` and `--max-height` only for a custom elaboration with different
+  limits, and keep those values in the saved JSON evidence.
 
 ## 6. Configure and Run Hardware
 
@@ -137,7 +140,7 @@ Expected evidence:
 - Status returns to `idle` after the transfer completes.
 - `protocol_error` is never reported for the valid frame.
 - JSON evidence records the AXI-Lite target and encoder configuration used for
-  the run.
+  the run, including the frame limits checked by the host helper.
 - Standalone `status --json` evidence records the raw status word, decoded
   `busy` and `protocol_error` flags, and text state.
 - The captured output starts with SOI and ends with EOI.

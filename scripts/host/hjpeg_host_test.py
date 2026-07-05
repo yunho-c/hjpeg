@@ -95,6 +95,45 @@ class HjpegHostTest(unittest.TestCase):
             image = hjpeg_host.read_ppm(ppm)
             self.assertEqual((image.width, image.height), (3, 2))
 
+    def test_make_test_ppm_cli_rejects_default_oversize_frame(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ppm = Path(tmp) / "too-wide.ppm"
+
+            with self.assertRaisesRegex(ValueError, "width must be in 1..1920"):
+                hjpeg_host.main(
+                    [
+                        "make-test-ppm",
+                        str(ppm),
+                        "--width",
+                        "1921",
+                        "--height",
+                        "1",
+                    ]
+                )
+
+    def test_make_test_ppm_cli_allows_custom_frame_limit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ppm = Path(tmp) / "custom.ppm"
+
+            self.assertEqual(
+                hjpeg_host.main(
+                    [
+                        "make-test-ppm",
+                        str(ppm),
+                        "--width",
+                        "4",
+                        "--height",
+                        "2",
+                        "--max-width",
+                        "4",
+                        "--max-height",
+                        "2",
+                    ]
+                ),
+                0,
+            )
+            self.assertEqual((hjpeg_host.read_ppm(ppm).width, hjpeg_host.read_ppm(ppm).height), (4, 2))
+
     def test_make_test_ppm_cli_can_print_json_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             ppm = Path(tmp) / "pattern.ppm"
@@ -119,6 +158,8 @@ class HjpegHostTest(unittest.TestCase):
             record = json.loads(stdout.getvalue())
             ppm_bytes = ppm.read_bytes()
             self.assertTrue(record["deterministic_pattern"])
+            self.assertEqual(record["max_width"], 1920)
+            self.assertEqual(record["max_height"], 1080)
             self.assertEqual(record["output_ppm"]["path"], str(ppm))
             self.assertEqual(record["output_ppm"]["width"], 3)
             self.assertEqual(record["output_ppm"]["height"], 2)
@@ -163,6 +204,8 @@ class HjpegHostTest(unittest.TestCase):
             rgb_bytes = rgb.read_bytes()
             self.assertEqual(record["width"], 2)
             self.assertEqual(record["height"], 1)
+            self.assertEqual(record["max_width"], 1920)
+            self.assertEqual(record["max_height"], 1080)
             self.assertEqual(record["expected_rgb_stream_bytes"], 8)
             self.assertEqual(record["input_ppm"]["path"], str(ppm))
             self.assertEqual(record["input_ppm"]["byte_length"], len(ppm_bytes))
@@ -176,6 +219,39 @@ class HjpegHostTest(unittest.TestCase):
                 record["output_rgb"]["sha256"],
                 hashlib.sha256(rgb_bytes).hexdigest(),
             )
+
+    def test_pack_ppm_cli_rejects_default_oversize_frame(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ppm = root / "input.ppm"
+            rgb = root / "input.rgb"
+            ppm.write_bytes(b"P6\n1921 1\n255\n" + bytes(1921 * 3))
+
+            with self.assertRaisesRegex(ValueError, "width must be in 1..1920"):
+                hjpeg_host.main(["pack-ppm", str(ppm), str(rgb)])
+
+    def test_pack_ppm_cli_allows_custom_frame_limit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ppm = root / "input.ppm"
+            rgb = root / "input.rgb"
+            ppm.write_bytes(b"P6\n3 1\n255\n" + bytes([1, 2, 3, 4, 5, 6, 7, 8, 9]))
+
+            self.assertEqual(
+                hjpeg_host.main(
+                    [
+                        "pack-ppm",
+                        str(ppm),
+                        str(rgb),
+                        "--max-width",
+                        "3",
+                        "--max-height",
+                        "1",
+                    ]
+                ),
+                0,
+            )
+            self.assertEqual(len(rgb.read_bytes()), 12)
 
     def test_validate_jpeg_checks_sof0_dimensions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -362,6 +438,45 @@ class HjpegHostTest(unittest.TestCase):
                     | hjpeg_host.CONTROL_ENABLE_CHROMA_SUBSAMPLE,
                 )
 
+    def test_configure_registers_rejects_default_oversize_frame(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            mem = Path(tmp) / "mem.bin"
+            mem.write_bytes(bytes(hjpeg_host.AXI_LITE_APERTURE_BYTES))
+
+            with hjpeg_host.AxiLiteWindow(mem, 0) as regs:
+                with self.assertRaisesRegex(ValueError, "height must be in 1..1080"):
+                    hjpeg_host.configure_registers(
+                        regs=regs,
+                        width=1920,
+                        height=1081,
+                        quality=75,
+                        restart_interval=0,
+                        chroma_subsample=False,
+                        emit_jfif=True,
+                        clear_error=False,
+                    )
+
+    def test_configure_registers_allows_custom_frame_limit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            mem = Path(tmp) / "mem.bin"
+            mem.write_bytes(bytes(hjpeg_host.AXI_LITE_APERTURE_BYTES))
+
+            with hjpeg_host.AxiLiteWindow(mem, 0) as regs:
+                hjpeg_host.configure_registers(
+                    regs=regs,
+                    width=2048,
+                    height=1200,
+                    quality=75,
+                    restart_interval=0,
+                    chroma_subsample=False,
+                    emit_jfif=True,
+                    clear_error=False,
+                    max_width=2048,
+                    max_height=1200,
+                )
+                self.assertEqual(regs.read32(hjpeg_host.REG_XSIZE), 2048)
+                self.assertEqual(regs.read32(hjpeg_host.REG_YSIZE), 1200)
+
     def test_config_cli_can_print_json_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             mem = Path(tmp) / "mem.bin"
@@ -400,6 +515,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["axi_lite"]["base_addr_hex"], "0x0")
             self.assertEqual(record["encoder_config"]["width"], 320)
             self.assertEqual(record["encoder_config"]["height"], 240)
+            self.assertEqual(record["encoder_config"]["max_width"], 1920)
+            self.assertEqual(record["encoder_config"]["max_height"], 1080)
             self.assertEqual(record["encoder_config"]["quality"], 75)
             self.assertEqual(record["encoder_config"]["restart_interval"], 4)
             self.assertTrue(record["encoder_config"]["chroma_subsample"])
@@ -601,6 +718,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["axi_lite"]["base_addr"], 0)
             self.assertEqual(record["encoder_config"]["width"], 2)
             self.assertEqual(record["encoder_config"]["height"], 1)
+            self.assertEqual(record["encoder_config"]["max_width"], 1920)
+            self.assertEqual(record["encoder_config"]["max_height"], 1080)
             self.assertEqual(record["encoder_config"]["quality"], 80)
             self.assertEqual(record["encoder_config"]["restart_interval"], 2)
             self.assertTrue(record["encoder_config"]["chroma_subsample"])
@@ -640,6 +759,31 @@ class HjpegHostTest(unittest.TestCase):
                     expected_height=1,
                     timeout_seconds=1.0,
                 )
+
+    def test_run_stream_devices_rejects_default_oversize_frame_before_io(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_rgb = root / "input.rgb"
+            tx_device = root / "tx.dev"
+            rx_device = root / "rx.dev"
+            input_rgb.write_bytes(b"")
+            rx_device.write_bytes(minimal_jpeg(width=1921, height=1))
+            configured = []
+
+            with self.assertRaisesRegex(ValueError, "width must be in 1..1920"):
+                hjpeg_host.run_stream_devices(
+                    input_rgb=input_rgb,
+                    output_jpeg=root / "output.jpg",
+                    tx_device=tx_device,
+                    rx_device=rx_device,
+                    max_output_bytes=1024,
+                    expected_width=1921,
+                    expected_height=1,
+                    timeout_seconds=1.0,
+                    configure=lambda: configured.append(True),
+                )
+            self.assertEqual(configured, [])
+            self.assertFalse(tx_device.exists())
 
     def test_require_idle_status_rejects_busy_and_protocol_error(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
