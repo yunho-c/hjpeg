@@ -172,7 +172,8 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
-- current commit: `feat: record jpeg scan payload hash`
+- current commit: `feat: record decoder argv evidence`
+- `779bf2c feat: record jpeg scan payload hash`
 - `3f9d9d2 feat: group jpeg marker count evidence`
 - `d92bbce feat: validate jpeg dht table order`
 - `b5c1df9 feat: validate jpeg dqt table order`
@@ -610,8 +611,8 @@ Hardware completion evidence should include:
   parsed marker sequence, stuffed entropy `0xff` byte count, JFIF APP0
   signature count, restart interval and RST sequence evidence, DQT/DHT table
   IDs and payload hashes, Huffman table set, SOS table selectors, chroma mode,
-  JFIF evidence, decoder command,
-  decoder timeout, and bounded decoder stdout/stderr.
+  JFIF evidence, decoder command, resolved decoder argv, decoder timeout, and
+  bounded decoder stdout/stderr.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 
@@ -626,7 +627,8 @@ fixture for repeatable visual checks when no external image is available; PPM
 JSON evidence records channel min/max values plus non-flat/color flags. Pass
 `--decoder-command 'magick identify {jpeg}'` or an equivalent installed decoder
 command to `validate-jpeg` or `run-stream-devices` when you want the standard
-decoder-open check captured in JSON evidence. Use
+decoder-open check captured in JSON evidence. The evidence records the resolved
+argv after `{jpeg}` substitution or path appending. Use
 `--decoder-timeout-seconds` to bound that subprocess; the default is 30
 seconds. Successful decoder stdout/stderr are captured in bounded JSON fields,
 which is useful for commands that print decoded dimensions.

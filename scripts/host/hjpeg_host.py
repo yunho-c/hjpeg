@@ -263,6 +263,7 @@ class FileInfo:
 
 @dataclass(frozen=True)
 class DecoderCommandResult:
+    argv: tuple[str, ...]
     returncode: int
     stdout: str
     stderr: str
@@ -1157,6 +1158,7 @@ def run_decoder_command(
     stdout, stdout_truncated = capture_decoder_text(completed.stdout)
     stderr, stderr_truncated = capture_decoder_text(completed.stderr)
     return DecoderCommandResult(
+        argv=tuple(argv),
         returncode=completed.returncode,
         stdout=stdout,
         stderr=stderr,
@@ -1270,6 +1272,7 @@ def jpeg_info_record(
     if decoder_timeout_seconds is not None:
         record["decoder_timeout_seconds"] = decoder_timeout_seconds
     if decoder_result is not None:
+        record["decoder_argv"] = list(decoder_result.argv)
         record["decoder_returncode"] = decoder_result.returncode
         record["decoder_stdout"] = decoder_result.stdout
         record["decoder_stderr"] = decoder_result.stderr

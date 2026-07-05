@@ -166,8 +166,9 @@ rejects RST markers without DRI or out-of-sequence RST markers, and requires the
 SOF0 sampling factors to be nonzero and match the supported 4:4:4 or 4:2:0
 modes. The helper
 can also run an external JPEG decoder command with a configurable timeout and
-bounded stdout/stderr capture so decoder-open evidence is captured in the same
-transcript without risking a hung or oversized validation run. Standalone
+bounded stdout/stderr capture and records the resolved argv so decoder-open
+evidence is captured in the same transcript without risking a hung or oversized
+validation run. Standalone
 validation can require an expected restart interval, exact RST marker count for
 the parsed MCU count, chroma/JFIF mode, quality-matched standard DQT payloads,
 and standard DHT payloads. `run-stream-devices` checks the configured restart

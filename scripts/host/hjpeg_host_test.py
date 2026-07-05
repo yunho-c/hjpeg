@@ -1660,6 +1660,10 @@ class HjpegHostTest(unittest.TestCase):
             record = json.loads(stdout.getvalue())
             self.assertTrue(record["decoder_passed"])
             self.assertEqual(record["decoder_command"], command)
+            self.assertEqual(
+                record["decoder_argv"],
+                hjpeg_host.decoder_command_argv(jpeg, command),
+            )
             self.assertEqual(record["decoder_timeout_seconds"], 2.5)
             self.assertEqual(record["decoder_returncode"], 0)
             self.assertEqual(record["decoder_stdout"], "decoded 17x13\n")
@@ -1914,6 +1918,10 @@ class HjpegHostTest(unittest.TestCase):
             )
             result = hjpeg_host.run_decoder_command(jpeg, command)
             self.assertEqual(marker.read_text(), "out.jpg")
+            self.assertEqual(
+                result.argv,
+                tuple(hjpeg_host.decoder_command_argv(jpeg, command)),
+            )
             self.assertEqual(result.returncode, 0)
             self.assertEqual(result.stdout, "")
             self.assertEqual(result.stderr, "")
@@ -3037,6 +3045,10 @@ class HjpegHostTest(unittest.TestCase):
             self.assertGreater(record["host_transfer_rates"]["output_jpeg_bytes_per_second"], 0.0)
             self.assertTrue(record["decoder_passed"])
             self.assertEqual(record["decoder_command"], decoder_command)
+            self.assertEqual(
+                record["decoder_argv"],
+                hjpeg_host.decoder_command_argv(output_jpeg, decoder_command),
+            )
             self.assertEqual(record["decoder_timeout_seconds"], 2.5)
             self.assertEqual(record["decoder_returncode"], 0)
             self.assertEqual(record["decoder_stdout"], "decoded 2x1\n")
