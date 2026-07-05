@@ -166,9 +166,10 @@ Frame configuration:
 - `0x10 quality`.
 - `0x14 restart interval in MCUs`.
 
-The AXI-Lite wrapper accepts independent AW and W channel handshakes and honors
-byte write strobes. Unmapped AXI-Lite reads return zero, and unmapped writes
-complete without changing mapped control/status registers.
+The AXI-Lite wrapper accepts independent AW and W channel handshakes, honors
+byte write strobes, and holds read/write responses stable under host
+backpressure. Unmapped AXI-Lite reads return zero, and unmapped writes complete
+without changing mapped control/status registers.
 
 ## Recent Progress
 

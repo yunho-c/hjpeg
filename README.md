@@ -47,8 +47,9 @@ without entering the JPEG core, so clearing the error lets the next valid frame
 start cleanly. The AXI wrapper tests cover both single-beat and multi-beat
 unsupported frame discard/recovery paths.
 
-The AXI-Lite control wrapper accepts independent AW and W channel handshakes and
-honors byte write strobes on writable registers.
+The AXI-Lite control wrapper accepts independent AW and W channel handshakes,
+honors byte write strobes on writable registers, and holds read/write responses
+stable under host backpressure.
 
 Frame configuration is sampled on the first accepted input pixel and held until
 the encoded JPEG frame completes. Host software should update control registers

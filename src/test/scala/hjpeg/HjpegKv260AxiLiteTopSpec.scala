@@ -186,6 +186,98 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
     }
   }
 
+  "HjpegKv260AxiLiteTop should hold AXI-Lite write responses under backpressure" in {
+    simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      init(dut)
+
+      dut.io.sAxiLite.awaddr.poke(HjpegAxiLiteRegisters.XSize.U)
+      dut.io.sAxiLite.awvalid.poke(true.B)
+      dut.io.sAxiLite.wdata.poke(17.U)
+      dut.io.sAxiLite.wstrb.poke("b1111".U)
+      dut.io.sAxiLite.wvalid.poke(true.B)
+      dut.io.sAxiLite.bready.poke(false.B)
+      dut.io.sAxiLite.awready.expect(true.B)
+      dut.io.sAxiLite.wready.expect(true.B)
+      dut.clock.step()
+
+      dut.io.sAxiLite.awvalid.poke(false.B)
+      dut.io.sAxiLite.wvalid.poke(false.B)
+      dut.io.sAxiLite.bvalid.expect(true.B)
+      dut.io.sAxiLite.bresp.expect(0.U)
+      dut.io.sAxiLite.awaddr.poke(HjpegAxiLiteRegisters.YSize.U)
+      dut.io.sAxiLite.awvalid.poke(true.B)
+      dut.io.sAxiLite.wdata.poke(19.U)
+      dut.io.sAxiLite.wvalid.poke(true.B)
+      dut.io.sAxiLite.awready.expect(false.B)
+      dut.io.sAxiLite.wready.expect(false.B)
+      dut.clock.step(3)
+      dut.io.sAxiLite.bvalid.expect(true.B)
+      dut.io.sAxiLite.awready.expect(false.B)
+      dut.io.sAxiLite.wready.expect(false.B)
+
+      dut.io.sAxiLite.bready.poke(true.B)
+      dut.clock.step()
+      dut.io.sAxiLite.bready.poke(false.B)
+      dut.io.sAxiLite.bvalid.expect(false.B)
+      dut.io.sAxiLite.awready.expect(true.B)
+      dut.io.sAxiLite.wready.expect(true.B)
+      dut.clock.step()
+      dut.io.sAxiLite.awvalid.poke(false.B)
+      dut.io.sAxiLite.wvalid.poke(false.B)
+      dut.io.sAxiLite.bvalid.expect(true.B)
+      dut.io.sAxiLite.bready.poke(true.B)
+      dut.clock.step()
+      dut.io.sAxiLite.bready.poke(false.B)
+
+      readReg(dut, HjpegAxiLiteRegisters.XSize) mustBe 17
+      readReg(dut, HjpegAxiLiteRegisters.YSize) mustBe 19
+    }
+  }
+
+  "HjpegKv260AxiLiteTop should hold AXI-Lite read data under backpressure" in {
+    simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      init(dut)
+
+      writeReg(dut, HjpegAxiLiteRegisters.XSize, 17)
+      writeReg(dut, HjpegAxiLiteRegisters.YSize, 19)
+
+      dut.io.sAxiLite.araddr.poke(HjpegAxiLiteRegisters.XSize.U)
+      dut.io.sAxiLite.arvalid.poke(true.B)
+      dut.io.sAxiLite.rready.poke(false.B)
+      dut.io.sAxiLite.arready.expect(true.B)
+      dut.clock.step()
+
+      dut.io.sAxiLite.araddr.poke(HjpegAxiLiteRegisters.YSize.U)
+      dut.io.sAxiLite.rvalid.expect(true.B)
+      dut.io.sAxiLite.rresp.expect(0.U)
+      dut.io.sAxiLite.rdata.expect(17.U)
+      dut.io.sAxiLite.arready.expect(false.B)
+      dut.clock.step(3)
+      dut.io.sAxiLite.rvalid.expect(true.B)
+      dut.io.sAxiLite.rdata.expect(17.U)
+      dut.io.sAxiLite.arready.expect(false.B)
+
+      dut.io.sAxiLite.rready.poke(true.B)
+      dut.clock.step()
+      dut.io.sAxiLite.rready.poke(false.B)
+      dut.io.sAxiLite.rvalid.expect(false.B)
+      dut.io.sAxiLite.arready.expect(true.B)
+      dut.clock.step()
+      dut.io.sAxiLite.arvalid.poke(false.B)
+      dut.io.sAxiLite.rvalid.expect(true.B)
+      dut.io.sAxiLite.rdata.expect(19.U)
+      dut.io.sAxiLite.rready.poke(true.B)
+      dut.clock.step()
+      dut.io.sAxiLite.rready.poke(false.B)
+    }
+  }
+
   "HjpegKv260AxiLiteTop should honor AXI-Lite write strobes" in {
     simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 512, maxFrameHeight = 512))) { dut =>
       dut.reset.poke(true.B)

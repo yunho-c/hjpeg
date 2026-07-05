@@ -73,8 +73,9 @@ are R, G, and B; byte 3 is ignored; and the low three `keep` bits must be set
 for every pixel. Malformed input words raise the sticky protocol-error status.
 Frames that start with unsupported dimensions are drained to input TLAST without
 feeding the JPEG core, then a clear pulse permits the next valid frame to start.
-The AXI-Lite control wrapper captures write address and data independently and
-applies byte write strobes for host register updates.
+The AXI-Lite control wrapper captures write address and data independently,
+applies byte write strobes for host register updates, and holds read/write
+responses stable under host backpressure.
 The AXI stream wrapper snapshots the full frame configuration on the first input
 pixel and holds it through the matching JPEG output frame, so register writes
 take effect on the next frame. Wrapper equivalence tests compare its output
