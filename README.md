@@ -259,8 +259,9 @@ chroma mode, and JFIF setting are checked against the captured JPEG
 automatically; the run evidence also includes the input RGB stream byte length,
 expected byte length, and SHA-256, host capture limits, plus the AXI-Lite target
 and status checkpoints enforced during the run. It also records host-observed
-transfer elapsed seconds and derived byte rates for bring-up comparisons; use
-hardware counters or driver timestamps for final throughput claims.
+transfer elapsed seconds and derived byte rates when elapsed time is positive.
+Negative elapsed-time evidence is rejected. Use hardware counters or driver
+timestamps for final throughput claims.
 
 ## Versions
 

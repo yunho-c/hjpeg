@@ -172,6 +172,8 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `61c11ed test: cover positive host transfer rates`
+- `0641af7 fix: reject negative host transfer evidence`
 - `de82ce2 test: cover zero elapsed host evidence`
 - `1d721a8 test: exhaust host control word cases`
 - `596c331 test: cover host control word helper`
@@ -302,8 +304,8 @@ table-driven coverage for all clear-error/chroma/JFIF bit combinations. The run 
 ties together the input RGB stream hash, output JPEG hash, AXI-Lite target,
 encoder configuration, status checkpoints, host-observed transfer elapsed
 seconds and derived byte rates when elapsed time is positive, optional decoder
-command, decoder timeout, and bounded decoder stdout/stderr. Host JPEG
-validation now checks more
+command, decoder timeout, and bounded decoder stdout/stderr. Negative elapsed
+time is rejected as invalid evidence. Host JPEG validation now checks more
 than dimensions: it requires DQT and DHT
 markers, records DQT/DHT table IDs and SOS component table selectors, rejects
 dangling table references, records APP0/DQT/DHT/DRI/RST marker counts, parses
