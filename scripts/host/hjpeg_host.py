@@ -16,6 +16,7 @@ specific, so this script prepares and validates the payloads around that layer.
 from __future__ import annotations
 
 import argparse
+import json
 import mmap
 import os
 import shlex
@@ -274,6 +275,18 @@ def run_decoder_command(jpeg: Path, command: str) -> None:
         raise RuntimeError(f"decoder command failed with exit code {completed.returncode}{suffix}")
 
 
+def jpeg_info_record(jpeg: Path, info: JpegInfo, decoder_passed: bool | None = None) -> dict[str, object]:
+    record: dict[str, object] = {
+        "jpeg": str(jpeg),
+        "width": info.width,
+        "height": info.height,
+        "scan_data_bytes": info.scan_data_bytes,
+    }
+    if decoder_passed is not None:
+        record["decoder_passed"] = decoder_passed
+    return record
+
+
 def read_until_jpeg_eoi(stream: BinaryIO, max_bytes: int) -> bytes:
     if max_bytes <= 0:
         raise ValueError("max output bytes must be positive")
@@ -488,6 +501,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--decoder-command",
         help="optional external decoder command; {jpeg} is replaced with the JPEG path, otherwise the path is appended",
     )
+    validate.add_argument("--json", action="store_true", help="print validation evidence as JSON")
 
     config = subparsers.add_parser("config", help="write encoder AXI-Lite configuration registers")
     config.add_argument("--dev", type=Path, default=Path("/dev/mem"))
@@ -531,6 +545,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--decoder-command",
         help="optional external decoder command to prove the captured JPEG opens",
     )
+    run.add_argument("--json", action="store_true", help="print capture evidence as JSON")
 
     return parser
 
@@ -557,8 +572,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "validate-jpeg":
         info = validate_jpeg(args.jpeg, args.width, args.height)
+        decoder_passed = None
         if args.decoder_command is not None:
             run_decoder_command(args.jpeg, args.decoder_command)
+            decoder_passed = True
+        if args.json:
+            print(json.dumps(jpeg_info_record(args.jpeg, info, decoder_passed), sort_keys=True))
+            return 0
+        if decoder_passed:
             decoder_text = " decoder=pass"
         else:
             decoder_text = ""
@@ -627,6 +648,10 @@ def main(argv: list[str] | None = None) -> int:
             check_status=check_status,
             decoder_command=args.decoder_command,
         )
+        decoder_passed = True if args.decoder_command is not None else None
+        if args.json:
+            print(json.dumps(jpeg_info_record(args.output_jpeg, info, decoder_passed), sort_keys=True))
+            return 0
         decoder_text = " decoder=pass" if args.decoder_command is not None else ""
         print(
             f"captured validated JPEG to {args.output_jpeg}: "

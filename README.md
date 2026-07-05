@@ -185,6 +185,9 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
   --decoder-command 'magick identify {jpeg}'
 ```
 
+Add `--json` to `validate-jpeg` or `run-stream-devices` when you want the
+validation evidence in a machine-readable form for logs.
+
 ## Versions
 
 - Scala 2.13.18

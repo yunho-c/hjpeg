@@ -147,6 +147,9 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
   --decoder-command 'magick identify {jpeg}'
 ```
 
+Use `--json` with `validate-jpeg` or `run-stream-devices` when saving evidence
+for automation or later comparison.
+
 Expected evidence:
 
 - The helper reports valid baseline JPEG dimensions and the number of

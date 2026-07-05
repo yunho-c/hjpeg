@@ -2,6 +2,7 @@
 
 import contextlib
 import io
+import json
 import sys
 import tempfile
 import unittest
@@ -146,6 +147,35 @@ class HjpegHostTest(unittest.TestCase):
             self.assertIn("scan_data_bytes=1", stdout.getvalue())
             self.assertIn("decoder=pass", stdout.getvalue())
 
+    def test_validate_jpeg_cli_can_print_json_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "out.jpg"
+            jpeg.write_bytes(minimal_jpeg(width=17, height=13))
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "validate-jpeg",
+                            str(jpeg),
+                            "--width",
+                            "17",
+                            "--height",
+                            "13",
+                            "--json",
+                        ]
+                    ),
+                    0,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertEqual(record["jpeg"], str(jpeg))
+            self.assertEqual(record["width"], 17)
+            self.assertEqual(record["height"], 13)
+            self.assertEqual(record["scan_data_bytes"], 1)
+            self.assertNotIn("decoder_passed", record)
+
     def test_decoder_command_supports_placeholder_and_reports_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             jpeg = Path(tmp) / "out.jpg"
@@ -286,6 +316,52 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(tx_device.read_bytes(), bytes([1, 2, 3, 0, 4, 5, 6, 0]))
             self.assertEqual(output_jpeg.read_bytes(), minimal_jpeg(width=2, height=1))
             self.assertEqual((root / "decoder.txt").read_text(), "ffd8")
+
+    def test_run_stream_devices_cli_can_print_json_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_rgb = root / "input.rgb"
+            output_jpeg = root / "output.jpg"
+            tx_device = root / "tx.dev"
+            rx_device = root / "rx.dev"
+            mem = root / "mem.bin"
+            input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
+            rx_device.write_bytes(minimal_jpeg(width=2, height=1))
+            mem.write_bytes(bytes(hjpeg_host.AXI_LITE_APERTURE_BYTES))
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "run-stream-devices",
+                            "--dev",
+                            str(mem),
+                            "--base-addr",
+                            "0",
+                            "--tx-device",
+                            str(tx_device),
+                            "--rx-device",
+                            str(rx_device),
+                            "--input-rgb",
+                            str(input_rgb),
+                            "--output-jpeg",
+                            str(output_jpeg),
+                            "--width",
+                            "2",
+                            "--height",
+                            "1",
+                            "--json",
+                        ]
+                    ),
+                    0,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertEqual(record["jpeg"], str(output_jpeg))
+            self.assertEqual(record["width"], 2)
+            self.assertEqual(record["height"], 1)
+            self.assertEqual(record["scan_data_bytes"], 1)
 
     def test_run_stream_devices_rejects_wrong_input_size(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
