@@ -1489,6 +1489,9 @@ class HjpegHostTest(unittest.TestCase):
                 matched["hardware_run_summary"]["evidence_present"]["decoder"]
             )
             self.assertFalse(
+                matched["hardware_run_summary"]["evidence_present"]["input_ppm"]
+            )
+            self.assertFalse(
                 matched["hardware_run_summary"]["complete_hardware_run_evidence"]
             )
 
@@ -1552,6 +1555,7 @@ class HjpegHostTest(unittest.TestCase):
                 },
             )
             self.assertTrue(record["hardware_run_summary"]["all_recorded_checks_passed"])
+            self.assertFalse(record["hardware_run_summary"]["evidence_present"]["input_ppm"])
             self.assertFalse(record["hardware_run_summary"]["evidence_present"]["decoder"])
             self.assertFalse(record["hardware_run_summary"]["complete_hardware_run_evidence"])
 
@@ -3498,12 +3502,15 @@ class HjpegHostTest(unittest.TestCase):
                         "capture_config": True,
                         "status_checks": True,
                         "validation_expectations": True,
+                        "input_ppm": True,
                         "decoder": True,
                     },
                     "checks": {
                         "jpeg_validation_passed": True,
                         "input_rgb_length_matches_expected": True,
                         "input_ppm_matches_input": True,
+                        "input_ppm_non_flat": True,
+                        "input_ppm_has_color_pixels": True,
                         "status_check_contexts_match_expected": True,
                         "status_checks_all_idle": True,
                         "status_checks_no_protocol_error": True,

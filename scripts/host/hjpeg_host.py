@@ -1563,6 +1563,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         "capture_config": "capture_config" in record,
         "status_checks": "status_checks" in record,
         "validation_expectations": "validation_expectations" in record,
+        "input_ppm": False,
         "decoder": bool(record.get("decoder_passed", False)),
     }
     checks = {"jpeg_validation_passed": True}
@@ -1575,7 +1576,15 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
 
     input_ppm = record.get("input_ppm")
     if isinstance(input_ppm, dict) and "packed_rgb_matches_input" in input_ppm:
-        checks["input_ppm_matches_input"] = bool(input_ppm["packed_rgb_matches_input"])
+        input_ppm_matches = bool(input_ppm["packed_rgb_matches_input"])
+        evidence_present["input_ppm"] = input_ppm_matches
+        checks["input_ppm_matches_input"] = input_ppm_matches
+        image_stats = input_ppm.get("image_stats")
+        if isinstance(image_stats, dict):
+            checks["input_ppm_non_flat"] = bool(image_stats.get("non_flat", False))
+            checks["input_ppm_has_color_pixels"] = bool(
+                image_stats.get("has_color_pixels", False)
+            )
 
     if "status_checks" in record:
         checks["status_check_contexts_match_expected"] = bool(
