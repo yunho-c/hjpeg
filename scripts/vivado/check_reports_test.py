@@ -318,6 +318,22 @@ class CheckReportsTest(unittest.TestCase):
             record = json.loads(stdout.getvalue())
             self.assertTrue(record["passed"])
             self.assertEqual(record["failures"], [])
+            self.assertEqual(
+                record["arguments"],
+                {
+                    "artifacts": [str(artifact)],
+                    "timing": [str(timing)],
+                    "hold_timing": [str(timing)],
+                    "utilization": [str(utilization)],
+                    "drc": [str(drc)],
+                    "route_status": [str(route_status)],
+                    "clock_utilization": [str(clock_utilization)],
+                    "min_wns": 0.0,
+                    "min_whs": 0.0,
+                    "max_utilization": 90.0,
+                    "clock_period_ns": 8.0,
+                },
+            )
             self.assertEqual(record["clock_period_ns"], 8.0)
             self.assertEqual(record["clock_frequency_mhz"], 125.0)
             self.assertEqual(record["artifacts"][0]["path"], str(artifact))

@@ -145,11 +145,11 @@ python3 scripts/vivado/check_reports.py \
 Add `--json` to include artifact/report paths, byte lengths, SHA-256 hashes,
 parsed setup WNS and hold WHS values, utilization rows, thresholds, and
 target clock period/frequency, DRC violations, route-status counts, required
-clock-utilization report hashes, and pass/fail state in machine-readable build
-evidence. Missing, non-file, or unparseable reports are recorded as structured
-JSON failures. Numeric report thresholds must be finite; `--clock-period-ns`
-must be finite and positive, and `--max-utilization` must be finite and
-nonnegative. Use
+clock-utilization report hashes, the requested input path lists and gate values,
+and pass/fail state in machine-readable build evidence. Missing, non-file, or
+unparseable reports are recorded as structured JSON failures. Numeric report
+thresholds must be finite; `--clock-period-ns` must be finite and positive, and
+`--max-utilization` must be finite and nonnegative. Use
 `--hold-timing` for post-implementation reports where hold timing is expected
 to be closed.
 

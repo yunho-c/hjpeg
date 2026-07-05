@@ -549,11 +549,25 @@ def main(argv: list[str] | None = None) -> int:
         failures.extend(record_failures)
 
     if args.json:
+        arguments = {
+            "artifacts": [str(path) for path in args.artifact],
+            "timing": [str(path) for path in args.timing],
+            "hold_timing": [str(path) for path in args.hold_timing],
+            "utilization": [str(path) for path in args.utilization],
+            "drc": [str(path) for path in args.drc],
+            "route_status": [str(path) for path in args.route_status],
+            "clock_utilization": [str(path) for path in args.clock_utilization],
+            "min_wns": args.min_wns,
+            "min_whs": args.min_whs,
+            "max_utilization": args.max_utilization,
+            "clock_period_ns": args.clock_period_ns,
+        }
         print(
             json.dumps(
                 {
                     "passed": not failures,
                     "failures": failures,
+                    "arguments": arguments,
                     "clock_period_ns": args.clock_period_ns,
                     "clock_frequency_mhz": 1000.0 / args.clock_period_ns,
                     "artifacts": artifact_records,
