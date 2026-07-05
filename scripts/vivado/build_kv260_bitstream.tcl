@@ -32,6 +32,15 @@ if {![regexp {^[1-9][0-9]*$} $jobs]} {
   error "Vivado job count must be a positive integer"
 }
 
+proc require_nonempty_file {path description} {
+  if {![file exists $path]} {
+    error "Missing $description: $path"
+  }
+  if {[file size $path] == 0} {
+    error "$description is empty: $path"
+  }
+}
+
 set project_file [file join $project_dir hjpeg_kv260_bd.xpr]
 
 if {![file exists $project_file]} {
@@ -54,8 +63,12 @@ if {[get_property STATUS [get_runs synth_1]] ne "synth_design Complete!"} {
 }
 
 open_run synth_1
-report_utilization -file [file join $artifacts_dir post_synth_utilization.rpt]
-report_timing_summary -file [file join $artifacts_dir post_synth_timing_summary.rpt]
+set post_synth_utilization [file join $artifacts_dir post_synth_utilization.rpt]
+set post_synth_timing [file join $artifacts_dir post_synth_timing_summary.rpt]
+report_utilization -file $post_synth_utilization
+report_timing_summary -file $post_synth_timing
+require_nonempty_file $post_synth_utilization "post-synthesis utilization report"
+require_nonempty_file $post_synth_timing "post-synthesis timing report"
 close_design
 
 reset_run impl_1
@@ -69,20 +82,39 @@ if {![string match "*write_bitstream Complete!*" [get_property STATUS [get_runs 
 }
 
 open_run impl_1
-report_utilization -file [file join $artifacts_dir post_impl_utilization.rpt]
-report_timing_summary -file [file join $artifacts_dir post_impl_timing_summary.rpt]
-report_drc -file [file join $artifacts_dir post_impl_drc.rpt]
-report_route_status -file [file join $artifacts_dir post_impl_route_status.rpt]
-report_clock_utilization -file [file join $artifacts_dir post_impl_clock_utilization.rpt]
+set post_impl_utilization [file join $artifacts_dir post_impl_utilization.rpt]
+set post_impl_timing [file join $artifacts_dir post_impl_timing_summary.rpt]
+set post_impl_drc [file join $artifacts_dir post_impl_drc.rpt]
+set post_impl_route_status [file join $artifacts_dir post_impl_route_status.rpt]
+set post_impl_clock_utilization [file join $artifacts_dir post_impl_clock_utilization.rpt]
+report_utilization -file $post_impl_utilization
+report_timing_summary -file $post_impl_timing
+report_drc -file $post_impl_drc
+report_route_status -file $post_impl_route_status
+report_clock_utilization -file $post_impl_clock_utilization
+require_nonempty_file $post_impl_utilization "post-implementation utilization report"
+require_nonempty_file $post_impl_timing "post-implementation timing report"
+require_nonempty_file $post_impl_drc "post-implementation DRC report"
+require_nonempty_file $post_impl_route_status "post-implementation route-status report"
+require_nonempty_file $post_impl_clock_utilization "post-implementation clock-utilization report"
 
 set bit_candidates [glob -nocomplain -directory [file join $project_dir hjpeg_kv260_bd.runs impl_1] *.bit]
 if {[llength $bit_candidates] == 0} {
   error "implementation completed but no bitstream was found"
 }
+if {[llength $bit_candidates] > 1} {
+  error "implementation completed but multiple bitstreams were found: $bit_candidates"
+}
 set bit_file [lindex $bit_candidates 0]
-file copy -force $bit_file [file join $artifacts_dir hjpeg_kv260.bit]
+set output_bit [file join $artifacts_dir hjpeg_kv260.bit]
+set output_xsa [file join $artifacts_dir hjpeg_kv260.xsa]
+set output_dcp [file join $artifacts_dir post_impl.dcp]
+file copy -force $bit_file $output_bit
+require_nonempty_file $output_bit "copied bitstream"
 
-write_hw_platform -fixed -include_bit -force [file join $artifacts_dir hjpeg_kv260.xsa]
-write_checkpoint -force [file join $artifacts_dir post_impl.dcp]
+write_hw_platform -fixed -include_bit -force $output_xsa
+require_nonempty_file $output_xsa "hardware platform XSA"
+write_checkpoint -force $output_dcp
+require_nonempty_file $output_dcp "post-implementation checkpoint"
 
 puts "hjpeg KV260 bitstream artifacts written to: $artifacts_dir"
