@@ -2114,7 +2114,12 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and decoder_elapsed_seconds >= 0
         )
         decoder_returncode_zero = record.get("decoder_returncode") == 0
-        decoder_argv_present = bool(record.get("decoder_argv"))
+        decoder_argv = record.get("decoder_argv")
+        decoder_argv_present = (
+            isinstance(decoder_argv, list)
+            and bool(decoder_argv)
+            and all(isinstance(arg, str) for arg in decoder_argv)
+        )
         decoder_stdout = record.get("decoder_stdout")
         decoder_stderr = record.get("decoder_stderr")
         decoder_stdout_present = isinstance(decoder_stdout, str)
@@ -2128,7 +2133,6 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and record.get("decoder_stderr_chars") == len(decoder_stderr)
         )
         decoder_argv_matches_command = False
-        decoder_argv = record.get("decoder_argv")
         jpeg_path = record.get("jpeg")
         if (
             decoder_command_present
