@@ -443,9 +443,14 @@ def route_status_record(path: Path) -> tuple[dict[str, object], list[str]]:
     return record, failures
 
 
-def evidence_category_record(checked_counts: dict[str, int]) -> dict[str, object]:
+def evidence_category_record(
+    evidence_records: dict[str, list[dict[str, object]]]
+) -> dict[str, object]:
     present = {
-        category: checked_counts.get(category, 0) > 0
+        category: any(
+            bool(record.get("passed", False))
+            for record in evidence_records.get(category, [])
+        )
         for category in REQUIRED_EVIDENCE_CATEGORIES
     }
     missing = [category for category, is_present in present.items() if not is_present]
@@ -630,7 +635,16 @@ def main(argv: list[str] | None = None) -> int:
                     "failures": failures,
                     "checked_count": checked,
                     "checked_counts": checked_counts,
-                    "evidence_categories": evidence_category_record(checked_counts),
+                    "evidence_categories": evidence_category_record(
+                        {
+                            "artifacts": artifact_records,
+                            "timing": timing_records,
+                            "utilization": utilization_records,
+                            "drc": drc_records,
+                            "route_status": route_status_records,
+                            "clock_utilization": clock_utilization_records,
+                        }
+                    ),
                     "artifact_suffixes": artifact_suffix_record(artifact_records),
                     "arguments": arguments,
                     "clock_period_ns": args.clock_period_ns,

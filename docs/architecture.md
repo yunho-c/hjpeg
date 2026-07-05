@@ -125,8 +125,9 @@ hardware-tool entry points:
   input path lists and gate values, checked report/artifact count, per-category
   checked counts, required evidence category presence, missing category names,
   required `.bit`/`.xsa` artifact suffix presence, and pass/fail state for
-  build evidence logs, including structured failure records for missing or
-  unparseable reports.
+  build evidence logs. Required evidence category presence is based on at least
+  one passing record in that category, not just a requested input path. Missing
+  or unparseable reports are included as structured failure records.
 
 These scripts are intended to be run after:
 

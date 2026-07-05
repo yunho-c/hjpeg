@@ -150,6 +150,8 @@ clock-utilization report hashes, the requested input path lists and gate values,
 checked report/artifact count, per-category checked counts, required evidence
 category presence, missing category names, required `.bit`/`.xsa` artifact
 suffix presence, and pass/fail state in machine-readable build evidence.
+Required evidence category presence is based on at least one passing record in
+that category, not just a requested input path.
 Missing, non-file, or unparseable reports are recorded as structured
 JSON failures. Numeric report thresholds must be finite; `--clock-period-ns`
 must be finite and positive, and `--max-utilization` must be finite and

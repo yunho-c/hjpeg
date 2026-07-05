@@ -421,8 +421,10 @@ requested input path lists and gate values, checked report/artifact count,
 per-category checked counts, required evidence category presence, missing
 category names, required `.bit`/`.xsa` artifact suffix presence, and pass/fail
 state. Complete Vivado flow evidence should have `all_required_present` and
-`all_required_suffixes_present` true. Missing, non-file, or unparseable reports
-are recorded as structured JSON failures instead of aborting the transcript.
+`all_required_suffixes_present` true. `all_required_present` requires at least
+one passing record in each required category, not just a requested input path.
+Missing, non-file, or unparseable reports are recorded as structured JSON
+failures instead of aborting the transcript.
 Requested artifacts and clock-utilization reports must be non-empty. Use
 `--hold-timing` for post-implementation timing reports; post-synthesis hold can
 be negative before implementation fixes it. The utilization parser handles Vivado's

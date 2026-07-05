@@ -484,8 +484,17 @@ class CheckReportsTest(unittest.TestCase):
             )
             self.assertEqual(
                 record["evidence_categories"]["missing_required_categories"],
-                ["utilization", "drc", "route_status", "clock_utilization"],
+                [
+                    "artifacts",
+                    "timing",
+                    "utilization",
+                    "drc",
+                    "route_status",
+                    "clock_utilization",
+                ],
             )
+            self.assertFalse(record["evidence_categories"]["present"]["artifacts"])
+            self.assertFalse(record["evidence_categories"]["present"]["timing"])
             self.assertFalse(record["evidence_categories"]["all_required_present"])
             self.assertEqual(
                 record["artifact_suffixes"],
