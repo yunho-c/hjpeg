@@ -1563,6 +1563,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         "capture_config": "capture_config" in record,
         "status_checks": "status_checks" in record,
         "validation_expectations": "validation_expectations" in record,
+        "decoder": bool(record.get("decoder_passed", False)),
     }
     checks = {"jpeg_validation_passed": True}
 
@@ -1590,8 +1591,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             record.get("status_checks_any_busy", True)
         )
 
-    if "decoder_command" in record:
-        evidence_present["decoder"] = "decoder_passed" in record
+    if "decoder_passed" in record:
         checks["decoder_passed"] = bool(record.get("decoder_passed", False))
 
     all_recorded_checks_passed = all(checks.values())

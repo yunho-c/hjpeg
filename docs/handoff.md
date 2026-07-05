@@ -646,10 +646,10 @@ Hardware completion evidence should include:
   length, expected DQT/DHT table order, expected JFIF APP0 baseline fields when
   JFIF is required, expected chroma mode when checked, and expected DQT/DHT
   payload hashes, hardware-run evidence-presence bits, consolidated run-check
-  booleans, `all_recorded_checks_passed`, `complete_hardware_run_evidence`,
-  decoder command, resolved decoder argv, decoder timeout, decoder elapsed
-  seconds, bounded decoder stdout/stderr, captured decoder output lengths, and
-  decoder output capture limit.
+  booleans, `all_recorded_checks_passed`, `complete_hardware_run_evidence` with
+  passing decoder evidence required, decoder command, resolved decoder argv,
+  decoder timeout, decoder elapsed seconds, bounded decoder stdout/stderr,
+  captured decoder output lengths, and decoder output capture limit.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 

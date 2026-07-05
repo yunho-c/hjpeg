@@ -207,7 +207,8 @@ Expected evidence:
 - `run-stream-devices --json` evidence includes `hardware_run_summary` with
   the required evidence groups, recorded run-check booleans, and
   `complete_hardware_run_evidence`. A valid final board transcript should have
-  `all_recorded_checks_passed` and `complete_hardware_run_evidence` true.
+  `all_recorded_checks_passed` and `complete_hardware_run_evidence` true,
+  which requires a passing `--decoder-command` check.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after

@@ -1485,6 +1485,12 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertTrue(matched["hardware_run_summary"]["all_recorded_checks_passed"])
             self.assertFalse(mismatched["hardware_run_summary"]["all_recorded_checks_passed"])
+            self.assertFalse(
+                matched["hardware_run_summary"]["evidence_present"]["decoder"]
+            )
+            self.assertFalse(
+                matched["hardware_run_summary"]["complete_hardware_run_evidence"]
+            )
 
     def test_run_evidence_record_summarizes_status_checks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1546,6 +1552,8 @@ class HjpegHostTest(unittest.TestCase):
                 },
             )
             self.assertTrue(record["hardware_run_summary"]["all_recorded_checks_passed"])
+            self.assertFalse(record["hardware_run_summary"]["evidence_present"]["decoder"])
+            self.assertFalse(record["hardware_run_summary"]["complete_hardware_run_evidence"])
 
             faulted = hjpeg_host.run_evidence_record(
                 jpeg,
