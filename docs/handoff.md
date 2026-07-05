@@ -276,9 +276,9 @@ requires supported 4:4:4 or 4:2:0 sampling, requires standard DQT table IDs
 `{0, 1}` with 8-bit precision, requires exact DQT/DHT segment counts, requires
 the standard DC/AC Huffman table set, records parsed marker sequence, stuffed
 entropy `0xff` byte count, and JFIF APP0 signature count, rejects unexpected
-non-RST/non-EOI markers after SOS, and can enforce expected restart interval,
-exact RST marker count for the parsed MCU count, chroma mode, and JFIF APP0
-signature presence.
+non-RST/non-EOI markers after SOS and trailing bytes after EOI, and can enforce
+expected restart interval, exact RST marker count for the parsed MCU count,
+chroma mode, and JFIF APP0 signature presence.
 `run-stream-devices` enforces those expectations automatically from the
 configured AXI-Lite control fields.
 
@@ -464,6 +464,7 @@ Hardware completion evidence should include:
 - Status is idle before and after the transfer.
 - No protocol error is reported for a valid frame.
 - Captured output starts with SOI and ends with EOI.
+- Captured output contains no trailing bytes after the first EOI.
 - `validate-jpeg` confirms the expected dimensions, 8-bit SOF0 sample
   precision, exactly one SOF0 and one SOS segment, three-component SOF0 frame
   shape, DQT/DHT presence, non-empty entropy-coded scan data, SOF0/SOS component

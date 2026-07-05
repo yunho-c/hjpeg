@@ -1202,6 +1202,14 @@ class HjpegHostTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "entropy-coded scan data"):
                 hjpeg_host.validate_jpeg(empty_scan, expected_width=17, expected_height=13)
 
+    def test_validate_jpeg_rejects_trailing_data_after_eoi(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "trailing.jpg"
+            jpeg.write_bytes(minimal_jpeg(width=17, height=13) + b"junk\xff\xd9")
+
+            with self.assertRaisesRegex(ValueError, "trailing data after EOI"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
     def test_jpeg_info_records_stuffed_entropy_bytes(self) -> None:
         info = hjpeg_host.jpeg_info(with_stuffed_entropy_ff(minimal_jpeg(17, 13)))
 

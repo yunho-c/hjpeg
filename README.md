@@ -226,8 +226,8 @@ provided. The validator rejects non-8-bit or non-three-component SOF0 frames,
 duplicate SOF0/SOS markers, nonstandard SOF0/SOS component IDs, mismatched SOS
 component lists, unsupported SOF0 sampling factors, non-baseline SOS spectral
 fields, unexpected non-RST/non-EOI markers after SOS, nonstandard DQT/DHT table
-sets or segment counts, non-8-bit DQT tables, and SOF0 or SOS references to
-missing DQT/DHT tables. Pass
+sets or segment counts, non-8-bit DQT tables, trailing bytes after EOI, and SOF0
+or SOS references to missing DQT/DHT tables. Pass
 `validate-jpeg --restart-interval N` to require the parsed DRI interval to match
 `N` and the scan to contain the expected number of RST markers for the parsed
 MCU count, or `0` to require no DRI/RST markers. Pass

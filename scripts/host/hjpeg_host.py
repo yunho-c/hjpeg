@@ -278,6 +278,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
     restart_markers = 0
     saw_sos = False
     saw_eoi = False
+    eoi_offset: int | None = None
     marker_order_phase = -1
     marker_sequence = ["SOI"]
     while offset < len(data):
@@ -290,6 +291,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
         offset += 1
         if marker == 0xD9:
             saw_eoi = True
+            eoi_offset = offset
             marker_sequence.append("EOI")
             break
         if saw_sos:
@@ -443,6 +445,8 @@ def jpeg_info(data: bytes) -> JpegInfo:
 
     if not saw_eoi:
         raise ValueError("JPEG output does not contain EOI")
+    if eoi_offset != len(data):
+        raise ValueError("JPEG output contains trailing data after EOI")
     if dimensions is None:
         raise ValueError("JPEG output does not contain a baseline SOF0 segment")
     if sof0_segments != 1:

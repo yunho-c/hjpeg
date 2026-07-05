@@ -131,7 +131,8 @@ channel, writes the encoder AXI-Lite configuration/status registers via
 dimensions, 8-bit sample precision, three-component frame shape, DQT/DHT table
 markers, optional JFIF APP0 signature, optional DRI restart interval, exactly
 one SOF0 and SOS, non-empty entropy-coded scan data, stuffed entropy `0xff`
-byte count, and rejection of unexpected non-RST/non-EOI markers after SOS. It
+byte count, rejection of unexpected non-RST/non-EOI markers after SOS, and
+rejection of trailing bytes after EOI. It
 also records SOF0 component sampling factors, APP0 and JFIF APP0 counts, DQT/DHT
 table IDs, and SOS component table selectors, requires SOF0 and SOS component
 IDs to be `[1, 2, 3]`, requires the SOS component list to match SOF0 exactly,
