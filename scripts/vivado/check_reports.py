@@ -82,14 +82,14 @@ def parse_utilization_rows(report: str) -> list[UtilizationRow]:
     return rows
 
 
-def check_timing(path: Path, min_wns: float, min_whs: float = 0.0) -> list[str]:
+def check_timing(path: Path, min_wns: float, min_whs: float = 0.0, check_whs: bool = False) -> list[str]:
     report = path.read_text()
     wns = parse_wns(report)
     whs = parse_whs(report)
     failures = []
     if wns < min_wns:
         failures.append(f"{path}: WNS {wns:.3f} ns is below required {min_wns:.3f} ns")
-    if whs < min_whs:
+    if check_whs and whs < min_whs:
         failures.append(f"{path}: WHS {whs:.3f} ns is below required {min_whs:.3f} ns")
     return failures
 
@@ -127,7 +127,12 @@ def artifact_record(path: Path) -> tuple[dict[str, object], list[str]]:
     return record, []
 
 
-def timing_record(path: Path, min_wns: float, min_whs: float) -> tuple[dict[str, object], list[str]]:
+def timing_record(
+    path: Path,
+    min_wns: float,
+    min_whs: float,
+    check_whs: bool,
+) -> tuple[dict[str, object], list[str]]:
     report_bytes = path.read_bytes()
     report = report_bytes.decode(errors="replace")
     wns = parse_wns(report)
@@ -135,7 +140,7 @@ def timing_record(path: Path, min_wns: float, min_whs: float) -> tuple[dict[str,
     failures = []
     if wns < min_wns:
         failures.append(f"{path}: WNS {wns:.3f} ns is below required {min_wns:.3f} ns")
-    if whs < min_whs:
+    if check_whs and whs < min_whs:
         failures.append(f"{path}: WHS {whs:.3f} ns is below required {min_whs:.3f} ns")
     record = _file_record(path, report_bytes)
     record.update(
@@ -144,6 +149,7 @@ def timing_record(path: Path, min_wns: float, min_whs: float) -> tuple[dict[str,
             "whs_ns": whs,
             "min_wns_ns": min_wns,
             "min_whs_ns": min_whs,
+            "check_whs": check_whs,
             "passed": not failures,
         }
     )
@@ -192,7 +198,14 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         action="append",
         default=[],
-        help="Vivado timing summary report to check; may be passed multiple times",
+        help="Vivado timing summary report to check for setup WNS; may be passed multiple times",
+    )
+    parser.add_argument(
+        "--hold-timing",
+        type=Path,
+        action="append",
+        default=[],
+        help="Timing summary report that must also pass hold WHS; may be passed multiple times",
     )
     parser.add_argument(
         "--utilization",
@@ -226,8 +239,23 @@ def main(argv: list[str] | None = None) -> int:
         record, record_failures = artifact_record(artifact)
         artifact_records.append(record)
         failures.extend(record_failures)
-    for timing in args.timing:
-        record, record_failures = timing_record(timing, args.min_wns, args.min_whs)
+    timing_paths = []
+    hold_timing_paths = {str(path) for path in args.hold_timing}
+    seen_timing_paths = set()
+    for timing in [*args.timing, *args.hold_timing]:
+        key = str(timing)
+        if key in seen_timing_paths:
+            continue
+        seen_timing_paths.add(key)
+        timing_paths.append(timing)
+
+    for timing in timing_paths:
+        record, record_failures = timing_record(
+            timing,
+            args.min_wns,
+            args.min_whs,
+            str(timing) in hold_timing_paths,
+        )
         timing_records.append(record)
         failures.extend(record_failures)
     for utilization in args.utilization:
@@ -254,7 +282,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"FAIL: {failure}", file=sys.stderr)
         return 1
 
-    checked = len(args.artifact) + len(args.timing) + len(args.utilization)
+    checked = len(args.artifact) + len(timing_paths) + len(args.utilization)
     if not args.json:
         print(f"PASS: checked {checked} Vivado report(s)")
     return 0

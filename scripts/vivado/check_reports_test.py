@@ -64,8 +64,9 @@ class CheckReportsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             report = Path(tmp) / "timing.rpt"
             report.write_text("WNS(ns): 0.000\nWHS(ns): -0.020\n")
+            self.assertEqual(check_reports.check_timing(report, min_wns=0.0), [])
             self.assertEqual(
-                check_reports.check_timing(report, min_wns=0.0, min_whs=0.0),
+                check_reports.check_timing(report, min_wns=0.0, min_whs=0.0, check_whs=True),
                 [f"{report}: WHS -0.020 ns is below required 0.000 ns"],
             )
 
@@ -127,6 +128,8 @@ class CheckReportsTest(unittest.TestCase):
                             str(artifact),
                             "--timing",
                             str(timing),
+                            "--hold-timing",
+                            str(timing),
                             "--utilization",
                             str(utilization),
                             "--json",
@@ -150,6 +153,7 @@ class CheckReportsTest(unittest.TestCase):
             self.assertEqual(record["timing"][0]["wns_ns"], 0.125)
             self.assertEqual(record["timing"][0]["whs_ns"], 0.05)
             self.assertEqual(record["timing"][0]["min_whs_ns"], 0.0)
+            self.assertTrue(record["timing"][0]["check_whs"])
             timing_bytes = timing.read_bytes()
             self.assertEqual(record["timing"][0]["byte_length"], len(timing_bytes))
             self.assertEqual(
@@ -175,6 +179,8 @@ class CheckReportsTest(unittest.TestCase):
                             "--artifact",
                             str(missing),
                             "--timing",
+                            str(timing),
+                            "--hold-timing",
                             str(timing),
                             "--json",
                         ]

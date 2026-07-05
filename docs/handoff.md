@@ -258,7 +258,9 @@ encoder configuration, status checkpoints, and optional decoder command. The
 Vivado report checker supports `--json` plus repeated `--artifact` arguments so
 the bitstream, XSA, timing reports, and utilization reports can be recorded
 with byte lengths, hashes, parsed setup WNS and hold WHS, utilization rows,
-thresholds, and pass/fail state.
+thresholds, and pass/fail state. Use `--hold-timing` for post-implementation
+timing reports; post-synthesis hold can be negative before implementation fixes
+it.
 
 ## Last Known Local Verification
 
@@ -286,6 +288,7 @@ python3 scripts/vivado/check_reports.py \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa \
   --timing build/vivado/hjpeg-kv260-artifacts/post_synth_timing_summary.rpt \
   --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
+  --hold-timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --utilization build/vivado/hjpeg-kv260-artifacts/post_synth_utilization.rpt \
   --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt \
   --json
@@ -359,6 +362,7 @@ python3 scripts/vivado/check_reports.py \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa \
   --timing build/vivado/hjpeg-kv260-artifacts/post_synth_timing_summary.rpt \
   --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
+  --hold-timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --utilization build/vivado/hjpeg-kv260-artifacts/post_synth_utilization.rpt \
   --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt \
   --json
@@ -450,7 +454,8 @@ If the new PC has Vivado:
 3. Run IP packaging.
 4. Run block design creation and confirm `validate_bd_design`.
 5. Run bitstream/XSA generation.
-6. Run `check_reports.py` with `--artifact`, report paths, and `--json`.
+6. Run `check_reports.py` with `--artifact`, report paths,
+   `--hold-timing` for post-implementation timing, and `--json`.
 7. Save the report/artifact JSON evidence, then move to KV260 board validation.
 
 If the new PC has KV260 access too:

@@ -49,6 +49,7 @@ python3 scripts/vivado/check_reports.py \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa \
   --timing build/vivado/hjpeg-kv260-artifacts/post_synth_timing_summary.rpt \
   --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
+  --hold-timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --utilization build/vivado/hjpeg-kv260-artifacts/post_synth_utilization.rpt \
   --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt \
   --json
@@ -72,7 +73,7 @@ Pass criteria:
   target clock.
 - Resource use leaves enough headroom for the intended KV260 platform shell.
 - `check_reports.py` exits successfully for the generated timing/utilization
-  reports.
+  reports, with hold timing gated on the post-implementation timing report.
 - The JSON evidence records artifact/report paths, byte lengths, SHA-256
   hashes, parsed setup WNS and hold WHS values, utilization rows, thresholds,
   and pass/fail state.
