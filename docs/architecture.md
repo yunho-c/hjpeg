@@ -109,12 +109,13 @@ hardware-tool entry points:
   bitstream included.
 - `check_reports.py` hashes generated artifacts, parses Vivado
   timing/utilization/DRC/route-status reports, requires requested
-  clock-utilization reports, and fails when a requested artifact is missing,
+  clock-utilization reports, and fails when a requested artifact is missing or
+  empty,
   setup WNS is below the requested threshold, hold WHS is below the requested
   threshold for reports passed with `--hold-timing`, any utilization row
   exceeds the configured percentage, DRC reports Error or Critical Warning
   violations, route status reports unrouted nets or routing errors, or a
-  required clock-utilization report is missing. Its `--json` mode emits
+  required clock-utilization report is missing or empty. Its `--json` mode emits
   artifact/report hashes, byte lengths, target clock period/frequency, parsed
   WNS/WHS values, utilization rows, thresholds, DRC violations, route-status
   counts, clock-utilization report hashes, and pass/fail state for build

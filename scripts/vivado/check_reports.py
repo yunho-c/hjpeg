@@ -232,7 +232,11 @@ def artifact_record(path: Path) -> tuple[dict[str, object], list[str]]:
     if not path.is_file():
         return {"path": str(path), "exists": True, "passed": False}, [f"{path}: artifact is not a file"]
 
-    record = _file_record(path, path.read_bytes())
+    data = path.read_bytes()
+    record = _file_record(path, data)
+    if not data:
+        record.update({"exists": True, "passed": False})
+        return record, [f"{path}: artifact is empty"]
     record.update({"exists": True, "passed": True})
     return record, []
 
@@ -242,7 +246,11 @@ def evidence_file_record(path: Path, report_kind: str) -> tuple[dict[str, object
     if missing_record is not None:
         return missing_record
 
-    record = _file_record(path, path.read_bytes())
+    data = path.read_bytes()
+    record = _file_record(path, data)
+    if not data:
+        record.update({"exists": True, "passed": False})
+        return record, [f"{path}: {report_kind} report is empty"]
     record.update({"exists": True, "passed": True})
     return record, []
 

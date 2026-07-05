@@ -172,6 +172,7 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `f56dedd fix: reject empty vivado packaging filelist`
 - `e3b3b7f test: verify vivado block design handoff`
 - `9168c8d docs: require vivado checkpoint evidence`
 - `9e11948 fix: check ppm limits before payload`
@@ -354,7 +355,8 @@ reports, route-status reports, and clock-utilization reports can be recorded
 with byte lengths, hashes, target clock period/frequency, parsed setup WNS and
 hold WHS, utilization rows, DRC violations, route-status counts, thresholds,
 and pass/fail state. Missing, non-file, or unparseable reports are recorded as
-structured JSON failures instead of aborting the transcript. Use `--hold-timing`
+structured JSON failures instead of aborting the transcript. Requested
+artifacts and clock-utilization reports must be non-empty. Use `--hold-timing`
 for post-implementation timing reports; post-synthesis hold can be negative
 before implementation fixes it. The utilization parser handles Vivado's
 `Prohibited` column and records hard-system rows such as `PS8` without gating

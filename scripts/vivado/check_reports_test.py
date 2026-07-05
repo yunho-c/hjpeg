@@ -407,6 +407,40 @@ class CheckReportsTest(unittest.TestCase):
             self.assertTrue(any("below required" in failure for failure in record["failures"]))
             self.assertTrue(any("WHS" in failure for failure in record["failures"]))
 
+    def test_cli_json_rejects_empty_artifacts_and_evidence_reports(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact = root / "hjpeg_kv260.bit"
+            clock_utilization = root / "post_impl_clock_utilization.rpt"
+            artifact.write_bytes(b"")
+            clock_utilization.write_bytes(b"")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    check_reports.main(
+                        [
+                            "--artifact",
+                            str(artifact),
+                            "--clock-utilization",
+                            str(clock_utilization),
+                            "--json",
+                        ]
+                    ),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertEqual(record["artifacts"][0]["byte_length"], 0)
+            self.assertFalse(record["artifacts"][0]["passed"])
+            self.assertEqual(record["clock_utilization"][0]["byte_length"], 0)
+            self.assertFalse(record["clock_utilization"][0]["passed"])
+            self.assertTrue(any("artifact is empty" in failure for failure in record["failures"]))
+            self.assertTrue(
+                any("clock utilization report is empty" in failure for failure in record["failures"])
+            )
+
     def test_cli_json_records_drc_and_route_failures(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
