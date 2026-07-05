@@ -2452,6 +2452,7 @@ class HjpegHostTest(unittest.TestCase):
         self.assertFalse(summary["evidence_present"]["jpeg_output"])
         self.assertEqual(summary["evidence_group_count"], 10)
         self.assertEqual(summary["evidence_present_count"], 0)
+        self.assertEqual(summary["evidence_missing_count"], 10)
         self.assertEqual(
             summary["missing_evidence"],
             [
@@ -2557,6 +2558,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["hardware_run_summary_matches_computed"])
             self.assertEqual(record["evidence_group_count"], 10)
             self.assertEqual(record["evidence_present_count"], 10)
+            self.assertEqual(record["evidence_missing_count"], 0)
             self.assertEqual(
                 record["computed_hardware_run_summary"],
                 complete_run_evidence_record(root)["hardware_run_summary"],
@@ -2583,6 +2585,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(record["hardware_run_summary_matches_computed"])
             self.assertEqual(record["evidence_group_count"], 10)
             self.assertEqual(record["evidence_present_count"], 10)
+            self.assertEqual(record["evidence_missing_count"], 0)
             self.assertEqual(
                 record["computed_hardware_run_summary"],
                 hjpeg_host.hardware_run_summary_record(evidence),
@@ -2634,6 +2637,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["hardware_run_summary_matches_computed"])
             self.assertEqual(record["evidence_group_count"], 10)
             self.assertEqual(record["evidence_present_count"], 8)
+            self.assertEqual(record["evidence_missing_count"], 2)
             self.assertEqual(
                 record["computed_hardware_run_summary"],
                 evidence["hardware_run_summary"],
@@ -2674,6 +2678,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["hardware_run_summary_matches_computed"])
             self.assertEqual(record["evidence_group_count"], 10)
             self.assertEqual(record["evidence_present_count"], 10)
+            self.assertEqual(record["evidence_missing_count"], 0)
             self.assertEqual(record["missing_evidence"], [])
             self.assertEqual(record["recorded_check_count"], 75)
             self.assertEqual(record["passing_check_count"], 74)
@@ -4621,6 +4626,7 @@ class HjpegHostTest(unittest.TestCase):
                     },
                     "evidence_group_count": 10,
                     "evidence_present_count": 10,
+                    "evidence_missing_count": 0,
                     "missing_evidence": [],
                     "checks": {
                         "jpeg_validation_passed": True,
