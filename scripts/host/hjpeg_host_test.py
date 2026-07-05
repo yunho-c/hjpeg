@@ -429,6 +429,14 @@ def with_duplicate_dht(jpeg: bytes) -> bytes:
     return jpeg[:dht] + segment + jpeg[dht:]
 
 
+def minimal_dht_payload_sha256() -> str:
+    return hashlib.sha256(bytes([*([0x00] * 15), 0x01, 0x00])).hexdigest()
+
+
+def minimal_dqt_payload_sha256(value: int) -> str:
+    return hashlib.sha256(bytes([value] * 64)).hexdigest()
+
+
 def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
     data = minimal_jpeg(width, height)
     return hjpeg_host.JpegInfo(
@@ -451,14 +459,24 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
         successive_approximation=0,
         quantization_tables=(0, 1),
         quantization_table_details=(
-            hjpeg_host.JpegQuantizationTable(0, 0),
-            hjpeg_host.JpegQuantizationTable(1, 0),
+            hjpeg_host.JpegQuantizationTable(
+                0,
+                0,
+                64,
+                minimal_dqt_payload_sha256(0x10),
+            ),
+            hjpeg_host.JpegQuantizationTable(
+                1,
+                0,
+                64,
+                minimal_dqt_payload_sha256(0x11),
+            ),
         ),
         huffman_tables=(
-            hjpeg_host.JpegHuffmanTable(0, 0),
-            hjpeg_host.JpegHuffmanTable(0, 1),
-            hjpeg_host.JpegHuffmanTable(1, 0),
-            hjpeg_host.JpegHuffmanTable(1, 1),
+            hjpeg_host.JpegHuffmanTable(0, 0, 1, minimal_dht_payload_sha256()),
+            hjpeg_host.JpegHuffmanTable(0, 1, 1, minimal_dht_payload_sha256()),
+            hjpeg_host.JpegHuffmanTable(1, 0, 1, minimal_dht_payload_sha256()),
+            hjpeg_host.JpegHuffmanTable(1, 1, 1, minimal_dht_payload_sha256()),
         ),
         scan_data_bytes=1,
         stuffed_ff_bytes=0,
@@ -703,17 +721,27 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(
                 parsed.quantization_table_details,
                 (
-                    hjpeg_host.JpegQuantizationTable(0, 0),
-                    hjpeg_host.JpegQuantizationTable(1, 0),
+                    hjpeg_host.JpegQuantizationTable(
+                        0,
+                        0,
+                        64,
+                        minimal_dqt_payload_sha256(0x10),
+                    ),
+                    hjpeg_host.JpegQuantizationTable(
+                        1,
+                        0,
+                        64,
+                        minimal_dqt_payload_sha256(0x11),
+                    ),
                 ),
             )
             self.assertEqual(
                 parsed.huffman_tables,
                 (
-                    hjpeg_host.JpegHuffmanTable(0, 0),
-                    hjpeg_host.JpegHuffmanTable(0, 1),
-                    hjpeg_host.JpegHuffmanTable(1, 0),
-                    hjpeg_host.JpegHuffmanTable(1, 1),
+                    hjpeg_host.JpegHuffmanTable(0, 0, 1, minimal_dht_payload_sha256()),
+                    hjpeg_host.JpegHuffmanTable(0, 1, 1, minimal_dht_payload_sha256()),
+                    hjpeg_host.JpegHuffmanTable(1, 0, 1, minimal_dht_payload_sha256()),
+                    hjpeg_host.JpegHuffmanTable(1, 1, 1, minimal_dht_payload_sha256()),
                 ),
             )
             self.assertEqual(parsed.scan_data_bytes, 1)
@@ -851,17 +879,47 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(
                 record["quantization_table_details"],
                 [
-                    {"table_id": 0, "precision": 0},
-                    {"table_id": 1, "precision": 0},
+                    {
+                        "table_id": 0,
+                        "precision": 0,
+                        "byte_length": 64,
+                        "payload_sha256": minimal_dqt_payload_sha256(0x10),
+                    },
+                    {
+                        "table_id": 1,
+                        "precision": 0,
+                        "byte_length": 64,
+                        "payload_sha256": minimal_dqt_payload_sha256(0x11),
+                    },
                 ],
             )
             self.assertEqual(
                 record["huffman_tables"],
                 [
-                    {"table_class": 0, "table_id": 0},
-                    {"table_class": 0, "table_id": 1},
-                    {"table_class": 1, "table_id": 0},
-                    {"table_class": 1, "table_id": 1},
+                    {
+                        "table_class": 0,
+                        "table_id": 0,
+                        "symbol_count": 1,
+                        "payload_sha256": minimal_dht_payload_sha256(),
+                    },
+                    {
+                        "table_class": 0,
+                        "table_id": 1,
+                        "symbol_count": 1,
+                        "payload_sha256": minimal_dht_payload_sha256(),
+                    },
+                    {
+                        "table_class": 1,
+                        "table_id": 0,
+                        "symbol_count": 1,
+                        "payload_sha256": minimal_dht_payload_sha256(),
+                    },
+                    {
+                        "table_class": 1,
+                        "table_id": 1,
+                        "symbol_count": 1,
+                        "payload_sha256": minimal_dht_payload_sha256(),
+                    },
                 ],
             )
             self.assertEqual(record["scan_data_bytes"], 1)

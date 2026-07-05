@@ -273,12 +273,13 @@ DRI restart intervals, requires exactly one SOF0 and one SOS segment, requires
 requires SOF0/SOS component IDs in `[1, 2, 3]` order, requires baseline SOS
 spectral fields `0/63/0`, records SOF0 component sampling factors and MCU count,
 requires supported 4:4:4 or 4:2:0 sampling, requires standard DQT table IDs
-`{0, 1}` with 8-bit precision, requires exact DQT/DHT segment counts, requires
-the standard DC/AC Huffman table set, records parsed marker sequence, stuffed
-entropy `0xff` byte count, and JFIF APP0 signature count, rejects unexpected
-non-RST/non-EOI markers after SOS and trailing bytes after EOI, and can enforce
-expected restart interval, exact RST marker count for the parsed MCU count,
-chroma mode, and JFIF APP0 signature presence.
+`{0, 1}` with 8-bit precision, records DQT/DHT payload byte counts and SHA-256
+hashes, requires exact DQT/DHT segment counts, requires the standard DC/AC
+Huffman table set, records parsed marker sequence, stuffed entropy `0xff` byte
+count, and JFIF APP0 signature count, rejects unexpected non-RST/non-EOI markers
+after SOS and trailing bytes after EOI, and can enforce expected restart
+interval, exact RST marker count for the parsed MCU count, chroma mode, and JFIF
+APP0 signature presence.
 `run-stream-devices` enforces those expectations automatically from the
 configured AXI-Lite control fields.
 
@@ -480,9 +481,9 @@ Hardware completion evidence should include:
   component ID order, SOS component coverage, SOS spectral fields, DQT
   precision, DQT table set, DQT/DHT segment counts, component sampling factors,
   marker counts, parsed marker sequence, stuffed entropy `0xff` byte count,
-  JFIF APP0 signature count, restart interval evidence, DQT/DHT table IDs,
-  Huffman table set, SOS table selectors, chroma mode, JFIF evidence, and
-  decoder command.
+  JFIF APP0 signature count, restart interval evidence, DQT/DHT table IDs and
+  payload hashes, Huffman table set, SOS table selectors, chroma mode, JFIF
+  evidence, and decoder command.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 

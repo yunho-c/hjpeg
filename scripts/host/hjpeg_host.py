@@ -101,12 +101,16 @@ class JpegComponent:
 class JpegHuffmanTable:
     table_class: int
     table_id: int
+    symbol_count: int
+    payload_sha256: str
 
 
 @dataclass(frozen=True)
 class JpegQuantizationTable:
     table_id: int
     precision: int
+    byte_length: int
+    payload_sha256: str
 
 
 @dataclass(frozen=True)
@@ -263,8 +267,8 @@ def jpeg_info(data: bytes) -> JpegInfo:
     spectral_end: int | None = None
     successive_approximation: int | None = None
     quantization_tables: set[int] = set()
-    quantization_table_details: set[tuple[int, int]] = set()
-    huffman_tables: set[tuple[int, int]] = set()
+    quantization_table_details: dict[int, tuple[int, int, str]] = {}
+    huffman_tables: dict[tuple[int, int], tuple[int, str]] = {}
     scan_data_bytes = 0
     stuffed_ff_bytes = 0
     app0_segments = 0
@@ -342,11 +346,16 @@ def jpeg_info(data: bytes) -> JpegInfo:
                         f"DQT table {table_id} has precision {precision}, expected 0"
                     )
                 table_bytes = 64 * (2 if precision else 1)
+                table_payload = data[table_offset + 1 : table_offset + 1 + table_bytes]
                 table_offset += 1 + table_bytes
                 if table_offset > segment_end:
                     raise ValueError("DQT segment table overruns segment length")
                 quantization_tables.add(table_id)
-                quantization_table_details.add((table_id, precision))
+                quantization_table_details[table_id] = (
+                    precision,
+                    table_bytes,
+                    hashlib.sha256(table_payload).hexdigest(),
+                )
         if marker == 0xDD:
             if segment_length != 4:
                 raise ValueError("DRI segment has invalid length")
@@ -389,11 +398,16 @@ def jpeg_info(data: bytes) -> JpegInfo:
                     raise ValueError("DHT segment has invalid table class")
                 if table_offset + 17 > segment_end:
                     raise ValueError("DHT segment is too short for code counts")
-                value_count = sum(data[table_offset + 1 : table_offset + 17])
+                count_bytes = data[table_offset + 1 : table_offset + 17]
+                value_count = sum(count_bytes)
+                symbol_bytes = data[table_offset + 17 : table_offset + 17 + value_count]
                 table_offset += 17 + value_count
                 if table_offset > segment_end:
                     raise ValueError("DHT segment table overruns segment length")
-                huffman_tables.add((table_class, table_id))
+                huffman_tables[(table_class, table_id)] = (
+                    value_count,
+                    hashlib.sha256(count_bytes + symbol_bytes).hexdigest(),
+                )
 
         if marker == 0xDA:
             saw_sos = True
@@ -486,7 +500,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
     if dht_segments == 0:
         raise ValueError("JPEG output does not contain a DHT segment")
     expected_huffman_tables = {(0, 0), (0, 1), (1, 0), (1, 1)}
-    if huffman_tables != expected_huffman_tables:
+    if set(huffman_tables) != expected_huffman_tables:
         actual = sorted(huffman_tables)
         raise ValueError(
             f"JPEG DHT table set is {actual}, expected DC/AC tables 0 and 1"
@@ -559,12 +573,26 @@ def jpeg_info(data: bytes) -> JpegInfo:
         successive_approximation=successive_approximation,
         quantization_tables=tuple(sorted(quantization_tables)),
         quantization_table_details=tuple(
-            JpegQuantizationTable(table_id=table_id, precision=precision)
-            for table_id, precision in sorted(quantization_table_details)
+            JpegQuantizationTable(
+                table_id=table_id,
+                precision=precision,
+                byte_length=byte_length,
+                payload_sha256=payload_sha256,
+            )
+            for table_id, (precision, byte_length, payload_sha256) in sorted(
+                quantization_table_details.items()
+            )
         ),
         huffman_tables=tuple(
-            JpegHuffmanTable(table_class=table_class, table_id=table_id)
-            for table_class, table_id in sorted(huffman_tables)
+            JpegHuffmanTable(
+                table_class=table_class,
+                table_id=table_id,
+                symbol_count=symbol_count,
+                payload_sha256=payload_sha256,
+            )
+            for (table_class, table_id), (symbol_count, payload_sha256) in sorted(
+                huffman_tables.items()
+            )
         ),
         scan_data_bytes=scan_data_bytes,
         stuffed_ff_bytes=stuffed_ff_bytes,
@@ -790,6 +818,8 @@ def jpeg_info_record(
             {
                 "table_id": table.table_id,
                 "precision": table.precision,
+                "byte_length": table.byte_length,
+                "payload_sha256": table.payload_sha256,
             }
             for table in info.quantization_table_details
         ],
@@ -797,6 +827,8 @@ def jpeg_info_record(
             {
                 "table_class": table.table_class,
                 "table_id": table.table_id,
+                "symbol_count": table.symbol_count,
+                "payload_sha256": table.payload_sha256,
             }
             for table in info.huffman_tables
         ],
