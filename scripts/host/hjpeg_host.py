@@ -1981,13 +1981,41 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
 
     transfer_elapsed = record.get("transfer_elapsed_seconds")
     if isinstance(transfer_elapsed, (int, float)):
-        transfer_elapsed_positive = math.isfinite(transfer_elapsed) and transfer_elapsed > 0
-        host_transfer_rates_present = "host_transfer_rates" in record
+        transfer_elapsed_positive = (
+            math.isfinite(transfer_elapsed) and transfer_elapsed > 0
+        )
+        host_transfer_rates = record.get("host_transfer_rates")
+        host_transfer_rates_present = isinstance(host_transfer_rates, dict)
+        input_rgb_rate = (
+            host_transfer_rates.get("input_rgb_bytes_per_second")
+            if host_transfer_rates_present
+            else None
+        )
+        output_jpeg_rate = (
+            host_transfer_rates.get("output_jpeg_bytes_per_second")
+            if host_transfer_rates_present
+            else None
+        )
+        host_input_rgb_rate_positive = (
+            isinstance(input_rgb_rate, (int, float))
+            and math.isfinite(input_rgb_rate)
+            and input_rgb_rate > 0
+        )
+        host_output_jpeg_rate_positive = (
+            isinstance(output_jpeg_rate, (int, float))
+            and math.isfinite(output_jpeg_rate)
+            and output_jpeg_rate > 0
+        )
         evidence_present["transfer_timing"] = (
-            transfer_elapsed_positive and host_transfer_rates_present
+            transfer_elapsed_positive
+            and host_transfer_rates_present
+            and host_input_rgb_rate_positive
+            and host_output_jpeg_rate_positive
         )
         checks["transfer_elapsed_seconds_positive"] = transfer_elapsed_positive
         checks["host_transfer_rates_present"] = host_transfer_rates_present
+        checks["host_input_rgb_rate_positive"] = host_input_rgb_rate_positive
+        checks["host_output_jpeg_rate_positive"] = host_output_jpeg_rate_positive
 
     all_recorded_checks_passed = all(checks.values())
     return {

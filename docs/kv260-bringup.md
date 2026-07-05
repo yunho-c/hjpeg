@@ -210,20 +210,20 @@ Expected evidence:
   `all_recorded_checks_passed` and `complete_hardware_run_evidence` true,
   which requires hashed output JPEG evidence with non-empty scan data,
   `--input-ppm` source evidence with non-flat/color stats, a passing
-  `--decoder-command` check, and positive transfer timing with derived byte
-  rates. Decoder evidence must include the command string, resolved argv,
-  positive timeout, nonnegative elapsed time, zero return code, bounded
-  stdout/stderr strings with matching captured lengths, a positive capture
-  limit, and non-truncated captured output metadata. The summary cross-checks
-  the output JPEG dimensions against the encoder configuration, validation
-  expectations, source PPM dimensions, and expected RGB stream byte length, and
-  requires the parsed marker sequence to begin with SOI and end with EOI. Input
-  RGB evidence must include positive byte length, a SHA-256 hash, a positive
-  expected byte length, and an actual-vs-expected length match. Capture
-  configuration evidence
-  must include a positive maximum output byte count and either no timeout or a
-  finite positive timeout. AXI-Lite target evidence must include a device path,
-  nonnegative base address, and matching hexadecimal base-address text. Encoder
+  `--decoder-command` check, and positive transfer timing with finite positive
+  derived input and output byte rates. Decoder evidence must include the command
+  string, resolved argv, positive timeout, nonnegative elapsed time, zero return
+  code, bounded stdout/stderr strings with matching captured lengths, a positive
+  capture limit, and non-truncated captured output metadata. The summary
+  cross-checks the output JPEG dimensions against the encoder configuration,
+  validation expectations, source PPM dimensions, and expected RGB stream byte
+  length, and requires the parsed marker sequence to begin with SOI and end
+  with EOI. Input RGB evidence must include positive byte length, a SHA-256
+  hash, a positive expected byte length, and an actual-vs-expected length match.
+  Capture configuration evidence must include a positive maximum output byte
+  count and either no timeout or a finite positive timeout. AXI-Lite target
+  evidence must include a device path, nonnegative base address, and matching
+  hexadecimal base-address text. Encoder
   configuration evidence must include supported dimensions, quality/restart
   values in range, boolean control flags, and a control word/hex string matching
   those flags. Validation expectations evidence must include the baseline shape,
@@ -344,7 +344,8 @@ Expected evidence:
 - JSON evidence records host-observed transfer elapsed seconds and derived byte
   rates only when elapsed time is positive. Elapsed-time evidence must be finite
   and nonnegative. `complete_hardware_run_evidence` requires positive elapsed
-  time and derived rates. Use hardware counters or driver timestamps before
+  time and finite positive derived input and output byte rates. Use hardware
+  counters or driver timestamps before
   making final throughput claims.
 - For `run-stream-devices --json`, the helper records the AXI-Lite status
   checkpoints enforced after configuration, before transfer, and after

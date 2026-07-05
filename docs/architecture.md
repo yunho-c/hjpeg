@@ -202,11 +202,12 @@ all-idle/any-busy/any-protocol-error summaries. It also records a
 checks for board-run transcripts; the complete-evidence flag requires a passing
 decoder check, hashed output JPEG evidence with non-empty scan data, source PPM
 evidence with non-flat/color image stats, and positive host-observed transfer
-timing with derived byte rates. Decoder evidence must include the command
-string, resolved argv, positive timeout, nonnegative elapsed time, zero return
-code, bounded stdout/stderr strings with matching captured lengths, a positive
-capture limit, and non-truncated captured output metadata. Frame dimensions
-are cross-checked across the output JPEG, encoder configuration, validation
+timing with finite positive derived input and output byte rates. Decoder
+evidence must include the command string, resolved argv, positive timeout,
+nonnegative elapsed time, zero return code, bounded stdout/stderr strings with
+matching captured lengths, a positive capture limit, and non-truncated captured
+output metadata. Frame dimensions are cross-checked across the output JPEG,
+encoder configuration, validation
 expectations, source PPM, and expected RGB stream byte length, and the parsed
 marker sequence must begin with SOI and end with EOI. Input RGB evidence must
 include positive byte length, a SHA-256 hash, a positive expected byte length,

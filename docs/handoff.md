@@ -647,13 +647,14 @@ Hardware completion evidence should include:
   JFIF is required, expected chroma mode when checked, and expected DQT/DHT
   payload hashes, hardware-run evidence-presence bits, consolidated run-check
   booleans, `all_recorded_checks_passed`, `complete_hardware_run_evidence` with
-  hashed output JPEG, source PPM, positive transfer timing, and passing decoder
-  evidence required, decoder command, resolved decoder argv, decoder timeout,
-  decoder elapsed seconds, bounded decoder stdout/stderr, captured decoder
-  output lengths, and decoder output capture limit. Decoder summary evidence
-  requires the command string, resolved argv, positive timeout, nonnegative
-  elapsed time, zero return code, stdout/stderr strings with matching captured
-  lengths, a positive capture limit, and non-truncated decoder output metadata.
+  hashed output JPEG, source PPM, positive transfer timing with finite positive
+  derived input/output byte rates, and passing decoder evidence required,
+  decoder command, resolved decoder argv, decoder timeout, decoder elapsed
+  seconds, bounded decoder stdout/stderr, captured decoder output lengths, and
+  decoder output capture limit. Decoder summary evidence requires the command
+  string, resolved argv, positive timeout, nonnegative elapsed time, zero return
+  code, stdout/stderr strings with matching captured lengths, a positive capture
+  limit, and non-truncated decoder output metadata.
   The hardware-run summary cross-checks frame dimensions across
   the output JPEG, encoder configuration, validation expectations, source PPM,
   and expected RGB stream byte length, and requires the parsed marker sequence

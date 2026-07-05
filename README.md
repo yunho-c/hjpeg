@@ -320,16 +320,17 @@ pass/fail booleans for the recorded run checks, including whether complete
 hardware-run evidence was captured. Complete hardware-run evidence requires a
 hashed output JPEG with non-empty scan data, source PPM supplied through
 `--input-ppm`, non-flat/color source-image stats, positive host-observed
-transfer timing with derived byte rates, and a passing decoder check from
-`--decoder-command` with the command string, resolved argv, positive timeout,
-nonnegative elapsed time, zero return code, bounded stdout/stderr strings,
-matching captured output lengths, a positive capture limit, and non-truncated
-captured output evidence. The summary also cross-checks JPEG dimensions against
-the encoder configuration, validation expectations, source PPM dimensions, and
-expected RGB stream byte length, and requires the parsed marker sequence to
-begin with SOI and end with EOI. Input RGB evidence must include positive byte
-length, a SHA-256 hash, a positive expected byte length, and an actual-vs-expected
-length match. Capture configuration evidence must include a positive maximum
+transfer timing with finite positive derived input and output byte rates, and a
+passing decoder check from `--decoder-command` with the command string, resolved
+argv, positive timeout, nonnegative elapsed time, zero return code, bounded
+stdout/stderr strings, matching captured output lengths, a positive capture
+limit, and non-truncated captured output evidence. The summary also cross-checks
+JPEG dimensions against the encoder configuration, validation expectations,
+source PPM dimensions, and expected RGB stream byte length, and requires the
+parsed marker sequence to begin with SOI and end with EOI. Input RGB evidence
+must include positive byte length, a SHA-256 hash, a positive expected byte
+length, and an actual-vs-expected length match. Capture configuration evidence
+must include a positive maximum
 output byte count and either no timeout or a finite positive timeout. AXI-Lite
 target evidence must include a device path, nonnegative base address, and
 matching hexadecimal base-address text. Encoder configuration evidence must

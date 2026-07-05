@@ -1886,6 +1886,34 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(
                 record["hardware_run_summary"]["checks"]["host_transfer_rates_present"]
             )
+            self.assertTrue(
+                record["hardware_run_summary"]["checks"][
+                    "host_input_rgb_rate_positive"
+                ]
+            )
+            self.assertTrue(
+                record["hardware_run_summary"]["checks"][
+                    "host_output_jpeg_rate_positive"
+                ]
+            )
+
+    def test_hardware_summary_requires_positive_host_transfer_rates(self) -> None:
+        record = {
+            "transfer_elapsed_seconds": 1.0,
+            "host_transfer_rates": {
+                "input_rgb_bytes_per_second": 0.0,
+                "output_jpeg_bytes_per_second": float("inf"),
+            },
+        }
+
+        summary = hjpeg_host.hardware_run_summary_record(record)
+
+        self.assertFalse(summary["evidence_present"]["transfer_timing"])
+        self.assertFalse(summary["all_recorded_checks_passed"])
+        self.assertTrue(summary["checks"]["transfer_elapsed_seconds_positive"])
+        self.assertTrue(summary["checks"]["host_transfer_rates_present"])
+        self.assertFalse(summary["checks"]["host_input_rgb_rate_positive"])
+        self.assertFalse(summary["checks"]["host_output_jpeg_rate_positive"])
 
     def test_run_evidence_record_requires_decoder_result_details(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -3954,6 +3982,8 @@ class HjpegHostTest(unittest.TestCase):
                         "decoder_output_not_truncated": True,
                         "transfer_elapsed_seconds_positive": True,
                         "host_transfer_rates_present": True,
+                        "host_input_rgb_rate_positive": True,
+                        "host_output_jpeg_rate_positive": True,
                     },
                     "all_recorded_checks_passed": True,
                     "complete_hardware_run_evidence": True,
