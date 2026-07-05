@@ -171,6 +171,11 @@ byte write strobes.
 
 Recent commits, newest first:
 
+- `7340af8 fix: harden host decoder command parsing`
+- `1742948 feat: support external JPEG decoder checks`
+- `40b4bc4 test: require JPEG scan data in host validation`
+- `d4bd430 feat: generate host bringup test pattern`
+- `6dd9e86 feat: check host DMA run status`
 - `2240abe fix: close kv260 implementation timing`
 - `7dae97e fix: reduce transform synthesis pressure`
 - `d3158ae fix: align kv260 dma stream width`
@@ -373,7 +378,8 @@ Hardware completion evidence should include:
 - Status is idle before and after the transfer.
 - No protocol error is reported for a valid frame.
 - Captured output starts with SOI and ends with EOI.
-- `validate-jpeg` confirms the expected dimensions.
+- `validate-jpeg` confirms the expected dimensions and non-empty
+  entropy-coded scan data.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 
