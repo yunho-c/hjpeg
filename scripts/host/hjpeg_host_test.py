@@ -1144,6 +1144,91 @@ class HjpegHostTest(unittest.TestCase):
                         ]
                     )
 
+    def test_cli_rejects_invalid_frame_dimensions_and_limits(self) -> None:
+        invalid_commands = [
+            ["make-test-ppm", "out.ppm", "--width=0", "--height=1"],
+            ["make-test-ppm", "out.ppm", "--width=1", "--height=-1"],
+            ["make-test-ppm", "out.ppm", "--width=1", "--height=1", "--max-width=0"],
+            ["make-test-ppm", "out.ppm", "--width=1", "--height=1", "--max-height=-1"],
+            ["pack-ppm", "missing.ppm", "out.rgb", "--max-width=0"],
+            ["pack-ppm", "missing.ppm", "out.rgb", "--max-height=-1"],
+            ["validate-jpeg", "missing.jpg", "--width=0", "--height=1"],
+            ["validate-jpeg", "missing.jpg", "--width=1", "--height=-1"],
+            ["config", "--base-addr=0", "--width=0", "--height=1"],
+            ["config", "--base-addr=0", "--width=1", "--height=-1"],
+            ["config", "--base-addr=0", "--width=1", "--height=1", "--max-width=0"],
+            ["config", "--base-addr=0", "--width=1", "--height=1", "--max-height=-1"],
+            [
+                "run-stream-devices",
+                "--base-addr=0",
+                "--tx-device=tx.dev",
+                "--rx-device=rx.dev",
+                "--input-rgb=input.rgb",
+                "--output-jpeg=output.jpg",
+                "--width=0",
+                "--height=1",
+            ],
+            [
+                "run-stream-devices",
+                "--base-addr=0",
+                "--tx-device=tx.dev",
+                "--rx-device=rx.dev",
+                "--input-rgb=input.rgb",
+                "--output-jpeg=output.jpg",
+                "--width=1",
+                "--height=-1",
+            ],
+            [
+                "run-stream-devices",
+                "--base-addr=0",
+                "--tx-device=tx.dev",
+                "--rx-device=rx.dev",
+                "--input-rgb=input.rgb",
+                "--output-jpeg=output.jpg",
+                "--width=1",
+                "--height=1",
+                "--max-width=0",
+            ],
+            [
+                "run-stream-devices",
+                "--base-addr=0",
+                "--tx-device=tx.dev",
+                "--rx-device=rx.dev",
+                "--input-rgb=input.rgb",
+                "--output-jpeg=output.jpg",
+                "--width=1",
+                "--height=1",
+                "--max-height=-1",
+            ],
+        ]
+
+        for argv in invalid_commands:
+            with self.subTest(argv=argv):
+                with self.assertRaises(SystemExit):
+                    hjpeg_host.main(argv)
+
+    def test_cli_rejects_negative_axi_lite_base_address(self) -> None:
+        invalid_commands = [
+            ["config", "--base-addr=-1", "--width=1", "--height=1"],
+            ["status", "--base-addr=-1"],
+            ["clear-error", "--base-addr=-1"],
+            [
+                "run-stream-devices",
+                "--base-addr=-1",
+                "--tx-device=tx.dev",
+                "--rx-device=rx.dev",
+                "--input-rgb=input.rgb",
+                "--output-jpeg=output.jpg",
+                "--width=1",
+                "--height=1",
+            ],
+        ]
+
+        for argv in invalid_commands:
+            with self.subTest(argv=argv):
+                with self.assertRaises(SystemExit):
+                    hjpeg_host.main(argv)
+
     def test_validate_jpeg_json_records_decoder_command(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             jpeg = Path(tmp) / "out.jpg"

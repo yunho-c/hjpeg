@@ -1331,14 +1331,17 @@ def clear_protocol_error(regs: AxiLiteWindow) -> int:
     return control
 
 
-def _parse_int(value: str) -> int:
-    return int(value, 0)
-
-
 def _positive_int(value: str) -> int:
     parsed = int(value, 0)
     if parsed <= 0:
         raise argparse.ArgumentTypeError("value must be positive")
+    return parsed
+
+
+def _nonnegative_int(value: str) -> int:
+    parsed = int(value, 0)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("value must be nonnegative")
     return parsed
 
 
@@ -1370,8 +1373,8 @@ def build_parser() -> argparse.ArgumentParser:
     pack = subparsers.add_parser("pack-ppm", help="pack a binary P6 PPM as RGB stream bytes")
     pack.add_argument("input", type=Path)
     pack.add_argument("output", type=Path)
-    pack.add_argument("--max-width", type=int, default=DEFAULT_MAX_FRAME_WIDTH)
-    pack.add_argument("--max-height", type=int, default=DEFAULT_MAX_FRAME_HEIGHT)
+    pack.add_argument("--max-width", type=_positive_int, default=DEFAULT_MAX_FRAME_WIDTH)
+    pack.add_argument("--max-height", type=_positive_int, default=DEFAULT_MAX_FRAME_HEIGHT)
     pack.add_argument("--json", action="store_true", help="print packed stream evidence as JSON")
 
     make_ppm = subparsers.add_parser(
@@ -1379,16 +1382,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="write a deterministic non-flat binary P6 PPM test image",
     )
     make_ppm.add_argument("output", type=Path)
-    make_ppm.add_argument("--width", type=int, required=True)
-    make_ppm.add_argument("--height", type=int, required=True)
-    make_ppm.add_argument("--max-width", type=int, default=DEFAULT_MAX_FRAME_WIDTH)
-    make_ppm.add_argument("--max-height", type=int, default=DEFAULT_MAX_FRAME_HEIGHT)
+    make_ppm.add_argument("--width", type=_positive_int, required=True)
+    make_ppm.add_argument("--height", type=_positive_int, required=True)
+    make_ppm.add_argument("--max-width", type=_positive_int, default=DEFAULT_MAX_FRAME_WIDTH)
+    make_ppm.add_argument("--max-height", type=_positive_int, default=DEFAULT_MAX_FRAME_HEIGHT)
     make_ppm.add_argument("--json", action="store_true", help="print generated PPM evidence as JSON")
 
     validate = subparsers.add_parser("validate-jpeg", help="validate JPEG markers and dimensions")
     validate.add_argument("jpeg", type=Path)
-    validate.add_argument("--width", type=int, required=True)
-    validate.add_argument("--height", type=int, required=True)
+    validate.add_argument("--width", type=_positive_int, required=True)
+    validate.add_argument("--height", type=_positive_int, required=True)
     validate.add_argument(
         "--restart-interval",
         type=_restart_interval_value,
@@ -1423,11 +1426,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     config = subparsers.add_parser("config", help="write encoder AXI-Lite configuration registers")
     config.add_argument("--dev", type=Path, default=Path("/dev/mem"))
-    config.add_argument("--base-addr", type=_parse_int, required=True)
-    config.add_argument("--width", type=int, required=True)
-    config.add_argument("--height", type=int, required=True)
-    config.add_argument("--max-width", type=int, default=DEFAULT_MAX_FRAME_WIDTH)
-    config.add_argument("--max-height", type=int, default=DEFAULT_MAX_FRAME_HEIGHT)
+    config.add_argument("--base-addr", type=_nonnegative_int, required=True)
+    config.add_argument("--width", type=_positive_int, required=True)
+    config.add_argument("--height", type=_positive_int, required=True)
+    config.add_argument("--max-width", type=_positive_int, default=DEFAULT_MAX_FRAME_WIDTH)
+    config.add_argument("--max-height", type=_positive_int, default=DEFAULT_MAX_FRAME_HEIGHT)
     config.add_argument("--quality", type=_quality_value, default=50)
     config.add_argument("--restart-interval", type=_restart_interval_value, default=0)
     config.add_argument("--chroma-subsample", action="store_true")
@@ -1437,12 +1440,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     status = subparsers.add_parser("status", help="read encoder AXI-Lite status register")
     status.add_argument("--dev", type=Path, default=Path("/dev/mem"))
-    status.add_argument("--base-addr", type=_parse_int, required=True)
+    status.add_argument("--base-addr", type=_nonnegative_int, required=True)
     status.add_argument("--json", action="store_true", help="print status evidence as JSON")
 
     clear = subparsers.add_parser("clear-error", help="pulse the protocol-error clear bit")
     clear.add_argument("--dev", type=Path, default=Path("/dev/mem"))
-    clear.add_argument("--base-addr", type=_parse_int, required=True)
+    clear.add_argument("--base-addr", type=_nonnegative_int, required=True)
     clear.add_argument("--json", action="store_true", help="print clear-error evidence as JSON")
 
     run = subparsers.add_parser(
@@ -1450,15 +1453,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="configure hjpeg, stream RGB to a TX device, and capture JPEG from an RX device",
     )
     run.add_argument("--dev", type=Path, default=Path("/dev/mem"))
-    run.add_argument("--base-addr", type=_parse_int, required=True)
+    run.add_argument("--base-addr", type=_nonnegative_int, required=True)
     run.add_argument("--tx-device", type=Path, required=True)
     run.add_argument("--rx-device", type=Path, required=True)
     run.add_argument("--input-rgb", type=Path, required=True)
     run.add_argument("--output-jpeg", type=Path, required=True)
-    run.add_argument("--width", type=int, required=True)
-    run.add_argument("--height", type=int, required=True)
-    run.add_argument("--max-width", type=int, default=DEFAULT_MAX_FRAME_WIDTH)
-    run.add_argument("--max-height", type=int, default=DEFAULT_MAX_FRAME_HEIGHT)
+    run.add_argument("--width", type=_positive_int, required=True)
+    run.add_argument("--height", type=_positive_int, required=True)
+    run.add_argument("--max-width", type=_positive_int, default=DEFAULT_MAX_FRAME_WIDTH)
+    run.add_argument("--max-height", type=_positive_int, default=DEFAULT_MAX_FRAME_HEIGHT)
     run.add_argument("--quality", type=_quality_value, default=50)
     run.add_argument("--restart-interval", type=_restart_interval_value, default=0)
     run.add_argument("--chroma-subsample", action="store_true")

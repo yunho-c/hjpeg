@@ -172,6 +172,7 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `7302552 fix: reject invalid host config ranges`
 - `68138d1 fix: reject invalid host cli limits`
 - `ec235dd fix: validate host capture limits`
 - `e636357 fix: reject invalid vivado thresholds`
@@ -315,7 +316,8 @@ negative elapsed time is rejected as invalid evidence. RX and decoder timeout
 values must be finite and positive when present, and maximum output bytes must
 be positive. The CLI rejects invalid capture limits and decoder timeout values
 during argument parsing before device I/O or decoder subprocess setup. It also
-rejects out-of-range quality and restart interval values before AXI-Lite
+rejects nonpositive frame dimensions and limits, negative AXI-Lite base
+addresses, and out-of-range quality and restart interval values before AXI-Lite
 mapping or stream setup. Host JPEG validation now checks more than dimensions:
 it requires DQT and DHT
 markers, records DQT/DHT table IDs and SOS component table selectors, rejects
