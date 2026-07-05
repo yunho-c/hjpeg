@@ -1591,6 +1591,50 @@ class HjpegHostTest(unittest.TestCase):
         self.assertTrue(valid_summary["checks"]["axi_lite_base_addr_nonnegative"])
         self.assertTrue(valid_summary["checks"]["axi_lite_base_addr_hex_matches"])
 
+    def test_hardware_summary_requires_valid_encoder_config(self) -> None:
+        invalid = {
+            "encoder_config": {
+                "width": 2,
+                "height": 1,
+                "max_width": 1,
+                "max_height": 1,
+                "quality": 101,
+                "restart_interval": 0,
+                "chroma_subsample": True,
+                "emit_jfif": True,
+                "clear_error": False,
+                "control": 0,
+                "control_hex": "0x00000000",
+            }
+        }
+        valid = {
+            "encoder_config": hjpeg_host.encoder_config_record(
+                width=2,
+                height=1,
+                quality=80,
+                restart_interval=2,
+                chroma_subsample=True,
+                emit_jfif=True,
+                clear_error=False,
+            )
+        }
+
+        invalid_summary = hjpeg_host.hardware_run_summary_record(invalid)
+        valid_summary = hjpeg_host.hardware_run_summary_record(valid)
+
+        self.assertFalse(invalid_summary["evidence_present"]["encoder_config"])
+        self.assertFalse(invalid_summary["checks"]["encoder_dimensions_supported"])
+        self.assertFalse(invalid_summary["checks"]["encoder_quality_valid"])
+        self.assertTrue(invalid_summary["checks"]["encoder_restart_interval_valid"])
+        self.assertTrue(invalid_summary["checks"]["encoder_flags_valid"])
+        self.assertFalse(invalid_summary["checks"]["encoder_control_matches_flags"])
+        self.assertTrue(valid_summary["evidence_present"]["encoder_config"])
+        self.assertTrue(valid_summary["checks"]["encoder_dimensions_supported"])
+        self.assertTrue(valid_summary["checks"]["encoder_quality_valid"])
+        self.assertTrue(valid_summary["checks"]["encoder_restart_interval_valid"])
+        self.assertTrue(valid_summary["checks"]["encoder_flags_valid"])
+        self.assertTrue(valid_summary["checks"]["encoder_control_matches_flags"])
+
     def test_run_evidence_record_summarizes_status_checks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -3717,6 +3761,11 @@ class HjpegHostTest(unittest.TestCase):
                         "jpeg_marker_sequence_starts_with_soi": True,
                         "jpeg_marker_sequence_ends_with_eoi": True,
                         "encoder_config_matches_jpeg_dimensions": True,
+                        "encoder_dimensions_supported": True,
+                        "encoder_quality_valid": True,
+                        "encoder_restart_interval_valid": True,
+                        "encoder_flags_valid": True,
+                        "encoder_control_matches_flags": True,
                         "validation_expectations_match_jpeg_dimensions": True,
                         "input_ppm_dimensions_match_jpeg": True,
                         "input_rgb_expected_length_matches_dimensions": True,

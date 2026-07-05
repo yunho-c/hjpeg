@@ -1560,7 +1560,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         "jpeg_output": False,
         "input_rgb": False,
         "axi_lite": False,
-        "encoder_config": "encoder_config" in record,
+        "encoder_config": False,
         "capture_config": False,
         "status_checks": "status_checks" in record,
         "validation_expectations": "validation_expectations" in record,
@@ -1633,6 +1633,64 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             checks["input_rgb_expected_length_matches_dimensions"] = (
                 expected_byte_length == width * height * 4
             )
+
+    if isinstance(encoder_config, dict):
+        encoder_width = encoder_config.get("width")
+        encoder_height = encoder_config.get("height")
+        encoder_max_width = encoder_config.get("max_width")
+        encoder_max_height = encoder_config.get("max_height")
+        encoder_quality = encoder_config.get("quality")
+        encoder_restart_interval = encoder_config.get("restart_interval")
+        encoder_chroma_subsample = encoder_config.get("chroma_subsample")
+        encoder_emit_jfif = encoder_config.get("emit_jfif")
+        encoder_clear_error = encoder_config.get("clear_error")
+        encoder_control = encoder_config.get("control")
+        encoder_control_hex = encoder_config.get("control_hex")
+        encoder_dimensions_supported = (
+            isinstance(encoder_width, int)
+            and isinstance(encoder_height, int)
+            and isinstance(encoder_max_width, int)
+            and isinstance(encoder_max_height, int)
+            and 0 < encoder_width <= encoder_max_width
+            and 0 < encoder_height <= encoder_max_height
+        )
+        encoder_quality_valid = (
+            isinstance(encoder_quality, int) and 1 <= encoder_quality <= 100
+        )
+        encoder_restart_interval_valid = (
+            isinstance(encoder_restart_interval, int)
+            and 0 <= encoder_restart_interval <= 0xFFFF
+        )
+        encoder_flags_valid = all(
+            isinstance(flag, bool)
+            for flag in (
+                encoder_chroma_subsample,
+                encoder_emit_jfif,
+                encoder_clear_error,
+            )
+        )
+        expected_control = control_value(
+            bool(encoder_chroma_subsample),
+            bool(encoder_emit_jfif),
+            bool(encoder_clear_error),
+        )
+        encoder_control_matches_flags = (
+            encoder_flags_valid
+            and encoder_control == expected_control
+            and encoder_control_hex == f"0x{expected_control:08x}"
+        )
+        evidence_present["encoder_config"] = (
+            encoder_dimensions_supported
+            and encoder_quality_valid
+            and encoder_restart_interval_valid
+            and encoder_flags_valid
+            and encoder_control_matches_flags
+        )
+        checks["encoder_dimensions_supported"] = encoder_dimensions_supported
+        checks["encoder_quality_valid"] = encoder_quality_valid
+        checks["encoder_restart_interval_valid"] = encoder_restart_interval_valid
+        checks["encoder_flags_valid"] = encoder_flags_valid
+        checks["encoder_control_matches_flags"] = encoder_control_matches_flags
 
     input_rgb = record.get("input_rgb")
     if isinstance(input_rgb, dict):

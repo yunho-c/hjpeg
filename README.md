@@ -330,7 +330,9 @@ length, a SHA-256 hash, a positive expected byte length, and an actual-vs-expect
 length match. Capture configuration evidence must include a positive maximum
 output byte count and either no timeout or a finite positive timeout. AXI-Lite
 target evidence must include a device path, nonnegative base address, and
-matching hexadecimal base-address text.
+matching hexadecimal base-address text. Encoder configuration evidence must
+include supported dimensions, quality/restart values in range, boolean control
+flags, and a control word/hex string matching those flags.
 Maximum output bytes must be positive, and RX timeout values must be finite and
 positive when present. It
 also records host-observed transfer elapsed seconds and derived byte rates when
