@@ -217,7 +217,7 @@ def jpeg_dimensions(data: bytes) -> tuple[int, int]:
     return info.width, info.height
 
 
-def validate_jpeg(path: Path, expected_width: int, expected_height: int) -> None:
+def validate_jpeg(path: Path, expected_width: int, expected_height: int) -> JpegInfo:
     data = path.read_bytes()
     if len(data) < 4:
         raise ValueError("JPEG output is too short")
@@ -226,11 +226,12 @@ def validate_jpeg(path: Path, expected_width: int, expected_height: int) -> None
     if data[-2:] != b"\xff\xd9":
         raise ValueError("JPEG output does not end with EOI")
 
-    width, height = jpeg_dimensions(data)
-    if width != expected_width or height != expected_height:
+    info = jpeg_info(data)
+    if info.width != expected_width or info.height != expected_height:
         raise ValueError(
-            f"JPEG dimensions are {width}x{height}, expected {expected_width}x{expected_height}"
+            f"JPEG dimensions are {info.width}x{info.height}, expected {expected_width}x{expected_height}"
         )
+    return info
 
 
 def decoder_command_argv(jpeg: Path, command: str) -> list[str]:
@@ -302,7 +303,7 @@ def run_stream_devices(
     configure: Callable[[], None] | None = None,
     check_status: Callable[[str], None] | None = None,
     decoder_command: str | None = None,
-) -> None:
+) -> JpegInfo:
     rgb = input_rgb.read_bytes()
     expected_input_bytes = expected_width * expected_height * 4
     if len(rgb) != expected_input_bytes:
@@ -346,11 +347,12 @@ def run_stream_devices(
 
     jpeg = read_result[0]
     output_jpeg.write_bytes(jpeg)
-    validate_jpeg(output_jpeg, expected_width, expected_height)
+    info = validate_jpeg(output_jpeg, expected_width, expected_height)
     if decoder_command is not None:
         run_decoder_command(output_jpeg, decoder_command)
     if check_status is not None:
         check_status("after transfer")
+    return info
 
 
 class AxiLiteWindow:
@@ -554,10 +556,16 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "validate-jpeg":
-        validate_jpeg(args.jpeg, args.width, args.height)
+        info = validate_jpeg(args.jpeg, args.width, args.height)
         if args.decoder_command is not None:
             run_decoder_command(args.jpeg, args.decoder_command)
-        print(f"{args.jpeg}: valid baseline JPEG dimensions {args.width}x{args.height}")
+            decoder_text = " decoder=pass"
+        else:
+            decoder_text = ""
+        print(
+            f"{args.jpeg}: valid baseline JPEG dimensions {info.width}x{info.height}; "
+            f"scan_data_bytes={info.scan_data_bytes}{decoder_text}"
+        )
         return 0
 
     if args.command == "config":
@@ -606,7 +614,7 @@ def main(argv: list[str] | None = None) -> int:
             with AxiLiteWindow(args.dev, args.base_addr) as regs:
                 require_idle_status(regs, context)
 
-        run_stream_devices(
+        info = run_stream_devices(
             input_rgb=args.input_rgb,
             output_jpeg=args.output_jpeg,
             tx_device=args.tx_device,
@@ -619,7 +627,12 @@ def main(argv: list[str] | None = None) -> int:
             check_status=check_status,
             decoder_command=args.decoder_command,
         )
-        print(f"captured validated JPEG to {args.output_jpeg}")
+        decoder_text = " decoder=pass" if args.decoder_command is not None else ""
+        print(
+            f"captured validated JPEG to {args.output_jpeg}: "
+            f"dimensions={info.width}x{info.height} "
+            f"scan_data_bytes={info.scan_data_bytes}{decoder_text}"
+        )
         return 0
 
     raise AssertionError(f"unhandled command {args.command}")

@@ -170,9 +170,9 @@ repeatable board bring-up. `pack-ppm` accepts binary P6 PPM and writes one
 endpoints as byte-stream device files: it configures AXI-Lite registers through
 `/dev/mem`, writes the padded RGB stream to the TX device, captures bytes from
 the RX device until JPEG EOI, checks status for `busy` / `protocol_error`, and
-validates the resulting dimensions. DMA drivers that use ioctls or buffer
-queues still need a small adapter around the same host-side packing and
-validation helpers.
+validates the resulting dimensions and non-empty scan data. DMA drivers that
+use ioctls or buffer queues still need a small adapter around the same host-side
+packing and validation helpers.
 
 To fold a standard decoder into the validation transcript, pass a command with
 `--decoder-command`. The helper replaces `{jpeg}` with the output path, or

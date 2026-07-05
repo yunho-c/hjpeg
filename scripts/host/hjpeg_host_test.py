@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import contextlib
+import io
 import sys
 import tempfile
 import unittest
@@ -102,7 +104,10 @@ class HjpegHostTest(unittest.TestCase):
 
             self.assertEqual(hjpeg_host.jpeg_dimensions(jpeg.read_bytes()), (17, 13))
             self.assertEqual(hjpeg_host.jpeg_info(jpeg.read_bytes()).scan_data_bytes, 1)
-            hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+            self.assertEqual(
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13),
+                hjpeg_host.JpegInfo(width=17, height=13, scan_data_bytes=1),
+            )
             hjpeg_host.run_decoder_command(
                 jpeg,
                 f'"{sys.executable}" -c "import sys; assert open(sys.argv[1], \'rb\').read(2) == bytes([0xff, 0xd8])"',
@@ -120,22 +125,26 @@ class HjpegHostTest(unittest.TestCase):
                 f'"{sys.executable}" -c "import pathlib, sys; '
                 f'pathlib.Path(r\'{marker}\').write_text(pathlib.Path(sys.argv[1]).read_bytes()[:2].hex())"'
             )
-            self.assertEqual(
-                hjpeg_host.main(
-                    [
-                        "validate-jpeg",
-                        str(jpeg),
-                        "--width",
-                        "17",
-                        "--height",
-                        "13",
-                        "--decoder-command",
-                        command,
-                    ]
-                ),
-                0,
-            )
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "validate-jpeg",
+                            str(jpeg),
+                            "--width",
+                            "17",
+                            "--height",
+                            "13",
+                            "--decoder-command",
+                            command,
+                        ]
+                    ),
+                    0,
+                )
             self.assertEqual(marker.read_text(), "ffd8")
+            self.assertIn("scan_data_bytes=1", stdout.getvalue())
+            self.assertIn("decoder=pass", stdout.getvalue())
 
     def test_decoder_command_supports_placeholder_and_reports_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -253,7 +262,7 @@ class HjpegHostTest(unittest.TestCase):
 
             configured = []
             status_checks = []
-            hjpeg_host.run_stream_devices(
+            info = hjpeg_host.run_stream_devices(
                 input_rgb=input_rgb,
                 output_jpeg=output_jpeg,
                 tx_device=tx_device,
@@ -272,6 +281,7 @@ class HjpegHostTest(unittest.TestCase):
             )
 
             self.assertEqual(configured, [True])
+            self.assertEqual(info, hjpeg_host.JpegInfo(width=2, height=1, scan_data_bytes=1))
             self.assertEqual(status_checks, ["before transfer", "after transfer"])
             self.assertEqual(tx_device.read_bytes(), bytes([1, 2, 3, 0, 4, 5, 6, 0]))
             self.assertEqual(output_jpeg.read_bytes(), minimal_jpeg(width=2, height=1))

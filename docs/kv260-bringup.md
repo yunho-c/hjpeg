@@ -149,8 +149,9 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
 
 Expected evidence:
 
-- The helper reports valid baseline JPEG dimensions and confirms that the file
-  contains an SOS marker with non-empty entropy-coded scan data.
+- The helper reports valid baseline JPEG dimensions and the number of
+  entropy-coded scan data bytes, proving the file contains an SOS marker with
+  non-empty scan payload.
 - A standard JPEG decoder can open `output.jpg`; when `--decoder-command` is
   used, that decoder check is part of the command transcript.
 - The decoded dimensions match the input.
