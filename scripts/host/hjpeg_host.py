@@ -908,6 +908,12 @@ def validate_jpeg(
     expected_quality: int | None = None,
     require_standard_huffman: bool = False,
 ) -> JpegInfo:
+    if expected_width <= 0 or expected_height <= 0:
+        raise ValueError("expected JPEG dimensions must be positive")
+    if expected_restart_interval is not None and not 0 <= expected_restart_interval <= 0xFFFF:
+        raise ValueError("expected restart interval must be in 0..65535")
+    if expected_quality is not None and not 1 <= expected_quality <= 100:
+        raise ValueError("expected quality must be in 1..100")
     data = path.read_bytes()
     if len(data) < 4:
         raise ValueError("JPEG output is too short")

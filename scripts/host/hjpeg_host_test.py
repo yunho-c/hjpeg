@@ -1189,6 +1189,52 @@ class HjpegHostTest(unittest.TestCase):
                         ]
                     )
 
+    def test_validate_jpeg_rejects_invalid_expected_arguments_before_io(self) -> None:
+        missing = Path("missing.jpg")
+        cases = (
+            {
+                "expected_width": 0,
+                "expected_height": 1,
+                "message": "dimensions",
+            },
+            {
+                "expected_width": 1,
+                "expected_height": 0,
+                "message": "dimensions",
+            },
+            {
+                "expected_width": 1,
+                "expected_height": 1,
+                "expected_restart_interval": -1,
+                "message": "restart interval",
+            },
+            {
+                "expected_width": 1,
+                "expected_height": 1,
+                "expected_restart_interval": 0x10000,
+                "message": "restart interval",
+            },
+            {
+                "expected_width": 1,
+                "expected_height": 1,
+                "expected_quality": 0,
+                "message": "quality",
+            },
+            {
+                "expected_width": 1,
+                "expected_height": 1,
+                "expected_quality": 101,
+                "message": "quality",
+            },
+        )
+
+        for case in cases:
+            with self.subTest(case=case):
+                message = str(case["message"])
+                kwargs = {key: value for key, value in case.items() if key != "message"}
+                with self.assertRaisesRegex(ValueError, message):
+                    hjpeg_host.validate_jpeg(missing, **kwargs)
+
     def test_cli_rejects_invalid_frame_dimensions_and_limits(self) -> None:
         invalid_commands = [
             ["make-test-ppm", "out.ppm", "--width=0", "--height=1"],
