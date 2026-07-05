@@ -453,9 +453,12 @@ present and passing, plus the named address-map report
 reports.
 `all_required_present` requires at least one passing record in each required
 category, not just a requested input path. Complete Vivado evidence counts only
-records whose `passed` field is an actual JSON boolean `true`. Missing, non-file,
-or unparseable reports are recorded as structured JSON failures instead of
-aborting the transcript. Full bitstream gates should pass
+records whose `passed` field is an actual JSON boolean `true`. Missing,
+non-file, or unparseable reports are recorded as structured JSON failures
+instead of aborting the transcript. Vivado numeric transcript fields such as
+address-map base/high addresses, clock period/frequency, evidence-category
+counts, summary counts, and route-status counts must be actual JSON numbers,
+not booleans. Full bitstream gates should pass
 `--require-complete-evidence`; partial post-synthesis checks can omit it.
 Requested artifacts, clock-utilization reports, and address-map reports must be
 non-empty. Address-map reports must include parseable base addresses for both
@@ -735,7 +738,11 @@ Hardware completion evidence should include:
   idle/error/busy flags from the detailed status records. They also recompute
   RGB byte-count matches, PPM-to-input-RGB consistency, and transfer byte rates
   from the saved lengths, hashes, and elapsed time. Required boolean evidence
-  fields must be actual JSON booleans. The summary records the required
+  fields must be actual JSON booleans. Required numeric evidence fields such as
+  byte lengths, dimensions, status words, base addresses, timeouts, elapsed
+  seconds, derived rates, and count summaries must be actual JSON numbers;
+  booleans are rejected even though Python treats them as integers. The summary
+  records the required
   evidence group names, total, present, and missing evidence-group counts,
   recorded check names, total, passing, and failing check counts, missing
   and present evidence group names, and passing and failing check names for

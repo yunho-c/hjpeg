@@ -277,7 +277,11 @@ Expected evidence:
   idle/error/busy flags from the detailed status records. They also recompute
   RGB byte-count matches, PPM-to-input-RGB consistency, and transfer byte rates
   from the saved lengths, hashes, and elapsed time. Required boolean evidence
-  fields must be actual JSON booleans. The summary records the required
+  fields must be actual JSON booleans. Required numeric evidence fields such as
+  byte lengths, dimensions, status words, base addresses, timeouts, elapsed
+  seconds, derived rates, and count summaries must be actual JSON numbers;
+  booleans are rejected even though Python treats them as integers. The summary
+  records the required
   evidence group names, total, present, and missing evidence-group counts,
   recorded check names, total, passing, and failing check counts, missing
   and present evidence group names, and passing and failing check names for
@@ -311,7 +315,9 @@ Expected evidence:
   matching passed paths, positive per-category checked counts whose sum matches
   the total checked count and match the per-category pass/fail totals, plus a
   passing route-status record with zero unrouted nets and zero nets with routing
-  errors. The
+  errors. Vivado numeric transcript fields such as address-map base/high
+  addresses, clock period/frequency, evidence-category counts, summary counts,
+  and route-status counts must also be actual JSON numbers, not booleans. The
   checker fails if the run transcript's AXI-Lite base address does not match the
   Vivado build evidence or if multiple Vivado evidence files report conflicting
   HJPEG base addresses.
