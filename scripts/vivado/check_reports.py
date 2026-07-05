@@ -36,6 +36,14 @@ ROUTE_STATUS_RE = re.compile(
     re.IGNORECASE,
 )
 IGNORED_UTILIZATION_ROWS = {"PS8"}
+REQUIRED_EVIDENCE_CATEGORIES = (
+    "artifacts",
+    "timing",
+    "utilization",
+    "drc",
+    "route_status",
+    "clock_utilization",
+)
 
 
 def finite_float(value: str) -> float:
@@ -434,6 +442,20 @@ def route_status_record(path: Path) -> tuple[dict[str, object], list[str]]:
     return record, failures
 
 
+def evidence_category_record(checked_counts: dict[str, int]) -> dict[str, object]:
+    present = {
+        category: checked_counts.get(category, 0) > 0
+        for category in REQUIRED_EVIDENCE_CATEGORIES
+    }
+    missing = [category for category, is_present in present.items() if not is_present]
+    return {
+        "required_categories": list(REQUIRED_EVIDENCE_CATEGORIES),
+        "present": present,
+        "missing_required_categories": missing,
+        "all_required_present": not missing,
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="check Vivado timing and utilization reports")
     parser.add_argument(
@@ -586,6 +608,7 @@ def main(argv: list[str] | None = None) -> int:
                     "failures": failures,
                     "checked_count": checked,
                     "checked_counts": checked_counts,
+                    "evidence_categories": evidence_category_record(checked_counts),
                     "arguments": arguments,
                     "clock_period_ns": args.clock_period_ns,
                     "clock_frequency_mhz": 1000.0 / args.clock_period_ns,

@@ -418,12 +418,13 @@ reports, route-status reports, and clock-utilization reports can be recorded
 with byte lengths, hashes, target clock period/frequency, parsed setup WNS and
 hold WHS, utilization rows, DRC violations, route-status counts, thresholds,
 requested input path lists and gate values, checked report/artifact count,
-per-category checked counts, and pass/fail state. Missing, non-file, or
-unparseable reports are recorded as
-structured JSON failures instead of aborting the transcript. Requested artifacts
-and clock-utilization reports must be non-empty. Use `--hold-timing`
-for post-implementation timing reports; post-synthesis hold can be negative
-before implementation fixes it. The utilization parser handles Vivado's
+per-category checked counts, required evidence category presence, missing
+category names, and pass/fail state. Complete Vivado flow evidence should have
+`all_required_present` true. Missing, non-file, or unparseable reports are
+recorded as structured JSON failures instead of aborting the transcript.
+Requested artifacts and clock-utilization reports must be non-empty. Use
+`--hold-timing` for post-implementation timing reports; post-synthesis hold can
+be negative before implementation fixes it. The utilization parser handles Vivado's
 `Prohibited` column and records hard-system rows such as `PS8` without gating
 them against the fabric utilization threshold. The DRC gate fails Error and
 Critical Warning violations, the route-status gate fails nonzero unrouted or

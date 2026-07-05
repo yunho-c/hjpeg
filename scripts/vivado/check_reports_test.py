@@ -331,6 +331,29 @@ class CheckReportsTest(unittest.TestCase):
                 },
             )
             self.assertEqual(
+                record["evidence_categories"],
+                {
+                    "required_categories": [
+                        "artifacts",
+                        "timing",
+                        "utilization",
+                        "drc",
+                        "route_status",
+                        "clock_utilization",
+                    ],
+                    "present": {
+                        "artifacts": True,
+                        "timing": True,
+                        "utilization": True,
+                        "drc": True,
+                        "route_status": True,
+                        "clock_utilization": True,
+                    },
+                    "missing_required_categories": [],
+                    "all_required_present": True,
+                },
+            )
+            self.assertEqual(
                 record["arguments"],
                 {
                     "artifacts": [str(artifact)],
@@ -437,6 +460,11 @@ class CheckReportsTest(unittest.TestCase):
                     "clock_utilization": 0,
                 },
             )
+            self.assertEqual(
+                record["evidence_categories"]["missing_required_categories"],
+                ["utilization", "drc", "route_status", "clock_utilization"],
+            )
+            self.assertFalse(record["evidence_categories"]["all_required_present"])
             self.assertFalse(record["artifacts"][0]["exists"])
             self.assertFalse(record["artifacts"][0]["passed"])
             self.assertEqual(record["timing"][0]["wns_ns"], -0.01)
