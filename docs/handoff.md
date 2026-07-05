@@ -171,6 +171,18 @@ byte write strobes.
 
 Recent commits, newest first:
 
+- `347a537 feat: record encoder config evidence`
+- `42e4e7e feat: record decoder command in evidence`
+- `e699cce feat: emit host input evidence as json`
+- `1cfcc6c feat: include run status checkpoints in evidence`
+- `9ac22d8 feat: emit host status evidence as json`
+- `a5317a7 feat: hash vivado build artifacts`
+- `1f02f2f feat: emit vivado report evidence as json`
+- `72bc40f feat: link host input and JPEG evidence`
+- `bd4c44f feat: include host JPEG artifact hashes`
+- `18ae4cd feat: emit host validation evidence as json`
+- `1ba84b0 feat: report host JPEG scan evidence`
+- `95eeac4 docs: refresh host validation handoff`
 - `7340af8 fix: harden host decoder command parsing`
 - `1742948 feat: support external JPEG decoder checks`
 - `40b4bc4 test: require JPEG scan data in host validation`
@@ -238,10 +250,21 @@ An attempted decoded-color half-frame assertion was too strict for the current
 quality/color path. Use decoded-image checks for broad recognizability, but use
 stage or wrapper equivalence tests for exact protocol/lane invariants.
 
+Recent host/Vivado helper work made the evidence path machine-readable. The
+host helper now supports JSON evidence for `make-test-ppm`, `pack-ppm`,
+`config`, `status`, `validate-jpeg`, and `run-stream-devices`. The run evidence
+ties together the input RGB stream hash, output JPEG hash, AXI-Lite target,
+encoder configuration, status checkpoints, and optional decoder command. The
+Vivado report checker supports `--json` plus repeated `--artifact` arguments so
+the bitstream, XSA, timing reports, and utilization reports can be recorded
+with byte lengths, hashes, parsed WNS, utilization rows, thresholds, and
+pass/fail state.
+
 ## Last Known Local Verification
 
-The last clean committed checkout was `d3158ae`. After that, local source edits
-changed raster memory readout to serial MCU loading.
+The current clean checkout has recent host/Vivado evidence-helper updates on top
+of the last full Vivado bitstream validation. Local source changes since that
+Vivado run have been limited to Python helpers and documentation, not RTL.
 
 Known passing checks:
 
@@ -252,16 +275,20 @@ CHISEL_FIRTOOL_PATH='C:\Users\G14\GitHub\hjpeg\null\org.chipsalliance\llvm-firto
   sbt 'runMain hjpeg.ElaborateKv260AxiLiteTop'
 python3 scripts/host/hjpeg_host_test.py
 python3 scripts/vivado/check_reports_test.py
+python3 -m py_compile scripts/host/hjpeg_host.py scripts/vivado/check_reports.py
 git diff --check
 vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl
 vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl
 vivado -mode batch -source scripts/vivado/synth_kv260_axi_lite.tcl
 vivado -mode batch -source scripts/vivado/build_kv260_bitstream.tcl
 python3 scripts/vivado/check_reports.py \
+  --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit \
+  --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa \
   --timing build/vivado/hjpeg-kv260-artifacts/post_synth_timing_summary.rpt \
   --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --utilization build/vivado/hjpeg-kv260-artifacts/post_synth_utilization.rpt \
-  --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt
+  --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt \
+  --json
 ```
 
 Known local limitations:
@@ -328,10 +355,13 @@ vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl
 vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl
 vivado -mode batch -source scripts/vivado/build_kv260_bitstream.tcl
 python3 scripts/vivado/check_reports.py \
+  --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit \
+  --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa \
   --timing build/vivado/hjpeg-kv260-artifacts/post_synth_timing_summary.rpt \
   --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --utilization build/vivado/hjpeg-kv260-artifacts/post_synth_utilization.rpt \
-  --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt
+  --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt \
+  --json
 ```
 
 Expected evidence is listed in `docs/kv260-bringup.md`.
@@ -348,8 +378,8 @@ driver stack that exposes the AXI-Lite aperture and AXI DMA channels.
 Prepare input:
 
 ```sh
-python3 scripts/host/hjpeg_host.py make-test-ppm input.ppm --width WIDTH --height HEIGHT
-python3 scripts/host/hjpeg_host.py pack-ppm input.ppm input.rgb
+python3 scripts/host/hjpeg_host.py make-test-ppm input.ppm --width WIDTH --height HEIGHT --json
+python3 scripts/host/hjpeg_host.py pack-ppm input.ppm input.rgb --json
 ```
 
 Run stream-device flow if the DMA endpoints are byte-stream device files:
@@ -362,9 +392,11 @@ python3 scripts/host/hjpeg_host.py run-stream-devices \
   --input-rgb input.rgb \
   --output-jpeg output.jpg \
   --width WIDTH \
-  --height HEIGHT
-python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000
-python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg --width WIDTH --height HEIGHT
+  --height HEIGHT \
+  --decoder-command 'magick identify {jpeg}' \
+  --json
+python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000 --json
+python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg --width WIDTH --height HEIGHT --json
 ```
 
 The device paths and base address may need adjustment for the actual board
@@ -380,17 +412,20 @@ Hardware completion evidence should include:
 - Captured output starts with SOI and ends with EOI.
 - `validate-jpeg` confirms the expected dimensions and non-empty
   entropy-coded scan data.
+- JSON evidence records the bitstream/XSA/report hashes, PPM/RGB input hashes,
+  AXI-Lite target, encoder configuration, status checkpoints, output JPEG hash,
+  scan payload length, and decoder command.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 
-The `run-stream-devices` host helper now checks AXI-Lite status after
-configuration, before streaming RGB input, and after validating the captured
-JPEG. It fails if the encoder reports `busy` or `protocol_error` at any of those
-checkpoints. `make-test-ppm` can generate a deterministic non-flat/color P6 PPM
-fixture for repeatable visual checks when no external image is available. Pass
-`--decoder-command 'magick identify {jpeg}'` or an equivalent installed decoder
-command to `validate-jpeg` or `run-stream-devices` when you want the standard
-decoder-open check captured in the same command transcript.
+The `run-stream-devices` host helper now checks and records AXI-Lite status
+after configuration, before streaming RGB input, and after validating the
+captured JPEG. It fails if the encoder reports `busy` or `protocol_error` at
+any of those checkpoints. `make-test-ppm` can generate a deterministic
+non-flat/color P6 PPM fixture for repeatable visual checks when no external
+image is available. Pass `--decoder-command 'magick identify {jpeg}'` or an
+equivalent installed decoder command to `validate-jpeg` or `run-stream-devices`
+when you want the standard decoder-open check captured in JSON evidence.
 
 ## Known Blockers And Bottlenecks
 
@@ -415,16 +450,16 @@ If the new PC has Vivado:
 3. Run IP packaging.
 4. Run block design creation and confirm `validate_bd_design`.
 5. Run bitstream/XSA generation.
-6. Run `check_reports.py` on post-synth and post-impl reports.
-7. Save the report/artifact evidence, then move to KV260 board validation.
+6. Run `check_reports.py` with `--artifact`, report paths, and `--json`.
+7. Save the report/artifact JSON evidence, then move to KV260 board validation.
 
 If the new PC has KV260 access too:
 
 1. Use the bitstream/XSA from the Vivado flow.
 2. Confirm the AXI-Lite base address and DMA device model.
-3. Run a small PPM through `hjpeg_host.py`.
-4. Validate the captured JPEG.
-5. Save the command transcript and enough report/output evidence to update
+3. Run a small PPM through `hjpeg_host.py` using the JSON evidence options.
+4. Validate the captured JPEG with `--json` and a standard decoder command.
+5. Save the command JSON records and enough output evidence to update
    `docs/kv260-bringup.md`.
 
 If the new PC does not have Vivado or hardware:
