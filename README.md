@@ -383,17 +383,23 @@ checks failed.
 Saved run JSON can be checked later with:
 
 ```sh
-python3 scripts/host/hjpeg_host.py check-run-evidence run.json --json
+python3 scripts/host/hjpeg_host.py check-run-evidence run.json \
+  --vivado-evidence vivado.json \
+  --json
 ```
 
 The saved-evidence checker recomputes `hardware_run_summary` from the transcript
-and fails if the stored summary does not match the recomputed evidence. Its JSON
-output includes aggregate checked/pass/fail transcript counts, diagnostic
+and fails if the stored summary does not match the recomputed evidence. When
+`--vivado-evidence` points at `check_reports.py --json` output, it also extracts
+the passing `hjpeg_0/s_axi_lite` address-map base address and fails if the run
+transcript's AXI-Lite base address does not match the Vivado build evidence. Its
+JSON output includes aggregate checked/pass/fail transcript counts, diagnostic
 failure count, checked/passed/failed path lists, summary checked, matched, and
 mismatched counts and paths, aggregate evidence group present/missing counts and
-names, and aggregate recorded/passing/failing check counts and names plus the
-recomputed summary, evidence/check counts, missing evidence groups, and failing
-check names for each object-shaped transcript.
+names, aggregate recorded/passing/failing check counts and names, Vivado
+address-map evidence counts and parsed HJPEG base addresses, plus the recomputed
+summary, evidence/check counts, missing evidence groups, and failing check names
+for each object-shaped transcript.
 
 Maximum output bytes must be positive, and RX timeout values must be finite and
 positive when present. It

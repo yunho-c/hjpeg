@@ -951,6 +951,39 @@ def complete_run_evidence_record(root: Path) -> dict[str, object]:
     )
 
 
+def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
+    return {
+        "passed": True,
+        "address_map": [
+            {
+                "path": "hjpeg_kv260_address_map.rpt",
+                "exists": True,
+                "passed": True,
+                "entries": [
+                    {
+                        "interface": "hjpeg_0/s_axi_lite",
+                        "base_address": base_address,
+                        "base_address_hex": f"0x{base_address:x}",
+                        "high_address": base_address + 0xFFF,
+                        "high_address_hex": f"0x{base_address + 0xfff:x}",
+                        "high_address_valid": True,
+                        "aperture_bytes": 0x1000,
+                    },
+                    {
+                        "interface": "axi_dma_0/s_axi_lite",
+                        "base_address": base_address + 0x10000,
+                        "base_address_hex": f"0x{base_address + 0x10000:x}",
+                        "high_address": base_address + 0x10FFF,
+                        "high_address_hex": f"0x{base_address + 0x10fff:x}",
+                        "high_address_valid": True,
+                        "aperture_bytes": 0x1000,
+                    },
+                ],
+            }
+        ],
+    }
+
+
 class HjpegHostTest(unittest.TestCase):
     def test_make_test_image_writes_non_flat_ppm(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2702,6 +2735,40 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["failing_check_count"], 0)
             self.assertEqual(record["failing_checks"], [])
 
+    def test_check_run_evidence_file_matches_vivado_address_map(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "run.json"
+            path.write_text(json.dumps(complete_run_evidence_record(root)))
+
+            record, failures = hjpeg_host.check_run_evidence_file(path, (0,))
+
+            self.assertEqual(failures, [])
+            self.assertTrue(record["passed"])
+            self.assertEqual(record["vivado_hjpeg_base_addresses"], [0])
+            self.assertEqual(record["vivado_hjpeg_base_addresses_hex"], ["0x0"])
+            self.assertEqual(record["axi_lite_base_addr"], 0)
+            self.assertTrue(record["axi_lite_base_matches_vivado_evidence"])
+
+    def test_check_run_evidence_file_rejects_vivado_address_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "run.json"
+            path.write_text(json.dumps(complete_run_evidence_record(root)))
+
+            record, failures = hjpeg_host.check_run_evidence_file(path, (0xA0000000,))
+
+            self.assertFalse(record["passed"])
+            self.assertEqual(record["vivado_hjpeg_base_addresses"], [0xA0000000])
+            self.assertEqual(
+                record["vivado_hjpeg_base_addresses_hex"], ["0xa0000000"]
+            )
+            self.assertEqual(record["axi_lite_base_addr"], 0)
+            self.assertFalse(record["axi_lite_base_matches_vivado_evidence"])
+            self.assertTrue(
+                any("does not match Vivado hjpeg_0/s_axi_lite" in failure for failure in failures)
+            )
+
     def test_check_run_evidence_file_rejects_tampered_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -2983,6 +3050,74 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertTrue(
                 any("file not found" in failure for failure in record["failures"])
+            )
+
+    def test_check_run_evidence_cli_cross_checks_vivado_address_map(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run = root / "run.json"
+            vivado = root / "vivado.json"
+            run.write_text(json.dumps(complete_run_evidence_record(root)))
+            vivado.write_text(json.dumps(vivado_evidence_record(0)))
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "check-run-evidence",
+                            str(run),
+                            "--vivado-evidence",
+                            str(vivado),
+                            "--json",
+                        ]
+                    ),
+                    0,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertTrue(record["passed"])
+            self.assertEqual(record["vivado_evidence_checked_count"], 1)
+            self.assertEqual(record["vivado_evidence_passed_count"], 1)
+            self.assertEqual(record["vivado_evidence_failed_count"], 0)
+            self.assertEqual(record["vivado_hjpeg_base_addresses"], [0])
+            self.assertEqual(record["vivado_hjpeg_base_addresses_hex"], ["0x0"])
+            self.assertTrue(
+                record["records"][0]["axi_lite_base_matches_vivado_evidence"]
+            )
+
+    def test_check_run_evidence_cli_rejects_bad_vivado_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run = root / "run.json"
+            vivado = root / "vivado.json"
+            run.write_text(json.dumps(complete_run_evidence_record(root)))
+            vivado.write_text(json.dumps({"address_map": []}))
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "check-run-evidence",
+                            str(run),
+                            "--vivado-evidence",
+                            str(vivado),
+                            "--json",
+                        ]
+                    ),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertEqual(record["vivado_evidence_checked_count"], 1)
+            self.assertEqual(record["vivado_evidence_passed_count"], 0)
+            self.assertEqual(record["vivado_evidence_failed_count"], 1)
+            self.assertEqual(record["vivado_hjpeg_base_addresses"], [])
+            self.assertFalse(record["vivado_evidence"][0]["passed"])
+            self.assertTrue(
+                any("no passing hjpeg_0/s_axi_lite" in failure for failure in record["failures"])
             )
 
     def test_capture_config_record_rejects_invalid_limits(self) -> None:

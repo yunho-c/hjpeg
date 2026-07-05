@@ -263,14 +263,18 @@ evidence groups were missing, plus which complete-evidence checks failed. Saved
 run JSON can be checked later with
 `check-run-evidence`, which fails on malformed JSON, missing
 `hardware_run_summary`, a stored summary that does not match recomputed
-evidence, failed recorded checks, or incomplete hardware evidence. JSON output
-includes aggregate checked/pass/fail transcript counts, diagnostic failure
-count, checked/passed/failed path lists, summary checked, matched, and
-mismatched counts and paths, aggregate evidence group present/missing counts,
-aggregate evidence group present/missing names, and aggregate recorded/passing/failing
-check counts and names plus the recomputed summary, evidence/check counts,
-missing evidence groups, and failing check names for each object-shaped
-transcript.
+evidence, failed recorded checks, or incomplete hardware evidence. With
+`--vivado-evidence`, the saved-run checker also parses `check_reports.py --json`
+Vivado evidence, extracts passing `hjpeg_0/s_axi_lite` address-map base
+addresses, and fails run transcripts whose AXI-Lite base address does not match
+the Vivado build evidence. JSON output includes aggregate checked/pass/fail
+transcript counts, diagnostic failure count, checked/passed/failed path lists,
+summary checked, matched, and mismatched counts and paths, aggregate evidence
+group present/missing counts, aggregate evidence group present/missing names,
+aggregate recorded/passing/failing check counts and names, Vivado evidence
+counts and parsed HJPEG base addresses, plus the recomputed summary,
+evidence/check counts, missing evidence groups, and failing check names for each
+object-shaped transcript.
 The `run-stream-devices` command supports Linux board images that expose DMA
 MM2S/S2MM endpoints as byte-stream device files by writing padded RGB bytes to
 the TX device and reading JPEG bytes from the RX device until EOI, while

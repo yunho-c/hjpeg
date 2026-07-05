@@ -622,7 +622,9 @@ python3 scripts/host/hjpeg_host.py run-stream-devices \
   --require-complete-evidence \
   --json > run.json
 python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000 --json
-python3 scripts/host/hjpeg_host.py check-run-evidence run.json --json
+python3 scripts/host/hjpeg_host.py check-run-evidence run.json \
+  --vivado-evidence vivado.json \
+  --json
 python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
   --width WIDTH \
   --height HEIGHT \
@@ -748,14 +750,17 @@ which evidence groups were missing, plus which complete-evidence checks failed.
 Saved run JSON can be checked later with
 `check-run-evidence`, which fails on malformed JSON, missing
 `hardware_run_summary`, a stored summary that does not match recomputed
-evidence, failed recorded checks, or incomplete hardware evidence. JSON output
-includes aggregate checked/pass/fail transcript counts, diagnostic failure
-count, checked/passed/failed path lists, summary checked, matched, and
-mismatched counts and paths, aggregate evidence group present/missing counts,
-aggregate evidence group present/missing names, and aggregate recorded/passing/failing
-check counts and names plus the recomputed summary, evidence/check counts,
-missing evidence groups, and failing check names for each object-shaped
-transcript.
+evidence, failed recorded checks, or incomplete hardware evidence. Pass
+`--vivado-evidence` with the saved `check_reports.py --json` bitstream evidence
+to cross-check the run transcript's AXI-Lite base address against the Vivado
+`hjpeg_0/s_axi_lite` address-map entry. JSON output includes aggregate
+checked/pass/fail transcript counts, diagnostic failure count,
+checked/passed/failed path lists, summary checked, matched, and mismatched
+counts and paths, aggregate evidence group present/missing counts, aggregate
+evidence group present/missing names, aggregate recorded/passing/failing check
+counts and names, Vivado evidence counts and parsed HJPEG base addresses, plus
+the recomputed summary, evidence/check counts, missing evidence groups, and
+failing check names for each object-shaped transcript.
 
 ## Known Blockers And Bottlenecks
 

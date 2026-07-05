@@ -2327,7 +2327,9 @@ def run_evidence_record(
 
 
 def check_run_evidence_record(
-    path: Path, record: object
+    path: Path,
+    record: object,
+    vivado_hjpeg_base_addresses: tuple[int, ...] = (),
 ) -> tuple[dict[str, object], list[str]]:
     result: dict[str, object] = {
         "path": str(path),
@@ -2416,11 +2418,42 @@ def check_run_evidence_record(
         )
     if failing_checks:
         failures.append(f"{path}: failing hardware checks: {', '.join(failing_checks)}")
+
+    if vivado_hjpeg_base_addresses:
+        axi_lite = record.get("axi_lite")
+        axi_lite_base_addr = (
+            axi_lite.get("base_addr") if isinstance(axi_lite, dict) else None
+        )
+        axi_lite_base_matches_vivado = (
+            isinstance(axi_lite_base_addr, int)
+            and axi_lite_base_addr in vivado_hjpeg_base_addresses
+        )
+        result.update(
+            {
+                "vivado_hjpeg_base_addresses": list(vivado_hjpeg_base_addresses),
+                "vivado_hjpeg_base_addresses_hex": [
+                    f"0x{base:x}" for base in vivado_hjpeg_base_addresses
+                ],
+                "axi_lite_base_addr": axi_lite_base_addr,
+                "axi_lite_base_matches_vivado_evidence": (
+                    axi_lite_base_matches_vivado
+                ),
+            }
+        )
+        if not axi_lite_base_matches_vivado:
+            failures.append(
+                f"{path}: AXI-Lite base address {axi_lite_base_addr!r} does not "
+                "match Vivado hjpeg_0/s_axi_lite address evidence "
+                + ", ".join(f"0x{base:x}" for base in vivado_hjpeg_base_addresses)
+            )
     result["passed"] = not failures
     return result, failures
 
 
-def check_run_evidence_file(path: Path) -> tuple[dict[str, object], list[str]]:
+def check_run_evidence_file(
+    path: Path,
+    vivado_hjpeg_base_addresses: tuple[int, ...] = (),
+) -> tuple[dict[str, object], list[str]]:
     if not path.exists():
         record = {
             "path": str(path),
@@ -2447,7 +2480,60 @@ def check_run_evidence_file(path: Path) -> tuple[dict[str, object], list[str]]:
             "error": f"invalid JSON: {exc.msg}",
         }
         return record, [f"{path}: invalid JSON: {exc.msg}"]
-    return check_run_evidence_record(path, parsed)
+    return check_run_evidence_record(path, parsed, vivado_hjpeg_base_addresses)
+
+
+def vivado_hjpeg_base_addresses_from_record(record: object) -> tuple[int, ...]:
+    if not isinstance(record, dict):
+        return ()
+    address_maps = record.get("address_map")
+    if not isinstance(address_maps, list):
+        return ()
+    bases = []
+    for address_map in address_maps:
+        if not isinstance(address_map, dict) or address_map.get("passed") is not True:
+            continue
+        entries = address_map.get("entries")
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("interface") != "hjpeg_0/s_axi_lite":
+                continue
+            base_address = entry.get("base_address")
+            if isinstance(base_address, int) and base_address >= 0:
+                bases.append(base_address)
+    return tuple(dict.fromkeys(bases))
+
+
+def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str]]:
+    result: dict[str, object] = {
+        "path": str(path),
+        "exists": False,
+        "passed": False,
+        "hjpeg_base_addresses": [],
+        "hjpeg_base_addresses_hex": [],
+    }
+    if not path.exists():
+        return result, [f"{path}: Vivado evidence file not found"]
+    result["exists"] = True
+    try:
+        parsed = json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        return result, [f"{path}: invalid Vivado evidence JSON: {exc}"]
+
+    bases = vivado_hjpeg_base_addresses_from_record(parsed)
+    result.update(
+        {
+            "hjpeg_base_addresses": list(bases),
+            "hjpeg_base_addresses_hex": [f"0x{base:x}" for base in bases],
+            "passed": bool(bases),
+        }
+    )
+    if not bases:
+        return result, [f"{path}: no passing hjpeg_0/s_axi_lite address-map evidence"]
+    return result, []
 
 
 def unique_string_values(records: list[dict[str, object]], key: str) -> list[str]:
@@ -2889,6 +2975,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="check saved run-stream-devices JSON for complete hardware evidence",
     )
     check_run.add_argument("json_files", nargs="+", type=Path)
+    check_run.add_argument(
+        "--vivado-evidence",
+        type=Path,
+        action="append",
+        default=[],
+        help="optional check_reports.py JSON evidence whose hjpeg_0/s_axi_lite base address must match each run",
+    )
     check_run.add_argument("--json", action="store_true", help="print check evidence as JSON")
 
     config = subparsers.add_parser("config", help="write encoder AXI-Lite configuration registers")
@@ -3076,10 +3169,27 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "check-run-evidence":
+        vivado_records = []
+        vivado_failures = []
+        for vivado_path in args.vivado_evidence:
+            vivado_record, record_failures = vivado_evidence_file_record(vivado_path)
+            vivado_records.append(vivado_record)
+            vivado_failures.extend(record_failures)
+        vivado_hjpeg_base_addresses = tuple(
+            dict.fromkeys(
+                base
+                for vivado_record in vivado_records
+                for base in vivado_record.get("hjpeg_base_addresses", [])
+                if isinstance(base, int)
+            )
+        )
         records = []
-        failures = []
+        failures = list(vivado_failures)
         for evidence_path in args.json_files:
-            record, record_failures = check_run_evidence_file(evidence_path)
+            record, record_failures = check_run_evidence_file(
+                evidence_path,
+                vivado_hjpeg_base_addresses,
+            )
             records.append(record)
             failures.extend(record_failures)
         passed_count = sum(1 for record in records if record.get("passed") is True)
@@ -3144,6 +3254,10 @@ def main(argv: list[str] | None = None) -> int:
         aggregate_missing_evidence = unique_string_values(records, "missing_evidence")
         aggregate_passing_checks = unique_string_values(records, "passing_checks")
         aggregate_failing_checks = unique_string_values(records, "failing_checks")
+        vivado_passed_count = sum(
+            1 for record in vivado_records if record.get("passed") is True
+        )
+        vivado_failed_count = len(vivado_records) - vivado_passed_count
         if args.json:
             print(
                 json.dumps(
@@ -3184,6 +3298,19 @@ def main(argv: list[str] | None = None) -> int:
                         "aggregate_missing_evidence": aggregate_missing_evidence,
                         "aggregate_passing_checks": aggregate_passing_checks,
                         "aggregate_failing_checks": aggregate_failing_checks,
+                        "vivado_evidence_checked_count": len(vivado_records),
+                        "vivado_evidence_passed_count": vivado_passed_count,
+                        "vivado_evidence_failed_count": vivado_failed_count,
+                        "vivado_evidence_paths": [
+                            str(path) for path in args.vivado_evidence
+                        ],
+                        "vivado_hjpeg_base_addresses": list(
+                            vivado_hjpeg_base_addresses
+                        ),
+                        "vivado_hjpeg_base_addresses_hex": [
+                            f"0x{base:x}" for base in vivado_hjpeg_base_addresses
+                        ],
+                        "vivado_evidence": vivado_records,
                         "records": records,
                         "failures": failures,
                     },

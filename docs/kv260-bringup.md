@@ -202,7 +202,9 @@ python3 scripts/host/hjpeg_host.py run-stream-devices \
   --json > run.json
 python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000 --json
 python3 scripts/host/hjpeg_host.py clear-error --base-addr 0xa0000000 --json
-python3 scripts/host/hjpeg_host.py check-run-evidence run.json --json
+python3 scripts/host/hjpeg_host.py check-run-evidence run.json \
+  --vivado-evidence vivado.json \
+  --json
 ```
 
 Adjust the `--tx-device` and `--rx-device` paths to match the loaded board
@@ -275,13 +277,18 @@ Expected evidence:
   `hardware_run_summary` is missing, `all_recorded_checks_passed` is false, or
   `complete_hardware_run_evidence` is false. The checker recomputes
   `hardware_run_summary` from the saved transcript and fails if the stored
-  summary does not match the recomputed evidence. JSON output includes the
-  aggregate checked/pass/fail transcript counts, diagnostic failure count, and
-  checked/passed/failed path lists, summary checked, matched, and mismatched
-  counts and paths, aggregate evidence group present/missing counts, aggregate
-  evidence group present/missing names, and aggregate recorded/passing/failing check
-  counts and names plus the recomputed summary, evidence/check counts, missing
-  evidence groups, and failing check names for each object-shaped transcript.
+  summary does not match the recomputed evidence. When `--vivado-evidence`
+  points at the `check_reports.py --json` output saved from the bitstream build,
+  it also extracts the passing `hjpeg_0/s_axi_lite` address-map base address and
+  fails if the run transcript's AXI-Lite base address does not match the Vivado
+  build evidence. JSON output includes the aggregate checked/pass/fail
+  transcript counts, diagnostic failure count, and checked/passed/failed path
+  lists, summary checked, matched, and mismatched counts and paths, aggregate
+  evidence group present/missing counts, aggregate evidence group present/missing
+  names, aggregate recorded/passing/failing check counts and names, Vivado
+  address-map evidence counts and parsed HJPEG base addresses, plus the
+  recomputed summary, evidence/check counts, missing evidence groups, and failing
+  check names for each object-shaped transcript.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after
