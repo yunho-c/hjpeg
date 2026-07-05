@@ -174,7 +174,7 @@ Expected evidence:
   checkpoints enforced after configuration, before transfer, and after
   transfer.
 - A standard JPEG decoder can open `output.jpg`; when `--decoder-command` is
-  used, that decoder check is part of the command transcript.
+  used, that decoder check and command string are part of the JSON evidence.
 - The decoded dimensions match the input.
 - Visual content is recognizable for non-flat test images.
 

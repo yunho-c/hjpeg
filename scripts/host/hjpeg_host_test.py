@@ -261,6 +261,36 @@ class HjpegHostTest(unittest.TestCase):
                 hashlib.sha256(minimal_jpeg(width=17, height=13)).hexdigest(),
             )
             self.assertNotIn("decoder_passed", record)
+            self.assertNotIn("decoder_command", record)
+
+    def test_validate_jpeg_json_records_decoder_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "out.jpg"
+            jpeg.write_bytes(minimal_jpeg(width=17, height=13))
+            command = f'"{sys.executable}" -c "import sys; open(sys.argv[1], \'rb\').read(2)"'
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "validate-jpeg",
+                            str(jpeg),
+                            "--width",
+                            "17",
+                            "--height",
+                            "13",
+                            "--decoder-command",
+                            command,
+                            "--json",
+                        ]
+                    ),
+                    0,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertTrue(record["decoder_passed"])
+            self.assertEqual(record["decoder_command"], command)
 
     def test_decoder_command_supports_placeholder_and_reports_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -458,9 +488,14 @@ class HjpegHostTest(unittest.TestCase):
             tx_device = root / "tx.dev"
             rx_device = root / "rx.dev"
             mem = root / "mem.bin"
+            decoder_marker = root / "decoder.txt"
             input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
             rx_device.write_bytes(minimal_jpeg(width=2, height=1))
             mem.write_bytes(bytes(hjpeg_host.AXI_LITE_APERTURE_BYTES))
+            decoder_command = (
+                f'"{sys.executable}" -c "import pathlib, sys; '
+                f'pathlib.Path(r\'{decoder_marker}\').write_text(pathlib.Path(sys.argv[1]).read_bytes()[:2].hex())"'
+            )
 
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
@@ -484,6 +519,8 @@ class HjpegHostTest(unittest.TestCase):
                             "2",
                             "--height",
                             "1",
+                            "--decoder-command",
+                            decoder_command,
                             "--json",
                         ]
                     ),
@@ -506,6 +543,9 @@ class HjpegHostTest(unittest.TestCase):
                 record["input_rgb"]["sha256"],
                 hashlib.sha256(input_rgb.read_bytes()).hexdigest(),
             )
+            self.assertTrue(record["decoder_passed"])
+            self.assertEqual(record["decoder_command"], decoder_command)
+            self.assertEqual(decoder_marker.read_text(), "ffd8")
             self.assertEqual(
                 [status["context"] for status in record["status_checks"]],
                 ["after configuration", "before transfer", "after transfer"],

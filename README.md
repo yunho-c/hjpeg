@@ -182,7 +182,8 @@ packing and validation helpers.
 
 To fold a standard decoder into the validation transcript, pass a command with
 `--decoder-command`. The helper replaces `{jpeg}` with the output path, or
-appends the path when no placeholder is present:
+appends the path when no placeholder is present. JSON evidence records both
+that the decoder passed and the command string used:
 
 ```sh
 python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
@@ -195,9 +196,10 @@ Add `--json` to `make-test-ppm`, `pack-ppm`, `status`, `validate-jpeg`, or
 `run-stream-devices` when you want evidence in a machine-readable form for logs.
 Input-prep evidence includes dimensions, byte lengths, and SHA-256 hashes for
 the generated PPM and packed RGB stream. JPEG validation evidence includes
-dimensions, scan-data byte count, total JPEG byte length, and SHA-256. For
-`run-stream-devices`, it also includes the input RGB stream byte length and
-SHA-256 plus the AXI-Lite status checkpoints enforced during the run.
+dimensions, scan-data byte count, total JPEG byte length, SHA-256, and decoder
+command when one was provided. For `run-stream-devices`, it also includes the
+input RGB stream byte length and SHA-256 plus the AXI-Lite status checkpoints
+enforced during the run.
 
 ## Versions
 

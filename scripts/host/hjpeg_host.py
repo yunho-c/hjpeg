@@ -291,7 +291,12 @@ def run_decoder_command(jpeg: Path, command: str) -> None:
         raise RuntimeError(f"decoder command failed with exit code {completed.returncode}{suffix}")
 
 
-def jpeg_info_record(jpeg: Path, info: JpegInfo, decoder_passed: bool | None = None) -> dict[str, object]:
+def jpeg_info_record(
+    jpeg: Path,
+    info: JpegInfo,
+    decoder_passed: bool | None = None,
+    decoder_command: str | None = None,
+) -> dict[str, object]:
     record: dict[str, object] = {
         "jpeg": str(jpeg),
         "width": info.width,
@@ -302,6 +307,8 @@ def jpeg_info_record(jpeg: Path, info: JpegInfo, decoder_passed: bool | None = N
     }
     if decoder_passed is not None:
         record["decoder_passed"] = decoder_passed
+    if decoder_command is not None:
+        record["decoder_command"] = decoder_command
     return record
 
 
@@ -339,8 +346,9 @@ def run_evidence_record(
     input_info: FileInfo | None = None,
     status_checks: list[dict[str, object]] | None = None,
     decoder_passed: bool | None = None,
+    decoder_command: str | None = None,
 ) -> dict[str, object]:
-    record = jpeg_info_record(jpeg, info, decoder_passed)
+    record = jpeg_info_record(jpeg, info, decoder_passed, decoder_command)
     if input_info is not None:
         record["input_rgb"] = {
             "path": input_info.path,
@@ -685,7 +693,12 @@ def main(argv: list[str] | None = None) -> int:
             run_decoder_command(args.jpeg, args.decoder_command)
             decoder_passed = True
         if args.json:
-            print(json.dumps(jpeg_info_record(args.jpeg, info, decoder_passed), sort_keys=True))
+            print(
+                json.dumps(
+                    jpeg_info_record(args.jpeg, info, decoder_passed, args.decoder_command),
+                    sort_keys=True,
+                )
+            )
             return 0
         if decoder_passed:
             decoder_text = " decoder=pass"
@@ -782,6 +795,7 @@ def main(argv: list[str] | None = None) -> int:
                         input_info,
                         status_checks,
                         decoder_passed,
+                        args.decoder_command,
                     ),
                     sort_keys=True,
                 )
