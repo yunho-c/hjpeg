@@ -1506,6 +1506,10 @@ def is_sha256_hex(value: object) -> bool:
     )
 
 
+def is_strict_int(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
 def file_info_record(info: FileInfo) -> dict[str, object]:
     return {
         "path": info.path,
@@ -2126,10 +2130,12 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         decoder_stderr_present = isinstance(decoder_stderr, str)
         decoder_stdout_length_matches = (
             decoder_stdout_present
+            and is_strict_int(record.get("decoder_stdout_chars"))
             and record.get("decoder_stdout_chars") == len(decoder_stdout)
         )
         decoder_stderr_length_matches = (
             decoder_stderr_present
+            and is_strict_int(record.get("decoder_stderr_chars"))
             and record.get("decoder_stderr_chars") == len(decoder_stderr)
         )
         decoder_argv_matches_command = False
@@ -2146,9 +2152,10 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             except ValueError:
                 decoder_argv_matches_command = False
         decoder_output_capture_chars = record.get("decoder_output_capture_chars")
-        decoder_output_capture_chars_positive = isinstance(
-            decoder_output_capture_chars, int
-        ) and decoder_output_capture_chars > 0
+        decoder_output_capture_chars_positive = (
+            is_strict_int(decoder_output_capture_chars)
+            and decoder_output_capture_chars > 0
+        )
         decoder_output_not_truncated = (
             record.get("decoder_stdout_truncated") is False
             and record.get("decoder_stderr_truncated") is False
