@@ -421,7 +421,8 @@ requested input path lists and gate values, checked report/artifact count,
 per-category checked counts, required evidence category presence, missing
 category names, per-category passing/failing counts, required `.bit`/`.xsa`
 artifact suffix presence, required suffix passing/failing counts, aggregate
-pass/fail counts, diagnostic failure count, passed/failed path lists, and pass/fail state.
+pass/fail counts, required/present/missing category and suffix counts,
+diagnostic failure count, passed/failed path lists, and pass/fail state.
 Complete Vivado flow evidence should have `all_required_present` and
 `all_required_suffixes_present` true. `all_required_present` requires at least
 one passing record in each required category, not just a requested input path.
