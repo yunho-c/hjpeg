@@ -341,6 +341,28 @@ class CheckReportsTest(unittest.TestCase):
                 [f"{report}: route status missing number_of_unrouted_nets count"],
             )
 
+    def test_route_status_record_reports_missing_required_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "post_impl_route_status.rpt"
+            report.write_text(ROUTE_STATUS_MISSING_UNROUTED_REPORT)
+
+            record, failures = check_reports.route_status_record(report)
+
+            self.assertEqual(
+                record["required_counts"],
+                [
+                    "number_of_unrouted_nets",
+                    "number_of_nets_with_routing_errors",
+                ],
+            )
+            self.assertEqual(record["counts"], {"number_of_nets_with_routing_errors": 0})
+            self.assertEqual(record["missing_counts"], ["number_of_unrouted_nets"])
+            self.assertFalse(record["passed"])
+            self.assertEqual(
+                failures,
+                [f"{report}: route status missing number_of_unrouted_nets count"],
+            )
+
     def test_parse_address_map_entries(self) -> None:
         entries = check_reports.parse_address_map_entries(ADDRESS_MAP_REPORT)
 
@@ -896,12 +918,20 @@ class CheckReportsTest(unittest.TestCase):
             self.assertTrue(record["drc"][0]["passed"])
             self.assertEqual(record["route_status"][0]["path"], str(route_status))
             self.assertEqual(
+                record["route_status"][0]["required_counts"],
+                [
+                    "number_of_unrouted_nets",
+                    "number_of_nets_with_routing_errors",
+                ],
+            )
+            self.assertEqual(
                 record["route_status"][0]["counts"],
                 {
                     "number_of_unrouted_nets": 0,
                     "number_of_nets_with_routing_errors": 0,
                 },
             )
+            self.assertEqual(record["route_status"][0]["missing_counts"], [])
             self.assertTrue(record["route_status"][0]["passed"])
             self.assertEqual(record["clock_utilization"][0]["path"], str(clock_utilization))
             self.assertEqual(
@@ -1536,6 +1566,7 @@ class CheckReportsTest(unittest.TestCase):
                     "number_of_nets_with_routing_errors": 1,
                 },
             )
+            self.assertEqual(record["route_status"][0]["missing_counts"], [])
             self.assertFalse(record["route_status"][0]["passed"])
             self.assertTrue(any("DRC critical warning" in failure for failure in record["failures"]))
             self.assertTrue(any("number_of_unrouted_nets" in failure for failure in record["failures"]))

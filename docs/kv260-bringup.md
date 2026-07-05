@@ -121,8 +121,9 @@ Pass criteria:
   timing gated on the post-implementation timing report.
 - The JSON evidence records artifact/report paths, byte lengths, SHA-256 hex
   hashes, target clock period/frequency, parsed setup WNS and hold WHS values,
-  utilization rows, thresholds, DRC violations, route-status counts, required
-  clock-utilization report hashes, parsed address-map AXI-Lite aperture
+  utilization rows, thresholds, DRC violations, route-status counts plus the
+  required and missing route-status count names, required clock-utilization
+  report hashes, parsed address-map AXI-Lite aperture
   base/high addresses and byte ranges for `hjpeg_0/s_axi_lite` and
   `axi_dma_0/S_AXI_LITE`, duplicate/missing/overlapping address-map interface
   checks, requested input path lists and gate values, checked report/artifact

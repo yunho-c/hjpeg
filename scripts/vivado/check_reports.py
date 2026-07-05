@@ -608,7 +608,13 @@ def route_status_record(path: Path) -> tuple[dict[str, object], list[str]]:
     missing_record = missing_report_record(path, "route status")
     if missing_record is not None:
         record, failures = missing_record
-        record.update({"counts": {}})
+        record.update(
+            {
+                "required_counts": list(REQUIRED_ROUTE_STATUS_COUNTS),
+                "counts": {},
+                "missing_counts": list(REQUIRED_ROUTE_STATUS_COUNTS),
+            }
+        )
         return record, failures
 
     report_bytes = path.read_bytes()
@@ -617,9 +623,9 @@ def route_status_record(path: Path) -> tuple[dict[str, object], list[str]]:
     failures = []
     if not counts:
         failures.append(f"{path}: could not find route status counts")
-    for label in REQUIRED_ROUTE_STATUS_COUNTS:
-        if label not in counts:
-            failures.append(f"{path}: route status missing {label} count")
+    missing_counts = [label for label in REQUIRED_ROUTE_STATUS_COUNTS if label not in counts]
+    for label in missing_counts:
+        failures.append(f"{path}: route status missing {label} count")
     for label, count in counts.items():
         if count != 0:
             failures.append(f"{path}: route status {label} is {count}, expected 0")
@@ -628,7 +634,9 @@ def route_status_record(path: Path) -> tuple[dict[str, object], list[str]]:
     record.update(
         {
             "exists": True,
+            "required_counts": list(REQUIRED_ROUTE_STATUS_COUNTS),
             "counts": counts,
+            "missing_counts": missing_counts,
             "passed": not failures,
         }
     )
