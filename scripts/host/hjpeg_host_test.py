@@ -402,6 +402,15 @@ def with_16bit_dqt(jpeg: bytes) -> bytes:
     return jpeg[:dqt] + replacement + jpeg[dqt + 69 :]
 
 
+def with_zero_dqt_value(jpeg: bytes) -> bytes:
+    dqt = jpeg.find(b"\xff\xdb\x00\x43\x00")
+    if dqt < 0:
+        raise AssertionError("DQT marker not found")
+    mutated = bytearray(jpeg)
+    mutated[dqt + 5] = 0
+    return bytes(mutated)
+
+
 def with_extra_dqt(jpeg: bytes) -> bytes:
     sof0 = jpeg.find(b"\xff\xc0")
     if sof0 < 0:
@@ -1876,6 +1885,14 @@ class HjpegHostTest(unittest.TestCase):
             jpeg.write_bytes(with_16bit_dqt(minimal_jpeg(width=17, height=13)))
 
             with self.assertRaisesRegex(ValueError, "DQT table 0 has precision 1"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_zero_quantization_values(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "zero-dqt.jpg"
+            jpeg.write_bytes(with_zero_dqt_value(minimal_jpeg(width=17, height=13)))
+
+            with self.assertRaisesRegex(ValueError, "DQT table 0 contains zero"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_rejects_nonstandard_quantization_table_set(self) -> None:

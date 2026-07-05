@@ -504,6 +504,10 @@ def jpeg_info(data: bytes) -> JpegInfo:
                 table_offset += 1 + table_bytes
                 if table_offset > segment_end:
                     raise ValueError("DQT segment table overruns segment length")
+                if any(value == 0 for value in table_payload):
+                    raise ValueError(
+                        f"JPEG DQT table {table_id} contains zero quantization value"
+                    )
                 if table_id in quantization_table_details:
                     raise ValueError(f"JPEG DQT table {table_id} is defined more than once")
                 quantization_tables.add(table_id)

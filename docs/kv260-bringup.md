@@ -244,8 +244,8 @@ Expected evidence:
   selectors, and rejects non-8-bit or non-three-component SOF0 frames,
   nonstandard DQT/DHT table sets or segment counts, duplicate DQT/DHT table
   definitions, non-8-bit DQT tables, empty, oversized, oversubscribed, or
-  invalid baseline DHT tables, plus SOF0 or SOS references to missing DQT/DHT
-  tables. Pass `--quality` and
+  invalid baseline DHT tables, zero-valued DQT entries, plus SOF0 or SOS
+  references to missing DQT/DHT tables. Pass `--quality` and
   `--require-standard-huffman` to standalone `validate-jpeg` to check
   quality-scaled standard DQT payloads and standard DHT payloads. Pass
   `--restart-interval` to standalone `validate-jpeg` to check the expected DRI
