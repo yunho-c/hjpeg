@@ -1259,6 +1259,7 @@ class HjpegHostTest(unittest.TestCase):
                     "chroma_subsample": None,
                     "expected_chroma_mode": None,
                     "expect_jfif": None,
+                    "expected_jfif_app0": None,
                     "quality": 50,
                     "require_standard_huffman": True,
                     "expected_quantization_payload_sha256": {
@@ -3228,6 +3229,15 @@ class HjpegHostTest(unittest.TestCase):
                     "chroma_subsample": True,
                     "expected_chroma_mode": "4:2:0",
                     "expect_jfif": "present",
+                    "expected_jfif_app0": {
+                        "version_major": 1,
+                        "version_minor": 1,
+                        "density_units": 0,
+                        "x_density": 1,
+                        "y_density": 1,
+                        "thumbnail_width": 0,
+                        "thumbnail_height": 0,
+                    },
                     "quality": 80,
                     "require_standard_huffman": True,
                     "expected_quantization_payload_sha256": {

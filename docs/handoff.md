@@ -640,8 +640,9 @@ Hardware completion evidence should include:
   counts, expected marker order through SOS and EOI, expected RST marker count
   and sequence, expected SOF0 precision and component count, expected SOF0/SOS
   component selectors, expected SOS spectral fields, expected minimum scan-data
-  length, expected DQT/DHT table order, expected chroma mode when checked, and
-  expected DQT/DHT payload hashes,
+  length, expected DQT/DHT table order, expected JFIF APP0 baseline fields when
+  JFIF is required, expected chroma mode when checked, and expected DQT/DHT
+  payload hashes,
   decoder command, resolved decoder argv, decoder timeout, decoder elapsed
   seconds, bounded decoder stdout/stderr, captured decoder output lengths, and
   decoder output capture limit.

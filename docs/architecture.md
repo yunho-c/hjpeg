@@ -173,8 +173,9 @@ expected marker order through SOS and the terminal EOI marker,
 SOF0 sample precision, component count, component quantization selectors,
 optional SOF0 sampling factors, SOS component table selectors, baseline SOS
 spectral fields, minimum scan-data length, DQT/DHT table order, expected chroma
-mode when checked, expected restart marker count and RST sequence, and expected
-DQT/DHT payload hashes when table checks are enabled. The helper
+mode when checked, expected JFIF APP0 baseline fields when JFIF is required,
+expected restart marker count and RST sequence, and expected DQT/DHT payload
+hashes when table checks are enabled. The helper
 can also run an external JPEG decoder command with a configurable timeout and
 bounded stdout/stderr capture and records the resolved argv so decoder-open
 evidence, elapsed seconds, captured output lengths, and capture limit are

@@ -1136,10 +1136,21 @@ def validation_expectations_record(
     expected_app0_segments: int | None
     if expect_jfif == "present":
         expected_app0_segments = 1
+        expected_jfif_app0: dict[str, int] | None = {
+            "version_major": 1,
+            "version_minor": 1,
+            "density_units": 0,
+            "x_density": 1,
+            "y_density": 1,
+            "thumbnail_width": 0,
+            "thumbnail_height": 0,
+        }
     elif expect_jfif == "absent":
         expected_app0_segments = 0
+        expected_jfif_app0 = None
     else:
         expected_app0_segments = None
+        expected_jfif_app0 = None
     expected_marker_counts: dict[str, int | None] = {
         "APP0": expected_app0_segments,
         "JFIF_APP0": expected_app0_segments,
@@ -1230,6 +1241,7 @@ def validation_expectations_record(
             else None
         ),
         "expect_jfif": expect_jfif,
+        "expected_jfif_app0": expected_jfif_app0,
         "quality": quality,
         "require_standard_huffman": require_standard_huffman,
     }

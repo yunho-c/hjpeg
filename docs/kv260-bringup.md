@@ -282,7 +282,8 @@ Expected evidence:
   `validation_expectations` block records these expected SOF0/SOS component
   selectors, baseline spectral fields, marker order through SOS and EOI, RST
   marker sequence, SOF0 precision/component count, minimum scan-data length,
-  DQT/DHT table order, and expected chroma mode alongside the parsed evidence.
+  DQT/DHT table order, expected JFIF APP0 baseline fields when JFIF is
+  required, and expected chroma mode alongside the parsed evidence.
 - The helper records APP0 marker count, JFIF APP0 signature count, and parsed
   JFIF APP0 version/density/thumbnail fields, requires JFIF APP0 fixed fields
   to match the encoder baseline, rejects malformed JFIF APP0 segments,

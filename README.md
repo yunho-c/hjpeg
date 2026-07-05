@@ -274,8 +274,9 @@ marker count, expected RST marker sequence, expected marker counts, expected
 marker order through SOS and EOI, expected SOF0 precision and component count,
 expected SOF0/SOS component shape, expected SOS spectral fields, expected
 minimum scan-data length, expected DQT/DHT table order, expected chroma mode
-when checked, and expected DQT/DHT payload hashes when table checks are enabled,
-decoder command, resolved decoder argv, decoder
+when checked, expected JFIF APP0 baseline fields when JFIF is required, and
+expected DQT/DHT payload hashes when table checks are enabled, decoder command,
+resolved decoder argv, decoder
 timeout, and decoder elapsed seconds when one was provided, plus decoder return
 code and bounded stdout/stderr when a decoder command ran, including captured
 output lengths and the capture limit. JFIF
