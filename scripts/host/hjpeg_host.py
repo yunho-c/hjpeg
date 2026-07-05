@@ -511,6 +511,11 @@ def jpeg_info(data: bytes) -> JpegInfo:
                     raise ValueError("DHT segment is too short for code counts")
                 count_bytes = data[table_offset + 1 : table_offset + 17]
                 value_count = sum(count_bytes)
+                if value_count == 0:
+                    class_name = "DC" if table_class == 0 else "AC"
+                    raise ValueError(
+                        f"JPEG {class_name} DHT table {table_id} has no symbols"
+                    )
                 symbol_bytes = data[table_offset + 17 : table_offset + 17 + value_count]
                 table_offset += 17 + value_count
                 if table_offset > segment_end:
