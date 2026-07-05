@@ -1078,6 +1078,15 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
                 },
             },
         },
+        "hold_timing_filenames": {
+            "all_required_filenames_present": True,
+            "required_filenames": ["post_impl_timing_summary.rpt"],
+            "required_filenames_present": {
+                "post_impl_timing_summary.rpt": True,
+            },
+            "missing_required_filenames": [],
+            "failing_required_filenames": [],
+        },
         "address_map": [
             {
                 "path": "hjpeg_kv260_address_map.rpt",
@@ -3246,6 +3255,9 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(
                 record["vivado_evidence"][0]["vivado_route_status_counts_present"]
             )
+            self.assertTrue(
+                record["vivado_evidence"][0]["vivado_hold_timing_filenames_present"]
+            )
             self.assertEqual(record["vivado_hjpeg_base_addresses"], [0])
             self.assertEqual(record["vivado_hjpeg_base_addresses_hex"], ["0x0"])
             self.assertTrue(
@@ -3426,6 +3438,24 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(record["passed"])
             self.assertTrue(
                 any("report filenames" in failure for failure in failures)
+            )
+
+    def test_vivado_evidence_file_record_rejects_missing_hold_timing_filenames(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            del vivado_record["hold_timing_filenames"]
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertTrue(record["vivado_passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["vivado_report_filenames_present"])
+            self.assertFalse(record["vivado_hold_timing_filenames_present"])
+            self.assertFalse(record["passed"])
+            self.assertTrue(
+                any("hold-timing filename" in failure for failure in failures)
             )
 
     def test_check_run_evidence_cli_rejects_bad_vivado_evidence(self) -> None:
@@ -3741,6 +3771,60 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(record["vivado_evidence"][0]["passed"])
             self.assertTrue(
                 any("report filenames" in failure for failure in record["failures"])
+            )
+
+    def test_check_run_evidence_cli_rejects_vivado_evidence_without_hold_timing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run = root / "run.json"
+            vivado = root / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["hold_timing_filenames"] = {
+                "all_required_filenames_present": False,
+                "required_filenames": ["post_impl_timing_summary.rpt"],
+                "required_filenames_present": {
+                    "post_impl_timing_summary.rpt": False,
+                },
+                "missing_required_filenames": ["post_impl_timing_summary.rpt"],
+                "failing_required_filenames": [],
+            }
+            run.write_text(json.dumps(complete_run_evidence_record(root)))
+            vivado.write_text(json.dumps(vivado_record))
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "check-run-evidence",
+                            str(run),
+                            "--vivado-evidence",
+                            str(vivado),
+                            "--json",
+                        ]
+                    ),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertEqual(record["vivado_evidence_checked_count"], 1)
+            self.assertEqual(record["vivado_evidence_passed_count"], 0)
+            self.assertEqual(record["vivado_evidence_failed_count"], 1)
+            self.assertEqual(record["vivado_hjpeg_base_addresses"], [0])
+            self.assertTrue(record["vivado_evidence"][0]["vivado_passed"])
+            self.assertTrue(
+                record["vivado_evidence"][0]["complete_vivado_flow_evidence"]
+            )
+            self.assertTrue(
+                record["vivado_evidence"][0]["vivado_report_filenames_present"]
+            )
+            self.assertFalse(
+                record["vivado_evidence"][0]["vivado_hold_timing_filenames_present"]
+            )
+            self.assertFalse(record["vivado_evidence"][0]["passed"])
+            self.assertTrue(
+                any("hold-timing filename" in failure for failure in record["failures"])
             )
 
     def test_check_run_evidence_cli_rejects_conflicting_vivado_addresses(self) -> None:
