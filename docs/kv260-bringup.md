@@ -233,7 +233,8 @@ Expected evidence:
   RGB stream byte lengths plus SHA-256 so the output can be tied to the exact
   input payload, and rejects trailing bytes already returned after the first
   JPEG EOI instead of writing a truncated artifact. JSON evidence records the
-  host capture limits used for maximum output bytes and RX timeout.
+  host capture limits used for maximum output bytes and RX timeout. RX timeout
+  values must be finite and positive when present.
 - JSON evidence records host-observed transfer elapsed seconds and derived byte
   rates only when elapsed time is positive. Elapsed-time evidence must be finite
   and nonnegative. Use hardware counters or driver timestamps before making
@@ -244,7 +245,7 @@ Expected evidence:
 - A standard JPEG decoder can open `output.jpg`; when `--decoder-command` is
   used, that decoder check, command string, timeout, return code, and bounded
   stdout/stderr are part of the JSON evidence, and decoder failure or timeout
-  fails validation.
+  fails validation. Decoder timeout values must be finite and positive.
 - The decoded dimensions match the input.
 - Visual content is recognizable for non-flat test images.
 

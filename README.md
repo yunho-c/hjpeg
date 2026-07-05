@@ -207,7 +207,8 @@ To fold a standard decoder into the validation transcript, pass a command with
 appends the path when no placeholder is present. The decoder subprocess is
 bounded by `--decoder-timeout-seconds`, which defaults to 30 seconds. JSON
 evidence records that the decoder passed, the command string used, the timeout
-value, the return code, and bounded stdout/stderr:
+value, the return code, and bounded stdout/stderr. Decoder timeout values must
+be finite and positive:
 
 ```sh
 python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \

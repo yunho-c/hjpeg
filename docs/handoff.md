@@ -172,6 +172,7 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `26b5229 fix: reject nonfinite host timeouts`
 - `9167ec7 fix: reject nonfinite host transfer evidence`
 - `61c11ed test: cover positive host transfer rates`
 - `0641af7 fix: reject negative host transfer evidence`
@@ -306,8 +307,9 @@ ties together the input RGB stream hash, output JPEG hash, AXI-Lite target,
 encoder configuration, status checkpoints, host-observed transfer elapsed
 seconds and derived byte rates when elapsed time is positive, optional decoder
 command, decoder timeout, and bounded decoder stdout/stderr. Non-finite or
-negative elapsed time is rejected as invalid evidence. Host JPEG validation now
-checks more than dimensions: it requires DQT and DHT
+negative elapsed time is rejected as invalid evidence. RX and decoder timeout
+values must be finite and positive when present. Host JPEG validation now checks
+more than dimensions: it requires DQT and DHT
 markers, records DQT/DHT table IDs and SOS component table selectors, rejects
 dangling table references, records APP0/DQT/DHT/DRI/RST marker counts, parses
 DRI restart intervals, requires exactly one SOF0 and one SOS segment, requires
