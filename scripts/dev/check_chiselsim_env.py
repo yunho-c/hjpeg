@@ -161,12 +161,12 @@ def _as_strings(values: object) -> Iterable[str]:
             yield str(value)
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, os_name: str = os.name) -> int:
     parser = argparse.ArgumentParser(description="Check whether the local ChiselSim toolchain is usable.")
     parser.add_argument("--json", action="store_true", help="print the preflight report as JSON")
     args = parser.parse_args(argv)
 
-    report = evaluate_environment(find_tools())
+    report = evaluate_environment(find_tools(), os_name=os_name)
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

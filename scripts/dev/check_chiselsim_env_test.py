@@ -3,7 +3,10 @@
 import contextlib
 import io
 import json
+import os
+import tempfile
 import unittest
+from pathlib import Path
 
 import check_chiselsim_env
 
@@ -48,6 +51,17 @@ class CheckChiselSimEnvTest(unittest.TestCase):
         self.assertIn("make was not found on PATH", report["problems"])
         self.assertIn("verilator was not found on PATH", report["problems"])
 
+    def test_tool_lookup_finds_extensionless_programs_on_path(self) -> None:
+        original_path = os.environ.get("PATH", "")
+        with tempfile.TemporaryDirectory() as tmp:
+            tool = Path(tmp) / "verilator"
+            tool.write_text("", encoding="utf-8")
+            os.environ["PATH"] = tmp
+            try:
+                self.assertEqual(check_chiselsim_env._which("verilator"), str(tool))
+            finally:
+                os.environ["PATH"] = original_path
+
     def test_json_cli_reports_incompatibility(self) -> None:
         original_find_tools = check_chiselsim_env.find_tools
         check_chiselsim_env.find_tools = lambda: check_chiselsim_env.ToolPaths(
@@ -58,7 +72,7 @@ class CheckChiselSimEnvTest(unittest.TestCase):
         stdout = io.StringIO()
         try:
             with contextlib.redirect_stdout(stdout):
-                exit_code = check_chiselsim_env.main(["--json"])
+                exit_code = check_chiselsim_env.main(["--json"], os_name="nt")
         finally:
             check_chiselsim_env.find_tools = original_find_tools
 
