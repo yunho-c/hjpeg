@@ -3183,6 +3183,11 @@ def main(argv: list[str] | None = None) -> int:
                 if isinstance(base, int)
             )
         )
+        if len(vivado_hjpeg_base_addresses) > 1:
+            vivado_failures.append(
+                "conflicting Vivado hjpeg_0/s_axi_lite base addresses: "
+                + ", ".join(f"0x{base:x}" for base in vivado_hjpeg_base_addresses)
+            )
         records = []
         failures = list(vivado_failures)
         for evidence_path in args.json_files:

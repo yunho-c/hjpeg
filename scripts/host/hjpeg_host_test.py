@@ -3120,6 +3120,50 @@ class HjpegHostTest(unittest.TestCase):
                 any("no passing hjpeg_0/s_axi_lite" in failure for failure in record["failures"])
             )
 
+    def test_check_run_evidence_cli_rejects_conflicting_vivado_addresses(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run = root / "run.json"
+            first_vivado = root / "vivado-a.json"
+            second_vivado = root / "vivado-b.json"
+            run.write_text(json.dumps(complete_run_evidence_record(root)))
+            first_vivado.write_text(json.dumps(vivado_evidence_record(0)))
+            second_vivado.write_text(json.dumps(vivado_evidence_record(0xA0000000)))
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "check-run-evidence",
+                            str(run),
+                            "--vivado-evidence",
+                            str(first_vivado),
+                            "--vivado-evidence",
+                            str(second_vivado),
+                            "--json",
+                        ]
+                    ),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertEqual(record["vivado_evidence_checked_count"], 2)
+            self.assertEqual(record["vivado_evidence_passed_count"], 2)
+            self.assertEqual(record["vivado_evidence_failed_count"], 0)
+            self.assertEqual(record["vivado_hjpeg_base_addresses"], [0, 0xA0000000])
+            self.assertEqual(
+                record["vivado_hjpeg_base_addresses_hex"],
+                ["0x0", "0xa0000000"],
+            )
+            self.assertTrue(
+                record["records"][0]["axi_lite_base_matches_vivado_evidence"]
+            )
+            self.assertTrue(
+                any("conflicting Vivado hjpeg_0/s_axi_lite" in failure for failure in record["failures"])
+            )
+
     def test_capture_config_record_rejects_invalid_limits(self) -> None:
         for max_output_bytes in (0, -1):
             with self.subTest(max_output_bytes=max_output_bytes):

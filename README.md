@@ -392,7 +392,8 @@ The saved-evidence checker recomputes `hardware_run_summary` from the transcript
 and fails if the stored summary does not match the recomputed evidence. When
 `--vivado-evidence` points at `check_reports.py --json` output, it also extracts
 the passing `hjpeg_0/s_axi_lite` address-map base address and fails if the run
-transcript's AXI-Lite base address does not match the Vivado build evidence. Its
+transcript's AXI-Lite base address does not match the Vivado build evidence, or
+if multiple Vivado evidence files report conflicting HJPEG base addresses. Its
 JSON output includes aggregate checked/pass/fail transcript counts, diagnostic
 failure count, checked/passed/failed path lists, summary checked, matched, and
 mismatched counts and paths, aggregate evidence group present/missing counts and
