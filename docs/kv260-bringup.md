@@ -130,18 +130,22 @@ Pass criteria:
   per-category passing/failing counts, present and missing category names,
   failing category names, required `.bit`/`.xsa`/`.dcp` artifact suffix presence,
   present and missing required suffix names, failing required suffix names,
-  required suffix passing/failing counts, required/present/missing category and
-  suffix counts, aggregate pass/fail counts, diagnostic failure count,
+  required artifact filename presence for `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`,
+  and `post_impl.dcp`, present/missing/failing filename names, required
+  suffix/filename passing/failing counts, required/present/missing category,
+  suffix, and filename counts, aggregate pass/fail counts, diagnostic failure count,
   checked/passed/failed path lists, complete-evidence required/missing/failing
   lists, and pass/fail state.
   Complete Vivado flow evidence has
   `all_required_present` and `all_required_suffixes_present` true, with no
   failing records in the required evidence categories or required `.bit`/`.xsa`/
-  `.dcp` artifact suffixes. `all_required_present` requires at least one passing record
-  in each required category, not just a requested input path. Complete Vivado
-  evidence counts only records whose `passed` field is an actual JSON boolean
-  `true`. Missing, non-file, or unparseable reports are recorded as structured
-  JSON failures. Full bitstream evidence gates should pass
+  `.dcp` artifact suffixes, and with the named artifacts `hjpeg_kv260.bit`,
+  `hjpeg_kv260.xsa`, and `post_impl.dcp` present and passing.
+  `all_required_present` requires at least one passing record in each required
+  category, not just a requested input path. Complete Vivado evidence counts only
+  records whose `passed` field is an actual JSON boolean `true`. Missing,
+  non-file, or unparseable reports are recorded as structured JSON failures.
+  Full bitstream evidence gates should pass
   `--require-complete-evidence`; partial post-synthesis checks can omit it.
   Timing thresholds, utilization threshold, and target clock period values must
   be finite. The target clock period must be positive,
@@ -283,7 +287,8 @@ Expected evidence:
   it also extracts the passing `hjpeg_0/s_axi_lite` address-map base address and
   requires that Vivado transcript to have `passed` and
   `complete_vivado_flow_evidence` true, plus required `.bit`, `.xsa`, and `.dcp`
-  artifact suffix evidence. The checker fails if the run transcript's AXI-Lite base
+  artifact suffix evidence and required `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and
+  `post_impl.dcp` filename evidence. The checker fails if the run transcript's AXI-Lite base
   address does not match the Vivado build evidence or if multiple Vivado evidence
   files report conflicting HJPEG base addresses.
   JSON output includes the aggregate checked/pass/fail

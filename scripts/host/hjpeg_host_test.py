@@ -960,6 +960,19 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
             "required_suffixes": [".bit", ".xsa", ".dcp"],
             "required_suffixes_present": {".bit": True, ".xsa": True, ".dcp": True},
         },
+        "artifact_filenames": {
+            "all_required_filenames_present": True,
+            "required_filenames": [
+                "hjpeg_kv260.bit",
+                "hjpeg_kv260.xsa",
+                "post_impl.dcp",
+            ],
+            "required_filenames_present": {
+                "hjpeg_kv260.bit": True,
+                "hjpeg_kv260.xsa": True,
+                "post_impl.dcp": True,
+            },
+        },
         "address_map": [
             {
                 "path": "hjpeg_kv260_address_map.rpt",
@@ -3212,9 +3225,70 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(
                 record["vivado_evidence"][0]["vivado_artifact_suffixes_present"]
             )
+            self.assertTrue(
+                record["vivado_evidence"][0]["vivado_artifact_filenames_present"]
+            )
             self.assertFalse(record["vivado_evidence"][0]["passed"])
             self.assertTrue(
                 any("missing required .bit/.xsa/.dcp" in failure for failure in record["failures"])
+            )
+
+    def test_check_run_evidence_cli_rejects_vivado_evidence_without_artifact_filenames(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run = root / "run.json"
+            vivado = root / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["artifact_filenames"] = {
+                "all_required_filenames_present": False,
+                "required_filenames": [
+                    "hjpeg_kv260.bit",
+                    "hjpeg_kv260.xsa",
+                    "post_impl.dcp",
+                ],
+                "required_filenames_present": {
+                    "hjpeg_kv260.bit": True,
+                    "hjpeg_kv260.xsa": True,
+                    "post_impl.dcp": False,
+                },
+            }
+            run.write_text(json.dumps(complete_run_evidence_record(root)))
+            vivado.write_text(json.dumps(vivado_record))
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "check-run-evidence",
+                            str(run),
+                            "--vivado-evidence",
+                            str(vivado),
+                            "--json",
+                        ]
+                    ),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertEqual(record["vivado_evidence_checked_count"], 1)
+            self.assertEqual(record["vivado_evidence_passed_count"], 0)
+            self.assertEqual(record["vivado_evidence_failed_count"], 1)
+            self.assertEqual(record["vivado_hjpeg_base_addresses"], [0])
+            self.assertTrue(record["vivado_evidence"][0]["vivado_passed"])
+            self.assertTrue(
+                record["vivado_evidence"][0]["complete_vivado_flow_evidence"]
+            )
+            self.assertTrue(
+                record["vivado_evidence"][0]["vivado_artifact_suffixes_present"]
+            )
+            self.assertFalse(
+                record["vivado_evidence"][0]["vivado_artifact_filenames_present"]
+            )
+            self.assertFalse(record["vivado_evidence"][0]["passed"])
+            self.assertTrue(
+                any("post-implementation checkpoint filenames" in failure for failure in record["failures"])
             )
 
     def test_check_run_evidence_cli_rejects_conflicting_vivado_addresses(self) -> None:

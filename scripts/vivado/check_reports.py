@@ -51,6 +51,7 @@ REQUIRED_EVIDENCE_CATEGORIES = (
     "clock_utilization",
 )
 REQUIRED_ARTIFACT_SUFFIXES = (".bit", ".xsa", ".dcp")
+REQUIRED_ARTIFACT_FILENAMES = ("hjpeg_kv260.bit", "hjpeg_kv260.xsa", "post_impl.dcp")
 
 
 def finite_float(value: str) -> float:
@@ -740,6 +741,47 @@ def artifact_suffix_record(artifact_records: list[dict[str, object]]) -> dict[st
     }
 
 
+def artifact_filename_record(artifact_records: list[dict[str, object]]) -> dict[str, object]:
+    filename_counts: dict[str, int] = {}
+    passing_filename_counts: dict[str, int] = {}
+    failing_filename_counts: dict[str, int] = {}
+    present = {filename: False for filename in REQUIRED_ARTIFACT_FILENAMES}
+    for record in artifact_records:
+        filename = Path(str(record.get("path", ""))).name
+        if not filename:
+            continue
+        filename_counts[filename] = filename_counts.get(filename, 0) + 1
+        if record.get("passed") is True and filename in present:
+            passing_filename_counts[filename] = passing_filename_counts.get(filename, 0) + 1
+            present[filename] = True
+        elif record.get("passed") is not True and filename in present:
+            failing_filename_counts[filename] = failing_filename_counts.get(filename, 0) + 1
+
+    present_filenames = [
+        filename for filename, is_present in present.items() if is_present
+    ]
+    failing_filenames = [
+        filename for filename in REQUIRED_ARTIFACT_FILENAMES
+        if failing_filename_counts.get(filename, 0) > 0
+    ]
+    missing = [filename for filename, is_present in present.items() if not is_present]
+    present_count = sum(1 for is_present in present.values() if is_present)
+    return {
+        "required_filenames": list(REQUIRED_ARTIFACT_FILENAMES),
+        "required_filename_count": len(REQUIRED_ARTIFACT_FILENAMES),
+        "filename_counts": filename_counts,
+        "passing_filename_counts": passing_filename_counts,
+        "failing_filename_counts": failing_filename_counts,
+        "required_filenames_present": present,
+        "present_filename_count": present_count,
+        "missing_filename_count": len(missing),
+        "present_required_filenames": present_filenames,
+        "failing_required_filenames": failing_filenames,
+        "missing_required_filenames": missing,
+        "all_required_filenames_present": not missing,
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="check Vivado timing and utilization reports")
     parser.add_argument(
@@ -810,7 +852,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--require-complete-evidence",
         action="store_true",
-        help="fail unless all required report categories, address-map evidence, and .bit/.xsa artifacts passed",
+        help="fail unless all required report categories, address-map evidence, and named .bit/.xsa/.dcp artifacts passed",
     )
     parser.add_argument("--json", action="store_true", help="print parsed report evidence as JSON")
     return parser
@@ -923,15 +965,20 @@ def main(argv: list[str] | None = None) -> int:
         }
     )
     artifact_suffixes = artifact_suffix_record(artifact_records)
+    artifact_filenames = artifact_filename_record(artifact_records)
     missing_categories = evidence_categories["missing_required_categories"]
     missing_suffixes = artifact_suffixes["missing_required_suffixes"]
+    missing_filenames = artifact_filenames["missing_required_filenames"]
     failing_categories = evidence_categories["failing_categories"]
     failing_suffixes = artifact_suffixes["failing_required_suffixes"]
+    failing_filenames = artifact_filenames["failing_required_filenames"]
     complete_vivado_flow_evidence = bool(
         evidence_categories["all_required_present"]
         and artifact_suffixes["all_required_suffixes_present"]
+        and artifact_filenames["all_required_filenames_present"]
         and not failing_categories
         and not failing_suffixes
+        and not failing_filenames
     )
     if args.require_complete_evidence and not complete_vivado_flow_evidence:
         if missing_categories:
@@ -944,6 +991,11 @@ def main(argv: list[str] | None = None) -> int:
                 "complete Vivado flow evidence missing required artifact suffixes: "
                 + ", ".join(str(suffix) for suffix in missing_suffixes)
             )
+        if missing_filenames:
+            failures.append(
+                "complete Vivado flow evidence missing required artifact filenames: "
+                + ", ".join(str(filename) for filename in missing_filenames)
+            )
         if failing_categories:
             failures.append(
                 "complete Vivado flow evidence has failing required categories: "
@@ -953,6 +1005,11 @@ def main(argv: list[str] | None = None) -> int:
             failures.append(
                 "complete Vivado flow evidence has failing required artifact suffixes: "
                 + ", ".join(str(suffix) for suffix in failing_suffixes)
+            )
+        if failing_filenames:
+            failures.append(
+                "complete Vivado flow evidence has failing required artifact filenames: "
+                + ", ".join(str(filename) for filename in failing_filenames)
             )
 
     if args.json:
@@ -986,6 +1043,7 @@ def main(argv: list[str] | None = None) -> int:
                     "checked_counts": checked_counts,
                     "evidence_categories": evidence_categories,
                     "artifact_suffixes": artifact_suffixes,
+                    "artifact_filenames": artifact_filenames,
                     "complete_vivado_flow_evidence": complete_vivado_flow_evidence,
                     "complete_vivado_flow_evidence_required": (
                         args.require_complete_evidence
@@ -996,11 +1054,17 @@ def main(argv: list[str] | None = None) -> int:
                     "complete_vivado_flow_evidence_missing_suffixes": (
                         missing_suffixes
                     ),
+                    "complete_vivado_flow_evidence_missing_filenames": (
+                        missing_filenames
+                    ),
                     "complete_vivado_flow_evidence_failing_categories": (
                         failing_categories
                     ),
                     "complete_vivado_flow_evidence_failing_suffixes": (
                         failing_suffixes
+                    ),
+                    "complete_vivado_flow_evidence_failing_filenames": (
+                        failing_filenames
                     ),
                     "arguments": arguments,
                     "clock_period_ns": args.clock_period_ns,

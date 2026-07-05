@@ -487,6 +487,43 @@ class CheckReportsTest(unittest.TestCase):
                 },
             )
             self.assertEqual(
+                record["artifact_filenames"],
+                {
+                    "required_filenames": [
+                        "hjpeg_kv260.bit",
+                        "hjpeg_kv260.xsa",
+                        "post_impl.dcp",
+                    ],
+                    "required_filename_count": 3,
+                    "filename_counts": {
+                        "hjpeg_kv260.bit": 1,
+                        "hjpeg_kv260.xsa": 1,
+                        "post_impl.dcp": 1,
+                    },
+                    "passing_filename_counts": {
+                        "hjpeg_kv260.bit": 1,
+                        "hjpeg_kv260.xsa": 1,
+                        "post_impl.dcp": 1,
+                    },
+                    "failing_filename_counts": {},
+                    "required_filenames_present": {
+                        "hjpeg_kv260.bit": True,
+                        "hjpeg_kv260.xsa": True,
+                        "post_impl.dcp": True,
+                    },
+                    "present_filename_count": 3,
+                    "missing_filename_count": 0,
+                    "present_required_filenames": [
+                        "hjpeg_kv260.bit",
+                        "hjpeg_kv260.xsa",
+                        "post_impl.dcp",
+                    ],
+                    "failing_required_filenames": [],
+                    "missing_required_filenames": [],
+                    "all_required_filenames_present": True,
+                },
+            )
+            self.assertEqual(
                 record["arguments"],
                 {
                     "artifacts": [str(artifact), str(xsa), str(dcp)],
@@ -659,10 +696,17 @@ class CheckReportsTest(unittest.TestCase):
                 [".bit", ".xsa", ".dcp"],
             )
             self.assertEqual(
+                record["complete_vivado_flow_evidence_missing_filenames"],
+                ["hjpeg_kv260.bit", "hjpeg_kv260.xsa", "post_impl.dcp"],
+            )
+            self.assertEqual(
                 record["complete_vivado_flow_evidence_failing_categories"], []
             )
             self.assertEqual(
                 record["complete_vivado_flow_evidence_failing_suffixes"], []
+            )
+            self.assertEqual(
+                record["complete_vivado_flow_evidence_failing_filenames"], []
             )
             self.assertTrue(record["evidence_categories"]["present"]["timing"])
             self.assertFalse(record["evidence_categories"]["present"]["artifacts"])
@@ -744,6 +788,7 @@ class CheckReportsTest(unittest.TestCase):
                 record["complete_vivado_flow_evidence_missing_categories"], []
             )
             self.assertEqual(record["complete_vivado_flow_evidence_missing_suffixes"], [])
+            self.assertEqual(record["complete_vivado_flow_evidence_missing_filenames"], [])
             self.assertEqual(
                 record["complete_vivado_flow_evidence_failing_categories"],
                 ["artifacts", "timing"],
@@ -751,8 +796,10 @@ class CheckReportsTest(unittest.TestCase):
             self.assertEqual(
                 record["complete_vivado_flow_evidence_failing_suffixes"], [".xsa"]
             )
+            self.assertEqual(record["complete_vivado_flow_evidence_failing_filenames"], [])
             self.assertTrue(record["evidence_categories"]["all_required_present"])
             self.assertTrue(record["artifact_suffixes"]["all_required_suffixes_present"])
+            self.assertTrue(record["artifact_filenames"]["all_required_filenames_present"])
             self.assertEqual(record["artifact_suffixes"]["failing_suffix_counts"], {".xsa": 1})
             self.assertTrue(
                 any("failing required categories" in failure for failure in record["failures"])
@@ -839,6 +886,47 @@ class CheckReportsTest(unittest.TestCase):
         )
         self.assertTrue(
             all(not present for present in record["required_suffixes_present"].values())
+        )
+
+    def test_artifact_filenames_require_strict_passed_booleans(self) -> None:
+        record = check_reports.artifact_filename_record(
+            [
+                {"path": "build/hjpeg_kv260.bit", "passed": "true"},
+                {"path": "build/hjpeg_kv260.xsa", "passed": "true"},
+                {"path": "build/post_impl.dcp", "passed": "true"},
+            ]
+        )
+
+        self.assertEqual(
+            record["missing_required_filenames"],
+            list(check_reports.REQUIRED_ARTIFACT_FILENAMES),
+        )
+        self.assertEqual(record["present_required_filenames"], [])
+        self.assertEqual(
+            record["failing_required_filenames"],
+            ["hjpeg_kv260.bit", "hjpeg_kv260.xsa", "post_impl.dcp"],
+        )
+        self.assertFalse(record["all_required_filenames_present"])
+        self.assertEqual(
+            record["required_filename_count"],
+            len(check_reports.REQUIRED_ARTIFACT_FILENAMES),
+        )
+        self.assertEqual(record["present_filename_count"], 0)
+        self.assertEqual(
+            record["missing_filename_count"],
+            len(check_reports.REQUIRED_ARTIFACT_FILENAMES),
+        )
+        self.assertEqual(
+            record["filename_counts"],
+            {"hjpeg_kv260.bit": 1, "hjpeg_kv260.xsa": 1, "post_impl.dcp": 1},
+        )
+        self.assertEqual(record["passing_filename_counts"], {})
+        self.assertEqual(
+            record["failing_filename_counts"],
+            {"hjpeg_kv260.bit": 1, "hjpeg_kv260.xsa": 1, "post_impl.dcp": 1},
+        )
+        self.assertTrue(
+            all(not present for present in record["required_filenames_present"].values())
         )
 
     def test_cli_json_records_failures(self) -> None:
