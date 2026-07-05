@@ -172,7 +172,8 @@ captured in the same transcript without risking a hung or oversized validation
 run. Standalone
 validation can require an expected restart interval, exact RST marker count for
 the parsed MCU count, chroma/JFIF mode, quality-matched standard DQT payloads,
-and standard DHT payloads. `run-stream-devices` checks the configured restart
+and standard DHT payloads; standalone JSON evidence records the expectations
+that were enforced. `run-stream-devices` checks the configured restart
 interval, chroma mode, JFIF setting, quality-scaled DQT payloads, and standard
 DHT payloads against the captured JPEG automatically.
 The `run-stream-devices` command supports Linux board images that expose DMA

@@ -252,7 +252,9 @@ Expected evidence:
   tables. Pass
   `--quality` and
   `--require-standard-huffman` to standalone `validate-jpeg` to check
-  quality-scaled standard DQT payloads and standard DHT payloads. Pass
+  quality-scaled standard DQT payloads and standard DHT payloads. Standalone
+  validation JSON evidence records the expected dimensions and optional
+  restart/chroma/JFIF/quality/Huffman checks that were enforced. Pass
   `--restart-interval` to standalone `validate-jpeg` to check the expected DRI
   value and exact RST marker count for the parsed MCU count;
   `run-stream-devices` checks this automatically against the configured

@@ -1184,6 +1184,7 @@ def jpeg_info_record(
     decoder_command: str | None = None,
     decoder_timeout_seconds: float | None = None,
     decoder_result: DecoderCommandResult | None = None,
+    validation_expectations: dict[str, object] | None = None,
 ) -> dict[str, object]:
     record: dict[str, object] = {
         "jpeg": str(jpeg),
@@ -1275,6 +1276,8 @@ def jpeg_info_record(
         "byte_length": info.byte_length,
         "sha256": info.sha256,
     }
+    if validation_expectations is not None:
+        record["validation_expectations"] = validation_expectations
     if decoder_passed is not None:
         record["decoder_passed"] = decoder_passed
     if decoder_command is not None:
@@ -1970,6 +1973,18 @@ def main(argv: list[str] | None = None) -> int:
                         args.decoder_command,
                         decoder_timeout,
                         decoder_result,
+                        {
+                            "width": args.width,
+                            "height": args.height,
+                            "restart_interval": args.restart_interval,
+                            "check_chroma_mode": args.check_chroma_mode,
+                            "chroma_subsample": args.chroma_subsample
+                            if args.check_chroma_mode
+                            else None,
+                            "expect_jfif": args.expect_jfif,
+                            "quality": args.quality,
+                            "require_standard_huffman": args.require_standard_huffman,
+                        },
                     ),
                     sort_keys=True,
                 )

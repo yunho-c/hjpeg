@@ -172,7 +172,8 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
-- current commit: `feat: record vivado checked count`
+- current commit: `feat: record jpeg validation expectations`
+- `e63b094 feat: record vivado checked count`
 - `dbddfb0 feat: record vivado checker arguments`
 - `4c03938 feat: record decoder elapsed evidence`
 - `9a92ff6 feat: record decoder output sizes`
@@ -384,7 +385,9 @@ duplicate APP0 markers, RST markers without DRI, out-of-sequence RST markers,
 unexpected non-RST/non-EOI markers after SOS, and trailing bytes after EOI, and
 can enforce expected restart interval, exact RST marker count for the parsed MCU
 count, chroma mode, JFIF APP0 signature presence, quality-matched standard DQT
-payloads, and standard DHT payloads.
+payloads, and standard DHT payloads. Standalone validation JSON records the
+requested dimensions and optional restart/chroma/JFIF/quality/Huffman
+expectations that were enforced.
 `run-stream-devices` enforces those expectations automatically from the
 configured AXI-Lite control fields and quality setting.
 
@@ -616,9 +619,10 @@ Hardware completion evidence should include:
   parsed marker sequence, stuffed entropy `0xff` byte count, JFIF APP0
   signature count, restart interval and RST sequence evidence, DQT/DHT table
   IDs and payload hashes, Huffman table set, SOS table selectors, chroma mode,
-  JFIF evidence, decoder command, resolved decoder argv, decoder timeout,
-  decoder elapsed seconds, bounded decoder stdout/stderr, captured decoder
-  output lengths, and decoder output capture limit.
+  JFIF evidence, standalone validation expectations, decoder command, resolved
+  decoder argv, decoder timeout, decoder elapsed seconds, bounded decoder
+  stdout/stderr, captured decoder output lengths, and decoder output capture
+  limit.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 
