@@ -172,6 +172,7 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `5396bd7 test: cover host control word evidence`
 - `3c2ca4b test: cover unmapped axi-lite accesses`
 - `9484f80 fix: accept vivado report wording variants`
 - `fc367d6 test: cover vivado report failure evidence`
@@ -289,7 +290,9 @@ host helper now supports JSON evidence for `make-test-ppm`, `pack-ppm`,
 `config`, `status`, `clear-error`, `validate-jpeg`, and `run-stream-devices`.
 Standalone status evidence records the AXI-Lite target along with the raw and
 decoded status word. Clear-error evidence records the AXI-Lite target and
-control word used to pulse sticky fault recovery. The run evidence
+control word used to pulse sticky fault recovery. Configuration and run
+evidence record the encoder control word in numeric and hex form, tying the
+chroma/JFIF/clear-error flags back to the AXI-Lite write value. The run evidence
 ties together the input RGB stream hash, output JPEG hash, AXI-Lite target,
 encoder configuration, status checkpoints, host-observed transfer elapsed
 seconds and derived byte rates, optional decoder command, decoder timeout, and
