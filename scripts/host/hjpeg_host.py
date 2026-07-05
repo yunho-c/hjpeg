@@ -2631,6 +2631,37 @@ def vivado_evidence_categories_present(record: object) -> bool:
     return True
 
 
+def vivado_summary_counts_consistent(record: object) -> bool:
+    if not isinstance(record, dict):
+        return False
+    checked_count = record.get("checked_count")
+    passed_count = record.get("passed_count")
+    failed_count = record.get("failed_count")
+    failure_count = record.get("failure_count")
+    failures = record.get("failures")
+    failed_paths = record.get("failed_paths")
+    passed_paths = record.get("passed_paths")
+    if not (
+        isinstance(checked_count, int)
+        and checked_count > 0
+        and isinstance(passed_count, int)
+        and isinstance(failed_count, int)
+        and isinstance(failure_count, int)
+        and isinstance(failures, list)
+        and isinstance(failed_paths, list)
+        and isinstance(passed_paths, list)
+    ):
+        return False
+    return (
+        passed_count == checked_count
+        and failed_count == 0
+        and failure_count == 0
+        and failures == []
+        and failed_paths == []
+        and len(passed_paths) == passed_count
+    )
+
+
 def vivado_route_status_counts_present(record: object) -> bool:
     if not isinstance(record, dict):
         return False
@@ -2682,6 +2713,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     )
     vivado_report_filenames_present = vivado_required_report_filenames_present(parsed)
     evidence_categories_present = vivado_evidence_categories_present(parsed)
+    summary_counts_consistent = vivado_summary_counts_consistent(parsed)
     route_status_counts_present = vivado_route_status_counts_present(parsed)
     bases = vivado_hjpeg_base_addresses_from_record(parsed)
     result.update(
@@ -2693,6 +2725,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
             "vivado_address_map_filenames_present": vivado_address_map_filenames_present,
             "vivado_report_filenames_present": vivado_report_filenames_present,
             "vivado_evidence_categories_present": evidence_categories_present,
+            "vivado_summary_counts_consistent": summary_counts_consistent,
             "vivado_route_status_counts_present": route_status_counts_present,
             "hjpeg_base_addresses": list(bases),
             "hjpeg_base_addresses_hex": [f"0x{base:x}" for base in bases],
@@ -2705,6 +2738,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
                 and vivado_address_map_filenames_present
                 and vivado_report_filenames_present
                 and evidence_categories_present
+                and summary_counts_consistent
                 and route_status_counts_present
             ),
         }
@@ -2731,6 +2765,10 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     if not evidence_categories_present:
         failures.append(
             f"{path}: Vivado evidence missing passing required evidence category summary"
+        )
+    if not summary_counts_consistent:
+        failures.append(
+            f"{path}: Vivado evidence diagnostic summary counts are inconsistent"
         )
     if not route_status_counts_present:
         failures.append(

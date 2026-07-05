@@ -954,6 +954,25 @@ def complete_run_evidence_record(root: Path) -> dict[str, object]:
 def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
     return {
         "passed": True,
+        "checked_count": 11,
+        "passed_count": 11,
+        "failed_count": 0,
+        "failure_count": 0,
+        "failures": [],
+        "passed_paths": [
+            "hjpeg_kv260.bit",
+            "hjpeg_kv260.xsa",
+            "post_impl.dcp",
+            "hjpeg_kv260_address_map.rpt",
+            "post_synth_timing_summary.rpt",
+            "post_impl_timing_summary.rpt",
+            "post_synth_utilization.rpt",
+            "post_impl_utilization.rpt",
+            "post_impl_drc.rpt",
+            "post_impl_route_status.rpt",
+            "post_impl_clock_utilization.rpt",
+        ],
+        "failed_paths": [],
         "complete_vivado_flow_evidence": True,
         "evidence_categories": {
             "all_required_present": True,
@@ -3203,6 +3222,9 @@ class HjpegHostTest(unittest.TestCase):
                 record["vivado_evidence"][0]["vivado_evidence_categories_present"]
             )
             self.assertTrue(
+                record["vivado_evidence"][0]["vivado_summary_counts_consistent"]
+            )
+            self.assertTrue(
                 record["vivado_evidence"][0]["vivado_route_status_counts_present"]
             )
             self.assertEqual(record["vivado_hjpeg_base_addresses"], [0])
@@ -3251,6 +3273,28 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(record["passed"])
             self.assertTrue(
                 any("evidence category summary" in failure for failure in failures)
+            )
+
+    def test_vivado_evidence_file_record_rejects_inconsistent_summary_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["failed_count"] = 1
+            vivado_record["failure_count"] = 1
+            vivado_record["failures"] = ["post_impl_route_status.rpt: stale failure"]
+            vivado_record["failed_paths"] = ["post_impl_route_status.rpt"]
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertTrue(record["vivado_passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["vivado_evidence_categories_present"])
+            self.assertFalse(record["vivado_summary_counts_consistent"])
+            self.assertTrue(record["vivado_route_status_counts_present"])
+            self.assertFalse(record["passed"])
+            self.assertTrue(
+                any("diagnostic summary counts" in failure for failure in failures)
             )
 
     def test_vivado_evidence_file_record_rejects_missing_route_status_counts(self) -> None:

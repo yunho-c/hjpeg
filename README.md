@@ -417,8 +417,9 @@ and `.dcp` artifact suffix evidence true, and the required `hjpeg_kv260.bit`,
 `post_impl_clock_utilization.rpt` filename evidence true, with matching
 missing/failing filename and suffix lists empty. It also requires the Vivado
 evidence-category summary to show every required category present and passing,
-plus a passing route-status record with zero unrouted nets and zero nets with
-routing errors. The checker fails if the run
+zero diagnostic failures and failed paths in the Vivado summary, plus a passing
+route-status record with zero unrouted nets and zero nets with routing errors.
+The checker fails if the run
 transcript's AXI-Lite base address does not match the Vivado build evidence, or
 if multiple Vivado evidence files report conflicting HJPEG base addresses. Its JSON output
 includes aggregate checked/pass/fail transcript counts, diagnostic failure count,

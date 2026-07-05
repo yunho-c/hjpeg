@@ -303,8 +303,9 @@ Expected evidence:
   `post_impl_route_status.rpt`, and `post_impl_clock_utilization.rpt` filename
   evidence, with matching missing/failing filename and suffix lists empty, a
   required evidence-category summary showing every required category present and
-  passing, plus a passing route-status record with zero unrouted nets and zero
-  nets with routing errors. The
+  passing, zero diagnostic failures and failed paths in the Vivado summary, plus
+  a passing route-status record with zero unrouted nets and zero nets with
+  routing errors. The
   checker fails if the run transcript's AXI-Lite base address does not match the
   Vivado build evidence or if multiple Vivado evidence files report conflicting
   HJPEG base addresses.
