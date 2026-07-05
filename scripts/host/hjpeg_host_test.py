@@ -301,6 +301,14 @@ def with_16bit_dqt(jpeg: bytes) -> bytes:
     return jpeg[:dqt] + replacement + jpeg[dqt + 69 :]
 
 
+def with_extra_dqt(jpeg: bytes) -> bytes:
+    sof0 = jpeg.find(b"\xff\xc0")
+    if sof0 < 0:
+        raise AssertionError("SOF0 marker not found")
+    extra_dqt = bytes([0xFF, 0xDB, 0x00, 0x43, 0x02, *([0x12] * 64)])
+    return jpeg[:sof0] + extra_dqt + jpeg[sof0:]
+
+
 def with_duplicate_sof0(jpeg: bytes) -> bytes:
     sof0 = jpeg.find(b"\xff\xc0")
     if sof0 < 0:
@@ -1072,6 +1080,14 @@ class HjpegHostTest(unittest.TestCase):
             jpeg.write_bytes(with_16bit_dqt(minimal_jpeg(width=17, height=13)))
 
             with self.assertRaisesRegex(ValueError, "DQT table 0 has precision 1"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_nonstandard_quantization_table_set(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "extra-dqt.jpg"
+            jpeg.write_bytes(with_extra_dqt(minimal_jpeg(width=17, height=13)))
+
+            with self.assertRaisesRegex(ValueError, "DQT table set"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_rejects_nonstandard_huffman_table_set(self) -> None:
