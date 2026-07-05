@@ -165,12 +165,16 @@ Frame configuration:
 - `0x14 restart interval in MCUs`.
 
 The AXI-Lite wrapper accepts independent AW and W channel handshakes and honors
-byte write strobes.
+byte write strobes. Unmapped AXI-Lite reads return zero, and unmapped writes
+complete without changing mapped control/status registers.
 
 ## Recent Progress
 
 Recent commits, newest first:
 
+- `3c2ca4b test: cover unmapped axi-lite accesses`
+- `9484f80 fix: accept vivado report wording variants`
+- `fc367d6 test: cover vivado report failure evidence`
 - `d9e6873 feat: record vivado clock utilization evidence`
 - `3df0aec feat: gate vivado drc and route reports`
 - `4451a3e feat: emit vivado implementation review reports`
