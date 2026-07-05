@@ -518,6 +518,11 @@ python3 scripts/vivado/check_reports.py \
 
 Known local limitations:
 
+- Run `python3 scripts/dev/check_chiselsim_env.py` before ChiselSim-backed
+  tests on Windows or a newly provisioned machine. It reports the detected
+  `make`, `sh`, and `verilator` paths, flags the known Windows/MSYS
+  incompatibility below, and exits nonzero when simulator-backed tests are
+  expected to fail before RTL execution.
 - Full ChiselSim tests on Windows/MSYS currently fail before simulation or
   harness compilation because svsim emits Windows-style Makefile/file-list paths
   while MSYS `make`, Verilator, and the MinGW/UCRT C++ toolchain consume parts
@@ -525,10 +530,10 @@ Known local limitations:
   can be bypassed, but the generated harness then hit path normalization issues
   and a missing POSIX `getline` symbol in the MinGW build.
 - Latest focused attempt on this Windows/MSYS setup:
-  `sbt 'testOnly hjpeg.HjpegCoreSpec'` compiled the updated spec, then all
-  simulations failed at svsim `make clean` because the generated Makefile ran
-  `for /f "delims=" ...` under `/bin/sh`. This matches the known simulator
-  path/shell incompatibility above; it does not validate the new cycle-budget
+  `sbt 'testOnly hjpeg.HjpegAxiStreamCoreSpec'` compiled the updated spec, then
+  all simulations failed at svsim `make clean` because the generated Makefile
+  ran `for /f "delims=" ...` under `/bin/sh`. This matches the known simulator
+  path/shell incompatibility above; it does not validate the new AXI wrapper
   regression until run on a compatible simulator setup.
 - The current block-design Vivado reports pass the default 100 MHz
   setup/hold/utilization gates. The standalone synthesis smoke evidence hashes

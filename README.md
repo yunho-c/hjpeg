@@ -69,6 +69,18 @@ between frames.
 
 ## Build
 
+On Windows or a newly provisioned machine, check the simulator toolchain before
+running ChiselSim-backed tests:
+
+```sh
+python3 scripts/dev/check_chiselsim_env.py
+```
+
+The preflight detects mixed Windows/MSYS setups where svsim-generated Makefiles
+can fail before RTL simulation starts. If it reports an incompatible simulator
+environment, `sbt Test/compile` is still useful as a source-level gate, but run
+simulation tests from a compatible Linux/WSL Verilator environment.
+
 Run the test suite with sbt:
 
 ```sh
