@@ -3079,6 +3079,36 @@ def main(argv: list[str] | None = None) -> int:
             for record in records
             if record.get("passed") is not True
         ]
+        aggregate_evidence_group_count = sum(
+            int(record.get("evidence_group_count", 0))
+            for record in records
+            if isinstance(record.get("evidence_group_count"), int)
+        )
+        aggregate_evidence_present_count = sum(
+            int(record.get("evidence_present_count", 0))
+            for record in records
+            if isinstance(record.get("evidence_present_count"), int)
+        )
+        aggregate_evidence_missing_count = sum(
+            int(record.get("evidence_missing_count", 0))
+            for record in records
+            if isinstance(record.get("evidence_missing_count"), int)
+        )
+        aggregate_recorded_check_count = sum(
+            int(record.get("recorded_check_count", 0))
+            for record in records
+            if isinstance(record.get("recorded_check_count"), int)
+        )
+        aggregate_passing_check_count = sum(
+            int(record.get("passing_check_count", 0))
+            for record in records
+            if isinstance(record.get("passing_check_count"), int)
+        )
+        aggregate_failing_check_count = sum(
+            int(record.get("failing_check_count", 0))
+            for record in records
+            if isinstance(record.get("failing_check_count"), int)
+        )
         if args.json:
             print(
                 json.dumps(
@@ -3090,6 +3120,24 @@ def main(argv: list[str] | None = None) -> int:
                         "failure_count": len(failures),
                         "passed_paths": passed_paths,
                         "failed_paths": failed_paths,
+                        "aggregate_evidence_group_count": (
+                            aggregate_evidence_group_count
+                        ),
+                        "aggregate_evidence_present_count": (
+                            aggregate_evidence_present_count
+                        ),
+                        "aggregate_evidence_missing_count": (
+                            aggregate_evidence_missing_count
+                        ),
+                        "aggregate_recorded_check_count": (
+                            aggregate_recorded_check_count
+                        ),
+                        "aggregate_passing_check_count": (
+                            aggregate_passing_check_count
+                        ),
+                        "aggregate_failing_check_count": (
+                            aggregate_failing_check_count
+                        ),
                         "records": records,
                         "failures": failures,
                     },

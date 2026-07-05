@@ -2922,6 +2922,12 @@ class HjpegHostTest(unittest.TestCase):
                 record["failed_paths"],
                 [str(incomplete), str(malformed), str(missing)],
             )
+            self.assertEqual(record["aggregate_evidence_group_count"], 20)
+            self.assertEqual(record["aggregate_evidence_present_count"], 10)
+            self.assertEqual(record["aggregate_evidence_missing_count"], 10)
+            self.assertEqual(record["aggregate_recorded_check_count"], 82)
+            self.assertEqual(record["aggregate_passing_check_count"], 76)
+            self.assertEqual(record["aggregate_failing_check_count"], 6)
             self.assertTrue(record["records"][0]["passed"])
             self.assertFalse(record["records"][1]["passed"])
             self.assertIn(
