@@ -180,7 +180,9 @@ Expected evidence:
   non-empty scan payload.
 - The helper records APP0, DQT, DHT, DRI, and restart-marker counts, plus the
   parsed DRI restart interval when present. At least one DQT and one DHT
-  segment are required for a standalone baseline JPEG. Pass
+  segment are required for a standalone baseline JPEG. The helper records DQT
+  table IDs, DHT table class/ID pairs, and SOS component table selectors, and
+  rejects SOF0 or SOS references to missing DQT/DHT tables. Pass
   `--restart-interval` to standalone `validate-jpeg` to check the expected
   value; `run-stream-devices` checks this automatically against the configured
   register value.

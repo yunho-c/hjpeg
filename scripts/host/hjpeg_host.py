@@ -66,10 +66,26 @@ class JpegComponent:
 
 
 @dataclass(frozen=True)
+class JpegHuffmanTable:
+    table_class: int
+    table_id: int
+
+
+@dataclass(frozen=True)
+class JpegScanComponent:
+    component_id: int
+    dc_table: int
+    ac_table: int
+
+
+@dataclass(frozen=True)
 class JpegInfo:
     width: int
     height: int
     components: tuple[JpegComponent, ...]
+    scan_components: tuple[JpegScanComponent, ...]
+    quantization_tables: tuple[int, ...]
+    huffman_tables: tuple[JpegHuffmanTable, ...]
     scan_data_bytes: int
     byte_length: int
     sha256: str
@@ -192,6 +208,9 @@ def jpeg_info(data: bytes) -> JpegInfo:
     offset = 2
     dimensions: tuple[int, int] | None = None
     components: tuple[JpegComponent, ...] = ()
+    scan_components: tuple[JpegScanComponent, ...] = ()
+    quantization_tables: set[int] = set()
+    huffman_tables: set[tuple[int, int]] = set()
     scan_data_bytes = 0
     app0_segments = 0
     dqt_segments = 0
@@ -226,6 +245,19 @@ def jpeg_info(data: bytes) -> JpegInfo:
             app0_segments += 1
         if marker == 0xDB:
             dqt_segments += 1
+            table_offset = offset + 2
+            segment_end = offset + segment_length
+            while table_offset < segment_end:
+                table_info = data[table_offset]
+                precision = (table_info >> 4) & 0x0F
+                table_id = table_info & 0x0F
+                if precision not in (0, 1):
+                    raise ValueError("DQT segment has invalid table precision")
+                table_bytes = 64 * (2 if precision else 1)
+                table_offset += 1 + table_bytes
+                if table_offset > segment_end:
+                    raise ValueError("DQT segment table overruns segment length")
+                quantization_tables.add(table_id)
         if marker == 0xDD:
             if segment_length != 4:
                 raise ValueError("DRI segment has invalid length")
@@ -256,9 +288,41 @@ def jpeg_info(data: bytes) -> JpegInfo:
 
         if marker == 0xC4:
             dht_segments += 1
+            table_offset = offset + 2
+            segment_end = offset + segment_length
+            while table_offset < segment_end:
+                table_info = data[table_offset]
+                table_class = (table_info >> 4) & 0x0F
+                table_id = table_info & 0x0F
+                if table_class not in (0, 1):
+                    raise ValueError("DHT segment has invalid table class")
+                if table_offset + 17 > segment_end:
+                    raise ValueError("DHT segment is too short for code counts")
+                value_count = sum(data[table_offset + 1 : table_offset + 17])
+                table_offset += 17 + value_count
+                if table_offset > segment_end:
+                    raise ValueError("DHT segment table overruns segment length")
+                huffman_tables.add((table_class, table_id))
 
         if marker == 0xDA:
             saw_sos = True
+            if segment_length < 6:
+                raise ValueError("SOS segment is too short")
+            scan_component_count = data[offset + 2]
+            if segment_length != 6 + scan_component_count * 2:
+                raise ValueError("SOS segment length does not match component count")
+            parsed_scan_components = []
+            for component_index in range(scan_component_count):
+                component_offset = offset + 3 + component_index * 2
+                table_selector = data[component_offset + 1]
+                parsed_scan_components.append(
+                    JpegScanComponent(
+                        component_id=data[component_offset],
+                        dc_table=(table_selector >> 4) & 0x0F,
+                        ac_table=table_selector & 0x0F,
+                    )
+                )
+            scan_components = tuple(parsed_scan_components)
             offset += segment_length
             while offset + 1 < len(data):
                 if data[offset] != 0xFF:
@@ -293,10 +357,38 @@ def jpeg_info(data: bytes) -> JpegInfo:
         raise ValueError("JPEG output does not contain an SOS segment")
     if scan_data_bytes == 0:
         raise ValueError("JPEG output does not contain entropy-coded scan data")
+    component_ids = {component.component_id for component in components}
+    for component in components:
+        if component.quantization_table not in quantization_tables:
+            raise ValueError(
+                f"JPEG SOF0 component {component.component_id} references missing DQT table "
+                f"{component.quantization_table}"
+            )
+    for scan_component in scan_components:
+        if scan_component.component_id not in component_ids:
+            raise ValueError(
+                f"JPEG SOS references unknown component {scan_component.component_id}"
+            )
+        if (0, scan_component.dc_table) not in huffman_tables:
+            raise ValueError(
+                f"JPEG SOS component {scan_component.component_id} references missing DC DHT table "
+                f"{scan_component.dc_table}"
+            )
+        if (1, scan_component.ac_table) not in huffman_tables:
+            raise ValueError(
+                f"JPEG SOS component {scan_component.component_id} references missing AC DHT table "
+                f"{scan_component.ac_table}"
+            )
     return JpegInfo(
         width=dimensions[0],
         height=dimensions[1],
         components=components,
+        scan_components=scan_components,
+        quantization_tables=tuple(sorted(quantization_tables)),
+        huffman_tables=tuple(
+            JpegHuffmanTable(table_class=table_class, table_id=table_id)
+            for table_class, table_id in sorted(huffman_tables)
+        ),
         scan_data_bytes=scan_data_bytes,
         byte_length=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
@@ -457,6 +549,22 @@ def jpeg_info_record(
                 "quantization_table": component.quantization_table,
             }
             for component in info.components
+        ],
+        "scan_components": [
+            {
+                "component_id": component.component_id,
+                "dc_table": component.dc_table,
+                "ac_table": component.ac_table,
+            }
+            for component in info.scan_components
+        ],
+        "quantization_tables": list(info.quantization_tables),
+        "huffman_tables": [
+            {
+                "table_class": table.table_class,
+                "table_id": table.table_id,
+            }
+            for table in info.huffman_tables
         ],
         "chroma_mode": jpeg_chroma_mode(info),
         "scan_data_bytes": info.scan_data_bytes,

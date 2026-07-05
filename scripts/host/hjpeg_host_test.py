@@ -31,6 +31,12 @@ def minimal_jpeg(width: int, height: int, chroma_subsample: bool = False) -> byt
             0x00,
             *([0x10] * 64),
             0xFF,
+            0xDB,
+            0x00,
+            0x43,
+            0x01,
+            *([0x11] * 64),
+            0xFF,
             0xC0,
             0x00,
             0x11,
@@ -61,7 +67,23 @@ def minimal_jpeg(width: int, height: int, chroma_subsample: bool = False) -> byt
             0xC4,
             0x00,
             0x14,
+            0x01,
+            *([0x00] * 15),
+            0x01,
+            0x00,
+            0xFF,
+            0xC4,
+            0x00,
+            0x14,
             0x10,
+            *([0x00] * 15),
+            0x01,
+            0x00,
+            0xFF,
+            0xC4,
+            0x00,
+            0x14,
+            0x11,
             *([0x00] * 15),
             0x01,
             0x00,
@@ -133,12 +155,24 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
             hjpeg_host.JpegComponent(2, 1, 1, 1),
             hjpeg_host.JpegComponent(3, 1, 1, 1),
         ),
+        scan_components=(
+            hjpeg_host.JpegScanComponent(1, 0, 0),
+            hjpeg_host.JpegScanComponent(2, 1, 1),
+            hjpeg_host.JpegScanComponent(3, 1, 1),
+        ),
+        quantization_tables=(0, 1),
+        huffman_tables=(
+            hjpeg_host.JpegHuffmanTable(0, 0),
+            hjpeg_host.JpegHuffmanTable(0, 1),
+            hjpeg_host.JpegHuffmanTable(1, 0),
+            hjpeg_host.JpegHuffmanTable(1, 1),
+        ),
         scan_data_bytes=1,
         byte_length=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
         app0_segments=1,
-        dqt_segments=1,
-        dht_segments=2,
+        dqt_segments=2,
+        dht_segments=4,
         dri_segments=0,
         restart_interval=None,
         restart_markers=0,
@@ -342,10 +376,28 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(parsed.components[1], hjpeg_host.JpegComponent(2, 1, 1, 1))
             self.assertEqual(parsed.components[2], hjpeg_host.JpegComponent(3, 1, 1, 1))
             self.assertEqual(hjpeg_host.jpeg_chroma_mode(parsed), "4:4:4")
+            self.assertEqual(
+                parsed.scan_components,
+                (
+                    hjpeg_host.JpegScanComponent(1, 0, 0),
+                    hjpeg_host.JpegScanComponent(2, 1, 1),
+                    hjpeg_host.JpegScanComponent(3, 1, 1),
+                ),
+            )
+            self.assertEqual(parsed.quantization_tables, (0, 1))
+            self.assertEqual(
+                parsed.huffman_tables,
+                (
+                    hjpeg_host.JpegHuffmanTable(0, 0),
+                    hjpeg_host.JpegHuffmanTable(0, 1),
+                    hjpeg_host.JpegHuffmanTable(1, 0),
+                    hjpeg_host.JpegHuffmanTable(1, 1),
+                ),
+            )
             self.assertEqual(parsed.scan_data_bytes, 1)
             self.assertEqual(parsed.app0_segments, 1)
-            self.assertEqual(parsed.dqt_segments, 1)
-            self.assertEqual(parsed.dht_segments, 2)
+            self.assertEqual(parsed.dqt_segments, 2)
+            self.assertEqual(parsed.dht_segments, 4)
             self.assertEqual(parsed.dri_segments, 0)
             self.assertIsNone(parsed.restart_interval)
             self.assertEqual(parsed.restart_markers, 0)
@@ -425,10 +477,23 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["components"][0]["horizontal_sampling"], 1)
             self.assertEqual(record["components"][0]["vertical_sampling"], 1)
             self.assertEqual(record["components"][0]["quantization_table"], 0)
+            self.assertEqual(record["scan_components"][1]["component_id"], 2)
+            self.assertEqual(record["scan_components"][1]["dc_table"], 1)
+            self.assertEqual(record["scan_components"][1]["ac_table"], 1)
+            self.assertEqual(record["quantization_tables"], [0, 1])
+            self.assertEqual(
+                record["huffman_tables"],
+                [
+                    {"table_class": 0, "table_id": 0},
+                    {"table_class": 0, "table_id": 1},
+                    {"table_class": 1, "table_id": 0},
+                    {"table_class": 1, "table_id": 1},
+                ],
+            )
             self.assertEqual(record["scan_data_bytes"], 1)
             self.assertEqual(record["app0_segments"], 1)
-            self.assertEqual(record["dqt_segments"], 1)
-            self.assertEqual(record["dht_segments"], 2)
+            self.assertEqual(record["dqt_segments"], 2)
+            self.assertEqual(record["dht_segments"], 4)
             self.assertEqual(record["dri_segments"], 0)
             self.assertIsNone(record["restart_interval"])
             self.assertEqual(record["restart_markers"], 0)
@@ -712,6 +777,37 @@ class HjpegHostTest(unittest.TestCase):
                 hjpeg_host.validate_jpeg(missing_dqt, expected_width=17, expected_height=13)
             with self.assertRaisesRegex(ValueError, "DHT"):
                 hjpeg_host.validate_jpeg(missing_dht, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_missing_referenced_tables(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            missing_referenced_dqt = root / "missing-referenced-dqt.jpg"
+            missing_referenced_dht = root / "missing-referenced-dht.jpg"
+            missing_referenced_dqt.write_bytes(
+                minimal_jpeg(width=17, height=13).replace(
+                    b"\x02\x11\x01\x03\x11\x01",
+                    b"\x02\x11\x02\x03\x11\x02",
+                )
+            )
+            missing_referenced_dht.write_bytes(
+                minimal_jpeg(width=17, height=13).replace(
+                    b"\x02\x11\x03\x11\x00\x3f",
+                    b"\x02\x22\x03\x22\x00\x3f",
+                )
+            )
+
+            with self.assertRaisesRegex(ValueError, "missing DQT table 2"):
+                hjpeg_host.validate_jpeg(
+                    missing_referenced_dqt,
+                    expected_width=17,
+                    expected_height=13,
+                )
+            with self.assertRaisesRegex(ValueError, "missing DC DHT table 2"):
+                hjpeg_host.validate_jpeg(
+                    missing_referenced_dht,
+                    expected_width=17,
+                    expected_height=13,
+                )
 
     def test_jpeg_info_counts_restart_markers_in_scan_data(self) -> None:
         jpeg = with_dri_segment(
