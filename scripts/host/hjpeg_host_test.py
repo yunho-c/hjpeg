@@ -1705,7 +1705,28 @@ class HjpegHostTest(unittest.TestCase):
             (False, False, False, 0),
             (True, False, False, hjpeg_host.CONTROL_ENABLE_CHROMA_SUBSAMPLE),
             (False, True, False, hjpeg_host.CONTROL_EMIT_JFIF),
+            (
+                True,
+                True,
+                False,
+                hjpeg_host.CONTROL_ENABLE_CHROMA_SUBSAMPLE
+                | hjpeg_host.CONTROL_EMIT_JFIF,
+            ),
             (False, False, True, hjpeg_host.CONTROL_CLEAR_PROTOCOL_ERROR),
+            (
+                True,
+                False,
+                True,
+                hjpeg_host.CONTROL_ENABLE_CHROMA_SUBSAMPLE
+                | hjpeg_host.CONTROL_CLEAR_PROTOCOL_ERROR,
+            ),
+            (
+                False,
+                True,
+                True,
+                hjpeg_host.CONTROL_EMIT_JFIF
+                | hjpeg_host.CONTROL_CLEAR_PROTOCOL_ERROR,
+            ),
             (
                 True,
                 True,
