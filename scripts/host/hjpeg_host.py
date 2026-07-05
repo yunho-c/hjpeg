@@ -2450,6 +2450,21 @@ def check_run_evidence_file(path: Path) -> tuple[dict[str, object], list[str]]:
     return check_run_evidence_record(path, parsed)
 
 
+def unique_string_values(records: list[dict[str, object]], key: str) -> list[str]:
+    values: list[str] = []
+    seen: set[str] = set()
+    for record in records:
+        record_values = record.get(key)
+        if not isinstance(record_values, list):
+            continue
+        for value in record_values:
+            text = str(value)
+            if text not in seen:
+                seen.add(text)
+                values.append(text)
+    return values
+
+
 def require_capture_config(max_output_bytes: int, timeout_seconds: float | None) -> None:
     if max_output_bytes <= 0:
         raise ValueError("max output bytes must be positive")
@@ -3109,6 +3124,10 @@ def main(argv: list[str] | None = None) -> int:
             for record in records
             if isinstance(record.get("failing_check_count"), int)
         )
+        aggregate_present_evidence = unique_string_values(records, "present_evidence")
+        aggregate_missing_evidence = unique_string_values(records, "missing_evidence")
+        aggregate_passing_checks = unique_string_values(records, "passing_checks")
+        aggregate_failing_checks = unique_string_values(records, "failing_checks")
         if args.json:
             print(
                 json.dumps(
@@ -3138,6 +3157,10 @@ def main(argv: list[str] | None = None) -> int:
                         "aggregate_failing_check_count": (
                             aggregate_failing_check_count
                         ),
+                        "aggregate_present_evidence": aggregate_present_evidence,
+                        "aggregate_missing_evidence": aggregate_missing_evidence,
+                        "aggregate_passing_checks": aggregate_passing_checks,
+                        "aggregate_failing_checks": aggregate_failing_checks,
                         "records": records,
                         "failures": failures,
                     },

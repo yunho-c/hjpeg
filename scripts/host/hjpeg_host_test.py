@@ -2928,6 +2928,29 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["aggregate_recorded_check_count"], 82)
             self.assertEqual(record["aggregate_passing_check_count"], 76)
             self.assertEqual(record["aggregate_failing_check_count"], 6)
+            self.assertEqual(
+                record["aggregate_present_evidence"],
+                EXPECTED_HARDWARE_EVIDENCE_GROUPS,
+            )
+            self.assertEqual(
+                record["aggregate_missing_evidence"],
+                EXPECTED_HARDWARE_EVIDENCE_GROUPS,
+            )
+            self.assertEqual(
+                record["aggregate_passing_checks"],
+                EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
+            )
+            self.assertEqual(
+                record["aggregate_failing_checks"],
+                [
+                    "jpeg_byte_length_positive",
+                    "jpeg_scan_data_bytes_positive",
+                    "jpeg_sha256_present",
+                    "jpeg_scan_data_sha256_present",
+                    "jpeg_marker_sequence_starts_with_soi",
+                    "jpeg_marker_sequence_ends_with_eoi",
+                ],
+            )
             self.assertTrue(record["records"][0]["passed"])
             self.assertFalse(record["records"][1]["passed"])
             self.assertIn(

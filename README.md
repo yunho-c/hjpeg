@@ -381,9 +381,9 @@ The saved-evidence checker recomputes `hardware_run_summary` from the transcript
 and fails if the stored summary does not match the recomputed evidence. Its JSON
 output includes aggregate checked/pass/fail transcript counts, diagnostic
 failure count, passed/failed path lists, aggregate evidence group present/missing
-counts, and aggregate recorded/passing/failing check counts plus the recomputed
-summary, evidence/check counts, missing evidence groups, and failing check names
-for each object-shaped transcript.
+counts and names, and aggregate recorded/passing/failing check counts and names
+plus the recomputed summary, evidence/check counts, missing evidence groups, and
+failing check names for each object-shaped transcript.
 
 Maximum output bytes must be positive, and RX timeout values must be finite and
 positive when present. It
