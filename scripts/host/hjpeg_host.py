@@ -1209,13 +1209,7 @@ def configure_registers(
     if not 0 <= restart_interval <= 0xFFFF:
         raise ValueError("restart interval must be in 0..65535")
 
-    control = 0
-    if clear_error:
-        control |= CONTROL_CLEAR_PROTOCOL_ERROR
-    if chroma_subsample:
-        control |= CONTROL_ENABLE_CHROMA_SUBSAMPLE
-    if emit_jfif:
-        control |= CONTROL_EMIT_JFIF
+    control = control_value(chroma_subsample, emit_jfif, clear_error)
 
     regs.write32(REG_XSIZE, width)
     regs.write32(REG_YSIZE, height)
