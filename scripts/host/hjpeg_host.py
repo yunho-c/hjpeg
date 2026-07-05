@@ -1565,7 +1565,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         "validation_expectations": "validation_expectations" in record,
         "input_ppm": False,
         "transfer_timing": False,
-        "decoder": bool(record.get("decoder_passed", False)),
+        "decoder": False,
     }
     checks = {"jpeg_validation_passed": True}
 
@@ -1602,7 +1602,22 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
 
     if "decoder_passed" in record:
-        checks["decoder_passed"] = bool(record.get("decoder_passed", False))
+        decoder_passed = bool(record.get("decoder_passed", False))
+        decoder_returncode_zero = record.get("decoder_returncode") == 0
+        decoder_argv_present = bool(record.get("decoder_argv"))
+        decoder_output_not_truncated = not bool(
+            record.get("decoder_stdout_truncated", True)
+        ) and not bool(record.get("decoder_stderr_truncated", True))
+        evidence_present["decoder"] = (
+            decoder_passed
+            and decoder_returncode_zero
+            and decoder_argv_present
+            and decoder_output_not_truncated
+        )
+        checks["decoder_passed"] = decoder_passed
+        checks["decoder_returncode_zero"] = decoder_returncode_zero
+        checks["decoder_argv_present"] = decoder_argv_present
+        checks["decoder_output_not_truncated"] = decoder_output_not_truncated
 
     transfer_elapsed = record.get("transfer_elapsed_seconds")
     if isinstance(transfer_elapsed, (int, float)):

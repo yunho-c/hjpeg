@@ -1639,6 +1639,30 @@ class HjpegHostTest(unittest.TestCase):
                 record["hardware_run_summary"]["checks"]["host_transfer_rates_present"]
             )
 
+    def test_run_evidence_record_requires_decoder_result_details(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "output.jpg"
+            jpeg.write_bytes(minimal_jpeg(width=2, height=1))
+
+            record = hjpeg_host.run_evidence_record(
+                jpeg,
+                minimal_jpeg_info(width=2, height=1),
+                decoder_passed=True,
+            )
+
+            self.assertFalse(record["hardware_run_summary"]["evidence_present"]["decoder"])
+            self.assertFalse(record["hardware_run_summary"]["all_recorded_checks_passed"])
+            self.assertTrue(record["hardware_run_summary"]["checks"]["decoder_passed"])
+            self.assertFalse(
+                record["hardware_run_summary"]["checks"]["decoder_returncode_zero"]
+            )
+            self.assertFalse(
+                record["hardware_run_summary"]["checks"]["decoder_argv_present"]
+            )
+            self.assertFalse(
+                record["hardware_run_summary"]["checks"]["decoder_output_not_truncated"]
+            )
+
     def test_run_evidence_record_rejects_invalid_elapsed_time(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             jpeg = Path(tmp) / "output.jpg"
@@ -3540,6 +3564,9 @@ class HjpegHostTest(unittest.TestCase):
                         "status_checks_no_protocol_error": True,
                         "status_checks_no_busy": True,
                         "decoder_passed": True,
+                        "decoder_returncode_zero": True,
+                        "decoder_argv_present": True,
+                        "decoder_output_not_truncated": True,
                         "transfer_elapsed_seconds_positive": True,
                         "host_transfer_rates_present": True,
                     },

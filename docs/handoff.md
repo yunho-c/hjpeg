@@ -650,7 +650,7 @@ Hardware completion evidence should include:
   source PPM, positive transfer timing, and passing decoder evidence required,
   decoder command, resolved decoder argv, decoder timeout, decoder elapsed
   seconds, bounded decoder stdout/stderr, captured decoder output lengths, and
-  decoder output capture limit.
+  decoder output capture limit, with non-truncated decoder output metadata.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 

@@ -201,7 +201,9 @@ all-idle/any-busy/any-protocol-error summaries. It also records a
 `hardware_run_summary` with evidence-presence bits and consolidated pass/fail
 checks for board-run transcripts; the complete-evidence flag requires a passing
 decoder check, source PPM evidence with non-flat/color image stats, and positive
-host-observed transfer timing with derived byte rates.
+host-observed transfer timing with derived byte rates. Decoder evidence must
+include the resolved argv, zero return code, and non-truncated captured output
+metadata.
 The `run-stream-devices` command supports Linux board images that expose DMA
 MM2S/S2MM endpoints as byte-stream device files by writing padded RGB bytes to
 the TX device and reading JPEG bytes from the RX device until EOI, while
