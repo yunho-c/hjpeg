@@ -410,10 +410,14 @@ and fails if the stored summary does not match the recomputed evidence. When
 the passing `hjpeg_0/s_axi_lite` address-map base address. The Vivado transcript
 must have `passed`, `complete_vivado_flow_evidence`, the required `.bit`, `.xsa`,
 and `.dcp` artifact suffix evidence true, and the required `hjpeg_kv260.bit`,
-`hjpeg_kv260.xsa`, `post_impl.dcp`, and `hjpeg_kv260_address_map.rpt` filename
-evidence true. The checker fails if the run transcript's AXI-Lite base address
-does not match the Vivado build evidence, or if multiple Vivado evidence files
-report conflicting HJPEG base addresses. Its JSON output
+`hjpeg_kv260.xsa`, `post_impl.dcp`, `hjpeg_kv260_address_map.rpt`,
+`post_synth_timing_summary.rpt`, `post_impl_timing_summary.rpt`,
+`post_synth_utilization.rpt`, `post_impl_utilization.rpt`,
+`post_impl_drc.rpt`, `post_impl_route_status.rpt`, and
+`post_impl_clock_utilization.rpt` filename evidence true, with matching
+missing/failing filename and suffix lists empty. The checker fails if the run
+transcript's AXI-Lite base address does not match the Vivado build evidence, or
+if multiple Vivado evidence files report conflicting HJPEG base addresses. Its JSON output
 includes aggregate checked/pass/fail transcript counts, diagnostic failure count,
 checked/passed/failed path lists, summary checked, matched, and
 mismatched counts and paths, aggregate evidence group present/missing counts and

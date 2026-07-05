@@ -3200,6 +3200,50 @@ class HjpegHostTest(unittest.TestCase):
                 any("checkpoint filenames" in failure for failure in failures)
             )
 
+    def test_vivado_evidence_file_record_rejects_inconsistent_artifact_suffixes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["artifact_suffixes"]["failing_required_suffixes"] = [
+                ".xsa"
+            ]
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertTrue(record["vivado_passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertFalse(record["vivado_artifact_suffixes_present"])
+            self.assertTrue(record["vivado_artifact_filenames_present"])
+            self.assertTrue(record["vivado_address_map_filenames_present"])
+            self.assertTrue(record["vivado_report_filenames_present"])
+            self.assertFalse(record["passed"])
+            self.assertTrue(
+                any(".bit/.xsa/.dcp" in failure for failure in failures)
+            )
+
+    def test_vivado_evidence_file_record_rejects_inconsistent_address_map_filenames(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["address_map_filenames"]["failing_required_filenames"] = [
+                "hjpeg_kv260_address_map.rpt"
+            ]
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertTrue(record["vivado_passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["vivado_artifact_suffixes_present"])
+            self.assertTrue(record["vivado_artifact_filenames_present"])
+            self.assertFalse(record["vivado_address_map_filenames_present"])
+            self.assertTrue(record["vivado_report_filenames_present"])
+            self.assertFalse(record["passed"])
+            self.assertTrue(
+                any("hjpeg_kv260_address_map.rpt" in failure for failure in failures)
+            )
+
     def test_vivado_evidence_file_record_rejects_inconsistent_report_filenames(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "vivado.json"

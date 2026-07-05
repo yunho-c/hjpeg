@@ -296,9 +296,14 @@ Expected evidence:
   `complete_vivado_flow_evidence` true, plus required `.bit`, `.xsa`, and `.dcp`
   artifact suffix evidence and required `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and
   `post_impl.dcp` filename evidence, plus required `hjpeg_kv260_address_map.rpt`
-  filename evidence. The checker fails if the run transcript's AXI-Lite base
-  address does not match the Vivado build evidence or if multiple Vivado evidence
-  files report conflicting HJPEG base addresses.
+  filename evidence, plus required `post_synth_timing_summary.rpt`,
+  `post_impl_timing_summary.rpt`, `post_synth_utilization.rpt`,
+  `post_impl_utilization.rpt`, `post_impl_drc.rpt`,
+  `post_impl_route_status.rpt`, and `post_impl_clock_utilization.rpt` filename
+  evidence, with matching missing/failing filename and suffix lists empty. The
+  checker fails if the run transcript's AXI-Lite base address does not match the
+  Vivado build evidence or if multiple Vivado evidence files report conflicting
+  HJPEG base addresses.
   JSON output includes the aggregate checked/pass/fail
   transcript counts, diagnostic failure count, and checked/passed/failed path
   lists, summary checked, matched, and mismatched counts and paths, aggregate
