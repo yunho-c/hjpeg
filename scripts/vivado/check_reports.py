@@ -627,6 +627,26 @@ def main(argv: list[str] | None = None) -> int:
         "route_status": len(args.route_status),
         "clock_utilization": len(args.clock_utilization),
     }
+    checked_records = [
+        *artifact_records,
+        *timing_records,
+        *utilization_records,
+        *drc_records,
+        *route_status_records,
+        *clock_utilization_records,
+    ]
+    passed_count = sum(1 for record in checked_records if record.get("passed") is True)
+    failed_count = len(checked_records) - passed_count
+    passed_paths = [
+        str(record.get("path"))
+        for record in checked_records
+        if record.get("passed") is True
+    ]
+    failed_paths = [
+        str(record.get("path"))
+        for record in checked_records
+        if record.get("passed") is not True
+    ]
     evidence_categories = evidence_category_record(
         {
             "artifacts": artifact_records,
@@ -676,7 +696,12 @@ def main(argv: list[str] | None = None) -> int:
                 {
                     "passed": not failures,
                     "failures": failures,
+                    "failure_count": len(failures),
                     "checked_count": checked,
+                    "passed_count": passed_count,
+                    "failed_count": failed_count,
+                    "passed_paths": passed_paths,
+                    "failed_paths": failed_paths,
                     "checked_counts": checked_counts,
                     "evidence_categories": evidence_categories,
                     "artifact_suffixes": artifact_suffixes,
