@@ -1123,7 +1123,7 @@ def validation_expectations_record(
     quality: int | None,
     require_standard_huffman: bool,
 ) -> dict[str, object]:
-    return {
+    record: dict[str, object] = {
         "width": width,
         "height": height,
         "restart_interval": restart_interval,
@@ -1134,6 +1134,24 @@ def validation_expectations_record(
         "quality": quality,
         "require_standard_huffman": require_standard_huffman,
     }
+    if quality is not None:
+        record["expected_quantization_payload_sha256"] = {
+            str(table_id): payload_sha256
+            for table_id, payload_sha256 in expected_quantization_payload_hashes(quality).items()
+        }
+    if require_standard_huffman:
+        record["expected_huffman_tables"] = [
+            {
+                "table_class": table_class,
+                "table_id": table_id,
+                "symbol_count": symbol_count,
+                "payload_sha256": payload_sha256,
+            }
+            for (table_class, table_id), (symbol_count, payload_sha256) in sorted(
+                expected_huffman_payload_hashes().items()
+            )
+        ]
+    return record
 
 
 def decoder_command_argv(jpeg: Path, command: str) -> list[str]:

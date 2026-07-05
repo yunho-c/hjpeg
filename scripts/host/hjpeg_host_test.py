@@ -1182,6 +1182,9 @@ class HjpegHostTest(unittest.TestCase):
                             "17",
                             "--height",
                             "13",
+                            "--quality",
+                            "50",
+                            "--require-standard-huffman",
                             "--json",
                         ]
                     ),
@@ -1202,8 +1205,38 @@ class HjpegHostTest(unittest.TestCase):
                     "check_chroma_mode": False,
                     "chroma_subsample": None,
                     "expect_jfif": None,
-                    "quality": None,
-                    "require_standard_huffman": False,
+                    "quality": 50,
+                    "require_standard_huffman": True,
+                    "expected_quantization_payload_sha256": {
+                        "0": standard_dqt_payload_sha256(0),
+                        "1": standard_dqt_payload_sha256(1),
+                    },
+                    "expected_huffman_tables": [
+                        {
+                            "table_class": 0,
+                            "table_id": 0,
+                            "symbol_count": 12,
+                            "payload_sha256": standard_dht_payload_sha256(0, 0),
+                        },
+                        {
+                            "table_class": 0,
+                            "table_id": 1,
+                            "symbol_count": 12,
+                            "payload_sha256": standard_dht_payload_sha256(0, 1),
+                        },
+                        {
+                            "table_class": 1,
+                            "table_id": 0,
+                            "symbol_count": 162,
+                            "payload_sha256": standard_dht_payload_sha256(1, 0),
+                        },
+                        {
+                            "table_class": 1,
+                            "table_id": 1,
+                            "symbol_count": 162,
+                            "payload_sha256": standard_dht_payload_sha256(1, 1),
+                        },
+                    ],
                 },
             )
             self.assertEqual(record["mcu_count"], 6)
@@ -3048,6 +3081,36 @@ class HjpegHostTest(unittest.TestCase):
                     "expect_jfif": "present",
                     "quality": 80,
                     "require_standard_huffman": True,
+                    "expected_quantization_payload_sha256": {
+                        "0": standard_dqt_payload_sha256(0, quality=80),
+                        "1": standard_dqt_payload_sha256(1, quality=80),
+                    },
+                    "expected_huffman_tables": [
+                        {
+                            "table_class": 0,
+                            "table_id": 0,
+                            "symbol_count": 12,
+                            "payload_sha256": standard_dht_payload_sha256(0, 0),
+                        },
+                        {
+                            "table_class": 0,
+                            "table_id": 1,
+                            "symbol_count": 12,
+                            "payload_sha256": standard_dht_payload_sha256(0, 1),
+                        },
+                        {
+                            "table_class": 1,
+                            "table_id": 0,
+                            "symbol_count": 162,
+                            "payload_sha256": standard_dht_payload_sha256(1, 0),
+                        },
+                        {
+                            "table_class": 1,
+                            "table_id": 1,
+                            "symbol_count": 162,
+                            "payload_sha256": standard_dht_payload_sha256(1, 1),
+                        },
+                    ],
                 },
             )
             self.assertEqual(record["chroma_mode"], "4:2:0")
