@@ -7,8 +7,8 @@ This utility keeps the software contract close to the RTL register map:
   order R, G, B, unused. The unused byte is ignored by the KV260 RTL wrapper.
 * AXI-Lite register writes configure `HjpegKv260AxiLiteTop`.
 * JPEG output validation checks SOI/EOI, SOF0 dimensions and baseline shape,
-  DQT/DHT table markers, SOS, and non-empty entropy-coded scan data after a
-  hardware run.
+  DQT/DHT table markers, optional JFIF APP0 signature, SOS, and non-empty
+  entropy-coded scan data after a hardware run.
 
 DMA buffer allocation and transfer submission are intentionally board-image
 specific, so this script prepares and validates the payloads around that layer.
@@ -92,6 +92,7 @@ class JpegInfo:
     byte_length: int
     sha256: str
     app0_segments: int
+    jfif_app0_segments: int
     dqt_segments: int
     dht_segments: int
     dri_segments: int
@@ -216,6 +217,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
     huffman_tables: set[tuple[int, int]] = set()
     scan_data_bytes = 0
     app0_segments = 0
+    jfif_app0_segments = 0
     dqt_segments = 0
     dht_segments = 0
     dri_segments = 0
@@ -246,6 +248,8 @@ def jpeg_info(data: bytes) -> JpegInfo:
 
         if marker == 0xE0:
             app0_segments += 1
+            if data[offset + 2 : offset + 7] == b"JFIF\x00":
+                jfif_app0_segments += 1
         if marker == 0xDB:
             dqt_segments += 1
             table_offset = offset + 2
@@ -406,6 +410,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
         byte_length=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
         app0_segments=app0_segments,
+        jfif_app0_segments=jfif_app0_segments,
         dqt_segments=dqt_segments,
         dht_segments=dht_segments,
         dri_segments=dri_segments,
@@ -453,9 +458,9 @@ def require_chroma_mode(info: JpegInfo, expected_chroma_subsample: bool) -> None
 
 
 def require_jfif(info: JpegInfo, expected_emit_jfif: bool) -> None:
-    if expected_emit_jfif and info.app0_segments == 0:
+    if expected_emit_jfif and info.jfif_app0_segments == 0:
         raise ValueError("JPEG does not contain APP0/JFIF, but JFIF emission was expected")
-    if not expected_emit_jfif and info.app0_segments != 0:
+    if not expected_emit_jfif and info.jfif_app0_segments != 0:
         raise ValueError("JPEG contains APP0/JFIF, but JFIF emission was disabled")
 
 
@@ -583,6 +588,7 @@ def jpeg_info_record(
         "chroma_mode": jpeg_chroma_mode(info),
         "scan_data_bytes": info.scan_data_bytes,
         "app0_segments": info.app0_segments,
+        "jfif_app0_segments": info.jfif_app0_segments,
         "dqt_segments": info.dqt_segments,
         "dht_segments": info.dht_segments,
         "dri_segments": info.dri_segments,
@@ -956,7 +962,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument(
         "--expect-jfif",
         choices=("present", "absent"),
-        help="optionally require APP0/JFIF presence or absence",
+        help="optionally require JFIF APP0 signature presence or absence",
     )
     validate.add_argument(
         "--decoder-command",

@@ -21,7 +21,19 @@ def minimal_jpeg(width: int, height: int, chroma_subsample: bool = False) -> byt
             0xFF,
             0xE0,
             0x00,
-            0x04,
+            0x10,
+            0x4A,
+            0x46,
+            0x49,
+            0x46,
+            0x00,
+            0x01,
+            0x01,
+            0x00,
+            0x00,
+            0x01,
+            0x00,
+            0x01,
             0x00,
             0x00,
             0xFF,
@@ -229,6 +241,7 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
         byte_length=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
         app0_segments=1,
+        jfif_app0_segments=1,
         dqt_segments=2,
         dht_segments=4,
         dri_segments=0,
@@ -455,6 +468,7 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertEqual(parsed.scan_data_bytes, 1)
             self.assertEqual(parsed.app0_segments, 1)
+            self.assertEqual(parsed.jfif_app0_segments, 1)
             self.assertEqual(parsed.dqt_segments, 2)
             self.assertEqual(parsed.dht_segments, 4)
             self.assertEqual(parsed.dri_segments, 0)
@@ -571,6 +585,7 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertEqual(record["scan_data_bytes"], 1)
             self.assertEqual(record["app0_segments"], 1)
+            self.assertEqual(record["jfif_app0_segments"], 1)
             self.assertEqual(record["dqt_segments"], 2)
             self.assertEqual(record["dht_segments"], 4)
             self.assertEqual(record["dri_segments"], 0)
@@ -743,8 +758,12 @@ class HjpegHostTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             with_jfif = root / "with-jfif.jpg"
+            with_app0 = root / "with-app0.jpg"
             without_jfif = root / "without-jfif.jpg"
             with_jfif.write_bytes(minimal_jpeg(width=17, height=13))
+            with_app0.write_bytes(
+                minimal_jpeg(width=17, height=13).replace(b"JFIF\x00", b"APP0\x00", 1)
+            )
             without_jfif.write_bytes(without_segment(minimal_jpeg(width=17, height=13), b"\xff\xe0"))
 
             hjpeg_host.validate_jpeg(
@@ -759,10 +778,25 @@ class HjpegHostTest(unittest.TestCase):
                 expected_height=13,
                 expected_emit_jfif=False,
             )
+            generic_app0_info = hjpeg_host.validate_jpeg(
+                with_app0,
+                expected_width=17,
+                expected_height=13,
+                expected_emit_jfif=False,
+            )
+            self.assertEqual(generic_app0_info.app0_segments, 1)
+            self.assertEqual(generic_app0_info.jfif_app0_segments, 0)
 
             with self.assertRaisesRegex(ValueError, "expected"):
                 hjpeg_host.validate_jpeg(
                     without_jfif,
+                    expected_width=17,
+                    expected_height=13,
+                    expected_emit_jfif=True,
+                )
+            with self.assertRaisesRegex(ValueError, "expected"):
+                hjpeg_host.validate_jpeg(
+                    with_app0,
                     expected_width=17,
                     expected_height=13,
                     expected_emit_jfif=True,
@@ -798,7 +832,9 @@ class HjpegHostTest(unittest.TestCase):
                     ),
                     0,
                 )
-            self.assertEqual(json.loads(stdout.getvalue())["app0_segments"], 1)
+            record = json.loads(stdout.getvalue())
+            self.assertEqual(record["app0_segments"], 1)
+            self.assertEqual(record["jfif_app0_segments"], 1)
 
     def test_decoder_command_supports_placeholder_and_reports_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

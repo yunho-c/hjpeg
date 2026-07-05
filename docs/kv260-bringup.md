@@ -192,9 +192,10 @@ Expected evidence:
   mode. Pass `--check-chroma-mode` to standalone `validate-jpeg`;
   `run-stream-devices` checks this automatically against the configured chroma
   mode.
-- The helper records APP0/JFIF presence and can enforce it with
-  `--expect-jfif present` or `absent`; `run-stream-devices` checks this
-  automatically against the configured JFIF control bit.
+- The helper records APP0 marker count and JFIF APP0 signature count, and can
+  enforce the JFIF signature with `--expect-jfif present` or `absent`;
+  `run-stream-devices` checks this automatically against the configured JFIF
+  control bit.
 - The helper reports the total JPEG byte length and SHA-256 so the captured
   artifact can be matched against saved files and logs.
 - For `run-stream-devices`, the helper reports the input RGB stream byte length
