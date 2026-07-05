@@ -2225,6 +2225,40 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertEqual(record["encoder_config"]["control_hex"], "0x00000003")
 
+    def test_encoder_config_record_rejects_invalid_values(self) -> None:
+        cases = [
+            {"width": 0, "message": "width"},
+            {"height": 0, "message": "height"},
+            {"width": 4, "max_width": 3, "message": "width"},
+            {"height": 4, "max_height": 3, "message": "height"},
+            {"max_width": 0, "message": "maximum frame dimensions"},
+            {"max_height": 0, "message": "maximum frame dimensions"},
+            {"quality": 0, "message": "quality"},
+            {"quality": 101, "message": "quality"},
+            {"restart_interval": -1, "message": "restart interval"},
+            {"restart_interval": 0x10000, "message": "restart interval"},
+        ]
+
+        for case in cases:
+            with self.subTest(case=case):
+                kwargs = {
+                    "width": 2,
+                    "height": 1,
+                    "quality": 75,
+                    "restart_interval": 0,
+                    "chroma_subsample": False,
+                    "emit_jfif": True,
+                    "clear_error": False,
+                }
+                message = str(case["message"])
+                kwargs.update({key: value for key, value in case.items() if key != "message"})
+                with self.assertRaisesRegex(ValueError, message):
+                    hjpeg_host.encoder_config_record(**kwargs)
+
+    def test_axi_lite_target_record_rejects_negative_base_address(self) -> None:
+        with self.assertRaisesRegex(ValueError, "base address"):
+            hjpeg_host.axi_lite_target_record(Path("/dev/mem"), -1)
+
     def test_status_text(self) -> None:
         self.assertEqual(hjpeg_host.status_text(0), "idle")
         self.assertEqual(hjpeg_host.status_text(hjpeg_host.STATUS_BUSY), "busy")

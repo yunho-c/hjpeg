@@ -1436,6 +1436,12 @@ def encoder_config_record(
     max_width: int = DEFAULT_MAX_FRAME_WIDTH,
     max_height: int = DEFAULT_MAX_FRAME_HEIGHT,
 ) -> dict[str, object]:
+    require_supported_dimensions(width, height, max_width, max_height)
+    if not 1 <= quality <= 100:
+        raise ValueError("quality must be in 1..100")
+    if not 0 <= restart_interval <= 0xFFFF:
+        raise ValueError("restart interval must be in 0..65535")
+
     control = control_value(chroma_subsample, emit_jfif, clear_error)
     return {
         "width": width,
@@ -1453,6 +1459,9 @@ def encoder_config_record(
 
 
 def axi_lite_target_record(device: Path, base_address: int) -> dict[str, object]:
+    if base_address < 0:
+        raise ValueError("base address must be nonnegative")
+
     return {
         "device": str(device),
         "base_addr": base_address,
