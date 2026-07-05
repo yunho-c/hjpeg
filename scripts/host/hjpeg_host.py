@@ -1766,14 +1766,21 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             isinstance(input_rgb_expected_byte_length, int)
             and input_rgb_expected_byte_length > 0
         )
-        input_rgb_length_matches_expected = bool(
-            input_rgb.get("byte_length_matches_expected", False)
+        input_rgb_length_matches_expected = (
+            isinstance(input_rgb_byte_length, int)
+            and isinstance(input_rgb_expected_byte_length, int)
+            and input_rgb_byte_length == input_rgb_expected_byte_length
+        )
+        input_rgb_length_match_flag_matches = (
+            input_rgb.get("byte_length_matches_expected")
+            == input_rgb_length_matches_expected
         )
         evidence_present["input_rgb"] = (
             input_rgb_byte_length_positive
             and input_rgb_sha256_present
             and input_rgb_expected_byte_length_positive
             and input_rgb_length_matches_expected
+            and input_rgb_length_match_flag_matches
         )
         checks["input_rgb_byte_length_positive"] = input_rgb_byte_length_positive
         checks["input_rgb_sha256_present"] = input_rgb_sha256_present
@@ -1781,6 +1788,9 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             input_rgb_expected_byte_length_positive
         )
         checks["input_rgb_length_matches_expected"] = input_rgb_length_matches_expected
+        checks["input_rgb_length_match_flag_matches"] = (
+            input_rgb_length_match_flag_matches
+        )
 
     capture_config = record.get("capture_config")
     if isinstance(capture_config, dict):
@@ -1853,7 +1863,24 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         input_ppm_packed_rgb_sha256_present = is_sha256_hex(
             input_ppm_packed_rgb_sha256
         )
+        input_ppm_matches_input_flag_matches = True
+        input_rgb = record.get("input_rgb")
+        if isinstance(input_rgb, dict):
+            input_rgb_byte_length = input_rgb.get("byte_length")
+            input_rgb_sha256 = input_rgb.get("sha256")
+            input_ppm_matches_input_derived = (
+                input_ppm_packed_rgb_length_matches_dimensions
+                and input_ppm_packed_rgb_byte_length == input_rgb_byte_length
+                and input_ppm_packed_rgb_sha256_present
+                and input_ppm_packed_rgb_sha256 == input_rgb_sha256
+            )
+            input_ppm_matches_input_flag_matches = (
+                input_ppm_matches == input_ppm_matches_input_derived
+            )
         checks["input_ppm_matches_input"] = input_ppm_matches
+        checks["input_ppm_matches_input_flag_matches"] = (
+            input_ppm_matches_input_flag_matches
+        )
         checks["input_ppm_byte_length_positive"] = input_ppm_byte_length_positive
         checks["input_ppm_sha256_present"] = input_ppm_sha256_present
         checks["input_ppm_dimensions_positive"] = input_ppm_dimensions_positive
@@ -1882,6 +1909,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and input_ppm_rgb_byte_length_matches_dimensions
             and input_ppm_packed_rgb_length_matches_dimensions
             and input_ppm_packed_rgb_sha256_present
+            and input_ppm_matches_input_flag_matches
             and input_ppm_non_flat
             and input_ppm_has_color_pixels
         )
@@ -2110,16 +2138,51 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and math.isfinite(output_jpeg_rate)
             and output_jpeg_rate > 0
         )
+        input_rgb = record.get("input_rgb")
+        input_rgb_byte_length = (
+            input_rgb.get("byte_length") if isinstance(input_rgb, dict) else None
+        )
+        jpeg_byte_length = record.get("byte_length")
+        host_input_rgb_rate_matches_elapsed = (
+            isinstance(input_rgb_byte_length, int)
+            and isinstance(input_rgb_rate, (int, float))
+            and transfer_elapsed_positive
+            and math.isclose(
+                input_rgb_rate,
+                input_rgb_byte_length / transfer_elapsed,
+                rel_tol=1e-9,
+                abs_tol=1e-12,
+            )
+        )
+        host_output_jpeg_rate_matches_elapsed = (
+            isinstance(jpeg_byte_length, int)
+            and isinstance(output_jpeg_rate, (int, float))
+            and transfer_elapsed_positive
+            and math.isclose(
+                output_jpeg_rate,
+                jpeg_byte_length / transfer_elapsed,
+                rel_tol=1e-9,
+                abs_tol=1e-12,
+            )
+        )
         evidence_present["transfer_timing"] = (
             transfer_elapsed_positive
             and host_transfer_rates_present
             and host_input_rgb_rate_positive
             and host_output_jpeg_rate_positive
+            and host_input_rgb_rate_matches_elapsed
+            and host_output_jpeg_rate_matches_elapsed
         )
         checks["transfer_elapsed_seconds_positive"] = transfer_elapsed_positive
         checks["host_transfer_rates_present"] = host_transfer_rates_present
         checks["host_input_rgb_rate_positive"] = host_input_rgb_rate_positive
         checks["host_output_jpeg_rate_positive"] = host_output_jpeg_rate_positive
+        checks["host_input_rgb_rate_matches_elapsed"] = (
+            host_input_rgb_rate_matches_elapsed
+        )
+        checks["host_output_jpeg_rate_matches_elapsed"] = (
+            host_output_jpeg_rate_matches_elapsed
+        )
 
     all_recorded_checks_passed = all(checks.values())
     return {

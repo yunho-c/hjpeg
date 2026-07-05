@@ -351,7 +351,9 @@ non-flat/color image stats. Status evidence must include the detailed checkpoint
 list, matching checkpoint count, expected ordered contexts, zero raw status
 words, and all checkpoints idle with no protocol error or busy state. Summary
 checks recompute checkpoint order and aggregate idle/error/busy flags from the
-detailed status records.
+detailed status records. They also recompute RGB byte-count matches,
+PPM-to-input-RGB consistency, and transfer byte rates from the saved lengths,
+hashes, and elapsed time.
 Pass `run-stream-devices --require-complete-evidence` for final board evidence
 gates; omit it for partial hardware smoke tests that intentionally skip source
 PPM or decoder evidence. Run JSON records whether complete evidence was

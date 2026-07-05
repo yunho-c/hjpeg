@@ -1564,9 +1564,19 @@ class HjpegHostTest(unittest.TestCase):
                     "input_rgb_length_matches_expected"
                 ]
             )
+            self.assertTrue(
+                matched["hardware_run_summary"]["checks"][
+                    "input_rgb_length_match_flag_matches"
+                ]
+            )
             self.assertFalse(
                 mismatched["hardware_run_summary"]["checks"][
                     "input_rgb_length_matches_expected"
+                ]
+            )
+            self.assertTrue(
+                mismatched["hardware_run_summary"]["checks"][
+                    "input_rgb_length_match_flag_matches"
                 ]
             )
             self.assertTrue(matched["hardware_run_summary"]["all_recorded_checks_passed"])
@@ -1610,6 +1620,26 @@ class HjpegHostTest(unittest.TestCase):
             complete_summary["checks"]["input_rgb_expected_byte_length_positive"]
         )
         self.assertTrue(complete_summary["checks"]["input_rgb_length_matches_expected"])
+        self.assertTrue(
+            complete_summary["checks"]["input_rgb_length_match_flag_matches"]
+        )
+
+    def test_hardware_summary_recomputes_input_rgb_length_match(self) -> None:
+        record = {
+            "input_rgb": {
+                "byte_length": 8,
+                "sha256": "0" * 64,
+                "expected_byte_length": 12,
+                "byte_length_matches_expected": True,
+            }
+        }
+
+        summary = hjpeg_host.hardware_run_summary_record(record)
+
+        self.assertFalse(summary["evidence_present"]["input_rgb"])
+        self.assertFalse(summary["all_recorded_checks_passed"])
+        self.assertFalse(summary["checks"]["input_rgb_length_matches_expected"])
+        self.assertFalse(summary["checks"]["input_rgb_length_match_flag_matches"])
 
     def test_hardware_summary_requires_complete_input_ppm_evidence(self) -> None:
         incomplete = {
@@ -1648,6 +1678,9 @@ class HjpegHostTest(unittest.TestCase):
             incomplete_summary["checks"]["input_ppm_packed_rgb_sha256_present"]
         )
         self.assertFalse(incomplete_summary["checks"]["input_ppm_has_color_pixels"])
+        self.assertTrue(
+            complete_summary["checks"]["input_ppm_matches_input_flag_matches"]
+        )
         self.assertTrue(complete_summary["evidence_present"]["input_ppm"])
         self.assertTrue(complete_summary["checks"]["input_ppm_byte_length_positive"])
         self.assertTrue(complete_summary["checks"]["input_ppm_sha256_present"])
@@ -1665,6 +1698,36 @@ class HjpegHostTest(unittest.TestCase):
         )
         self.assertTrue(complete_summary["checks"]["input_ppm_non_flat"])
         self.assertTrue(complete_summary["checks"]["input_ppm_has_color_pixels"])
+
+    def test_hardware_summary_cross_checks_input_ppm_against_input_rgb(self) -> None:
+        record = {
+            "input_rgb": {
+                "byte_length": 8,
+                "sha256": "0" * 64,
+                "expected_byte_length": 8,
+                "byte_length_matches_expected": True,
+            },
+            "input_ppm": {
+                "byte_length": 16,
+                "sha256": "1" * 64,
+                "width": 2,
+                "height": 1,
+                "rgb_bytes": 6,
+                "packed_rgb_byte_length": 8,
+                "packed_rgb_sha256": "2" * 64,
+                "packed_rgb_matches_input": True,
+                "image_stats": {"non_flat": True, "has_color_pixels": True},
+            },
+        }
+
+        summary = hjpeg_host.hardware_run_summary_record(record)
+
+        self.assertFalse(summary["evidence_present"]["input_ppm"])
+        self.assertFalse(summary["all_recorded_checks_passed"])
+        self.assertTrue(summary["checks"]["input_ppm_matches_input"])
+        self.assertFalse(
+            summary["checks"]["input_ppm_matches_input_flag_matches"]
+        )
 
     def test_hardware_summary_requires_valid_capture_config(self) -> None:
         invalid = {
@@ -2105,9 +2168,21 @@ class HjpegHostTest(unittest.TestCase):
                     "host_output_jpeg_rate_positive"
                 ]
             )
+            self.assertTrue(
+                record["hardware_run_summary"]["checks"][
+                    "host_input_rgb_rate_matches_elapsed"
+                ]
+            )
+            self.assertTrue(
+                record["hardware_run_summary"]["checks"][
+                    "host_output_jpeg_rate_matches_elapsed"
+                ]
+            )
 
     def test_hardware_summary_requires_positive_host_transfer_rates(self) -> None:
         record = {
+            "byte_length": 16,
+            "input_rgb": {"byte_length": 8},
             "transfer_elapsed_seconds": 1.0,
             "host_transfer_rates": {
                 "input_rgb_bytes_per_second": 0.0,
@@ -2123,6 +2198,28 @@ class HjpegHostTest(unittest.TestCase):
         self.assertTrue(summary["checks"]["host_transfer_rates_present"])
         self.assertFalse(summary["checks"]["host_input_rgb_rate_positive"])
         self.assertFalse(summary["checks"]["host_output_jpeg_rate_positive"])
+        self.assertFalse(summary["checks"]["host_input_rgb_rate_matches_elapsed"])
+        self.assertFalse(summary["checks"]["host_output_jpeg_rate_matches_elapsed"])
+
+    def test_hardware_summary_recomputes_host_transfer_rates(self) -> None:
+        record = {
+            "byte_length": 16,
+            "input_rgb": {"byte_length": 8},
+            "transfer_elapsed_seconds": 2.0,
+            "host_transfer_rates": {
+                "input_rgb_bytes_per_second": 8.0,
+                "output_jpeg_bytes_per_second": 16.0,
+            },
+        }
+
+        summary = hjpeg_host.hardware_run_summary_record(record)
+
+        self.assertFalse(summary["evidence_present"]["transfer_timing"])
+        self.assertFalse(summary["all_recorded_checks_passed"])
+        self.assertTrue(summary["checks"]["host_input_rgb_rate_positive"])
+        self.assertTrue(summary["checks"]["host_output_jpeg_rate_positive"])
+        self.assertFalse(summary["checks"]["host_input_rgb_rate_matches_elapsed"])
+        self.assertFalse(summary["checks"]["host_output_jpeg_rate_matches_elapsed"])
 
     def test_run_evidence_record_requires_decoder_result_details(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -4311,12 +4408,14 @@ class HjpegHostTest(unittest.TestCase):
                         "input_rgb_sha256_present": True,
                         "input_rgb_expected_byte_length_positive": True,
                         "input_rgb_length_matches_expected": True,
+                        "input_rgb_length_match_flag_matches": True,
                         "capture_max_output_bytes_positive": True,
                         "capture_timeout_valid": True,
                         "axi_lite_device_present": True,
                         "axi_lite_base_addr_nonnegative": True,
                         "axi_lite_base_addr_hex_matches": True,
                         "input_ppm_matches_input": True,
+                        "input_ppm_matches_input_flag_matches": True,
                         "input_ppm_byte_length_positive": True,
                         "input_ppm_sha256_present": True,
                         "input_ppm_dimensions_positive": True,
@@ -4356,6 +4455,8 @@ class HjpegHostTest(unittest.TestCase):
                         "host_transfer_rates_present": True,
                         "host_input_rgb_rate_positive": True,
                         "host_output_jpeg_rate_positive": True,
+                        "host_input_rgb_rate_matches_elapsed": True,
+                        "host_output_jpeg_rate_matches_elapsed": True,
                     },
                     "all_recorded_checks_passed": True,
                     "complete_hardware_run_evidence": True,
