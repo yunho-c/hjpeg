@@ -2470,6 +2470,7 @@ class HjpegHostTest(unittest.TestCase):
         self.assertFalse(summary["all_recorded_checks_passed"])
         self.assertEqual(summary["recorded_check_count"], 7)
         self.assertEqual(summary["passing_check_count"], 5)
+        self.assertEqual(summary["failing_check_count"], 2)
         self.assertEqual(
             summary["failing_checks"],
             ["jpeg_sha256_present", "jpeg_scan_data_sha256_present"],
@@ -2563,6 +2564,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["missing_evidence"], [])
             self.assertEqual(record["recorded_check_count"], 75)
             self.assertEqual(record["passing_check_count"], 75)
+            self.assertEqual(record["failing_check_count"], 0)
             self.assertEqual(record["failing_checks"], [])
 
     def test_check_run_evidence_file_rejects_tampered_summary(self) -> None:
@@ -2588,6 +2590,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["missing_evidence"], [])
             self.assertEqual(record["recorded_check_count"], 75)
             self.assertEqual(record["passing_check_count"], 75)
+            self.assertEqual(record["failing_check_count"], 0)
             self.assertEqual(record["failing_checks"], [])
             self.assertTrue(
                 any(
@@ -2638,6 +2641,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["missing_evidence"], ["input_ppm", "decoder"])
             self.assertEqual(record["recorded_check_count"], 51)
             self.assertEqual(record["passing_check_count"], 51)
+            self.assertEqual(record["failing_check_count"], 0)
             self.assertEqual(record["failing_checks"], [])
             self.assertTrue(
                 any(
@@ -2673,6 +2677,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["missing_evidence"], [])
             self.assertEqual(record["recorded_check_count"], 75)
             self.assertEqual(record["passing_check_count"], 74)
+            self.assertEqual(record["failing_check_count"], 1)
             self.assertEqual(
                 record["failing_checks"],
                 ["encoder_config_matches_jpeg_dimensions"],
@@ -4696,6 +4701,7 @@ class HjpegHostTest(unittest.TestCase):
                     },
                     "recorded_check_count": 75,
                     "passing_check_count": 75,
+                    "failing_check_count": 0,
                     "failing_checks": [],
                     "all_recorded_checks_passed": True,
                     "complete_hardware_run_evidence": True,

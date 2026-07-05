@@ -693,8 +693,8 @@ Hardware completion evidence should include:
   RGB byte-count matches, PPM-to-input-RGB consistency, and transfer byte rates
   from the saved lengths, hashes, and elapsed time. Required boolean evidence
   fields must be actual JSON booleans. The summary records total and present
-  evidence-group counts, total and passing check counts, missing evidence group
-  names, and failing check names for review.
+  evidence-group counts, total, passing, and failing check counts, missing
+  evidence group names, and failing check names for review.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 

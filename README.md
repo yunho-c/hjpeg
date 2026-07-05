@@ -358,9 +358,9 @@ checks recompute checkpoint order and aggregate idle/error/busy flags from the
 detailed status records. They also recompute RGB byte-count matches,
 PPM-to-input-RGB consistency, and transfer byte rates from the saved lengths,
 hashes, and elapsed time.
-The summary records total and present evidence-group counts, total and passing
-check counts, missing evidence group names, and the names of failing checks for
-review.
+The summary records total and present evidence-group counts, total, passing, and
+failing check counts, missing evidence group names, and the names of failing
+checks for review.
 Required boolean evidence fields must be actual JSON booleans.
 Pass `run-stream-devices --require-complete-evidence` for final board evidence
 gates; omit it for partial hardware smoke tests that intentionally skip source

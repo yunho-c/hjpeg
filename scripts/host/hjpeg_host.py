@@ -2213,6 +2213,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     failing_checks = [
         str(name) for name, passed in checks.items() if passed is not True
     ]
+    failing_check_count = len(failing_checks)
     all_recorded_checks_passed = not failing_checks
     return {
         "evidence_present": evidence_present,
@@ -2222,6 +2223,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         "checks": checks,
         "recorded_check_count": recorded_check_count,
         "passing_check_count": passing_check_count,
+        "failing_check_count": failing_check_count,
         "failing_checks": failing_checks,
         "all_recorded_checks_passed": all_recorded_checks_passed,
         "complete_hardware_run_evidence": not missing_evidence
@@ -2367,6 +2369,7 @@ def check_run_evidence_record(
             "missing_evidence": missing_evidence,
             "recorded_check_count": computed_summary.get("recorded_check_count"),
             "passing_check_count": computed_summary.get("passing_check_count"),
+            "failing_check_count": computed_summary.get("failing_check_count"),
             "failing_checks": failing_checks,
         }
     )

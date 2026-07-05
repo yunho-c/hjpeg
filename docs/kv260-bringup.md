@@ -250,8 +250,8 @@ Expected evidence:
   RGB byte-count matches, PPM-to-input-RGB consistency, and transfer byte rates
   from the saved lengths, hashes, and elapsed time. Required boolean evidence
   fields must be actual JSON booleans. The summary records total and present
-  evidence-group counts, total and passing check counts, missing evidence group
-  names, and failing check names for review.
+  evidence-group counts, total, passing, and failing check counts, missing
+  evidence group names, and failing check names for review.
 - Use `run-stream-devices --require-complete-evidence` for the final board
   transcript so missing source PPM, decoder, transfer timing, or status evidence
   fails the command. Omit it only for intentional partial smoke tests. Run JSON
