@@ -995,6 +995,24 @@ class HjpegHostTest(unittest.TestCase):
             self.assertNotIn("decoder_stdout", record)
             self.assertNotIn("decoder_stderr", record)
 
+    def test_run_evidence_record_omits_transfer_rates_for_zero_elapsed_time(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            jpeg = root / "output.jpg"
+            input_rgb = root / "input.rgb"
+            jpeg.write_bytes(minimal_jpeg(width=2, height=1))
+            input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
+
+            record = hjpeg_host.run_evidence_record(
+                jpeg,
+                minimal_jpeg_info(width=2, height=1),
+                input_info=hjpeg_host.file_info(input_rgb, input_rgb.read_bytes()),
+                transfer_elapsed_seconds=0.0,
+            )
+
+            self.assertEqual(record["transfer_elapsed_seconds"], 0.0)
+            self.assertNotIn("host_transfer_rates", record)
+
     def test_validate_jpeg_json_records_decoder_command(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             jpeg = Path(tmp) / "out.jpg"
