@@ -24,7 +24,9 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
     val protocolError = Output(Bool())
   })
 
-  val core = Module(new HjpegCore(c))
+  val core = withReset(reset.asBool || io.clearProtocolError) {
+    Module(new HjpegCore(c))
+  }
   core.io.clearProtocolError := io.clearProtocolError
 
   val frameConfig = Reg(new FrameConfig(c))

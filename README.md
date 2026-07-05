@@ -46,9 +46,11 @@ Frames that start with unsupported dimensions are discarded through input TLAST
 without entering the JPEG core, so clearing the error lets the next valid frame
 start cleanly. If the expected final pixel arrives without TLAST, the wrapper
 flags the protocol error and drains subsequent input beats until TLAST before a
-clear pulse permits the next frame. The AXI wrapper tests cover both
-single-beat and multi-beat unsupported frame discard/recovery paths plus
-late-TLAST drain and recovery.
+clear pulse permits the next frame. The clear pulse also resets buffered encoder
+pipeline state so early-TLAST or otherwise partial frames cannot contaminate the
+next frame. The AXI wrapper tests cover both single-beat and multi-beat
+unsupported frame discard/recovery paths plus early-TLAST and late-TLAST
+recovery.
 
 The AXI-Lite control wrapper accepts independent AW and W channel handshakes,
 honors byte write strobes on writable registers, and holds read/write responses

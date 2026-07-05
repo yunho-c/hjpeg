@@ -142,6 +142,9 @@ frame-level tests.
 - If the expected final pixel arrives without TLAST, the wrapper completes that
   configured JPEG input frame, flags the protocol error, and drains extra input
   beats until TLAST before a clear pulse permits the next frame.
+- The clear pulse resets the sticky flag, wrapper coordinates, and buffered core
+  pipeline state so partial frames such as early-TLAST packets cannot
+  contaminate the next valid frame.
 
 KV260 top-level input:
 
