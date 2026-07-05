@@ -2959,6 +2959,14 @@ class HjpegHostTest(unittest.TestCase):
                 any("does not match Vivado hjpeg_0/s_axi_lite" in failure for failure in failures)
             )
 
+    def test_vivado_address_map_hex_fields_must_match_numeric_addresses(self) -> None:
+        record = vivado_evidence_record(0xA0000000)
+
+        self.assertTrue(hjpeg_host.vivado_address_map_hex_fields_consistent(record))
+
+        record["address_map"][0]["entries"][0]["base_address_hex"] = "0x00000000"
+        self.assertFalse(hjpeg_host.vivado_address_map_hex_fields_consistent(record))
+
     def test_check_run_evidence_file_rejects_tampered_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -3431,6 +3439,27 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(record["passed"])
             self.assertTrue(
                 any("route-status" in failure for failure in failures)
+            )
+
+    def test_vivado_evidence_file_record_rejects_inconsistent_address_hex_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0xA0000000)
+            vivado_record["address_map"][0]["entries"][0][
+                "base_address_hex"
+            ] = "0x00000000"
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertTrue(record["vivado_passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["vivado_address_map_filenames_present"])
+            self.assertFalse(record["vivado_address_map_hex_fields_consistent"])
+            self.assertEqual(record["hjpeg_base_addresses"], [0xA0000000])
+            self.assertFalse(record["passed"])
+            self.assertTrue(
+                any("address-map hex fields" in failure for failure in failures)
             )
 
     def test_vivado_evidence_file_record_rejects_inconsistent_artifact_filenames(self) -> None:

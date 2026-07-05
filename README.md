@@ -442,7 +442,8 @@ zero diagnostic failures and failed paths in the Vivado summary, checked paths
 matching passed paths, positive per-category checked counts whose sum matches
 the total checked count and match the per-category pass/fail totals, plus a
 passing route-status record with zero unrouted nets and zero nets with routing
-errors.
+errors. Address-map evidence must also keep its hexadecimal address strings
+consistent with the parsed numeric base/high address fields.
 The checker fails if the run
 transcript's AXI-Lite base address does not match the Vivado build evidence, or
 if multiple Vivado evidence files report conflicting HJPEG base addresses. Its JSON output
