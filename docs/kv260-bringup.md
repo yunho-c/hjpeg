@@ -214,8 +214,10 @@ Expected evidence:
   to standalone `validate-jpeg` to check the expected DRI value and exact RST
   marker count for the parsed MCU count;
   `run-stream-devices` checks this automatically against the configured
-  register value. The helper records the RST marker sequence and rejects RST
-  markers without DRI or sequences that do not increment modulo 8 from RST0.
+  register value. Host CLI restart interval values must be in `0..65535`, and
+  configuration quality values must be in `1..100`. The helper records the RST
+  marker sequence and rejects RST markers without DRI or sequences that do not
+  increment modulo 8 from RST0.
 - The helper rejects baseline header markers that move out of the encoder's
   expected order: optional APP0/JFIF, DQT, SOF0, DHT, optional DRI, SOS, entropy
   data, then EOI. JSON evidence includes the parsed `marker_sequence`.

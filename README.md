@@ -230,9 +230,10 @@ frame limits, byte lengths, SHA-256 hashes for generated files, and PPM
 per-channel min/max values plus non-flat/color flags. Configuration evidence
 includes the AXI-Lite target, frame settings,
 checked frame limits, quality, restart interval, chroma mode, JFIF setting, and
-control word. Status evidence records the AXI-Lite target, raw status word,
-decoded flags, and text state. Clear-error evidence records the AXI-Lite target
-and control word pulsed to clear sticky protocol faults. JPEG validation
+control word. Host CLI configuration quality must be in `1..100`, and restart
+interval values must be in `0..65535`. Status evidence records the AXI-Lite
+target, raw status word, decoded flags, and text state. Clear-error evidence
+records the AXI-Lite target and control word pulsed to clear sticky protocol faults. JPEG validation
 evidence includes dimensions, SOF0 8-bit sample
 precision, exactly one SOF0 and one SOS segment, three-component frame shape,
 scan-data byte count, stuffed entropy `0xff` byte count, SOF0 component ID

@@ -1117,12 +1117,32 @@ class HjpegHostTest(unittest.TestCase):
             ("--decoder-timeout-seconds", "nan"),
             ("--decoder-timeout-seconds", "inf"),
             ("--decoder-timeout-seconds", "-inf"),
+            ("--quality", "0"),
+            ("--quality", "101"),
+            ("--restart-interval", "-1"),
+            ("--restart-interval", "65536"),
         ]
 
         for option, value in invalid_cases:
             with self.subTest(option=option, value=value):
                 with self.assertRaises(SystemExit):
                     hjpeg_host.main([*common_args, f"{option}={value}"])
+
+    def test_validate_jpeg_cli_rejects_invalid_restart_interval(self) -> None:
+        for restart_interval in ("-1", "65536"):
+            with self.subTest(restart_interval=restart_interval):
+                with self.assertRaises(SystemExit):
+                    hjpeg_host.main(
+                        [
+                            "validate-jpeg",
+                            "missing.jpg",
+                            "--width",
+                            "2",
+                            "--height",
+                            "1",
+                            f"--restart-interval={restart_interval}",
+                        ]
+                    )
 
     def test_validate_jpeg_json_records_decoder_command(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1912,6 +1932,30 @@ class HjpegHostTest(unittest.TestCase):
                 )
                 self.assertEqual(regs.read32(hjpeg_host.REG_XSIZE), 2048)
                 self.assertEqual(regs.read32(hjpeg_host.REG_YSIZE), 1200)
+
+    def test_config_cli_rejects_invalid_quality_and_restart_before_io(self) -> None:
+        common_args = [
+            "config",
+            "--dev",
+            "missing-mem.bin",
+            "--base-addr",
+            "0",
+            "--width",
+            "2",
+            "--height",
+            "1",
+        ]
+        invalid_cases = [
+            ("--quality", "0"),
+            ("--quality", "101"),
+            ("--restart-interval", "-1"),
+            ("--restart-interval", "65536"),
+        ]
+
+        for option, value in invalid_cases:
+            with self.subTest(option=option, value=value):
+                with self.assertRaises(SystemExit):
+                    hjpeg_host.main([*common_args, f"{option}={value}"])
 
     def test_config_cli_can_print_json_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

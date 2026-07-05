@@ -1349,6 +1349,20 @@ def _positive_float(value: str) -> float:
     return parsed
 
 
+def _quality_value(value: str) -> int:
+    parsed = int(value, 0)
+    if not 1 <= parsed <= 100:
+        raise argparse.ArgumentTypeError("value must be in 1..100")
+    return parsed
+
+
+def _restart_interval_value(value: str) -> int:
+    parsed = int(value, 0)
+    if not 0 <= parsed <= 0xFFFF:
+        raise argparse.ArgumentTypeError("value must be in 0..65535")
+    return parsed
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="hjpeg KV260 host-side helpers")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -1377,7 +1391,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--height", type=int, required=True)
     validate.add_argument(
         "--restart-interval",
-        type=int,
+        type=_restart_interval_value,
         help="optional expected DRI restart interval; use 0 to require no DRI/RST markers",
     )
     validate.add_argument(
@@ -1414,8 +1428,8 @@ def build_parser() -> argparse.ArgumentParser:
     config.add_argument("--height", type=int, required=True)
     config.add_argument("--max-width", type=int, default=DEFAULT_MAX_FRAME_WIDTH)
     config.add_argument("--max-height", type=int, default=DEFAULT_MAX_FRAME_HEIGHT)
-    config.add_argument("--quality", type=int, default=50)
-    config.add_argument("--restart-interval", type=int, default=0)
+    config.add_argument("--quality", type=_quality_value, default=50)
+    config.add_argument("--restart-interval", type=_restart_interval_value, default=0)
     config.add_argument("--chroma-subsample", action="store_true")
     config.add_argument("--no-jfif", action="store_true")
     config.add_argument("--clear-error", action="store_true")
@@ -1445,8 +1459,8 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--height", type=int, required=True)
     run.add_argument("--max-width", type=int, default=DEFAULT_MAX_FRAME_WIDTH)
     run.add_argument("--max-height", type=int, default=DEFAULT_MAX_FRAME_HEIGHT)
-    run.add_argument("--quality", type=int, default=50)
-    run.add_argument("--restart-interval", type=int, default=0)
+    run.add_argument("--quality", type=_quality_value, default=50)
+    run.add_argument("--restart-interval", type=_restart_interval_value, default=0)
     run.add_argument("--chroma-subsample", action="store_true")
     run.add_argument("--no-jfif", action="store_true")
     run.add_argument("--clear-error", action="store_true")
