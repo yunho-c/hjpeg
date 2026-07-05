@@ -2073,6 +2073,20 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             decoder_stderr_present
             and record.get("decoder_stderr_chars") == len(decoder_stderr)
         )
+        decoder_argv_matches_command = False
+        decoder_argv = record.get("decoder_argv")
+        jpeg_path = record.get("jpeg")
+        if (
+            decoder_command_present
+            and isinstance(jpeg_path, str)
+            and isinstance(decoder_argv, list)
+        ):
+            try:
+                decoder_argv_matches_command = decoder_argv == decoder_command_argv(
+                    Path(jpeg_path), decoder_command
+                )
+            except ValueError:
+                decoder_argv_matches_command = False
         decoder_output_capture_chars = record.get("decoder_output_capture_chars")
         decoder_output_capture_chars_positive = isinstance(
             decoder_output_capture_chars, int
@@ -2087,6 +2101,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and decoder_elapsed_seconds_nonnegative
             and decoder_returncode_zero
             and decoder_argv_present
+            and decoder_argv_matches_command
             and decoder_stdout_present
             and decoder_stderr_present
             and decoder_stdout_length_matches
@@ -2102,6 +2117,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
         checks["decoder_returncode_zero"] = decoder_returncode_zero
         checks["decoder_argv_present"] = decoder_argv_present
+        checks["decoder_argv_matches_command"] = decoder_argv_matches_command
         checks["decoder_stdout_present"] = decoder_stdout_present
         checks["decoder_stderr_present"] = decoder_stderr_present
         checks["decoder_stdout_length_matches"] = decoder_stdout_length_matches

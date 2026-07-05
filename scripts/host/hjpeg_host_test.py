@@ -2255,6 +2255,9 @@ class HjpegHostTest(unittest.TestCase):
                 record["hardware_run_summary"]["checks"]["decoder_argv_present"]
             )
             self.assertFalse(
+                record["hardware_run_summary"]["checks"]["decoder_argv_matches_command"]
+            )
+            self.assertFalse(
                 record["hardware_run_summary"]["checks"]["decoder_stdout_present"]
             )
             self.assertFalse(
@@ -2274,6 +2277,37 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(
                 record["hardware_run_summary"]["checks"]["decoder_output_not_truncated"]
             )
+
+    def test_hardware_summary_recomputes_decoder_argv(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "output.jpg"
+            jpeg.write_bytes(minimal_jpeg(width=2, height=1))
+            record = hjpeg_host.jpeg_info_record(
+                jpeg,
+                minimal_jpeg_info(width=2, height=1),
+                decoder_passed=True,
+                decoder_command="decoder --check {jpeg}",
+                decoder_timeout_seconds=1.0,
+                decoder_result=hjpeg_host.DecoderCommandResult(
+                    argv=("decoder", "--check", "wrong.jpg"),
+                    returncode=0,
+                    stdout="decoded\n",
+                    stderr="",
+                    elapsed_seconds=0.01,
+                    stdout_chars=len("decoded\n"),
+                    stderr_chars=0,
+                    output_capture_chars=hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS,
+                    stdout_truncated=False,
+                    stderr_truncated=False,
+                ),
+            )
+
+            summary = hjpeg_host.hardware_run_summary_record(record)
+
+            self.assertFalse(summary["evidence_present"]["decoder"])
+            self.assertFalse(summary["all_recorded_checks_passed"])
+            self.assertTrue(summary["checks"]["decoder_argv_present"])
+            self.assertFalse(summary["checks"]["decoder_argv_matches_command"])
 
     def test_hardware_summary_requires_output_hash_and_scan_evidence(self) -> None:
         record = {
@@ -4445,6 +4479,7 @@ class HjpegHostTest(unittest.TestCase):
                         "decoder_elapsed_seconds_nonnegative": True,
                         "decoder_returncode_zero": True,
                         "decoder_argv_present": True,
+                        "decoder_argv_matches_command": True,
                         "decoder_stdout_present": True,
                         "decoder_stderr_present": True,
                         "decoder_stdout_length_matches": True,

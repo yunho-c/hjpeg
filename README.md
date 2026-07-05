@@ -329,9 +329,10 @@ hashed output JPEG with non-empty scan data, source PPM supplied through
 `--input-ppm`, non-flat/color source-image stats, positive host-observed
 transfer timing with finite positive derived input and output byte rates, and a
 passing decoder check from `--decoder-command` with the command string, resolved
-argv, positive timeout, nonnegative elapsed time, zero return code, bounded
-stdout/stderr strings, matching captured output lengths, a positive capture
-limit, and non-truncated captured output evidence. The summary also cross-checks
+argv matching the command and JPEG path, positive timeout, nonnegative elapsed
+time, zero return code, bounded stdout/stderr strings, matching captured output
+lengths, a positive capture limit, and non-truncated captured output evidence.
+The summary also cross-checks
 JPEG dimensions against the encoder configuration, validation expectations,
 source PPM dimensions, and expected RGB stream byte length, and requires the
 parsed marker sequence to begin with SOI and end with EOI. Input RGB evidence

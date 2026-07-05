@@ -222,7 +222,8 @@ Expected evidence:
   derived input and output byte rates. Decoder evidence must include the command
   string, resolved argv, positive timeout, nonnegative elapsed time, zero return
   code, bounded stdout/stderr strings with matching captured lengths, a positive
-  capture limit, and non-truncated captured output metadata. The summary
+  capture limit, non-truncated captured output metadata, and an argv list
+  matching the command and JPEG path. The summary
   cross-checks the output JPEG dimensions against the encoder configuration,
   validation expectations, source PPM dimensions, and expected RGB stream byte
   length, and requires the parsed marker sequence to begin with SOI and end

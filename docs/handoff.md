@@ -663,7 +663,8 @@ Hardware completion evidence should include:
   decoder output capture limit. Decoder summary evidence requires the command
   string, resolved argv, positive timeout, nonnegative elapsed time, zero return
   code, stdout/stderr strings with matching captured lengths, a positive capture
-  limit, and non-truncated decoder output metadata.
+  limit, non-truncated decoder output metadata, and an argv list matching the
+  command and JPEG path.
   The hardware-run summary cross-checks frame dimensions across
   the output JPEG, encoder configuration, validation expectations, source PPM,
   and expected RGB stream byte length, and requires the parsed marker sequence
