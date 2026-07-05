@@ -2707,6 +2707,16 @@ def vivado_summary_counts_consistent(record: object) -> bool:
     checked_paths = record.get("checked_paths")
     failed_paths = record.get("failed_paths")
     passed_paths = record.get("passed_paths")
+    evidence_categories = record.get("evidence_categories")
+    category_passing_counts = {}
+    category_failing_counts = {}
+    if isinstance(evidence_categories, dict):
+        passing_counts = evidence_categories.get("passing_counts")
+        failing_counts = evidence_categories.get("failing_counts")
+        if isinstance(passing_counts, dict):
+            category_passing_counts = passing_counts
+        if isinstance(failing_counts, dict):
+            category_failing_counts = failing_counts
     if not (
         isinstance(checked_count, int)
         and checked_count > 0
@@ -2732,6 +2742,10 @@ def vivado_summary_counts_consistent(record: object) -> bool:
         and all(
             isinstance(checked_counts.get(category), int)
             and checked_counts[category] > 0
+            and isinstance(category_passing_counts.get(category), int)
+            and isinstance(category_failing_counts.get(category), int)
+            and checked_counts[category]
+            == category_passing_counts[category] + category_failing_counts[category]
             for category in VIVADO_REQUIRED_EVIDENCE_CATEGORIES
         )
         and sum(

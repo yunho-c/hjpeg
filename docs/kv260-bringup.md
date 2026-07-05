@@ -309,8 +309,9 @@ Expected evidence:
   evidence-category summary showing every required category present and passing,
   zero diagnostic failures and failed paths in the Vivado summary, checked paths
   matching passed paths, positive per-category checked counts whose sum matches
-  the total checked count, plus a passing route-status record with zero unrouted
-  nets and zero nets with routing errors. The
+  the total checked count and match the per-category pass/fail totals, plus a
+  passing route-status record with zero unrouted nets and zero nets with routing
+  errors. The
   checker fails if the run transcript's AXI-Lite base address does not match the
   Vivado build evidence or if multiple Vivado evidence files report conflicting
   HJPEG base addresses.
