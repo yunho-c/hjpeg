@@ -211,13 +211,16 @@ Expected evidence:
   which requires hashed output JPEG evidence with non-empty scan data,
   `--input-ppm` source evidence with non-flat/color stats, a passing
   `--decoder-command` check, and positive transfer timing with derived byte
-  rates. Decoder evidence must include the resolved argv, zero return code, and
-  non-truncated captured output metadata. The summary cross-checks the output
-  JPEG dimensions against the encoder configuration, validation expectations,
-  source PPM dimensions, and expected RGB stream byte length, and requires the
-  parsed marker sequence to begin with SOI and end with EOI. Input RGB evidence
-  must include positive byte length, a SHA-256 hash, a positive expected byte
-  length, and an actual-vs-expected length match. Capture configuration evidence
+  rates. Decoder evidence must include the command string, resolved argv,
+  positive timeout, nonnegative elapsed time, zero return code, bounded
+  stdout/stderr strings with matching captured lengths, a positive capture
+  limit, and non-truncated captured output metadata. The summary cross-checks
+  the output JPEG dimensions against the encoder configuration, validation
+  expectations, source PPM dimensions, and expected RGB stream byte length, and
+  requires the parsed marker sequence to begin with SOI and end with EOI. Input
+  RGB evidence must include positive byte length, a SHA-256 hash, a positive
+  expected byte length, and an actual-vs-expected length match. Capture
+  configuration evidence
   must include a positive maximum output byte count and either no timeout or a
   finite positive timeout. AXI-Lite target evidence must include a device path,
   nonnegative base address, and matching hexadecimal base-address text. Encoder

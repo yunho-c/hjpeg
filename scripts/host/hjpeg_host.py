@@ -1911,20 +1911,72 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
 
     if "decoder_passed" in record:
         decoder_passed = bool(record.get("decoder_passed", False))
+        decoder_command = record.get("decoder_command")
+        decoder_command_present = isinstance(decoder_command, str) and bool(
+            decoder_command
+        )
+        decoder_timeout_seconds = record.get("decoder_timeout_seconds")
+        decoder_timeout_seconds_positive = (
+            isinstance(decoder_timeout_seconds, (int, float))
+            and math.isfinite(decoder_timeout_seconds)
+            and decoder_timeout_seconds > 0
+        )
+        decoder_elapsed_seconds = record.get("decoder_elapsed_seconds")
+        decoder_elapsed_seconds_nonnegative = (
+            isinstance(decoder_elapsed_seconds, (int, float))
+            and math.isfinite(decoder_elapsed_seconds)
+            and decoder_elapsed_seconds >= 0
+        )
         decoder_returncode_zero = record.get("decoder_returncode") == 0
         decoder_argv_present = bool(record.get("decoder_argv"))
+        decoder_stdout = record.get("decoder_stdout")
+        decoder_stderr = record.get("decoder_stderr")
+        decoder_stdout_present = isinstance(decoder_stdout, str)
+        decoder_stderr_present = isinstance(decoder_stderr, str)
+        decoder_stdout_length_matches = (
+            decoder_stdout_present
+            and record.get("decoder_stdout_chars") == len(decoder_stdout)
+        )
+        decoder_stderr_length_matches = (
+            decoder_stderr_present
+            and record.get("decoder_stderr_chars") == len(decoder_stderr)
+        )
+        decoder_output_capture_chars = record.get("decoder_output_capture_chars")
+        decoder_output_capture_chars_positive = isinstance(
+            decoder_output_capture_chars, int
+        ) and decoder_output_capture_chars > 0
         decoder_output_not_truncated = not bool(
             record.get("decoder_stdout_truncated", True)
         ) and not bool(record.get("decoder_stderr_truncated", True))
         evidence_present["decoder"] = (
             decoder_passed
+            and decoder_command_present
+            and decoder_timeout_seconds_positive
+            and decoder_elapsed_seconds_nonnegative
             and decoder_returncode_zero
             and decoder_argv_present
+            and decoder_stdout_present
+            and decoder_stderr_present
+            and decoder_stdout_length_matches
+            and decoder_stderr_length_matches
+            and decoder_output_capture_chars_positive
             and decoder_output_not_truncated
         )
         checks["decoder_passed"] = decoder_passed
+        checks["decoder_command_present"] = decoder_command_present
+        checks["decoder_timeout_seconds_positive"] = decoder_timeout_seconds_positive
+        checks["decoder_elapsed_seconds_nonnegative"] = (
+            decoder_elapsed_seconds_nonnegative
+        )
         checks["decoder_returncode_zero"] = decoder_returncode_zero
         checks["decoder_argv_present"] = decoder_argv_present
+        checks["decoder_stdout_present"] = decoder_stdout_present
+        checks["decoder_stderr_present"] = decoder_stderr_present
+        checks["decoder_stdout_length_matches"] = decoder_stdout_length_matches
+        checks["decoder_stderr_length_matches"] = decoder_stderr_length_matches
+        checks["decoder_output_capture_chars_positive"] = (
+            decoder_output_capture_chars_positive
+        )
         checks["decoder_output_not_truncated"] = decoder_output_not_truncated
 
     transfer_elapsed = record.get("transfer_elapsed_seconds")

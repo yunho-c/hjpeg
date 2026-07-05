@@ -321,7 +321,9 @@ hardware-run evidence was captured. Complete hardware-run evidence requires a
 hashed output JPEG with non-empty scan data, source PPM supplied through
 `--input-ppm`, non-flat/color source-image stats, positive host-observed
 transfer timing with derived byte rates, and a passing decoder check from
-`--decoder-command` with resolved argv, zero return code, and non-truncated
+`--decoder-command` with the command string, resolved argv, positive timeout,
+nonnegative elapsed time, zero return code, bounded stdout/stderr strings,
+matching captured output lengths, a positive capture limit, and non-truncated
 captured output evidence. The summary also cross-checks JPEG dimensions against
 the encoder configuration, validation expectations, source PPM dimensions, and
 expected RGB stream byte length, and requires the parsed marker sequence to

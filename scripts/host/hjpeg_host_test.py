@@ -1902,10 +1902,40 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(record["hardware_run_summary"]["all_recorded_checks_passed"])
             self.assertTrue(record["hardware_run_summary"]["checks"]["decoder_passed"])
             self.assertFalse(
+                record["hardware_run_summary"]["checks"]["decoder_command_present"]
+            )
+            self.assertFalse(
+                record["hardware_run_summary"]["checks"][
+                    "decoder_timeout_seconds_positive"
+                ]
+            )
+            self.assertFalse(
+                record["hardware_run_summary"]["checks"][
+                    "decoder_elapsed_seconds_nonnegative"
+                ]
+            )
+            self.assertFalse(
                 record["hardware_run_summary"]["checks"]["decoder_returncode_zero"]
             )
             self.assertFalse(
                 record["hardware_run_summary"]["checks"]["decoder_argv_present"]
+            )
+            self.assertFalse(
+                record["hardware_run_summary"]["checks"]["decoder_stdout_present"]
+            )
+            self.assertFalse(
+                record["hardware_run_summary"]["checks"]["decoder_stderr_present"]
+            )
+            self.assertFalse(
+                record["hardware_run_summary"]["checks"]["decoder_stdout_length_matches"]
+            )
+            self.assertFalse(
+                record["hardware_run_summary"]["checks"]["decoder_stderr_length_matches"]
+            )
+            self.assertFalse(
+                record["hardware_run_summary"]["checks"][
+                    "decoder_output_capture_chars_positive"
+                ]
             )
             self.assertFalse(
                 record["hardware_run_summary"]["checks"]["decoder_output_not_truncated"]
@@ -3911,8 +3941,16 @@ class HjpegHostTest(unittest.TestCase):
                         "status_checks_no_protocol_error": True,
                         "status_checks_no_busy": True,
                         "decoder_passed": True,
+                        "decoder_command_present": True,
+                        "decoder_timeout_seconds_positive": True,
+                        "decoder_elapsed_seconds_nonnegative": True,
                         "decoder_returncode_zero": True,
                         "decoder_argv_present": True,
+                        "decoder_stdout_present": True,
+                        "decoder_stderr_present": True,
+                        "decoder_stdout_length_matches": True,
+                        "decoder_stderr_length_matches": True,
+                        "decoder_output_capture_chars_positive": True,
                         "decoder_output_not_truncated": True,
                         "transfer_elapsed_seconds_positive": True,
                         "host_transfer_rates_present": True,
