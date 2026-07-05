@@ -34,6 +34,7 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
       script must include("xck26-sfvc784-2LV-c")
       script must include("sbt 'runMain hjpeg.ElaborateKv260AxiLiteTop'")
       script must include("No RTL files listed in $filelist")
+      script must include("RTL file listed in $filelist does not exist")
     }
     synth must include("Expected at most 2 arguments: rtl_dir project_dir")
     synth must include("create_clock -period 10.000 -name pl_clk [get_ports clock]")

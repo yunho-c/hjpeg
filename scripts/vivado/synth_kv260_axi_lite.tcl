@@ -54,6 +54,11 @@ close $fp
 if {[llength $rtl_files] == 0} {
   error "No RTL files listed in $filelist"
 }
+foreach rtl_file $rtl_files {
+  if {![file exists $rtl_file]} {
+    error "RTL file listed in $filelist does not exist: $rtl_file"
+  }
+}
 
 add_files -norecurse -fileset sources_1 $rtl_files
 foreach rtl_file $rtl_files {
