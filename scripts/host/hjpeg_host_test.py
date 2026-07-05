@@ -1035,17 +1035,19 @@ class HjpegHostTest(unittest.TestCase):
                 len(minimal_jpeg(width=2, height=1)) / 2.0,
             )
 
-    def test_run_evidence_record_rejects_negative_elapsed_time(self) -> None:
+    def test_run_evidence_record_rejects_invalid_elapsed_time(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             jpeg = Path(tmp) / "output.jpg"
             jpeg.write_bytes(minimal_jpeg(width=2, height=1))
 
-            with self.assertRaisesRegex(ValueError, "transfer elapsed seconds"):
-                hjpeg_host.run_evidence_record(
-                    jpeg,
-                    minimal_jpeg_info(width=2, height=1),
-                    transfer_elapsed_seconds=-0.001,
-                )
+            for elapsed in (-0.001, float("nan"), float("inf"), float("-inf")):
+                with self.subTest(elapsed=elapsed):
+                    with self.assertRaisesRegex(ValueError, "transfer elapsed seconds"):
+                        hjpeg_host.run_evidence_record(
+                            jpeg,
+                            minimal_jpeg_info(width=2, height=1),
+                            transfer_elapsed_seconds=elapsed,
+                        )
 
     def test_validate_jpeg_json_records_decoder_command(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
