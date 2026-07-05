@@ -231,6 +231,7 @@ class JpegInfo:
     spectral_end: int
     successive_approximation: int
     quantization_tables: tuple[int, ...]
+    quantization_table_order: tuple[int, ...]
     quantization_table_details: tuple[JpegQuantizationTable, ...]
     huffman_tables: tuple[JpegHuffmanTable, ...]
     scan_data_bytes: int
@@ -429,6 +430,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
     spectral_end: int | None = None
     successive_approximation: int | None = None
     quantization_tables: set[int] = set()
+    quantization_table_order: list[int] = []
     quantization_table_details: dict[int, tuple[int, int, str]] = {}
     huffman_tables: dict[tuple[int, int], tuple[int, str]] = {}
     scan_data_bytes = 0
@@ -546,6 +548,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
                 if table_id in quantization_table_details:
                     raise ValueError(f"JPEG DQT table {table_id} is defined more than once")
                 quantization_tables.add(table_id)
+                quantization_table_order.append(table_id)
                 quantization_table_details[table_id] = (
                     precision,
                     table_bytes,
@@ -719,6 +722,10 @@ def jpeg_info(data: bytes) -> JpegInfo:
         raise ValueError(f"JPEG DQT table set is {actual}, expected tables 0 and 1")
     if dqt_segments != 2:
         raise ValueError(f"JPEG DQT segment count is {dqt_segments}, expected 2")
+    if tuple(quantization_table_order) != (0, 1):
+        raise ValueError(
+            f"JPEG DQT table order is {quantization_table_order}, expected [0, 1]"
+        )
     if dht_segments == 0:
         raise ValueError("JPEG output does not contain a DHT segment")
     expected_huffman_tables = {(0, 0), (0, 1), (1, 0), (1, 1)}
@@ -825,6 +832,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
         spectral_end=spectral_end,
         successive_approximation=successive_approximation,
         quantization_tables=tuple(sorted(quantization_tables)),
+        quantization_table_order=tuple(quantization_table_order),
         quantization_table_details=tuple(
             JpegQuantizationTable(
                 table_id=table_id,
@@ -1179,6 +1187,7 @@ def jpeg_info_record(
         "spectral_end": info.spectral_end,
         "successive_approximation": info.successive_approximation,
         "quantization_tables": list(info.quantization_tables),
+        "quantization_table_order": list(info.quantization_table_order),
         "quantization_table_details": [
             {
                 "table_id": table.table_id,

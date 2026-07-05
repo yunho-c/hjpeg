@@ -256,10 +256,10 @@ precision, exactly one SOF0 and one SOS segment, three-component frame shape,
 scan-data byte count, stuffed entropy `0xff` byte count, SOF0 component ID
 order, sampling factors, MCU count, decoded chroma mode, exact SOS component
 order and coverage, baseline SOS spectral fields, SOS component table selectors,
-DQT/DHT table IDs, exact DC/AC Huffman table set, exact DQT table set, DQT 8-bit
-precision, DQT/DHT payload byte counts and SHA-256 hashes, APP0 and JFIF APP0
-counts, parsed JFIF APP0 version/density/thumbnail fields, exact DQT/DHT
-segment counts, DQT/DHT/DRI/restart marker counts, parsed marker sequence,
+DQT/DHT table IDs, exact DC/AC Huffman table set, exact DQT table set, DQT table
+order, DQT 8-bit precision, DQT/DHT payload byte counts and SHA-256 hashes, APP0
+and JFIF APP0 counts, parsed JFIF APP0 version/density/thumbnail fields, exact
+DQT/DHT segment counts, DQT/DHT/DRI/restart marker counts, parsed marker sequence,
 parsed DRI restart interval, RST marker sequence, total JPEG byte length,
 SHA-256, decoder command, and decoder timeout when one was provided, plus
 decoder return code and bounded stdout/stderr when a decoder command ran. JFIF
@@ -271,8 +271,8 @@ nonstandard SOF0 quantization table selectors, nonstandard SOS table selectors,
 unsupported SOF0 sampling factors, zero SOF0 sampling factors, non-baseline SOS
 spectral fields, unsupported header markers, malformed, non-JFIF, or duplicate
 APP0 markers, unexpected non-RST/non-EOI markers after SOS, nonstandard DQT/DHT
-table sets or segment counts, duplicate DQT/DHT table definitions, non-8-bit DQT
-tables, zero-valued DQT entries, empty,
+table sets or segment counts, duplicate DQT/DHT table definitions, swapped DQT
+table order, non-8-bit DQT tables, zero-valued DQT entries, empty,
 oversized, oversubscribed, or invalid baseline DHT tables, RST markers without
 DRI, RST markers that do not increment modulo 8 from RST0, trailing bytes after
 EOI, SOF0 or SOS references to missing DQT/DHT tables, and decoder commands that

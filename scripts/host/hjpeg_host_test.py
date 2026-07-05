@@ -512,6 +512,24 @@ def with_duplicate_dqt_table_in_segment(jpeg: bytes) -> bytes:
     return jpeg[:dqt] + replacement + jpeg[dqt + 2 + length :]
 
 
+def with_dqt_segments_swapped(jpeg: bytes) -> bytes:
+    first_start, first_end = segment_bounds(jpeg, b"\xff\xdb")
+    second_start = jpeg.find(b"\xff\xdb", first_end)
+    if second_start < 0:
+        raise AssertionError("second DQT marker not found")
+    second_length = (jpeg[second_start + 2] << 8) | jpeg[second_start + 3]
+    second_end = second_start + 2 + second_length
+    first_segment = jpeg[first_start:first_end]
+    second_segment = jpeg[second_start:second_end]
+    return (
+        jpeg[:first_start]
+        + second_segment
+        + jpeg[first_end:second_start]
+        + first_segment
+        + jpeg[second_end:]
+    )
+
+
 def with_duplicate_sof0(jpeg: bytes) -> bytes:
     sof0 = jpeg.find(b"\xff\xc0")
     if sof0 < 0:
@@ -687,6 +705,7 @@ def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
         spectral_end=63,
         successive_approximation=0,
         quantization_tables=(0, 1),
+        quantization_table_order=(0, 1),
         quantization_table_details=(
             hjpeg_host.JpegQuantizationTable(
                 0,
@@ -1163,6 +1182,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["spectral_end"], 63)
             self.assertEqual(record["successive_approximation"], 0)
             self.assertEqual(record["quantization_tables"], [0, 1])
+            self.assertEqual(record["quantization_table_order"], [0, 1])
             self.assertEqual(
                 record["quantization_table_details"],
                 [
@@ -2070,6 +2090,14 @@ class HjpegHostTest(unittest.TestCase):
             )
 
             with self.assertRaisesRegex(ValueError, "DQT table 0 is defined more than once"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_swapped_quantization_table_order(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "swapped-dqt.jpg"
+            jpeg.write_bytes(with_dqt_segments_swapped(minimal_jpeg(width=17, height=13)))
+
+            with self.assertRaisesRegex(ValueError, "DQT table order"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_rejects_nonstandard_huffman_table_set(self) -> None:
