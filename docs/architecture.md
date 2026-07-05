@@ -110,7 +110,8 @@ hardware-tool entry points:
   threshold for reports passed with `--hold-timing`, or any utilization row
   exceeds the configured percentage. Its `--json` mode emits artifact/report
   hashes, byte lengths, parsed WNS/WHS values, utilization rows, thresholds, and
-  pass/fail state for build evidence logs.
+  pass/fail state for build evidence logs, including structured failure records
+  for missing or unparseable reports.
 
 These scripts are intended to be run after:
 

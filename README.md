@@ -129,8 +129,10 @@ python3 scripts/vivado/check_reports.py \
 
 Add `--json` to include artifact/report paths, byte lengths, SHA-256 hashes,
 parsed setup WNS and hold WHS values, utilization rows, thresholds, and
-pass/fail state in machine-readable build evidence. Use `--hold-timing` for
-post-implementation reports where hold timing is expected to be closed.
+pass/fail state in machine-readable build evidence. Missing, non-file, or
+unparseable reports are recorded as structured JSON failures. Use
+`--hold-timing` for post-implementation reports where hold timing is expected
+to be closed.
 
 These Vivado scripts consume `generated-kv260-axi-lite-top/filelist.f`. Generate
 the AXI-Lite top first. The IP packaging script maps the generated clock, reset,

@@ -133,17 +133,57 @@ def artifact_record(path: Path) -> tuple[dict[str, object], list[str]]:
     return record, []
 
 
+def missing_report_record(path: Path, report_kind: str) -> tuple[dict[str, object], list[str]] | None:
+    if not path.exists():
+        return (
+            {"path": str(path), "exists": False, "passed": False},
+            [f"{path}: {report_kind} report not found"],
+        )
+    if not path.is_file():
+        return (
+            {"path": str(path), "exists": True, "passed": False},
+            [f"{path}: {report_kind} report is not a file"],
+        )
+    return None
+
+
 def timing_record(
     path: Path,
     min_wns: float,
     min_whs: float,
     check_whs: bool,
 ) -> tuple[dict[str, object], list[str]]:
+    missing_record = missing_report_record(path, "timing")
+    if missing_record is not None:
+        record, failures = missing_record
+        record.update(
+            {
+                "min_wns_ns": min_wns,
+                "min_whs_ns": min_whs,
+                "check_whs": check_whs,
+            }
+        )
+        return record, failures
+
     report_bytes = path.read_bytes()
     report = report_bytes.decode(errors="replace")
-    wns = parse_wns(report)
-    whs = parse_whs(report)
     failures = []
+    try:
+        wns = parse_wns(report)
+        whs = parse_whs(report)
+    except ValueError as exc:
+        record = _file_record(path, report_bytes)
+        record.update(
+            {
+                "exists": True,
+                "min_wns_ns": min_wns,
+                "min_whs_ns": min_whs,
+                "check_whs": check_whs,
+                "passed": False,
+            }
+        )
+        return record, [f"{path}: {exc}"]
+
     if wns < min_wns:
         failures.append(f"{path}: WNS {wns:.3f} ns is below required {min_wns:.3f} ns")
     if check_whs and whs < min_whs:
@@ -151,6 +191,7 @@ def timing_record(
     record = _file_record(path, report_bytes)
     record.update(
         {
+            "exists": True,
             "wns_ns": wns,
             "whs_ns": whs,
             "min_wns_ns": min_wns,
@@ -163,6 +204,12 @@ def timing_record(
 
 
 def utilization_record(path: Path, max_percent: float) -> tuple[dict[str, object], list[str]]:
+    missing_record = missing_report_record(path, "utilization")
+    if missing_record is not None:
+        record, failures = missing_record
+        record.update({"max_percent": max_percent, "rows": []})
+        return record, failures
+
     report_bytes = path.read_bytes()
     report = report_bytes.decode(errors="replace")
     rows = parse_utilization_rows(report)
@@ -193,6 +240,7 @@ def utilization_record(path: Path, max_percent: float) -> tuple[dict[str, object
     record = _file_record(path, report_bytes)
     record.update(
         {
+            "exists": True,
             "max_percent": max_percent,
             "rows": row_records,
             "passed": not failures,

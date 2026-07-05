@@ -76,7 +76,8 @@ Pass criteria:
   reports, with hold timing gated on the post-implementation timing report.
 - The JSON evidence records artifact/report paths, byte lengths, SHA-256
   hashes, parsed setup WNS and hold WHS values, utilization rows, thresholds,
-  and pass/fail state.
+  and pass/fail state. Missing, non-file, or unparseable reports are recorded
+  as structured JSON failures.
 
 Latest local Vivado 2026.1 evidence:
 

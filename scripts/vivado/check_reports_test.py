@@ -185,6 +185,7 @@ class CheckReportsTest(unittest.TestCase):
             self.assertTrue(record["artifacts"][0]["exists"])
             self.assertTrue(record["artifacts"][0]["passed"])
             self.assertEqual(record["timing"][0]["path"], str(timing))
+            self.assertTrue(record["timing"][0]["exists"])
             self.assertEqual(record["timing"][0]["wns_ns"], 0.125)
             self.assertEqual(record["timing"][0]["whs_ns"], 0.05)
             self.assertEqual(record["timing"][0]["min_whs_ns"], 0.0)
@@ -196,6 +197,7 @@ class CheckReportsTest(unittest.TestCase):
                 hashlib.sha256(timing_bytes).hexdigest(),
             )
             self.assertEqual(record["utilization"][0]["path"], str(utilization))
+            self.assertTrue(record["utilization"][0]["exists"])
             self.assertEqual(record["utilization"][0]["rows"][0]["name"], "LUT as Logic")
             self.assertEqual(record["utilization"][0]["rows"][0]["prohibited"], 0)
             self.assertEqual(record["utilization"][0]["rows"][0]["available"], 117120)
@@ -239,6 +241,81 @@ class CheckReportsTest(unittest.TestCase):
             self.assertTrue(any("artifact not found" in failure for failure in record["failures"]))
             self.assertTrue(any("below required" in failure for failure in record["failures"]))
             self.assertTrue(any("WHS" in failure for failure in record["failures"]))
+
+    def test_cli_json_records_missing_reports(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            missing_timing = root / "missing_timing.rpt"
+            missing_utilization = root / "missing_utilization.rpt"
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    check_reports.main(
+                        [
+                            "--timing",
+                            str(missing_timing),
+                            "--utilization",
+                            str(missing_utilization),
+                            "--json",
+                        ]
+                    ),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertFalse(record["timing"][0]["exists"])
+            self.assertFalse(record["timing"][0]["passed"])
+            self.assertEqual(record["timing"][0]["min_wns_ns"], 0.0)
+            self.assertFalse(record["timing"][0]["check_whs"])
+            self.assertFalse(record["utilization"][0]["exists"])
+            self.assertFalse(record["utilization"][0]["passed"])
+            self.assertEqual(record["utilization"][0]["rows"], [])
+            self.assertTrue(any("timing report not found" in failure for failure in record["failures"]))
+            self.assertTrue(
+                any("utilization report not found" in failure for failure in record["failures"])
+            )
+
+    def test_cli_json_records_unparseable_timing_report(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            timing = root / "bad_timing.rpt"
+            timing.write_text("Timing summary omitted\n")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    check_reports.main(["--timing", str(timing), "--json"]),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertTrue(record["timing"][0]["exists"])
+            self.assertFalse(record["timing"][0]["passed"])
+            self.assertNotIn("wns_ns", record["timing"][0])
+            self.assertTrue(any("could not find WNS" in failure for failure in record["failures"]))
+
+    def test_cli_json_records_unparseable_utilization_report(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            utilization = root / "bad_utilization.rpt"
+            utilization.write_text("Utilization summary omitted\n")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    check_reports.main(["--utilization", str(utilization), "--json"]),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertTrue(record["utilization"][0]["exists"])
+            self.assertFalse(record["utilization"][0]["passed"])
+            self.assertEqual(record["utilization"][0]["rows"], [])
+            self.assertTrue(any("no utilization rows found" in failure for failure in record["failures"]))
 
 
 if __name__ == "__main__":
