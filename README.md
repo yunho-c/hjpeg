@@ -152,7 +152,8 @@ checked report/artifact count, per-category checked counts, required evidence
 category presence, missing category names, required `.bit`/`.xsa` artifact
 suffix presence, and pass/fail state in machine-readable build evidence.
 Required evidence category presence is based on at least one passing record in
-that category, not just a requested input path. Use
+that category, not just a requested input path. Complete Vivado evidence counts
+only records whose `passed` field is an actual JSON boolean `true`. Use
 `--require-complete-evidence` for full bitstream evidence gates; partial
 post-synthesis checks can omit it.
 Missing, non-file, or unparseable reports are recorded as structured

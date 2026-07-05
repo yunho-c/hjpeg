@@ -480,6 +480,41 @@ class CheckReportsTest(unittest.TestCase):
                 any("missing required artifact suffixes" in failure for failure in record["failures"])
             )
 
+    def test_evidence_categories_require_strict_passed_booleans(self) -> None:
+        record = check_reports.evidence_category_record(
+            {
+                category: [{"passed": "true"}]
+                for category in check_reports.REQUIRED_EVIDENCE_CATEGORIES
+            }
+        )
+
+        self.assertEqual(
+            record["missing_required_categories"],
+            list(check_reports.REQUIRED_EVIDENCE_CATEGORIES),
+        )
+        self.assertFalse(record["all_required_present"])
+        self.assertTrue(
+            all(not present for present in record["present"].values())
+        )
+
+    def test_artifact_suffixes_require_strict_passed_booleans(self) -> None:
+        record = check_reports.artifact_suffix_record(
+            [
+                {"path": "hjpeg_kv260.bit", "passed": "true"},
+                {"path": "hjpeg_kv260.xsa", "passed": "true"},
+            ]
+        )
+
+        self.assertEqual(
+            record["missing_required_suffixes"],
+            list(check_reports.REQUIRED_ARTIFACT_SUFFIXES),
+        )
+        self.assertFalse(record["all_required_suffixes_present"])
+        self.assertEqual(record["suffix_counts"], {".bit": 1, ".xsa": 1})
+        self.assertTrue(
+            all(not present for present in record["required_suffixes_present"].values())
+        )
+
     def test_cli_json_records_failures(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

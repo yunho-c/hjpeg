@@ -448,7 +448,7 @@ def evidence_category_record(
 ) -> dict[str, object]:
     present = {
         category: any(
-            bool(record.get("passed", False))
+            record.get("passed") is True
             for record in evidence_records.get(category, [])
         )
         for category in REQUIRED_EVIDENCE_CATEGORIES
@@ -470,7 +470,7 @@ def artifact_suffix_record(artifact_records: list[dict[str, object]]) -> dict[st
         if not suffix:
             continue
         suffix_counts[suffix] = suffix_counts.get(suffix, 0) + 1
-        if bool(record.get("passed", False)) and suffix in present:
+        if record.get("passed") is True and suffix in present:
             present[suffix] = True
 
     missing = [suffix for suffix, is_present in present.items() if not is_present]
