@@ -424,7 +424,7 @@ aperture base/high addresses and byte ranges for `hjpeg_0/s_axi_lite` and
 checks, requested input path lists and gate values, checked report/artifact
 count, per-category checked counts, required evidence category presence,
 present and missing category names, failing category names, per-category
-passing/failing counts, required `.bit`/`.xsa` artifact suffix presence,
+passing/failing counts, required `.bit`/`.xsa`/`.dcp` artifact suffix presence,
 present and missing required suffix names, failing required suffix names,
 required suffix passing/failing counts, aggregate pass/fail counts,
 required/present/missing category and suffix counts, diagnostic failure count,
@@ -432,7 +432,7 @@ checked/passed/failed path lists, complete-evidence required/missing/failing
 lists, and pass/fail state.
 Complete Vivado flow evidence should have `all_required_present` and
 `all_required_suffixes_present` true, with no failing records in the required
-evidence categories or required `.bit`/`.xsa` artifact suffixes.
+evidence categories or required `.bit`/`.xsa`/`.dcp` artifact suffixes.
 `all_required_present` requires at least one passing record in each required
 category, not just a requested input path. Complete Vivado evidence counts only
 records whose `passed` field is an actual JSON boolean `true`. Missing, non-file,
@@ -755,8 +755,8 @@ evidence, failed recorded checks, or incomplete hardware evidence. Pass
 `--vivado-evidence` with the saved `check_reports.py --json` bitstream evidence
 to cross-check the run transcript's AXI-Lite base address against the Vivado
 `hjpeg_0/s_axi_lite` address-map entry. The Vivado transcript must have
-`passed`, `complete_vivado_flow_evidence`, and the required `.bit` and `.xsa`
-artifact suffix evidence true. Supplying multiple Vivado evidence files is
+`passed`, `complete_vivado_flow_evidence`, and the required `.bit`, `.xsa`, and
+`.dcp` artifact suffix evidence true. Supplying multiple Vivado evidence files is
 allowed only when they agree on the same HJPEG base address.
 JSON output includes aggregate checked/pass/fail transcript counts, diagnostic
 failure count, checked/passed/failed path lists, summary checked, matched, and

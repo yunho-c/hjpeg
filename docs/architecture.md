@@ -109,8 +109,9 @@ hardware-tool entry points:
   the HDL wrapper, and refreshes compile order.
 - `build_kv260_bitstream.tcl` opens that block-design project, runs synthesis
   and implementation through `write_bitstream`, emits timing/utilization
-  reports, copies `hjpeg_kv260.bit`, and exports `hjpeg_kv260.xsa` with the
-  bitstream included.
+  reports, copies `hjpeg_kv260.bit`, exports `hjpeg_kv260.xsa` with the
+  bitstream included, and writes `post_impl.dcp` for implementation and
+  floorplan review.
 - `check_reports.py` hashes generated artifacts, parses Vivado
   timing/utilization/DRC/route-status reports, requires requested
   clock-utilization reports, parses requested address-map reports, and fails
@@ -132,7 +133,7 @@ hardware-tool entry points:
   and gate values, checked report/artifact count, per-category checked counts,
   required evidence category presence, per-category passing/failing counts,
   present and missing category names, failing category names, required
-  `.bit`/`.xsa` artifact suffix presence, present and missing required suffix
+  `.bit`/`.xsa`/`.dcp` artifact suffix presence, present and missing required suffix
   names, failing required suffix names, required suffix passing/failing counts,
   aggregate pass/fail counts,
   required/present/missing category and suffix counts, diagnostic failure count,
@@ -141,12 +142,12 @@ hardware-tool entry points:
   Required evidence category presence is based on at least
   one passing record in that category, not just a requested input path. Complete
   Vivado evidence also requires every supplied required evidence category and
-  required `.bit`/`.xsa` artifact suffix to have no failing records. Complete
+  required `.bit`/`.xsa`/`.dcp` artifact suffix to have no failing records. Complete
   Vivado evidence counts only records whose `passed` field is an actual JSON
   boolean `true`. Missing or unparseable reports are included as structured
   failure records. Full bitstream gates can pass `--require-complete-evidence`
-  to fail unless all required categories, address-map evidence, and `.bit`/`.xsa`
-  artifact suffixes are present and passing.
+  to fail unless all required categories, address-map evidence, and `.bit`/`.xsa`/
+  `.dcp` artifact suffixes are present and passing.
 
 These scripts are intended to be run after:
 
@@ -269,8 +270,8 @@ evidence, failed recorded checks, or incomplete hardware evidence. With
 `--vivado-evidence`, the saved-run checker also parses `check_reports.py --json`
 Vivado evidence, extracts passing `hjpeg_0/s_axi_lite` address-map base
 addresses, and requires the Vivado transcript to have `passed`,
-`complete_vivado_flow_evidence`, and the required `.bit` and `.xsa` artifact
-suffix evidence true. It fails run transcripts whose AXI-Lite base address does
+`complete_vivado_flow_evidence`, and the required `.bit`, `.xsa`, and `.dcp`
+artifact suffix evidence true. It fails run transcripts whose AXI-Lite base address does
 not match the Vivado build evidence, or whose supplied Vivado evidence files
 report conflicting HJPEG base addresses. JSON output includes
 aggregate checked/pass/fail transcript counts, diagnostic failure count,

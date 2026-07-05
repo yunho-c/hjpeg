@@ -957,8 +957,8 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
         "complete_vivado_flow_evidence": True,
         "artifact_suffixes": {
             "all_required_suffixes_present": True,
-            "required_suffixes": [".bit", ".xsa"],
-            "required_suffixes_present": {".bit": True, ".xsa": True},
+            "required_suffixes": [".bit", ".xsa", ".dcp"],
+            "required_suffixes_present": {".bit": True, ".xsa": True, ".dcp": True},
         },
         "address_map": [
             {
@@ -3174,8 +3174,12 @@ class HjpegHostTest(unittest.TestCase):
             vivado_record = vivado_evidence_record(0)
             vivado_record["artifact_suffixes"] = {
                 "all_required_suffixes_present": False,
-                "required_suffixes": [".bit", ".xsa"],
-                "required_suffixes_present": {".bit": True, ".xsa": False},
+                "required_suffixes": [".bit", ".xsa", ".dcp"],
+                "required_suffixes_present": {
+                    ".bit": True,
+                    ".xsa": False,
+                    ".dcp": True,
+                },
             }
             run.write_text(json.dumps(complete_run_evidence_record(root)))
             vivado.write_text(json.dumps(vivado_record))
@@ -3210,7 +3214,7 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertFalse(record["vivado_evidence"][0]["passed"])
             self.assertTrue(
-                any("missing required .bit/.xsa" in failure for failure in record["failures"])
+                any("missing required .bit/.xsa/.dcp" in failure for failure in record["failures"])
             )
 
     def test_check_run_evidence_cli_rejects_conflicting_vivado_addresses(self) -> None:

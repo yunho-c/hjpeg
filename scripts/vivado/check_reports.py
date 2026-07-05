@@ -50,7 +50,7 @@ REQUIRED_EVIDENCE_CATEGORIES = (
     "route_status",
     "clock_utilization",
 )
-REQUIRED_ARTIFACT_SUFFIXES = (".bit", ".xsa")
+REQUIRED_ARTIFACT_SUFFIXES = (".bit", ".xsa", ".dcp")
 
 
 def finite_float(value: str) -> float:

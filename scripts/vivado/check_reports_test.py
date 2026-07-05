@@ -311,6 +311,7 @@ class CheckReportsTest(unittest.TestCase):
             root = Path(tmp)
             artifact = root / "hjpeg_kv260.bit"
             xsa = root / "hjpeg_kv260.xsa"
+            dcp = root / "post_impl.dcp"
             address_map = root / "hjpeg_kv260_address_map.rpt"
             timing = root / "timing.rpt"
             utilization = root / "util.rpt"
@@ -319,6 +320,7 @@ class CheckReportsTest(unittest.TestCase):
             clock_utilization = root / "post_impl_clock_utilization.rpt"
             artifact.write_bytes(b"bitstream")
             xsa.write_bytes(b"xsa")
+            dcp.write_bytes(b"checkpoint")
             address_map.write_text(ADDRESS_MAP_REPORT)
             timing.write_text(TIMING_TABLE)
             utilization.write_text(VIVADO_UTILIZATION_TABLE)
@@ -335,6 +337,8 @@ class CheckReportsTest(unittest.TestCase):
                             str(artifact),
                             "--artifact",
                             str(xsa),
+                            "--artifact",
+                            str(dcp),
                             "--address-map",
                             str(address_map),
                             "--timing",
@@ -361,14 +365,15 @@ class CheckReportsTest(unittest.TestCase):
             self.assertTrue(record["passed"])
             self.assertEqual(record["failures"], [])
             self.assertEqual(record["failure_count"], 0)
-            self.assertEqual(record["checked_count"], 8)
-            self.assertEqual(record["passed_count"], 8)
+            self.assertEqual(record["checked_count"], 9)
+            self.assertEqual(record["passed_count"], 9)
             self.assertEqual(record["failed_count"], 0)
             self.assertEqual(
                 record["checked_paths"],
                 [
                     str(artifact),
                     str(xsa),
+                    str(dcp),
                     str(address_map),
                     str(timing),
                     str(utilization),
@@ -382,6 +387,7 @@ class CheckReportsTest(unittest.TestCase):
                 [
                     str(artifact),
                     str(xsa),
+                    str(dcp),
                     str(address_map),
                     str(timing),
                     str(utilization),
@@ -394,7 +400,7 @@ class CheckReportsTest(unittest.TestCase):
             self.assertEqual(
                 record["checked_counts"],
                 {
-                    "artifacts": 2,
+                    "artifacts": 3,
                     "address_map": 1,
                     "timing": 1,
                     "utilization": 1,
@@ -428,7 +434,7 @@ class CheckReportsTest(unittest.TestCase):
                     "present_category_count": 7,
                     "missing_category_count": 0,
                     "passing_counts": {
-                        "artifacts": 2,
+                        "artifacts": 3,
                         "address_map": 1,
                         "timing": 1,
                         "utilization": 1,
@@ -462,15 +468,19 @@ class CheckReportsTest(unittest.TestCase):
             self.assertEqual(
                 record["artifact_suffixes"],
                 {
-                    "required_suffixes": [".bit", ".xsa"],
-                    "required_suffix_count": 2,
-                    "suffix_counts": {".bit": 1, ".xsa": 1},
-                    "passing_suffix_counts": {".bit": 1, ".xsa": 1},
+                    "required_suffixes": [".bit", ".xsa", ".dcp"],
+                    "required_suffix_count": 3,
+                    "suffix_counts": {".bit": 1, ".xsa": 1, ".dcp": 1},
+                    "passing_suffix_counts": {".bit": 1, ".xsa": 1, ".dcp": 1},
                     "failing_suffix_counts": {},
-                    "required_suffixes_present": {".bit": True, ".xsa": True},
-                    "present_suffix_count": 2,
+                    "required_suffixes_present": {
+                        ".bit": True,
+                        ".xsa": True,
+                        ".dcp": True,
+                    },
+                    "present_suffix_count": 3,
                     "missing_suffix_count": 0,
-                    "present_required_suffixes": [".bit", ".xsa"],
+                    "present_required_suffixes": [".bit", ".xsa", ".dcp"],
                     "failing_required_suffixes": [],
                     "missing_required_suffixes": [],
                     "all_required_suffixes_present": True,
@@ -479,7 +489,7 @@ class CheckReportsTest(unittest.TestCase):
             self.assertEqual(
                 record["arguments"],
                 {
-                    "artifacts": [str(artifact), str(xsa)],
+                    "artifacts": [str(artifact), str(xsa), str(dcp)],
                     "address_map": [str(address_map)],
                     "timing": [str(timing)],
                     "hold_timing": [str(timing)],
@@ -526,6 +536,14 @@ class CheckReportsTest(unittest.TestCase):
             )
             self.assertTrue(record["artifacts"][1]["exists"])
             self.assertTrue(record["artifacts"][1]["passed"])
+            self.assertEqual(record["artifacts"][2]["path"], str(dcp))
+            self.assertEqual(record["artifacts"][2]["byte_length"], len(b"checkpoint"))
+            self.assertEqual(
+                record["artifacts"][2]["sha256"],
+                hashlib.sha256(b"checkpoint").hexdigest(),
+            )
+            self.assertTrue(record["artifacts"][2]["exists"])
+            self.assertTrue(record["artifacts"][2]["passed"])
             self.assertEqual(record["address_map"][0]["path"], str(address_map))
             self.assertEqual(
                 record["address_map"][0]["sha256"],
@@ -638,7 +656,7 @@ class CheckReportsTest(unittest.TestCase):
             )
             self.assertEqual(
                 record["complete_vivado_flow_evidence_missing_suffixes"],
-                [".bit", ".xsa"],
+                [".bit", ".xsa", ".dcp"],
             )
             self.assertEqual(
                 record["complete_vivado_flow_evidence_failing_categories"], []
@@ -661,6 +679,7 @@ class CheckReportsTest(unittest.TestCase):
             root = Path(tmp)
             artifact = root / "hjpeg_kv260.bit"
             xsa = root / "hjpeg_kv260.xsa"
+            dcp = root / "post_impl.dcp"
             empty_xsa = root / "empty.xsa"
             address_map = root / "hjpeg_kv260_address_map.rpt"
             timing = root / "timing.rpt"
@@ -671,6 +690,7 @@ class CheckReportsTest(unittest.TestCase):
             clock_utilization = root / "post_impl_clock_utilization.rpt"
             artifact.write_bytes(b"bitstream")
             xsa.write_bytes(b"xsa")
+            dcp.write_bytes(b"checkpoint")
             empty_xsa.write_bytes(b"")
             address_map.write_text(ADDRESS_MAP_REPORT)
             timing.write_text(TIMING_TABLE)
@@ -689,6 +709,8 @@ class CheckReportsTest(unittest.TestCase):
                             str(artifact),
                             "--artifact",
                             str(xsa),
+                            "--artifact",
+                            str(dcp),
                             "--artifact",
                             str(empty_xsa),
                             "--address-map",
@@ -789,6 +811,7 @@ class CheckReportsTest(unittest.TestCase):
             [
                 {"path": "hjpeg_kv260.bit", "passed": "true"},
                 {"path": "hjpeg_kv260.xsa", "passed": "true"},
+                {"path": "post_impl.dcp", "passed": "true"},
             ]
         )
 
@@ -797,7 +820,7 @@ class CheckReportsTest(unittest.TestCase):
             list(check_reports.REQUIRED_ARTIFACT_SUFFIXES),
         )
         self.assertEqual(record["present_required_suffixes"], [])
-        self.assertEqual(record["failing_required_suffixes"], [".bit", ".xsa"])
+        self.assertEqual(record["failing_required_suffixes"], [".bit", ".xsa", ".dcp"])
         self.assertFalse(record["all_required_suffixes_present"])
         self.assertEqual(
             record["required_suffix_count"],
@@ -808,9 +831,12 @@ class CheckReportsTest(unittest.TestCase):
             record["missing_suffix_count"],
             len(check_reports.REQUIRED_ARTIFACT_SUFFIXES),
         )
-        self.assertEqual(record["suffix_counts"], {".bit": 1, ".xsa": 1})
+        self.assertEqual(record["suffix_counts"], {".bit": 1, ".xsa": 1, ".dcp": 1})
         self.assertEqual(record["passing_suffix_counts"], {})
-        self.assertEqual(record["failing_suffix_counts"], {".bit": 1, ".xsa": 1})
+        self.assertEqual(
+            record["failing_suffix_counts"],
+            {".bit": 1, ".xsa": 1, ".dcp": 1},
+        )
         self.assertTrue(
             all(not present for present in record["required_suffixes_present"].values())
         )
@@ -865,7 +891,7 @@ class CheckReportsTest(unittest.TestCase):
             )
             self.assertEqual(
                 record["complete_vivado_flow_evidence_missing_suffixes"],
-                [".bit", ".xsa"],
+                [".bit", ".xsa", ".dcp"],
             )
             self.assertEqual(
                 record["complete_vivado_flow_evidence_failing_categories"],
@@ -905,17 +931,21 @@ class CheckReportsTest(unittest.TestCase):
             self.assertEqual(
                 record["artifact_suffixes"],
                 {
-                    "required_suffixes": [".bit", ".xsa"],
-                    "required_suffix_count": 2,
+                    "required_suffixes": [".bit", ".xsa", ".dcp"],
+                    "required_suffix_count": 3,
                     "suffix_counts": {".xsa": 1},
                     "passing_suffix_counts": {},
                     "failing_suffix_counts": {".xsa": 1},
-                    "required_suffixes_present": {".bit": False, ".xsa": False},
+                    "required_suffixes_present": {
+                        ".bit": False,
+                        ".xsa": False,
+                        ".dcp": False,
+                    },
                     "present_suffix_count": 0,
-                    "missing_suffix_count": 2,
+                    "missing_suffix_count": 3,
                     "present_required_suffixes": [],
                     "failing_required_suffixes": [".xsa"],
-                    "missing_required_suffixes": [".bit", ".xsa"],
+                    "missing_required_suffixes": [".bit", ".xsa", ".dcp"],
                     "all_required_suffixes_present": False,
                 },
             )
@@ -956,17 +986,21 @@ class CheckReportsTest(unittest.TestCase):
             self.assertEqual(
                 record["artifact_suffixes"],
                 {
-                    "required_suffixes": [".bit", ".xsa"],
-                    "required_suffix_count": 2,
+                    "required_suffixes": [".bit", ".xsa", ".dcp"],
+                    "required_suffix_count": 3,
                     "suffix_counts": {".bit": 1},
                     "passing_suffix_counts": {},
                     "failing_suffix_counts": {".bit": 1},
-                    "required_suffixes_present": {".bit": False, ".xsa": False},
+                    "required_suffixes_present": {
+                        ".bit": False,
+                        ".xsa": False,
+                        ".dcp": False,
+                    },
                     "present_suffix_count": 0,
-                    "missing_suffix_count": 2,
+                    "missing_suffix_count": 3,
                     "present_required_suffixes": [],
                     "failing_required_suffixes": [".bit"],
-                    "missing_required_suffixes": [".bit", ".xsa"],
+                    "missing_required_suffixes": [".bit", ".xsa", ".dcp"],
                     "all_required_suffixes_present": False,
                 },
             )

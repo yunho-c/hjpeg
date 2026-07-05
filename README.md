@@ -155,7 +155,7 @@ addresses and byte ranges for `hjpeg_0/s_axi_lite` and
 checks, the requested input path lists and gate values, checked report/artifact
 count, per-category checked counts, required evidence category presence,
 per-category passing/failing counts, present and missing category names, failing
-category names, required `.bit`/`.xsa` artifact suffix presence, present and
+category names, required `.bit`/`.xsa`/`.dcp` artifact suffix presence, present and
 missing required suffix names, failing required suffix names, required suffix
 passing/failing counts, required/present/missing category and suffix counts,
 aggregate pass/fail counts, diagnostic failure count, checked/passed/failed path
@@ -163,9 +163,9 @@ lists, complete-evidence required/missing/failing lists, and pass/fail state in
 machine-readable build evidence.
 Required evidence category presence is based on at least one passing record in
 that category, not just a requested input path. Complete Vivado evidence also
-requires every supplied required evidence category and required `.bit`/`.xsa`
-artifact suffix to have no failing records. Complete Vivado evidence counts only
-records whose `passed` field is an actual JSON boolean `true`. Use
+requires every supplied required evidence category and required `.bit`/`.xsa`/
+`.dcp` artifact suffix to have no failing records. Complete Vivado evidence counts
+only records whose `passed` field is an actual JSON boolean `true`. Use
 `--require-complete-evidence` for full bitstream evidence gates; partial
 post-synthesis checks can omit it.
 Missing, non-file, or unparseable reports are recorded as structured
@@ -394,8 +394,8 @@ The saved-evidence checker recomputes `hardware_run_summary` from the transcript
 and fails if the stored summary does not match the recomputed evidence. When
 `--vivado-evidence` points at `check_reports.py --json` output, it also extracts
 the passing `hjpeg_0/s_axi_lite` address-map base address. The Vivado transcript
-must have `passed`, `complete_vivado_flow_evidence`, and the required `.bit` and
-`.xsa` artifact suffix evidence true. The checker fails if the run transcript's
+must have `passed`, `complete_vivado_flow_evidence`, and the required `.bit`,
+`.xsa`, and `.dcp` artifact suffix evidence true. The checker fails if the run transcript's
 AXI-Lite base address does not match the Vivado build evidence, or if multiple
 Vivado evidence files report conflicting HJPEG base addresses. Its JSON output
 includes aggregate checked/pass/fail transcript counts, diagnostic failure count,

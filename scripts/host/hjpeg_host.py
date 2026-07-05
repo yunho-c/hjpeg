@@ -2519,6 +2519,7 @@ def vivado_required_artifact_suffixes_present(record: object) -> bool:
         and isinstance(required_suffixes_present, dict)
         and required_suffixes_present.get(".bit") is True
         and required_suffixes_present.get(".xsa") is True
+        and required_suffixes_present.get(".dcp") is True
     )
 
 
@@ -2566,7 +2567,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     if not complete_vivado_flow_evidence:
         failures.append(f"{path}: complete_vivado_flow_evidence is false")
     if not vivado_artifact_suffixes_present:
-        failures.append(f"{path}: Vivado evidence missing required .bit/.xsa artifacts")
+        failures.append(f"{path}: Vivado evidence missing required .bit/.xsa/.dcp artifacts")
     if not bases:
         failures.append(f"{path}: no passing hjpeg_0/s_axi_lite address-map evidence")
     return result, failures

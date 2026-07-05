@@ -128,7 +128,7 @@ Pass criteria:
   checks, requested input path lists and gate values, checked report/artifact
   count, per-category checked counts, required evidence category presence,
   per-category passing/failing counts, present and missing category names,
-  failing category names, required `.bit`/`.xsa` artifact suffix presence,
+  failing category names, required `.bit`/`.xsa`/`.dcp` artifact suffix presence,
   present and missing required suffix names, failing required suffix names,
   required suffix passing/failing counts, required/present/missing category and
   suffix counts, aggregate pass/fail counts, diagnostic failure count,
@@ -136,8 +136,8 @@ Pass criteria:
   lists, and pass/fail state.
   Complete Vivado flow evidence has
   `all_required_present` and `all_required_suffixes_present` true, with no
-  failing records in the required evidence categories or required `.bit`/`.xsa`
-  artifact suffixes. `all_required_present` requires at least one passing record
+  failing records in the required evidence categories or required `.bit`/`.xsa`/
+  `.dcp` artifact suffixes. `all_required_present` requires at least one passing record
   in each required category, not just a requested input path. Complete Vivado
   evidence counts only records whose `passed` field is an actual JSON boolean
   `true`. Missing, non-file, or unparseable reports are recorded as structured
@@ -282,8 +282,8 @@ Expected evidence:
   points at the `check_reports.py --json` output saved from the bitstream build,
   it also extracts the passing `hjpeg_0/s_axi_lite` address-map base address and
   requires that Vivado transcript to have `passed` and
-  `complete_vivado_flow_evidence` true, plus required `.bit` and `.xsa` artifact
-  suffix evidence. The checker fails if the run transcript's AXI-Lite base
+  `complete_vivado_flow_evidence` true, plus required `.bit`, `.xsa`, and `.dcp`
+  artifact suffix evidence. The checker fails if the run transcript's AXI-Lite base
   address does not match the Vivado build evidence or if multiple Vivado evidence
   files report conflicting HJPEG base addresses.
   JSON output includes the aggregate checked/pass/fail
