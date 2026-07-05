@@ -174,6 +174,17 @@ validates the resulting dimensions. DMA drivers that use ioctls or buffer
 queues still need a small adapter around the same host-side packing and
 validation helpers.
 
+To fold a standard decoder into the validation transcript, pass a command with
+`--decoder-command`. The helper replaces `{jpeg}` with the output path, or
+appends the path when no placeholder is present:
+
+```sh
+python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
+  --width 640 \
+  --height 480 \
+  --decoder-command 'magick identify {jpeg}'
+```
+
 ## Versions
 
 - Scala 2.13.18

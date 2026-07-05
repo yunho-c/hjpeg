@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -102,8 +103,58 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(hjpeg_host.jpeg_dimensions(jpeg.read_bytes()), (17, 13))
             self.assertEqual(hjpeg_host.jpeg_info(jpeg.read_bytes()).scan_data_bytes, 1)
             hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+            hjpeg_host.run_decoder_command(
+                jpeg,
+                f'"{sys.executable}" -c "import sys; assert open(sys.argv[1], \'rb\').read(2) == b\'\\\\xff\\\\xd8\'"',
+            )
             with self.assertRaisesRegex(ValueError, "expected 16x13"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=16, expected_height=13)
+
+    def test_validate_jpeg_cli_can_run_decoder_command(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "out.jpg"
+            marker = Path(tmp) / "decoder-ran.txt"
+            jpeg.write_bytes(minimal_jpeg(width=17, height=13))
+
+            command = (
+                f'"{sys.executable}" -c "import pathlib, sys; '
+                f'pathlib.Path(r\'{marker}\').write_text(pathlib.Path(sys.argv[1]).read_bytes()[:2].hex())"'
+            )
+            self.assertEqual(
+                hjpeg_host.main(
+                    [
+                        "validate-jpeg",
+                        str(jpeg),
+                        "--width",
+                        "17",
+                        "--height",
+                        "13",
+                        "--decoder-command",
+                        command,
+                    ]
+                ),
+                0,
+            )
+            self.assertEqual(marker.read_text(), "ffd8")
+
+    def test_decoder_command_supports_placeholder_and_reports_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "out.jpg"
+            marker = Path(tmp) / "placeholder-ran.txt"
+            jpeg.write_bytes(minimal_jpeg(width=17, height=13))
+
+            command = (
+                f'"{sys.executable}" -c "import pathlib, sys; '
+                f'pathlib.Path(r\'{marker}\').write_text(pathlib.Path(sys.argv[1].split(\'=\', 1)[1]).name)" file={{jpeg}}'
+            )
+            hjpeg_host.run_decoder_command(jpeg, command)
+            self.assertEqual(marker.read_text(), "out.jpg")
+
+            with self.assertRaisesRegex(RuntimeError, "decoder command failed"):
+                hjpeg_host.run_decoder_command(
+                    jpeg,
+                    f'"{sys.executable}" -c "import sys; print(\'bad\', file=sys.stderr); sys.exit(3)"',
+                )
 
     def test_validate_jpeg_requires_scan_data(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -201,12 +252,18 @@ class HjpegHostTest(unittest.TestCase):
                 timeout_seconds=1.0,
                 configure=lambda: configured.append(True),
                 check_status=lambda context: status_checks.append(context),
+                decoder_command=(
+                    f'"{sys.executable}" -c "import pathlib, sys; '
+                    f"pathlib.Path(r'{root / 'decoder.txt'}').write_text(pathlib.Path(sys.argv[1]).read_bytes()[:2].hex()); "
+                    f'print(\'ok\')"'
+                ),
             )
 
             self.assertEqual(configured, [True])
             self.assertEqual(status_checks, ["before transfer", "after transfer"])
             self.assertEqual(tx_device.read_bytes(), bytes([1, 2, 3, 0, 4, 5, 6, 0]))
             self.assertEqual(output_jpeg.read_bytes(), minimal_jpeg(width=2, height=1))
+            self.assertEqual((root / "decoder.txt").read_text(), "ffd8")
 
     def test_run_stream_devices_rejects_wrong_input_size(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

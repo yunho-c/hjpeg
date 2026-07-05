@@ -381,7 +381,10 @@ The `run-stream-devices` host helper now checks AXI-Lite status after
 configuration, before streaming RGB input, and after validating the captured
 JPEG. It fails if the encoder reports `busy` or `protocol_error` at any of those
 checkpoints. `make-test-ppm` can generate a deterministic non-flat/color P6 PPM
-fixture for repeatable visual checks when no external image is available.
+fixture for repeatable visual checks when no external image is available. Pass
+`--decoder-command 'magick identify {jpeg}'` or an equivalent installed decoder
+command to `validate-jpeg` or `run-stream-devices` when you want the standard
+decoder-open check captured in the same command transcript.
 
 ## Known Blockers And Bottlenecks
 

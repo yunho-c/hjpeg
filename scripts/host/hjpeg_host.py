@@ -18,7 +18,9 @@ from __future__ import annotations
 import argparse
 import mmap
 import os
+import shlex
 import struct
+import subprocess
 import sys
 import threading
 from dataclasses import dataclass
@@ -231,6 +233,36 @@ def validate_jpeg(path: Path, expected_width: int, expected_height: int) -> None
         )
 
 
+def run_decoder_command(jpeg: Path, command: str) -> None:
+    if not command:
+        raise ValueError("decoder command must be non-empty")
+
+    argv = shlex.split(command)
+    if not argv:
+        raise ValueError("decoder command must be non-empty")
+    jpeg_arg = str(jpeg)
+    if any("{jpeg}" in arg for arg in argv):
+        argv = [arg.replace("{jpeg}", jpeg_arg) for arg in argv]
+    else:
+        argv.append(jpeg_arg)
+
+    try:
+        completed = subprocess.run(
+            argv,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"decoder command not found: {argv[0]}") from exc
+
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout).strip()
+        suffix = f": {detail}" if detail else ""
+        raise RuntimeError(f"decoder command failed with exit code {completed.returncode}{suffix}")
+
+
 def read_until_jpeg_eoi(stream: BinaryIO, max_bytes: int) -> bytes:
     if max_bytes <= 0:
         raise ValueError("max output bytes must be positive")
@@ -259,6 +291,7 @@ def run_stream_devices(
     timeout_seconds: float | None = 30.0,
     configure: Callable[[], None] | None = None,
     check_status: Callable[[str], None] | None = None,
+    decoder_command: str | None = None,
 ) -> None:
     rgb = input_rgb.read_bytes()
     expected_input_bytes = expected_width * expected_height * 4
@@ -304,6 +337,8 @@ def run_stream_devices(
     jpeg = read_result[0]
     output_jpeg.write_bytes(jpeg)
     validate_jpeg(output_jpeg, expected_width, expected_height)
+    if decoder_command is not None:
+        run_decoder_command(output_jpeg, decoder_command)
     if check_status is not None:
         check_status("after transfer")
 
@@ -437,6 +472,10 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("jpeg", type=Path)
     validate.add_argument("--width", type=int, required=True)
     validate.add_argument("--height", type=int, required=True)
+    validate.add_argument(
+        "--decoder-command",
+        help="optional external decoder command; {jpeg} is replaced with the JPEG path, otherwise the path is appended",
+    )
 
     config = subparsers.add_parser("config", help="write encoder AXI-Lite configuration registers")
     config.add_argument("--dev", type=Path, default=Path("/dev/mem"))
@@ -476,6 +515,10 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--clear-error", action="store_true")
     run.add_argument("--max-output-bytes", type=int, default=16 * 1024 * 1024)
     run.add_argument("--timeout-seconds", type=float, default=30.0)
+    run.add_argument(
+        "--decoder-command",
+        help="optional external decoder command to prove the captured JPEG opens",
+    )
 
     return parser
 
@@ -502,6 +545,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "validate-jpeg":
         validate_jpeg(args.jpeg, args.width, args.height)
+        if args.decoder_command is not None:
+            run_decoder_command(args.jpeg, args.decoder_command)
         print(f"{args.jpeg}: valid baseline JPEG dimensions {args.width}x{args.height}")
         return 0
 
@@ -562,6 +607,7 @@ def main(argv: list[str] | None = None) -> int:
             timeout_seconds=args.timeout_seconds,
             configure=configure,
             check_status=check_status,
+            decoder_command=args.decoder_command,
         )
         print(f"captured validated JPEG to {args.output_jpeg}")
         return 0

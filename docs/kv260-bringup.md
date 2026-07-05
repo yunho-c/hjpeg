@@ -137,11 +137,22 @@ any of those points.
 python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg --width WIDTH --height HEIGHT
 ```
 
+If a standard JPEG decoder is available on the host, include it in the helper
+run:
+
+```sh
+python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
+  --width WIDTH \
+  --height HEIGHT \
+  --decoder-command 'magick identify {jpeg}'
+```
+
 Expected evidence:
 
 - The helper reports valid baseline JPEG dimensions and confirms that the file
   contains an SOS marker with non-empty entropy-coded scan data.
-- A standard JPEG decoder can open `output.jpg`.
+- A standard JPEG decoder can open `output.jpg`; when `--decoder-command` is
+  used, that decoder check is part of the command transcript.
 - The decoded dimensions match the input.
 - Visual content is recognizable for non-flat test images.
 
