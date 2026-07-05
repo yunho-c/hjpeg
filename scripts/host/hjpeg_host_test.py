@@ -214,6 +214,30 @@ def without_all_segments(jpeg: bytes, marker: bytes) -> bytes:
     return stripped
 
 
+def segment_bounds(jpeg: bytes, marker: bytes) -> tuple[int, int]:
+    marker_offset = jpeg.find(marker)
+    if marker_offset < 0:
+        raise AssertionError(f"marker {marker.hex()} not found")
+    segment_length = (jpeg[marker_offset + 2] << 8) | jpeg[marker_offset + 3]
+    return marker_offset, marker_offset + 2 + segment_length
+
+
+def with_segment_moved_before(
+    jpeg: bytes, segment_marker: bytes, before_marker: bytes
+) -> bytes:
+    segment_start, segment_end = segment_bounds(jpeg, segment_marker)
+    segment = jpeg[segment_start:segment_end]
+    without_segment_bytes = jpeg[:segment_start] + jpeg[segment_end:]
+    before_offset = without_segment_bytes.find(before_marker)
+    if before_offset < 0:
+        raise AssertionError(f"marker {before_marker.hex()} not found")
+    return (
+        without_segment_bytes[:before_offset]
+        + segment
+        + without_segment_bytes[before_offset:]
+    )
+
+
 def with_duplicate_sos_component(jpeg: bytes) -> bytes:
     sos = jpeg.find(b"\xff\xda\x00\x0c\x03")
     if sos < 0:
@@ -1130,6 +1154,51 @@ class HjpegHostTest(unittest.TestCase):
             jpeg.write_bytes(with_duplicate_dht(minimal_jpeg(width=17, height=13)))
 
             with self.assertRaisesRegex(ValueError, "DHT segment count"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_out_of_order_header_markers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            late_dqt = root / "late-dqt.jpg"
+            late_sof0 = root / "late-sof0.jpg"
+            late_dht = root / "late-dht.jpg"
+            late_dqt.write_bytes(
+                with_segment_moved_before(
+                    minimal_jpeg(width=17, height=13),
+                    b"\xff\xdb",
+                    b"\xff\xc4",
+                )
+            )
+            late_sof0.write_bytes(
+                with_segment_moved_before(
+                    minimal_jpeg(width=17, height=13),
+                    b"\xff\xc0",
+                    b"\xff\xda",
+                )
+            )
+            late_dht.write_bytes(
+                with_segment_moved_before(
+                    with_dri_segment(minimal_jpeg(width=17, height=13), 4),
+                    b"\xff\xdd",
+                    b"\xff\xc4",
+                )
+            )
+
+            with self.assertRaisesRegex(ValueError, "DQT marker appears out"):
+                hjpeg_host.validate_jpeg(late_dqt, expected_width=17, expected_height=13)
+            with self.assertRaisesRegex(ValueError, "SOF0 marker appears out"):
+                hjpeg_host.validate_jpeg(late_sof0, expected_width=17, expected_height=13)
+            with self.assertRaisesRegex(ValueError, "DHT marker appears out"):
+                hjpeg_host.validate_jpeg(late_dht, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_restart_marker_before_scan_data(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "early-rst.jpg"
+            jpeg.write_bytes(
+                b"\xff\xd8\xff\xd0" + minimal_jpeg(width=17, height=13)[2:]
+            )
+
+            with self.assertRaisesRegex(ValueError, "restart marker appears before"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_rejects_missing_referenced_tables(self) -> None:

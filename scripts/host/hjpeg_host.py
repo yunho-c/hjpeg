@@ -50,6 +50,15 @@ STATUS_PROTOCOL_ERROR = 1 << 1
 DEFAULT_MAX_FRAME_WIDTH = 1920
 DEFAULT_MAX_FRAME_HEIGHT = 1080
 
+JPEG_HEADER_MARKER_ORDER = {
+    0xE0: (0, "APP0"),
+    0xDB: (1, "DQT"),
+    0xC0: (2, "SOF0"),
+    0xC4: (3, "DHT"),
+    0xDD: (4, "DRI"),
+    0xDA: (5, "SOS"),
+}
+
 
 @dataclass(frozen=True)
 class PpmImage:
@@ -243,6 +252,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
     restart_markers = 0
     saw_sos = False
     saw_eoi = False
+    marker_order_phase = -1
     while offset < len(data):
         while offset < len(data) and data[offset] == 0xFF:
             offset += 1
@@ -255,10 +265,23 @@ def jpeg_info(data: bytes) -> JpegInfo:
             saw_eoi = True
             break
         if 0xD0 <= marker <= 0xD7:
+            if not saw_sos:
+                raise ValueError(
+                    "JPEG restart marker appears before entropy-coded scan data"
+                )
             restart_markers += 1
             continue
         if offset + 2 > len(data):
             break
+
+        marker_order = JPEG_HEADER_MARKER_ORDER.get(marker)
+        if marker_order is not None:
+            next_phase, marker_name = marker_order
+            if next_phase < marker_order_phase:
+                raise ValueError(
+                    f"JPEG {marker_name} marker appears out of baseline header order"
+                )
+            marker_order_phase = next_phase
 
         segment_length = _read_be16(data, offset)
         if segment_length < 2 or offset + segment_length > len(data):
