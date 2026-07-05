@@ -172,6 +172,7 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
+- `de95eea fix: reject extra vivado script arguments`
 - `0c2597b fix: validate vivado bitstream job count`
 - `a1619c7 fix: validate host evidence config records`
 - `e809d61 fix: validate jpeg expectations before io`
@@ -342,13 +343,13 @@ spectral fields `0/63/0`, records SOF0 component sampling factors and MCU count,
 requires supported 4:4:4 or 4:2:0 sampling, requires standard DQT table IDs
 `{0, 1}` with 8-bit precision, records DQT/DHT payload byte counts and SHA-256
 hashes, requires exact DQT/DHT segment counts, requires the standard DC/AC
-Huffman table set, records parsed marker sequence, stuffed entropy `0xff` byte
-count, RST marker sequence, and JFIF APP0 signature count, rejects RST markers
-without DRI, out-of-sequence RST markers, unexpected non-RST/non-EOI markers
-after SOS, and trailing bytes after EOI, and can enforce expected restart
-interval, exact RST marker count for the parsed MCU count, chroma mode, JFIF
-APP0 signature presence, quality-matched standard DQT payloads, and standard
-DHT payloads.
+Huffman table set, rejects duplicate DQT/DHT table definitions, records parsed
+marker sequence, stuffed entropy `0xff` byte count, RST marker sequence, and
+JFIF APP0 signature count, rejects RST markers without DRI, out-of-sequence RST
+markers, unexpected non-RST/non-EOI markers after SOS, and trailing bytes after
+EOI, and can enforce expected restart interval, exact RST marker count for the
+parsed MCU count, chroma mode, JFIF APP0 signature presence, quality-matched
+standard DQT payloads, and standard DHT payloads.
 `run-stream-devices` enforces those expectations automatically from the
 configured AXI-Lite control fields and quality setting.
 

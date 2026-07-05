@@ -396,6 +396,21 @@ def with_duplicate_dqt(jpeg: bytes) -> bytes:
     return jpeg[:dqt] + segment + jpeg[dqt:]
 
 
+def with_duplicate_dqt_table_in_segment(jpeg: bytes) -> bytes:
+    dqt = jpeg.find(b"\xff\xdb")
+    if dqt < 0:
+        raise AssertionError("DQT marker not found")
+    length = (jpeg[dqt + 2] << 8) | jpeg[dqt + 3]
+    payload = jpeg[dqt + 4 : dqt + 2 + length]
+    replacement_length = length + len(payload)
+    replacement = (
+        bytes([0xFF, 0xDB, (replacement_length >> 8) & 0xFF, replacement_length & 0xFF])
+        + payload
+        + payload
+    )
+    return jpeg[:dqt] + replacement + jpeg[dqt + 2 + length :]
+
+
 def with_duplicate_sof0(jpeg: bytes) -> bytes:
     sof0 = jpeg.find(b"\xff\xc0")
     if sof0 < 0:
@@ -443,6 +458,21 @@ def with_duplicate_dht(jpeg: bytes) -> bytes:
     length = (jpeg[dht + 2] << 8) | jpeg[dht + 3]
     segment = jpeg[dht : dht + 2 + length]
     return jpeg[:dht] + segment + jpeg[dht:]
+
+
+def with_duplicate_dht_table_in_segment(jpeg: bytes) -> bytes:
+    dht = jpeg.find(b"\xff\xc4")
+    if dht < 0:
+        raise AssertionError("DHT marker not found")
+    length = (jpeg[dht + 2] << 8) | jpeg[dht + 3]
+    payload = jpeg[dht + 4 : dht + 2 + length]
+    replacement_length = length + len(payload)
+    replacement = (
+        bytes([0xFF, 0xC4, (replacement_length >> 8) & 0xFF, replacement_length & 0xFF])
+        + payload
+        + payload
+    )
+    return jpeg[:dht] + replacement + jpeg[dht + 2 + length :]
 
 
 def with_mutated_first_dqt_payload(jpeg: bytes) -> bytes:
@@ -1751,7 +1781,17 @@ class HjpegHostTest(unittest.TestCase):
             jpeg = Path(tmp) / "duplicate-dqt.jpg"
             jpeg.write_bytes(with_duplicate_dqt(minimal_jpeg(width=17, height=13)))
 
-            with self.assertRaisesRegex(ValueError, "DQT segment count"):
+            with self.assertRaisesRegex(ValueError, "DQT table 0 is defined more than once"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_duplicate_quantization_table_definitions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "duplicate-dqt-table.jpg"
+            jpeg.write_bytes(
+                with_duplicate_dqt_table_in_segment(minimal_jpeg(width=17, height=13))
+            )
+
+            with self.assertRaisesRegex(ValueError, "DQT table 0 is defined more than once"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_rejects_nonstandard_huffman_table_set(self) -> None:
@@ -1767,7 +1807,17 @@ class HjpegHostTest(unittest.TestCase):
             jpeg = Path(tmp) / "duplicate-dht.jpg"
             jpeg.write_bytes(with_duplicate_dht(minimal_jpeg(width=17, height=13)))
 
-            with self.assertRaisesRegex(ValueError, "DHT segment count"):
+            with self.assertRaisesRegex(ValueError, "DC DHT table 0 is defined more than once"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
+    def test_validate_jpeg_rejects_duplicate_huffman_table_definitions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "duplicate-dht-table.jpg"
+            jpeg.write_bytes(
+                with_duplicate_dht_table_in_segment(minimal_jpeg(width=17, height=13))
+            )
+
+            with self.assertRaisesRegex(ValueError, "DC DHT table 0 is defined more than once"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
     def test_validate_jpeg_can_require_standard_table_payloads(self) -> None:

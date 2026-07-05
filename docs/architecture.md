@@ -148,12 +148,13 @@ table IDs, table payload byte counts and SHA-256 hashes, and SOS component table
 selectors, requires SOF0 and SOS component IDs to be `[1, 2, 3]`, requires the
 SOS component list to match SOF0 exactly, requires baseline SOS spectral fields
 `0/63/0`, requires DQT IDs `{0, 1}` with 8-bit precision and exact DQT/DHT
-segment counts, rejects nonstandard DHT table sets, rejects dangling table
-references, requires the encoder's baseline marker order of optional APP0/JFIF,
-DQT, SOF0, DHT, optional DRI, SOS, entropy, and EOI, records the parsed marker
-sequence, RST marker sequence, and MCU count in JSON evidence, rejects RST
-markers without DRI or out-of-sequence RST markers, and requires the SOF0
-sampling factors to match the supported 4:4:4 or 4:2:0 modes. The helper
+segment counts, rejects nonstandard DHT table sets and duplicate DQT/DHT table
+definitions, rejects dangling table references, requires the encoder's baseline
+marker order of optional APP0/JFIF, DQT, SOF0, DHT, optional DRI, SOS, entropy,
+and EOI, records the parsed marker sequence, RST marker sequence, and MCU count
+in JSON evidence, rejects RST markers without DRI or out-of-sequence RST
+markers, and requires the SOF0 sampling factors to match the supported 4:4:4 or
+4:2:0 modes. The helper
 can also run an external JPEG decoder command with a configurable timeout and
 bounded stdout/stderr capture so decoder-open evidence is captured in the same
 transcript without risking a hung or oversized validation run. Standalone

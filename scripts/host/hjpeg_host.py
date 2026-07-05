@@ -459,6 +459,8 @@ def jpeg_info(data: bytes) -> JpegInfo:
                 table_offset += 1 + table_bytes
                 if table_offset > segment_end:
                     raise ValueError("DQT segment table overruns segment length")
+                if table_id in quantization_table_details:
+                    raise ValueError(f"JPEG DQT table {table_id} is defined more than once")
                 quantization_tables.add(table_id)
                 quantization_table_details[table_id] = (
                     precision,
@@ -513,6 +515,11 @@ def jpeg_info(data: bytes) -> JpegInfo:
                 table_offset += 17 + value_count
                 if table_offset > segment_end:
                     raise ValueError("DHT segment table overruns segment length")
+                if (table_class, table_id) in huffman_tables:
+                    class_name = "DC" if table_class == 0 else "AC"
+                    raise ValueError(
+                        f"JPEG {class_name} DHT table {table_id} is defined more than once"
+                    )
                 huffman_tables[(table_class, table_id)] = (
                     value_count,
                     hashlib.sha256(count_bytes + symbol_bytes).hexdigest(),
