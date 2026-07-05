@@ -48,6 +48,13 @@ Report DRC
 No DRC violations found.
 """
 
+DRC_ZERO_COUNT_REPORT = """
+Report DRC
+----------
+
+0 Violations found.
+"""
+
 DRC_VIOLATION_TABLE = """
 Report DRC
 ----------
@@ -63,6 +70,14 @@ Design Route Status
 
 Number of Unrouted Nets: 0
 Number of Nets with Routing Errors: 0
+"""
+
+ROUTE_STATUS_VIVADO_VARIANT_REPORT = """
+Design Route Status
+-------------------
+
+# of nets not completely routed: 0
+# of nets with routing errors: 0
 """
 
 ROUTE_STATUS_BAD_REPORT = """
@@ -185,6 +200,13 @@ class CheckReportsTest(unittest.TestCase):
 
             self.assertEqual(check_reports.check_drc(report), [])
 
+    def test_check_drc_accepts_zero_count_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "post_impl_drc.rpt"
+            report.write_text(DRC_ZERO_COUNT_REPORT)
+
+            self.assertEqual(check_reports.check_drc(report), [])
+
     def test_check_route_status_reports_unrouted_nets(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             report = Path(tmp) / "post_impl_route_status.rpt"
@@ -202,6 +224,13 @@ class CheckReportsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             report = Path(tmp) / "post_impl_route_status.rpt"
             report.write_text(ROUTE_STATUS_CLEAN_REPORT)
+
+            self.assertEqual(check_reports.check_route_status(report), [])
+
+    def test_check_route_status_accepts_vivado_not_completely_routed_wording(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "post_impl_route_status.rpt"
+            report.write_text(ROUTE_STATUS_VIVADO_VARIANT_REPORT)
 
             self.assertEqual(check_reports.check_route_status(report), [])
 

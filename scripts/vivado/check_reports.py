@@ -26,9 +26,12 @@ DRC_TABLE_ROW_RE = re.compile(
     re.IGNORECASE,
 )
 DRC_MESSAGE_RE = re.compile(r"\b(?P<severity>CRITICAL WARNING|ERROR):\s*(?P<message>.+)", re.IGNORECASE)
-DRC_ZERO_RE = re.compile(r"\b(?:no drc violations found|violations found\s*[:=]\s*0)\b", re.IGNORECASE)
+DRC_ZERO_RE = re.compile(
+    r"\b(?:no drc violations found|violations found\s*[:=]\s*0|0\s+violations found)\b",
+    re.IGNORECASE,
+)
 ROUTE_STATUS_RE = re.compile(
-    r"^\s*(?:#\s*)?(?P<label>[A-Za-z0-9_ /-]*(?:unrouted|routing errors?)[A-Za-z0-9_ /-]*)\s*[:=]\s*(?P<count>\d+)\b",
+    r"^\s*(?:#\s*)?(?P<label>[A-Za-z0-9_ /-]*(?:unrouted|routing errors?|not completely routed)[A-Za-z0-9_ /-]*)\s*[:=]\s*(?P<count>\d+)\b",
     re.IGNORECASE,
 )
 IGNORED_UTILIZATION_ROWS = {"PS8"}
