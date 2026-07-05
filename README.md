@@ -150,8 +150,9 @@ target clock period/frequency, DRC violations, route-status counts, required
 clock-utilization report hashes, the requested input path lists and gate values,
 checked report/artifact count, per-category checked counts, required evidence
 category presence, per-category passing/failing counts, present and missing
-category names, required `.bit`/`.xsa` artifact suffix presence, present and
-missing required suffix names, required suffix passing/failing counts,
+category names, failing category names, required `.bit`/`.xsa` artifact suffix
+presence, present and missing required suffix names, failing required suffix
+names, required suffix passing/failing counts,
 required/present/missing category and suffix counts, aggregate pass/fail counts,
 diagnostic failure count, checked/passed/failed path lists, and pass/fail state
 in machine-readable build evidence.

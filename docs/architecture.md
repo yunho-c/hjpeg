@@ -124,9 +124,10 @@ hardware-tool entry points:
   violations, route-status counts, clock-utilization report hashes, requested
   input path lists and gate values, checked report/artifact count, per-category
   checked counts, required evidence category presence, per-category
-  passing/failing counts, present and missing category names, required
-  `.bit`/`.xsa` artifact suffix presence, present and missing required suffix
-  names, required suffix passing/failing counts, aggregate pass/fail counts,
+  passing/failing counts, present and missing category names, failing category
+  names, required `.bit`/`.xsa` artifact suffix presence, present and missing
+  required suffix names, failing required suffix names, required suffix
+  passing/failing counts, aggregate pass/fail counts,
   required/present/missing category and suffix counts, diagnostic failure count,
   checked/passed/failed path lists, and pass/fail state for build evidence logs.
   Required evidence category presence is based on at least

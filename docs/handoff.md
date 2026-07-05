@@ -419,9 +419,10 @@ with byte lengths, hashes, target clock period/frequency, parsed setup WNS and
 hold WHS, utilization rows, DRC violations, route-status counts, thresholds,
 requested input path lists and gate values, checked report/artifact count,
 per-category checked counts, required evidence category presence, present and
-missing category names, per-category passing/failing counts, required
-`.bit`/`.xsa` artifact suffix presence, present and missing required suffix
-names, required suffix passing/failing counts, aggregate pass/fail counts,
+missing category names, failing category names, per-category passing/failing
+counts, required `.bit`/`.xsa` artifact suffix presence, present and missing
+required suffix names, failing required suffix names, required suffix
+passing/failing counts, aggregate pass/fail counts,
 required/present/missing category and suffix counts, diagnostic failure count,
 checked/passed/failed path lists, and pass/fail state.
 Complete Vivado flow evidence should have `all_required_present` and
