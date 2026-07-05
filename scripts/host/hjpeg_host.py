@@ -795,8 +795,8 @@ def run_decoder_command(
     command: str,
     timeout_seconds: float = 30.0,
 ) -> DecoderCommandResult:
-    if timeout_seconds <= 0:
-        raise ValueError("decoder timeout must be positive")
+    if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
+        raise ValueError("decoder timeout must be finite and positive")
 
     argv = decoder_command_argv(jpeg, command)
 
@@ -1079,8 +1079,10 @@ def run_stream_devices(
     transfer_elapsed_seconds: list[float] | None = None,
 ) -> tuple[JpegInfo, FileInfo]:
     require_supported_dimensions(expected_width, expected_height, max_width, max_height)
-    if timeout_seconds is not None and timeout_seconds <= 0:
-        raise ValueError("timeout seconds must be positive")
+    if timeout_seconds is not None and (
+        not math.isfinite(timeout_seconds) or timeout_seconds <= 0
+    ):
+        raise ValueError("timeout seconds must be finite and positive")
     rgb = input_rgb.read_bytes()
     input_info = file_info(input_rgb, rgb)
     expected_input_bytes = expected_width * expected_height * 4

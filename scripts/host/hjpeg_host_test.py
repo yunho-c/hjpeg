@@ -1376,12 +1376,14 @@ class HjpegHostTest(unittest.TestCase):
                     f'"{sys.executable}" -c "import time; time.sleep(5)"',
                     timeout_seconds=0.1,
                 )
-            with self.assertRaisesRegex(ValueError, "decoder timeout"):
-                hjpeg_host.run_decoder_command(
-                    jpeg,
-                    f'"{sys.executable}" -c "pass"',
-                    timeout_seconds=0,
-                )
+            for timeout_seconds in (0, -1, float("nan"), float("inf"), float("-inf")):
+                with self.subTest(timeout_seconds=timeout_seconds):
+                    with self.assertRaisesRegex(ValueError, "decoder timeout"):
+                        hjpeg_host.run_decoder_command(
+                            jpeg,
+                            f'"{sys.executable}" -c "pass"',
+                            timeout_seconds=timeout_seconds,
+                        )
 
     def test_decoder_command_argv_appends_or_replaces_jpeg_path(self) -> None:
         jpeg = Path("captured output.jpg")
@@ -2217,17 +2219,19 @@ class HjpegHostTest(unittest.TestCase):
             input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
             rx_device.write_bytes(minimal_jpeg(width=2, height=1))
 
-            with self.assertRaisesRegex(ValueError, "timeout seconds"):
-                hjpeg_host.run_stream_devices(
-                    input_rgb=input_rgb,
-                    output_jpeg=root / "output.jpg",
-                    tx_device=tx_device,
-                    rx_device=rx_device,
-                    max_output_bytes=1024,
-                    expected_width=2,
-                    expected_height=1,
-                    timeout_seconds=0,
-                )
+            for timeout_seconds in (0, -1, float("nan"), float("inf"), float("-inf")):
+                with self.subTest(timeout_seconds=timeout_seconds):
+                    with self.assertRaisesRegex(ValueError, "timeout seconds"):
+                        hjpeg_host.run_stream_devices(
+                            input_rgb=input_rgb,
+                            output_jpeg=root / "output.jpg",
+                            tx_device=tx_device,
+                            rx_device=rx_device,
+                            max_output_bytes=1024,
+                            expected_width=2,
+                            expected_height=1,
+                            timeout_seconds=timeout_seconds,
+                        )
 
     def test_run_stream_devices_rejects_trailing_rx_data_after_eoi(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
