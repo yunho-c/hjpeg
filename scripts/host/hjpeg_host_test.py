@@ -1066,6 +1066,64 @@ class HjpegHostTest(unittest.TestCase):
             {"max_output_bytes": 1024, "timeout_seconds": None},
         )
 
+    def test_validate_jpeg_cli_rejects_invalid_decoder_timeout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "out.jpg"
+            jpeg.write_bytes(minimal_jpeg(width=2, height=1))
+
+            for timeout_seconds in ("0", "-1", "nan", "inf", "-inf"):
+                with self.subTest(timeout_seconds=timeout_seconds):
+                    with self.assertRaises(SystemExit):
+                        hjpeg_host.main(
+                            [
+                                "validate-jpeg",
+                                str(jpeg),
+                                "--width",
+                                "2",
+                                "--height",
+                                "1",
+                                f"--decoder-timeout-seconds={timeout_seconds}",
+                            ]
+                        )
+
+    def test_run_stream_devices_cli_rejects_invalid_capture_args(self) -> None:
+        common_args = [
+            "run-stream-devices",
+            "--base-addr",
+            "0",
+            "--tx-device",
+            "tx.dev",
+            "--rx-device",
+            "rx.dev",
+            "--input-rgb",
+            "input.rgb",
+            "--output-jpeg",
+            "output.jpg",
+            "--width",
+            "2",
+            "--height",
+            "1",
+        ]
+        invalid_cases = [
+            ("--max-output-bytes", "0"),
+            ("--max-output-bytes", "-1"),
+            ("--timeout-seconds", "0"),
+            ("--timeout-seconds", "-1"),
+            ("--timeout-seconds", "nan"),
+            ("--timeout-seconds", "inf"),
+            ("--timeout-seconds", "-inf"),
+            ("--decoder-timeout-seconds", "0"),
+            ("--decoder-timeout-seconds", "-1"),
+            ("--decoder-timeout-seconds", "nan"),
+            ("--decoder-timeout-seconds", "inf"),
+            ("--decoder-timeout-seconds", "-inf"),
+        ]
+
+        for option, value in invalid_cases:
+            with self.subTest(option=option, value=value):
+                with self.assertRaises(SystemExit):
+                    hjpeg_host.main([*common_args, f"{option}={value}"])
+
     def test_validate_jpeg_json_records_decoder_command(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             jpeg = Path(tmp) / "out.jpg"

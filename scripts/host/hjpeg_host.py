@@ -1335,6 +1335,20 @@ def _parse_int(value: str) -> int:
     return int(value, 0)
 
 
+def _positive_int(value: str) -> int:
+    parsed = int(value, 0)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("value must be positive")
+    return parsed
+
+
+def _positive_float(value: str) -> float:
+    parsed = float(value)
+    if not math.isfinite(parsed) or parsed <= 0:
+        raise argparse.ArgumentTypeError("value must be finite and positive")
+    return parsed
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="hjpeg KV260 host-side helpers")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -1387,7 +1401,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validate.add_argument(
         "--decoder-timeout-seconds",
-        type=float,
+        type=_positive_float,
         default=30.0,
         help="maximum seconds to wait for --decoder-command",
     )
@@ -1436,15 +1450,15 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--chroma-subsample", action="store_true")
     run.add_argument("--no-jfif", action="store_true")
     run.add_argument("--clear-error", action="store_true")
-    run.add_argument("--max-output-bytes", type=int, default=16 * 1024 * 1024)
-    run.add_argument("--timeout-seconds", type=float, default=30.0)
+    run.add_argument("--max-output-bytes", type=_positive_int, default=16 * 1024 * 1024)
+    run.add_argument("--timeout-seconds", type=_positive_float, default=30.0)
     run.add_argument(
         "--decoder-command",
         help="optional external decoder command to prove the captured JPEG opens",
     )
     run.add_argument(
         "--decoder-timeout-seconds",
-        type=float,
+        type=_positive_float,
         default=30.0,
         help="maximum seconds to wait for --decoder-command",
     )
