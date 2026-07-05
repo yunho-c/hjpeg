@@ -188,6 +188,7 @@ def run_stream_devices(
     expected_height: int,
     timeout_seconds: float | None = 30.0,
     configure: Callable[[], None] | None = None,
+    check_status: Callable[[str], None] | None = None,
 ) -> None:
     rgb = input_rgb.read_bytes()
     expected_input_bytes = expected_width * expected_height * 4
@@ -199,6 +200,8 @@ def run_stream_devices(
 
     if configure is not None:
         configure()
+    if check_status is not None:
+        check_status("before transfer")
 
     read_result: list[bytes] = []
     read_errors: list[BaseException] = []
@@ -231,6 +234,8 @@ def run_stream_devices(
     jpeg = read_result[0]
     output_jpeg.write_bytes(jpeg)
     validate_jpeg(output_jpeg, expected_width, expected_height)
+    if check_status is not None:
+        check_status("after transfer")
 
 
 class AxiLiteWindow:
@@ -318,6 +323,14 @@ def status_text(status: int) -> str:
     if status & STATUS_PROTOCOL_ERROR:
         flags.append("protocol_error")
     return ",".join(flags) if flags else "idle"
+
+
+def require_idle_status(regs: AxiLiteWindow, context: str = "status") -> None:
+    status = regs.read32(REG_STATUS)
+    if status & STATUS_BUSY:
+        raise RuntimeError(f"{context}: encoder is busy (status 0x{status:08x})")
+    if status & STATUS_PROTOCOL_ERROR:
+        raise RuntimeError(f"{context}: protocol_error is set (status 0x{status:08x})")
 
 
 def clear_protocol_error(regs: AxiLiteWindow) -> None:
@@ -448,6 +461,11 @@ def main(argv: list[str] | None = None) -> int:
                     emit_jfif=not args.no_jfif,
                     clear_error=args.clear_error,
                 )
+                require_idle_status(regs, "after configuration")
+
+        def check_status(context: str) -> None:
+            with AxiLiteWindow(args.dev, args.base_addr) as regs:
+                require_idle_status(regs, context)
 
         run_stream_devices(
             input_rgb=args.input_rgb,
@@ -459,6 +477,7 @@ def main(argv: list[str] | None = None) -> int:
             expected_height=args.height,
             timeout_seconds=args.timeout_seconds,
             configure=configure,
+            check_status=check_status,
         )
         print(f"captured validated JPEG to {args.output_jpeg}")
         return 0

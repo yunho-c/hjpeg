@@ -171,6 +171,8 @@ byte write strobes.
 
 Recent commits, newest first:
 
+- `2240abe fix: close kv260 implementation timing`
+- `7dae97e fix: reduce transform synthesis pressure`
 - `d3158ae fix: align kv260 dma stream width`
 - `2c2b15f fix: unblock windows vivado bringup`
 - `e1cdde3 test: validate AXI RGB lane order`
@@ -259,9 +261,12 @@ python3 scripts/vivado/check_reports.py \
 
 Known local limitations:
 
-- Full ChiselSim tests on Windows/MSYS currently fail before simulation because
-  the generated `make clean` command uses Windows `cmd` syntax while MSYS
-  `/bin/sh` executes the recipe.
+- Full ChiselSim tests on Windows/MSYS currently fail before simulation or
+  harness compilation because svsim emits Windows-style Makefile/file-list paths
+  while MSYS `make`, Verilator, and the MinGW/UCRT C++ toolchain consume parts
+  of the flow as POSIX paths. A local shim proved the first `make clean` failure
+  can be bypassed, but the generated harness then hit path normalization issues
+  and a missing POSIX `getline` symbol in the MinGW build.
 - The current block-design Vivado reports pass the default 100 MHz
   setup/utilization gates. Latest artifact reports show post-synthesis setup WNS
   `+0.807 ns` and post-implementation setup WNS `+0.131 ns`; post-implementation
@@ -370,6 +375,11 @@ Hardware completion evidence should include:
 - `validate-jpeg` confirms the expected dimensions.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
+
+The `run-stream-devices` host helper now checks AXI-Lite status after
+configuration, before streaming RGB input, and after validating the captured
+JPEG. It fails if the encoder reports `busy` or `protocol_error` at any of those
+checkpoints.
 
 ## Known Blockers And Bottlenecks
 

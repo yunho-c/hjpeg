@@ -123,6 +123,11 @@ Expected evidence:
 - `protocol_error` is never reported for the valid frame.
 - The captured output starts with SOI and ends with EOI.
 
+The `run-stream-devices` helper checks the AXI-Lite status register after
+configuration, immediately before streaming input, and after validating the
+captured JPEG. It exits with an error if `busy` or `protocol_error` is set at
+any of those points.
+
 ## 7. Validate JPEG Output
 
 ```sh

@@ -134,6 +134,7 @@ class HjpegHostTest(unittest.TestCase):
             rx_device.write_bytes(minimal_jpeg(width=2, height=1) + b"ignored")
 
             configured = []
+            status_checks = []
             hjpeg_host.run_stream_devices(
                 input_rgb=input_rgb,
                 output_jpeg=output_jpeg,
@@ -144,9 +145,11 @@ class HjpegHostTest(unittest.TestCase):
                 expected_height=1,
                 timeout_seconds=1.0,
                 configure=lambda: configured.append(True),
+                check_status=lambda context: status_checks.append(context),
             )
 
             self.assertEqual(configured, [True])
+            self.assertEqual(status_checks, ["before transfer", "after transfer"])
             self.assertEqual(tx_device.read_bytes(), bytes([1, 2, 3, 0, 4, 5, 6, 0]))
             self.assertEqual(output_jpeg.read_bytes(), minimal_jpeg(width=2, height=1))
 
@@ -170,6 +173,22 @@ class HjpegHostTest(unittest.TestCase):
                     expected_height=1,
                     timeout_seconds=1.0,
                 )
+
+    def test_require_idle_status_rejects_busy_and_protocol_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            mem = Path(tmp) / "mem.bin"
+            mem.write_bytes(bytes(hjpeg_host.AXI_LITE_APERTURE_BYTES))
+
+            with hjpeg_host.AxiLiteWindow(mem, 0) as regs:
+                hjpeg_host.require_idle_status(regs, "initial")
+
+                regs.write32(hjpeg_host.REG_STATUS, hjpeg_host.STATUS_BUSY)
+                with self.assertRaisesRegex(RuntimeError, "busy"):
+                    hjpeg_host.require_idle_status(regs, "before transfer")
+
+                regs.write32(hjpeg_host.REG_STATUS, hjpeg_host.STATUS_PROTOCOL_ERROR)
+                with self.assertRaisesRegex(RuntimeError, "protocol_error"):
+                    hjpeg_host.require_idle_status(regs, "after transfer")
 
 
 if __name__ == "__main__":
