@@ -1262,6 +1262,10 @@ def run_stream_devices(
 ) -> tuple[JpegInfo, FileInfo]:
     require_supported_dimensions(expected_width, expected_height, max_width, max_height)
     require_capture_config(max_output_bytes, timeout_seconds)
+    if not 1 <= quality <= 100:
+        raise ValueError("quality must be in 1..100")
+    if expected_restart_interval is not None and not 0 <= expected_restart_interval <= 0xFFFF:
+        raise ValueError("restart interval must be in 0..65535")
     rgb = input_rgb.read_bytes()
     input_info = file_info(input_rgb, rgb)
     expected_input_bytes = expected_width * expected_height * 4

@@ -2550,6 +2550,40 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(configured, [])
             self.assertFalse(tx_device.exists())
 
+    def test_run_stream_devices_rejects_invalid_quality_and_restart_before_io(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            tx_device = root / "tx.dev"
+            rx_device = root / "rx.dev"
+            configured = []
+            cases = (
+                {"quality": 0, "message": "quality"},
+                {"quality": 101, "message": "quality"},
+                {"expected_restart_interval": -1, "message": "restart interval"},
+                {"expected_restart_interval": 0x10000, "message": "restart interval"},
+            )
+
+            for case in cases:
+                with self.subTest(case=case):
+                    message = str(case["message"])
+                    kwargs = {key: value for key, value in case.items() if key != "message"}
+                    with self.assertRaisesRegex(ValueError, message):
+                        hjpeg_host.run_stream_devices(
+                            input_rgb=root / "missing.rgb",
+                            output_jpeg=root / "output.jpg",
+                            tx_device=tx_device,
+                            rx_device=rx_device,
+                            max_output_bytes=1024,
+                            expected_width=2,
+                            expected_height=1,
+                            timeout_seconds=1.0,
+                            configure=lambda: configured.append(True),
+                            **kwargs,
+                        )
+
+            self.assertEqual(configured, [])
+            self.assertFalse(tx_device.exists())
+
     def test_run_stream_devices_rejects_trailing_rx_data_after_eoi(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
