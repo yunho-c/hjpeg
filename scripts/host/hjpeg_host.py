@@ -931,6 +931,37 @@ def file_info_record(info: FileInfo) -> dict[str, object]:
     }
 
 
+def ppm_image_stats(image: PpmImage) -> dict[str, object]:
+    if len(image.rgb) != image.width * image.height * 3:
+        raise ValueError("PPM RGB payload length does not match dimensions")
+    pixels = zip(image.rgb[0::3], image.rgb[1::3], image.rgb[2::3])
+    first_pixel: tuple[int, int, int] | None = None
+    min_r = min_g = min_b = 255
+    max_r = max_g = max_b = 0
+    non_flat = False
+    has_color_pixels = False
+    for pixel in pixels:
+        r, g, b = pixel
+        if first_pixel is None:
+            first_pixel = pixel
+        elif pixel != first_pixel:
+            non_flat = True
+        has_color_pixels = has_color_pixels or r != g or r != b
+        min_r = min(min_r, r)
+        min_g = min(min_g, g)
+        min_b = min(min_b, b)
+        max_r = max(max_r, r)
+        max_g = max(max_g, g)
+        max_b = max(max_b, b)
+
+    return {
+        "channel_min": {"r": min_r, "g": min_g, "b": min_b},
+        "channel_max": {"r": max_r, "g": max_g, "b": max_b},
+        "non_flat": non_flat,
+        "has_color_pixels": has_color_pixels,
+    }
+
+
 def ppm_evidence_record(path: Path, image: PpmImage) -> dict[str, object]:
     record = file_info_record(file_info(path, path.read_bytes()))
     record.update(
@@ -938,6 +969,7 @@ def ppm_evidence_record(path: Path, image: PpmImage) -> dict[str, object]:
             "width": image.width,
             "height": image.height,
             "rgb_bytes": len(image.rgb),
+            "image_stats": ppm_image_stats(image),
         }
     )
     return record

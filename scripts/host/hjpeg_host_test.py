@@ -617,6 +617,15 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["output_ppm"]["width"], 3)
             self.assertEqual(record["output_ppm"]["height"], 2)
             self.assertEqual(record["output_ppm"]["rgb_bytes"], 18)
+            self.assertEqual(
+                record["output_ppm"]["image_stats"],
+                {
+                    "channel_min": {"r": 0, "g": 0, "b": 0},
+                    "channel_max": {"r": 255, "g": 255, "b": 127},
+                    "non_flat": True,
+                    "has_color_pixels": True,
+                },
+            )
             self.assertEqual(record["output_ppm"]["byte_length"], len(ppm_bytes))
             self.assertEqual(
                 record["output_ppm"]["sha256"],
@@ -662,6 +671,15 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["expected_rgb_stream_bytes"], 8)
             self.assertEqual(record["input_ppm"]["path"], str(ppm))
             self.assertEqual(record["input_ppm"]["byte_length"], len(ppm_bytes))
+            self.assertEqual(
+                record["input_ppm"]["image_stats"],
+                {
+                    "channel_min": {"r": 1, "g": 2, "b": 3},
+                    "channel_max": {"r": 4, "g": 5, "b": 6},
+                    "non_flat": True,
+                    "has_color_pixels": True,
+                },
+            )
             self.assertEqual(
                 record["input_ppm"]["sha256"],
                 hashlib.sha256(ppm_bytes).hexdigest(),

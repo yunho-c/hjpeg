@@ -105,7 +105,8 @@ Expected evidence:
 - `input.rgb` size is exactly `width * height * 4` bytes: R, G, B, and one
   ignored padding byte per pixel.
 - The JSON evidence records input/output paths, dimensions, byte lengths, and
-  SHA-256 hashes for the PPM fixture and packed RGB stream.
+  SHA-256 hashes for the PPM fixture and packed RGB stream, plus PPM
+  per-channel min/max values and non-flat/color flags.
 - The input image dimensions are within the configured `HjpegConfig` maximums.
   The host helper defaults to the current KV260 top limit of `1920x1080`; use
   `--max-width` and `--max-height` only for a custom elaboration with different

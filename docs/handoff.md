@@ -502,7 +502,8 @@ any of those points, or if the captured JPEG metadata contradicts the configured
 restart interval, chroma mode, or JFIF setting. It also rejects trailing bytes
 already returned after the first JPEG EOI instead of writing a truncated
 artifact. `make-test-ppm` can generate a deterministic non-flat/color P6 PPM
-fixture for repeatable visual checks when no external image is available. Pass
+fixture for repeatable visual checks when no external image is available; PPM
+JSON evidence records channel min/max values plus non-flat/color flags. Pass
 `--decoder-command 'magick identify {jpeg}'` or an equivalent installed decoder
 command to `validate-jpeg` or `run-stream-devices` when you want the standard
 decoder-open check captured in JSON evidence. Use
