@@ -388,6 +388,14 @@ class CheckReportsTest(unittest.TestCase):
                         "route_status": 0,
                         "clock_utilization": 0,
                     },
+                    "present_required_categories": [
+                        "artifacts",
+                        "timing",
+                        "utilization",
+                        "drc",
+                        "route_status",
+                        "clock_utilization",
+                    ],
                     "missing_required_categories": [],
                     "all_required_present": True,
                 },
@@ -403,6 +411,7 @@ class CheckReportsTest(unittest.TestCase):
                     "required_suffixes_present": {".bit": True, ".xsa": True},
                     "present_suffix_count": 2,
                     "missing_suffix_count": 0,
+                    "present_required_suffixes": [".bit", ".xsa"],
                     "missing_required_suffixes": [],
                     "all_required_suffixes_present": True,
                 },
@@ -532,6 +541,7 @@ class CheckReportsTest(unittest.TestCase):
             record["missing_required_categories"],
             list(check_reports.REQUIRED_EVIDENCE_CATEGORIES),
         )
+        self.assertEqual(record["present_required_categories"], [])
         self.assertFalse(record["all_required_present"])
         self.assertEqual(
             record["required_category_count"],
@@ -572,6 +582,7 @@ class CheckReportsTest(unittest.TestCase):
             record["missing_required_suffixes"],
             list(check_reports.REQUIRED_ARTIFACT_SUFFIXES),
         )
+        self.assertEqual(record["present_required_suffixes"], [])
         self.assertFalse(record["all_required_suffixes_present"])
         self.assertEqual(
             record["required_suffix_count"],
@@ -658,6 +669,7 @@ class CheckReportsTest(unittest.TestCase):
                     "required_suffixes_present": {".bit": False, ".xsa": False},
                     "present_suffix_count": 0,
                     "missing_suffix_count": 2,
+                    "present_required_suffixes": [],
                     "missing_required_suffixes": [".bit", ".xsa"],
                     "all_required_suffixes_present": False,
                 },
@@ -707,6 +719,7 @@ class CheckReportsTest(unittest.TestCase):
                     "required_suffixes_present": {".bit": False, ".xsa": False},
                     "present_suffix_count": 0,
                     "missing_suffix_count": 2,
+                    "present_required_suffixes": [],
                     "missing_required_suffixes": [".bit", ".xsa"],
                     "all_required_suffixes_present": False,
                 },

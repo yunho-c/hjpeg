@@ -466,6 +466,9 @@ def evidence_category_record(
         category: passing_counts[category] > 0
         for category in REQUIRED_EVIDENCE_CATEGORIES
     }
+    present_categories = [
+        category for category, is_present in present.items() if is_present
+    ]
     missing = [category for category, is_present in present.items() if not is_present]
     present_count = sum(1 for is_present in present.values() if is_present)
     return {
@@ -476,6 +479,7 @@ def evidence_category_record(
         "missing_category_count": len(missing),
         "passing_counts": passing_counts,
         "failing_counts": failing_counts,
+        "present_required_categories": present_categories,
         "missing_required_categories": missing,
         "all_required_present": not missing,
     }
@@ -497,6 +501,9 @@ def artifact_suffix_record(artifact_records: list[dict[str, object]]) -> dict[st
         elif record.get("passed") is not True and suffix in present:
             failing_suffix_counts[suffix] = failing_suffix_counts.get(suffix, 0) + 1
 
+    present_suffixes = [
+        suffix for suffix, is_present in present.items() if is_present
+    ]
     missing = [suffix for suffix, is_present in present.items() if not is_present]
     present_count = sum(1 for is_present in present.values() if is_present)
     return {
@@ -508,6 +515,7 @@ def artifact_suffix_record(artifact_records: list[dict[str, object]]) -> dict[st
         "required_suffixes_present": present,
         "present_suffix_count": present_count,
         "missing_suffix_count": len(missing),
+        "present_required_suffixes": present_suffixes,
         "missing_required_suffixes": missing,
         "all_required_suffixes_present": not missing,
     }
