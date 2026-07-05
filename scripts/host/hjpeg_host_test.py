@@ -12,7 +12,8 @@ from pathlib import Path
 import hjpeg_host
 
 
-def minimal_jpeg(width: int, height: int) -> bytes:
+def minimal_jpeg(width: int, height: int, chroma_subsample: bool = False) -> bytes:
+    y_sampling = 0x22 if chroma_subsample else 0x11
     return bytes(
         [
             0xFF,
@@ -32,16 +33,22 @@ def minimal_jpeg(width: int, height: int) -> bytes:
             0xFF,
             0xC0,
             0x00,
-            0x0B,
+            0x11,
             0x08,
             (height >> 8) & 0xFF,
             height & 0xFF,
             (width >> 8) & 0xFF,
             width & 0xFF,
+            0x03,
             0x01,
-            0x01,
-            0x11,
+            y_sampling,
             0x00,
+            0x02,
+            0x11,
+            0x01,
+            0x03,
+            0x11,
+            0x01,
             0xFF,
             0xC4,
             0x00,
@@ -51,12 +58,24 @@ def minimal_jpeg(width: int, height: int) -> bytes:
             0x01,
             0x00,
             0xFF,
+            0xC4,
+            0x00,
+            0x14,
+            0x10,
+            *([0x00] * 15),
+            0x01,
+            0x00,
+            0xFF,
             0xDA,
             0x00,
-            0x08,
-            0x01,
+            0x0C,
+            0x03,
             0x01,
             0x00,
+            0x02,
+            0x11,
+            0x03,
+            0x11,
             0x00,
             0x3F,
             0x00,
@@ -97,17 +116,29 @@ def without_segment(jpeg: bytes, marker: bytes) -> bytes:
     return jpeg[:marker_offset] + jpeg[length_offset + segment_length :]
 
 
+def without_all_segments(jpeg: bytes, marker: bytes) -> bytes:
+    stripped = jpeg
+    while stripped.find(marker) >= 0:
+        stripped = without_segment(stripped, marker)
+    return stripped
+
+
 def minimal_jpeg_info(width: int, height: int) -> hjpeg_host.JpegInfo:
     data = minimal_jpeg(width, height)
     return hjpeg_host.JpegInfo(
         width=width,
         height=height,
+        components=(
+            hjpeg_host.JpegComponent(1, 1, 1, 0),
+            hjpeg_host.JpegComponent(2, 1, 1, 1),
+            hjpeg_host.JpegComponent(3, 1, 1, 1),
+        ),
         scan_data_bytes=1,
         byte_length=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
         app0_segments=1,
         dqt_segments=1,
-        dht_segments=1,
+        dht_segments=2,
         dri_segments=0,
         restart_interval=None,
         restart_markers=0,
@@ -306,10 +337,15 @@ class HjpegHostTest(unittest.TestCase):
 
             self.assertEqual(hjpeg_host.jpeg_dimensions(jpeg.read_bytes()), (17, 13))
             parsed = hjpeg_host.jpeg_info(jpeg.read_bytes())
+            self.assertEqual(len(parsed.components), 3)
+            self.assertEqual(parsed.components[0], hjpeg_host.JpegComponent(1, 1, 1, 0))
+            self.assertEqual(parsed.components[1], hjpeg_host.JpegComponent(2, 1, 1, 1))
+            self.assertEqual(parsed.components[2], hjpeg_host.JpegComponent(3, 1, 1, 1))
+            self.assertEqual(hjpeg_host.jpeg_chroma_mode(parsed), "4:4:4")
             self.assertEqual(parsed.scan_data_bytes, 1)
             self.assertEqual(parsed.app0_segments, 1)
             self.assertEqual(parsed.dqt_segments, 1)
-            self.assertEqual(parsed.dht_segments, 1)
+            self.assertEqual(parsed.dht_segments, 2)
             self.assertEqual(parsed.dri_segments, 0)
             self.assertIsNone(parsed.restart_interval)
             self.assertEqual(parsed.restart_markers, 0)
@@ -383,10 +419,16 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["jpeg"], str(jpeg))
             self.assertEqual(record["width"], 17)
             self.assertEqual(record["height"], 13)
+            self.assertEqual(record["component_count"], 3)
+            self.assertEqual(record["chroma_mode"], "4:4:4")
+            self.assertEqual(record["components"][0]["component_id"], 1)
+            self.assertEqual(record["components"][0]["horizontal_sampling"], 1)
+            self.assertEqual(record["components"][0]["vertical_sampling"], 1)
+            self.assertEqual(record["components"][0]["quantization_table"], 0)
             self.assertEqual(record["scan_data_bytes"], 1)
             self.assertEqual(record["app0_segments"], 1)
             self.assertEqual(record["dqt_segments"], 1)
-            self.assertEqual(record["dht_segments"], 1)
+            self.assertEqual(record["dht_segments"], 2)
             self.assertEqual(record["dri_segments"], 0)
             self.assertIsNone(record["restart_interval"])
             self.assertEqual(record["restart_markers"], 0)
@@ -490,6 +532,69 @@ class HjpegHostTest(unittest.TestCase):
                 )
             self.assertEqual(json.loads(stdout.getvalue())["restart_interval"], 4)
 
+    def test_validate_jpeg_can_check_expected_chroma_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            jpeg_444 = root / "444.jpg"
+            jpeg_420 = root / "420.jpg"
+            jpeg_444.write_bytes(minimal_jpeg(width=17, height=13))
+            jpeg_420.write_bytes(minimal_jpeg(width=17, height=13, chroma_subsample=True))
+
+            info_444 = hjpeg_host.validate_jpeg(
+                jpeg_444,
+                expected_width=17,
+                expected_height=13,
+                expected_chroma_subsample=False,
+            )
+            info_420 = hjpeg_host.validate_jpeg(
+                jpeg_420,
+                expected_width=17,
+                expected_height=13,
+                expected_chroma_subsample=True,
+            )
+            self.assertEqual(hjpeg_host.jpeg_chroma_mode(info_444), "4:4:4")
+            self.assertEqual(hjpeg_host.jpeg_chroma_mode(info_420), "4:2:0")
+
+            with self.assertRaisesRegex(ValueError, "expected 4:2:0"):
+                hjpeg_host.validate_jpeg(
+                    jpeg_444,
+                    expected_width=17,
+                    expected_height=13,
+                    expected_chroma_subsample=True,
+                )
+            with self.assertRaisesRegex(ValueError, "expected 4:4:4"):
+                hjpeg_host.validate_jpeg(
+                    jpeg_420,
+                    expected_width=17,
+                    expected_height=13,
+                    expected_chroma_subsample=False,
+                )
+
+    def test_validate_jpeg_cli_can_check_chroma_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "420.jpg"
+            jpeg.write_bytes(minimal_jpeg(width=17, height=13, chroma_subsample=True))
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "validate-jpeg",
+                            str(jpeg),
+                            "--width",
+                            "17",
+                            "--height",
+                            "13",
+                            "--chroma-subsample",
+                            "--check-chroma-mode",
+                            "--json",
+                        ]
+                    ),
+                    0,
+                )
+            self.assertEqual(json.loads(stdout.getvalue())["chroma_mode"], "4:2:0")
+
     def test_decoder_command_supports_placeholder_and_reports_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             jpeg = Path(tmp) / "out.jpg"
@@ -540,7 +645,7 @@ class HjpegHostTest(unittest.TestCase):
             missing_dqt = root / "missing-dqt.jpg"
             missing_dht = root / "missing-dht.jpg"
             missing_dqt.write_bytes(without_segment(minimal_jpeg(width=17, height=13), b"\xff\xdb"))
-            missing_dht.write_bytes(without_segment(minimal_jpeg(width=17, height=13), b"\xff\xc4"))
+            missing_dht.write_bytes(without_all_segments(minimal_jpeg(width=17, height=13), b"\xff\xc4"))
 
             with self.assertRaisesRegex(ValueError, "DQT"):
                 hjpeg_host.validate_jpeg(missing_dqt, expected_width=17, expected_height=13)
@@ -819,7 +924,11 @@ class HjpegHostTest(unittest.TestCase):
             mem = root / "mem.bin"
             decoder_marker = root / "decoder.txt"
             input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
-            rx_device.write_bytes(with_dri_segment(minimal_jpeg(width=2, height=1), 2))
+            captured_jpeg = with_dri_segment(
+                minimal_jpeg(width=2, height=1, chroma_subsample=True),
+                2,
+            )
+            rx_device.write_bytes(captured_jpeg)
             mem.write_bytes(bytes(hjpeg_host.AXI_LITE_APERTURE_BYTES))
             decoder_command = (
                 f'"{sys.executable}" -c "import pathlib, sys; '
@@ -865,13 +974,14 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["jpeg"], str(output_jpeg))
             self.assertEqual(record["width"], 2)
             self.assertEqual(record["height"], 1)
+            self.assertEqual(record["chroma_mode"], "4:2:0")
             self.assertEqual(record["dri_segments"], 1)
             self.assertEqual(record["restart_interval"], 2)
             self.assertEqual(record["scan_data_bytes"], 1)
-            self.assertEqual(record["byte_length"], len(with_dri_segment(minimal_jpeg(width=2, height=1), 2)))
+            self.assertEqual(record["byte_length"], len(captured_jpeg))
             self.assertEqual(
                 record["sha256"],
-                hashlib.sha256(with_dri_segment(minimal_jpeg(width=2, height=1), 2)).hexdigest(),
+                hashlib.sha256(captured_jpeg).hexdigest(),
             )
             self.assertEqual(record["input_rgb"]["path"], str(input_rgb))
             self.assertEqual(record["input_rgb"]["byte_length"], 8)
@@ -945,6 +1055,29 @@ class HjpegHostTest(unittest.TestCase):
                     expected_width=2,
                     expected_height=1,
                     expected_restart_interval=2,
+                    timeout_seconds=1.0,
+                )
+
+    def test_run_stream_devices_rejects_chroma_mode_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_rgb = root / "input.rgb"
+            output_jpeg = root / "output.jpg"
+            tx_device = root / "tx.dev"
+            rx_device = root / "rx.dev"
+            input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
+            rx_device.write_bytes(minimal_jpeg(width=2, height=1))
+
+            with self.assertRaisesRegex(ValueError, "expected 4:2:0"):
+                hjpeg_host.run_stream_devices(
+                    input_rgb=input_rgb,
+                    output_jpeg=output_jpeg,
+                    tx_device=tx_device,
+                    rx_device=rx_device,
+                    max_output_bytes=1024,
+                    expected_width=2,
+                    expected_height=1,
+                    expected_chroma_subsample=True,
                     timeout_seconds=1.0,
                 )
 

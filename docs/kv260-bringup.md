@@ -164,6 +164,7 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
   --width WIDTH \
   --height HEIGHT \
   --restart-interval RESTART_INTERVAL \
+  --check-chroma-mode \
   --decoder-command 'magick identify {jpeg}'
 ```
 
@@ -182,6 +183,10 @@ Expected evidence:
   `--restart-interval` to standalone `validate-jpeg` to check the expected
   value; `run-stream-devices` checks this automatically against the configured
   register value.
+- The helper records SOF0 component sampling factors and the inferred chroma
+  mode. Pass `--check-chroma-mode` to standalone `validate-jpeg`;
+  `run-stream-devices` checks this automatically against the configured chroma
+  mode.
 - The helper reports the total JPEG byte length and SHA-256 so the captured
   artifact can be matched against saved files and logs.
 - For `run-stream-devices`, the helper reports the input RGB stream byte length

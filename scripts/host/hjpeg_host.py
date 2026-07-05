@@ -58,9 +58,18 @@ class PpmImage:
 
 
 @dataclass(frozen=True)
+class JpegComponent:
+    component_id: int
+    horizontal_sampling: int
+    vertical_sampling: int
+    quantization_table: int
+
+
+@dataclass(frozen=True)
 class JpegInfo:
     width: int
     height: int
+    components: tuple[JpegComponent, ...]
     scan_data_bytes: int
     byte_length: int
     sha256: str
@@ -182,6 +191,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
 
     offset = 2
     dimensions: tuple[int, int] | None = None
+    components: tuple[JpegComponent, ...] = ()
     scan_data_bytes = 0
     app0_segments = 0
     dqt_segments = 0
@@ -226,7 +236,23 @@ def jpeg_info(data: bytes) -> JpegInfo:
                 raise ValueError("SOF0 segment is too short")
             height = _read_be16(data, offset + 3)
             width = _read_be16(data, offset + 5)
+            component_count = data[offset + 7]
+            if segment_length != 8 + component_count * 3:
+                raise ValueError("SOF0 segment length does not match component count")
+            parsed_components = []
+            for component_index in range(component_count):
+                component_offset = offset + 8 + component_index * 3
+                sampling = data[component_offset + 1]
+                parsed_components.append(
+                    JpegComponent(
+                        component_id=data[component_offset],
+                        horizontal_sampling=(sampling >> 4) & 0x0F,
+                        vertical_sampling=sampling & 0x0F,
+                        quantization_table=data[component_offset + 2],
+                    )
+                )
             dimensions = (width, height)
+            components = tuple(parsed_components)
 
         if marker == 0xC4:
             dht_segments += 1
@@ -270,6 +296,7 @@ def jpeg_info(data: bytes) -> JpegInfo:
     return JpegInfo(
         width=dimensions[0],
         height=dimensions[1],
+        components=components,
         scan_data_bytes=scan_data_bytes,
         byte_length=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
@@ -285,6 +312,39 @@ def jpeg_info(data: bytes) -> JpegInfo:
 def jpeg_dimensions(data: bytes) -> tuple[int, int]:
     info = jpeg_info(data)
     return info.width, info.height
+
+
+def jpeg_chroma_mode(info: JpegInfo) -> str:
+    if len(info.components) != 3:
+        return "unknown"
+
+    y, cb, cr = info.components
+    if (
+        y.horizontal_sampling == 1
+        and y.vertical_sampling == 1
+        and cb.horizontal_sampling == 1
+        and cb.vertical_sampling == 1
+        and cr.horizontal_sampling == 1
+        and cr.vertical_sampling == 1
+    ):
+        return "4:4:4"
+    if (
+        y.horizontal_sampling == 2
+        and y.vertical_sampling == 2
+        and cb.horizontal_sampling == 1
+        and cb.vertical_sampling == 1
+        and cr.horizontal_sampling == 1
+        and cr.vertical_sampling == 1
+    ):
+        return "4:2:0"
+    return "unknown"
+
+
+def require_chroma_mode(info: JpegInfo, expected_chroma_subsample: bool) -> None:
+    expected = "4:2:0" if expected_chroma_subsample else "4:4:4"
+    actual = jpeg_chroma_mode(info)
+    if actual != expected:
+        raise ValueError(f"JPEG chroma mode is {actual}, expected {expected}")
 
 
 def require_restart_interval(info: JpegInfo, expected_restart_interval: int) -> None:
@@ -306,6 +366,7 @@ def validate_jpeg(
     expected_width: int,
     expected_height: int,
     expected_restart_interval: int | None = None,
+    expected_chroma_subsample: bool | None = None,
 ) -> JpegInfo:
     data = path.read_bytes()
     if len(data) < 4:
@@ -322,6 +383,8 @@ def validate_jpeg(
         )
     if expected_restart_interval is not None:
         require_restart_interval(info, expected_restart_interval)
+    if expected_chroma_subsample is not None:
+        require_chroma_mode(info, expected_chroma_subsample)
     return info
 
 
@@ -375,6 +438,17 @@ def jpeg_info_record(
         "jpeg": str(jpeg),
         "width": info.width,
         "height": info.height,
+        "component_count": len(info.components),
+        "components": [
+            {
+                "component_id": component.component_id,
+                "horizontal_sampling": component.horizontal_sampling,
+                "vertical_sampling": component.vertical_sampling,
+                "quantization_table": component.quantization_table,
+            }
+            for component in info.components
+        ],
+        "chroma_mode": jpeg_chroma_mode(info),
         "scan_data_bytes": info.scan_data_bytes,
         "app0_segments": info.app0_segments,
         "dqt_segments": info.dqt_segments,
@@ -472,6 +546,7 @@ def run_stream_devices(
     expected_width: int,
     expected_height: int,
     expected_restart_interval: int | None = None,
+    expected_chroma_subsample: bool | None = None,
     max_width: int = DEFAULT_MAX_FRAME_WIDTH,
     max_height: int = DEFAULT_MAX_FRAME_HEIGHT,
     timeout_seconds: float | None = 30.0,
@@ -529,6 +604,7 @@ def run_stream_devices(
         expected_width,
         expected_height,
         expected_restart_interval=expected_restart_interval,
+        expected_chroma_subsample=expected_chroma_subsample,
     )
     if decoder_command is not None:
         run_decoder_command(output_jpeg, decoder_command)
@@ -734,6 +810,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional expected DRI restart interval; use 0 to require no DRI/RST markers",
     )
     validate.add_argument(
+        "--chroma-subsample",
+        action="store_true",
+        help="require JPEG SOF0 sampling factors for 4:2:0 instead of 4:4:4",
+    )
+    validate.add_argument(
+        "--check-chroma-mode",
+        action="store_true",
+        help="check SOF0 sampling factors against --chroma-subsample",
+    )
+    validate.add_argument(
         "--decoder-command",
         help="optional external decoder command; {jpeg} is replaced with the JPEG path, otherwise the path is appended",
     )
@@ -845,6 +931,7 @@ def main(argv: list[str] | None = None) -> int:
             args.width,
             args.height,
             expected_restart_interval=args.restart_interval,
+            expected_chroma_subsample=args.chroma_subsample if args.check_chroma_mode else None,
         )
         decoder_passed = None
         if args.decoder_command is not None:
@@ -964,6 +1051,7 @@ def main(argv: list[str] | None = None) -> int:
             expected_width=args.width,
             expected_height=args.height,
             expected_restart_interval=args.restart_interval,
+            expected_chroma_subsample=args.chroma_subsample,
             max_width=args.max_width,
             max_height=args.max_height,
             timeout_seconds=args.timeout_seconds,
