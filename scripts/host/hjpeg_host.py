@@ -231,7 +231,11 @@ def _read_ppm_token(stream: BinaryIO) -> bytes:
     return bytes(token)
 
 
-def read_ppm(path: Path) -> PpmImage:
+def read_ppm(
+    path: Path,
+    max_width: int | None = None,
+    max_height: int | None = None,
+) -> PpmImage:
     with path.open("rb") as stream:
         magic = _read_ppm_token(stream)
         if magic != b"P6":
@@ -244,6 +248,13 @@ def read_ppm(path: Path) -> PpmImage:
             raise ValueError("PPM dimensions must be positive")
         if max_value != 255:
             raise ValueError("only 8-bit P6 PPM files with max value 255 are supported")
+        if max_width is not None or max_height is not None:
+            require_supported_dimensions(
+                width,
+                height,
+                max_width if max_width is not None else width,
+                max_height if max_height is not None else height,
+            )
 
         expected = width * height * 3
         rgb = stream.read(expected)
@@ -1488,8 +1499,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
     if args.command == "pack-ppm":
-        image = read_ppm(args.input)
-        require_supported_dimensions(image.width, image.height, args.max_width, args.max_height)
+        image = read_ppm(args.input, args.max_width, args.max_height)
         write_rgb_stream(image, args.output)
         if args.json:
             output_data = args.output.read_bytes()

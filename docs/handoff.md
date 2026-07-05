@@ -301,6 +301,8 @@ stage or wrapper equivalence tests for exact protocol/lane invariants.
 Recent host/Vivado helper work made the evidence path machine-readable. The
 host helper now supports JSON evidence for `make-test-ppm`, `pack-ppm`,
 `config`, `status`, `clear-error`, `validate-jpeg`, and `run-stream-devices`.
+`pack-ppm` checks configured frame limits immediately after parsing the PPM
+header, before reading the RGB payload.
 Standalone status evidence records the AXI-Lite target along with the raw and
 decoded status word. Clear-error evidence records the AXI-Lite target and
 control word used to pulse sticky fault recovery. Configuration and run

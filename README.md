@@ -194,7 +194,8 @@ repeatable board bring-up. `pack-ppm` accepts binary P6 PPM and writes one
 By default, host-side input preparation and hardware configuration reject frames
 outside the default RTL top's `1920x1080` limit; pass `--max-width` and
 `--max-height` only when testing a custom elaboration with different
-`HjpegConfig` frame limits.
+`HjpegConfig` frame limits. `pack-ppm` checks these limits from the PPM header
+before reading the RGB payload.
 `run-stream-devices` targets Linux board images that expose AXI DMA MM2S/S2MM
 endpoints as byte-stream device files: it configures AXI-Lite registers through
 `/dev/mem`, writes the padded RGB stream to the TX device, captures bytes from

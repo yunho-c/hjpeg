@@ -126,7 +126,8 @@ Expected evidence:
 - The input image dimensions are within the configured `HjpegConfig` maximums.
   The host helper defaults to the current KV260 top limit of `1920x1080`; use
   `--max-width` and `--max-height` only for a custom elaboration with different
-  limits, and keep those values in the saved JSON evidence.
+  limits, and keep those values in the saved JSON evidence. `pack-ppm` checks
+  these limits from the PPM header before reading the RGB payload.
 
 ## 6. Configure and Run Hardware
 

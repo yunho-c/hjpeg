@@ -696,10 +696,18 @@ class HjpegHostTest(unittest.TestCase):
             root = Path(tmp)
             ppm = root / "input.ppm"
             rgb = root / "input.rgb"
-            ppm.write_bytes(b"P6\n1921 1\n255\n" + bytes(1921 * 3))
+            ppm.write_bytes(b"P6\n1921 1\n255\n")
 
             with self.assertRaisesRegex(ValueError, "width must be in 1..1920"):
                 hjpeg_host.main(["pack-ppm", str(ppm), str(rgb)])
+
+    def test_read_ppm_rejects_oversize_frame_before_payload_read(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ppm = Path(tmp) / "huge.ppm"
+            ppm.write_bytes(b"P6\n999999999 1\n255\n")
+
+            with self.assertRaisesRegex(ValueError, "width must be in 1..1920"):
+                hjpeg_host.read_ppm(ppm, max_width=1920, max_height=1080)
 
     def test_pack_ppm_cli_allows_custom_frame_limit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
