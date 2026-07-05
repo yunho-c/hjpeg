@@ -257,8 +257,8 @@ ties together the input RGB stream hash, output JPEG hash, AXI-Lite target,
 encoder configuration, status checkpoints, and optional decoder command. The
 Vivado report checker supports `--json` plus repeated `--artifact` arguments so
 the bitstream, XSA, timing reports, and utilization reports can be recorded
-with byte lengths, hashes, parsed WNS, utilization rows, thresholds, and
-pass/fail state.
+with byte lengths, hashes, parsed setup WNS and hold WHS, utilization rows,
+thresholds, and pass/fail state.
 
 ## Last Known Local Verification
 
@@ -300,9 +300,9 @@ Known local limitations:
   can be bypassed, but the generated harness then hit path normalization issues
   and a missing POSIX `getline` symbol in the MinGW build.
 - The current block-design Vivado reports pass the default 100 MHz
-  setup/utilization gates. Latest artifact reports show post-synthesis setup WNS
-  `+0.807 ns` and post-implementation setup WNS `+0.131 ns`; post-implementation
-  hold WNS is `+0.010 ns`. Post-implementation utilization is approximately
+  setup/hold/utilization gates. Latest artifact reports show post-synthesis
+  setup WNS `+0.807 ns` and post-implementation setup WNS `+0.131 ns`;
+  post-implementation hold WHS is `+0.010 ns`. Post-implementation utilization is approximately
   50,662 CLB LUTs (43.26%), 25,619 LUTRAMs (44.48%), 2 BRAM tiles (1.39%), and
   17 DSPs (1.36%).
 

@@ -68,13 +68,14 @@ Pass criteria:
 - Synthesis and implementation finish successfully.
 - The expected bitstream and XSA artifacts exist and are recorded in the JSON
   evidence.
-- Post-implementation timing has nonnegative worst negative slack for the
+- Post-implementation timing has nonnegative setup WNS and hold WHS for the
   target clock.
 - Resource use leaves enough headroom for the intended KV260 platform shell.
 - `check_reports.py` exits successfully for the generated timing/utilization
   reports.
 - The JSON evidence records artifact/report paths, byte lengths, SHA-256
-  hashes, parsed WNS values, utilization rows, thresholds, and pass/fail state.
+  hashes, parsed setup WNS and hold WHS values, utilization rows, thresholds,
+  and pass/fail state.
 
 Latest local Vivado 2026.1 evidence:
 
@@ -82,8 +83,8 @@ Latest local Vivado 2026.1 evidence:
   `hjpeg_kv260.xsa`.
 - `check_reports.py` passed on post-synthesis and post-implementation timing
   and utilization reports.
-- Latest post-implementation timing WNS is `+0.131 ns` setup and `+0.010 ns`
-  hold at the 100 MHz target clock.
+- Latest post-implementation timing is setup WNS `+0.131 ns` and hold WHS
+  `+0.010 ns` at the 100 MHz target clock.
 - Latest post-implementation utilization is approximately 50,662 CLB LUTs
   (43.26%), 25,619 LUTRAMs (44.48%), 2 BRAM tiles (1.39%), and 17 DSPs
   (1.36%).

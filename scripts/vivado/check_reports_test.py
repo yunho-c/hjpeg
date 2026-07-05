@@ -15,9 +15,9 @@ TIMING_TABLE = """
 Design Timing Summary
 ---------------------
 
-  WNS(ns)      TNS(ns)  TNS Failing Endpoints
-  -------      -------  ---------------------
-    0.125        0.000                      0
+  WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints  WHS(ns)      THS(ns)
+  -------      -------  ---------------------  -------------------  -------      -------
+    0.125        0.000                      0                    8    0.050        0.000
 """
 
 UTILIZATION_TABLE = """
@@ -35,8 +35,12 @@ class CheckReportsTest(unittest.TestCase):
     def test_parse_wns_from_timing_table(self) -> None:
         self.assertEqual(check_reports.parse_wns(TIMING_TABLE), 0.125)
 
+    def test_parse_whs_from_timing_table(self) -> None:
+        self.assertEqual(check_reports.parse_whs(TIMING_TABLE), 0.05)
+
     def test_parse_wns_from_key_value_summary(self) -> None:
         self.assertEqual(check_reports.parse_wns("WNS(ns): -0.250\n"), -0.25)
+        self.assertEqual(check_reports.parse_whs("WHS(ns): -0.125\n"), -0.125)
 
     def test_parse_utilization_rows(self) -> None:
         rows = check_reports.parse_utilization_rows(UTILIZATION_TABLE)
@@ -50,10 +54,19 @@ class CheckReportsTest(unittest.TestCase):
     def test_check_timing_reports_negative_slack(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             report = Path(tmp) / "timing.rpt"
-            report.write_text("WNS(ns): -0.010\n")
+            report.write_text("WNS(ns): -0.010\nWHS(ns): 0.000\n")
             self.assertEqual(
                 check_reports.check_timing(report, min_wns=0.0),
                 [f"{report}: WNS -0.010 ns is below required 0.000 ns"],
+            )
+
+    def test_check_timing_reports_negative_hold_slack(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "timing.rpt"
+            report.write_text("WNS(ns): 0.000\nWHS(ns): -0.020\n")
+            self.assertEqual(
+                check_reports.check_timing(report, min_wns=0.0, min_whs=0.0),
+                [f"{report}: WHS -0.020 ns is below required 0.000 ns"],
             )
 
     def test_check_utilization_reports_over_threshold_rows(self) -> None:
@@ -85,6 +98,8 @@ class CheckReportsTest(unittest.TestCase):
                         "--utilization",
                         str(utilization),
                         "--min-wns",
+                        "0",
+                        "--min-whs",
                         "0",
                         "--max-utilization",
                         "90",
@@ -133,6 +148,8 @@ class CheckReportsTest(unittest.TestCase):
             self.assertTrue(record["artifacts"][0]["passed"])
             self.assertEqual(record["timing"][0]["path"], str(timing))
             self.assertEqual(record["timing"][0]["wns_ns"], 0.125)
+            self.assertEqual(record["timing"][0]["whs_ns"], 0.05)
+            self.assertEqual(record["timing"][0]["min_whs_ns"], 0.0)
             timing_bytes = timing.read_bytes()
             self.assertEqual(record["timing"][0]["byte_length"], len(timing_bytes))
             self.assertEqual(
@@ -148,7 +165,7 @@ class CheckReportsTest(unittest.TestCase):
             root = Path(tmp)
             timing = root / "timing.rpt"
             missing = root / "missing.xsa"
-            timing.write_text("WNS(ns): -0.010\n")
+            timing.write_text("WNS(ns): -0.010\nWHS(ns): -0.020\n")
 
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
@@ -170,9 +187,11 @@ class CheckReportsTest(unittest.TestCase):
             self.assertFalse(record["artifacts"][0]["exists"])
             self.assertFalse(record["artifacts"][0]["passed"])
             self.assertEqual(record["timing"][0]["wns_ns"], -0.01)
+            self.assertEqual(record["timing"][0]["whs_ns"], -0.02)
             self.assertFalse(record["timing"][0]["passed"])
             self.assertTrue(any("artifact not found" in failure for failure in record["failures"]))
             self.assertTrue(any("below required" in failure for failure in record["failures"]))
+            self.assertTrue(any("WHS" in failure for failure in record["failures"]))
 
 
 if __name__ == "__main__":

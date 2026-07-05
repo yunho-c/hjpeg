@@ -106,10 +106,10 @@ hardware-tool entry points:
   bitstream included.
 - `check_reports.py` hashes generated artifacts, parses Vivado
   timing/utilization reports, and fails when a requested artifact is missing,
-  WNS is below the requested threshold, or any utilization row exceeds the
-  configured percentage. Its `--json` mode emits artifact/report hashes, byte
-  lengths, parsed WNS values, utilization rows, thresholds, and pass/fail state
-  for build evidence logs.
+  setup WNS or hold WHS is below the requested threshold, or any utilization row
+  exceeds the configured percentage. Its `--json` mode emits artifact/report
+  hashes, byte lengths, parsed WNS/WHS values, utilization rows, thresholds, and
+  pass/fail state for build evidence logs.
 
 These scripts are intended to be run after:
 

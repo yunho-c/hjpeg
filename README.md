@@ -127,8 +127,8 @@ python3 scripts/vivado/check_reports.py \
 ```
 
 Add `--json` to include artifact/report paths, byte lengths, SHA-256 hashes,
-parsed WNS values, utilization rows, thresholds, and pass/fail state in
-machine-readable build evidence.
+parsed setup WNS and hold WHS values, utilization rows, thresholds, and
+pass/fail state in machine-readable build evidence.
 
 These Vivado scripts consume `generated-kv260-axi-lite-top/filelist.f`. Generate
 the AXI-Lite top first. The IP packaging script maps the generated clock, reset,

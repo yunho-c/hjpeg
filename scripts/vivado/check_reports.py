@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-WNS_HEADER_RE = re.compile(r"WNS\(ns\)")
+TIMING_HEADER_RE = re.compile(r"WNS\(ns\)")
 NUMBER_RE = re.compile(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)")
 UTIL_ROW_RE = re.compile(
     r"^\|\s*(?P<name>[A-Za-z0-9_./ +()-]+?)\s*\|\s*"
@@ -30,20 +30,38 @@ class UtilizationRow:
     percent: float
 
 
-def parse_wns(report: str) -> float:
-    lines = report.splitlines()
-    for index, line in enumerate(lines):
-        if WNS_HEADER_RE.search(line):
-            for candidate in lines[index + 1 : index + 6]:
-                numbers = NUMBER_RE.findall(candidate)
-                if numbers:
-                    return float(numbers[0])
-
-    match = re.search(r"\bWNS(?:\(ns\))?\s*[:=]\s*([-+]?\d+(?:\.\d+)?)", report)
+def parse_timing_metric(report: str, metric: str) -> float:
+    match = re.search(
+        rf"\b{re.escape(metric)}(?:\(ns\))?\s*[:=]\s*([-+]?\d+(?:\.\d+)?)",
+        report,
+    )
     if match:
         return float(match.group(1))
 
-    raise ValueError("could not find WNS in timing report")
+    lines = report.splitlines()
+    for index, line in enumerate(lines):
+        if TIMING_HEADER_RE.search(line):
+            has_metric = re.search(rf"\b{re.escape(metric)}\(ns\)", line) is not None
+            if not has_metric:
+                continue
+            for candidate in lines[index + 1 : index + 6]:
+                numbers = NUMBER_RE.findall(candidate)
+                if not numbers:
+                    continue
+                if metric == "WNS" and len(numbers) >= 1:
+                    return float(numbers[0])
+                if metric == "WHS" and len(numbers) >= 5:
+                    return float(numbers[4])
+
+    raise ValueError(f"could not find {metric} in timing report")
+
+
+def parse_wns(report: str) -> float:
+    return parse_timing_metric(report, "WNS")
+
+
+def parse_whs(report: str) -> float:
+    return parse_timing_metric(report, "WHS")
 
 
 def parse_utilization_rows(report: str) -> list[UtilizationRow]:
@@ -64,11 +82,16 @@ def parse_utilization_rows(report: str) -> list[UtilizationRow]:
     return rows
 
 
-def check_timing(path: Path, min_wns: float) -> list[str]:
-    wns = parse_wns(path.read_text())
+def check_timing(path: Path, min_wns: float, min_whs: float = 0.0) -> list[str]:
+    report = path.read_text()
+    wns = parse_wns(report)
+    whs = parse_whs(report)
+    failures = []
     if wns < min_wns:
-        return [f"{path}: WNS {wns:.3f} ns is below required {min_wns:.3f} ns"]
-    return []
+        failures.append(f"{path}: WNS {wns:.3f} ns is below required {min_wns:.3f} ns")
+    if whs < min_whs:
+        failures.append(f"{path}: WHS {whs:.3f} ns is below required {min_whs:.3f} ns")
+    return failures
 
 
 def check_utilization(path: Path, max_percent: float) -> list[str]:
@@ -104,18 +127,23 @@ def artifact_record(path: Path) -> tuple[dict[str, object], list[str]]:
     return record, []
 
 
-def timing_record(path: Path, min_wns: float) -> tuple[dict[str, object], list[str]]:
+def timing_record(path: Path, min_wns: float, min_whs: float) -> tuple[dict[str, object], list[str]]:
     report_bytes = path.read_bytes()
     report = report_bytes.decode(errors="replace")
     wns = parse_wns(report)
+    whs = parse_whs(report)
     failures = []
     if wns < min_wns:
         failures.append(f"{path}: WNS {wns:.3f} ns is below required {min_wns:.3f} ns")
+    if whs < min_whs:
+        failures.append(f"{path}: WHS {whs:.3f} ns is below required {min_whs:.3f} ns")
     record = _file_record(path, report_bytes)
     record.update(
         {
             "wns_ns": wns,
+            "whs_ns": whs,
             "min_wns_ns": min_wns,
+            "min_whs_ns": min_whs,
             "passed": not failures,
         }
     )
@@ -181,6 +209,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Generated artifact to hash in evidence; may be passed multiple times",
     )
     parser.add_argument("--min-wns", type=float, default=0.0)
+    parser.add_argument("--min-whs", type=float, default=0.0)
     parser.add_argument("--max-utilization", type=float, default=90.0)
     parser.add_argument("--json", action="store_true", help="print parsed report evidence as JSON")
     return parser
@@ -198,7 +227,7 @@ def main(argv: list[str] | None = None) -> int:
         artifact_records.append(record)
         failures.extend(record_failures)
     for timing in args.timing:
-        record, record_failures = timing_record(timing, args.min_wns)
+        record, record_failures = timing_record(timing, args.min_wns, args.min_whs)
         timing_records.append(record)
         failures.extend(record_failures)
     for utilization in args.utilization:
