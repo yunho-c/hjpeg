@@ -172,7 +172,8 @@ complete without changing mapped control/status registers.
 
 Recent commits, newest first:
 
-- current commit: `feat: record run validation expectations`
+- current commit: `test: cover configured axi wrapper equivalence`
+- `398378a feat: record run validation expectations`
 - `9ea42be feat: record jpeg validation expectations`
 - `e63b094 feat: record vivado checked count`
 - `dbddfb0 feat: record vivado checker arguments`
@@ -332,7 +333,8 @@ seen in the block-design implementation reports.
 The non-gray AXI wrapper regression compares the JPEG bytes emitted through
 `HjpegAxiStreamCore` against bytes emitted by direct `HjpegCore` input for the
 same RGB pattern. This catches wrapper lane/order mistakes without depending on
-fragile decoded-color assertions.
+fragile decoded-color assertions. A second equivalence regression covers the
+configured 4:2:0 path with restart markers and JFIF APP0 disabled.
 
 An attempted decoded-color half-frame assertion was too strict for the current
 quality/color path. Use decoded-image checks for broad recognizability, but use
@@ -668,7 +670,9 @@ which is useful for commands that print decoded dimensions.
   cost grows quickly.
 - Current decoded-color checks are good for broad recognizability but should
   not be used as exact color-lane invariants. Prefer stage-level checks or
-  wrapper-vs-core byte equivalence for precise lane/protocol claims.
+  wrapper-vs-core byte equivalence for precise lane/protocol claims; the AXI
+  wrapper now has exact byte-equivalence coverage for default 4:4:4 and
+  configured 4:2:0/restart/no-JFIF frames.
 - `HjpegCoreSpec` includes a small 16x16 4:4:4 cycle-budget regression using
   the existing ChiselSim frame driver. This is a local performance drift guard,
   not proof of KV260 hardware throughput.

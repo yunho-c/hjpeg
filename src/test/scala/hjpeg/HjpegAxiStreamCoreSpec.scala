@@ -10,13 +10,19 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
 class HjpegAxiStreamCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
-  private def pokeConfig(dut: HjpegAxiStreamCore, width: Int = 8, height: Int = 8): Unit = {
+  private def pokeConfig(
+      dut: HjpegAxiStreamCore,
+      width: Int = 8,
+      height: Int = 8,
+      subsample: Boolean = false,
+      restartInterval: Int = 0,
+      emitJfif: Boolean = true): Unit = {
     dut.io.config.xsize.poke(width.U)
     dut.io.config.ysize.poke(height.U)
     dut.io.config.quality.poke(50.U)
-    dut.io.config.restartInterval.poke(0.U)
-    dut.io.config.enableChromaSubsample.poke(false.B)
-    dut.io.config.emitJfif.poke(true.B)
+    dut.io.config.restartInterval.poke(restartInterval.U)
+    dut.io.config.enableChromaSubsample.poke(subsample.B)
+    dut.io.config.emitJfif.poke(emitJfif.B)
   }
 
   private def pushPixel(dut: HjpegAxiStreamCore, index: Int, last: Boolean): Unit = {
@@ -54,8 +60,17 @@ class HjpegAxiStreamCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       dut: HjpegAxiStreamCore,
       width: Int,
       height: Int,
+      subsample: Boolean = false,
+      restartInterval: Int = 0,
+      emitJfif: Boolean = true,
       readyAt: Int => Boolean = _ => true)(pixelAt: Int => (Int, Int, Int)): Seq[Int] = {
-    pokeConfig(dut, width = width, height = height)
+    pokeConfig(
+      dut,
+      width = width,
+      height = height,
+      subsample = subsample,
+      restartInterval = restartInterval,
+      emitJfif = emitJfif)
     dut.io.clearProtocolError.poke(false.B)
     dut.io.input.valid.poke(false.B)
     dut.io.output.ready.poke(false.B)
@@ -96,13 +111,19 @@ class HjpegAxiStreamCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
     bytes.toSeq
   }
 
-  private def pokeCoreConfig(dut: HjpegCore, width: Int, height: Int): Unit = {
+  private def pokeCoreConfig(
+      dut: HjpegCore,
+      width: Int,
+      height: Int,
+      subsample: Boolean = false,
+      restartInterval: Int = 0,
+      emitJfif: Boolean = true): Unit = {
     dut.io.config.xsize.poke(width.U)
     dut.io.config.ysize.poke(height.U)
     dut.io.config.quality.poke(50.U)
-    dut.io.config.restartInterval.poke(0.U)
-    dut.io.config.enableChromaSubsample.poke(false.B)
-    dut.io.config.emitJfif.poke(true.B)
+    dut.io.config.restartInterval.poke(restartInterval.U)
+    dut.io.config.enableChromaSubsample.poke(subsample.B)
+    dut.io.config.emitJfif.poke(emitJfif.B)
   }
 
   private def pokeCorePixel(dut: HjpegCore, index: Int, width: Int, r: Int, g: Int, b: Int): Unit = {
@@ -114,12 +135,18 @@ class HjpegAxiStreamCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
     dut.io.input.bits.b.poke(b.U)
   }
 
-  private def emitCoreFrame(dut: HjpegCore, width: Int, height: Int)(pixelAt: Int => (Int, Int, Int)): Seq[Int] = {
+  private def emitCoreFrame(
+      dut: HjpegCore,
+      width: Int,
+      height: Int,
+      subsample: Boolean = false,
+      restartInterval: Int = 0,
+      emitJfif: Boolean = true)(pixelAt: Int => (Int, Int, Int)): Seq[Int] = {
     dut.reset.poke(true.B)
     dut.clock.step()
     dut.reset.poke(false.B)
 
-    pokeCoreConfig(dut, width, height)
+    pokeCoreConfig(dut, width, height, subsample, restartInterval, emitJfif)
     dut.io.clearProtocolError.poke(false.B)
     dut.io.output.ready.poke(true.B)
 
@@ -252,6 +279,67 @@ class HjpegAxiStreamCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       dut.io.input.valid.poke(false.B)
 
       collectFrame(dut, JpegHeaderBytes.HeaderLength + 512) mustBe expected
+      dut.io.protocolError.expect(false.B)
+    }
+  }
+
+  "HjpegAxiStreamCore should preserve configured 4:2:0 restart frames like direct HjpegCore input" in {
+    val width = 17
+    val height = 13
+    val restartInterval = 1
+    def pixelAt(index: Int): (Int, Int, Int) = {
+      val x = index % width
+      val y = index / width
+      (
+        (32 + x * 9 + y * 3) & 0xff,
+        (220 - x * 5 + y * 11) & 0xff,
+        (80 + x * 7 + y * 13) & 0xff)
+    }
+
+    var expected = Seq.empty[Int]
+    simulate(new HjpegCore()) { dut =>
+      expected = emitCoreFrame(
+        dut,
+        width,
+        height,
+        subsample = true,
+        restartInterval = restartInterval,
+        emitJfif = false)(pixelAt)
+      dut.io.protocolError.expect(false.B)
+    }
+
+    simulate(new HjpegAxiStreamCore()) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      pokeConfig(
+        dut,
+        width = width,
+        height = height,
+        subsample = true,
+        restartInterval = restartInterval,
+        emitJfif = false)
+      dut.io.clearProtocolError.poke(false.B)
+      dut.io.output.ready.poke(true.B)
+
+      for (index <- 0 until width * height) {
+        val (r, g, b) = pixelAt(index)
+        pushRgbPixel(dut, r, g, b, last = index == width * height - 1)
+      }
+      dut.io.input.valid.poke(false.B)
+
+      val bytes = collectFrame(dut, JpegHeaderBytes.MaxHeaderLength + 1024)
+      bytes mustBe expected
+      bytes.slice(2, 4) mustBe Seq(0xff, 0xdb)
+      bytes(
+        JpegHeaderBytes.Sof0LuminanceSamplingFactor - JpegHeaderBytes.App0.length) mustBe 0x22
+      bytes.sliding(2).exists(_ == Seq(0xff, 0xe0)) mustBe false
+      bytes.sliding(2).count(_ == Seq(0xff, 0xd0)) must be > 0
+      val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
+      image must not be null
+      image.getWidth mustBe width
+      image.getHeight mustBe height
       dut.io.protocolError.expect(false.B)
     }
   }
