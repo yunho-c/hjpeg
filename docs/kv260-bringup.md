@@ -153,7 +153,8 @@ Expected evidence:
   ignored padding byte per pixel.
 - The JSON evidence records input/output paths, dimensions, byte lengths, and
   SHA-256 hashes for the PPM fixture and packed RGB stream, plus PPM
-  per-channel min/max values and non-flat/color flags.
+  per-channel min/max values and non-flat/color flags. Run evidence records the
+  expected packed RGB byte length and whether the actual input length matched it.
 - The input image dimensions are within the configured `HjpegConfig` maximums.
   The host helper defaults to the current KV260 top limit of `1920x1080`; use
   `--max-width` and `--max-height` only for a custom elaboration with different

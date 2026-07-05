@@ -190,6 +190,7 @@ marker count, and expected DQT/DHT payload hashes when table checks are enabled.
 interval, chroma mode, JFIF setting, quality-scaled DQT payloads, and standard
 DHT payloads against the captured JPEG automatically and records those
 expectations in the run JSON evidence. Run JSON evidence also records detailed
+input RGB byte-length expectations, whether the actual byte length matched,
 AXI-Lite status checkpoints, the checkpoint count, and the ordered checkpoint
 context list.
 The `run-stream-devices` command supports Linux board images that expose DMA

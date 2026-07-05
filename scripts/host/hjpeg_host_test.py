@@ -1449,6 +1449,31 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["transfer_elapsed_seconds"], 0.0)
             self.assertNotIn("host_transfer_rates", record)
 
+    def test_run_evidence_record_reports_input_length_match(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            jpeg = root / "output.jpg"
+            input_rgb = root / "input.rgb"
+            jpeg.write_bytes(minimal_jpeg(width=2, height=1))
+            input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
+            input_info = hjpeg_host.file_info(input_rgb, input_rgb.read_bytes())
+
+            matched = hjpeg_host.run_evidence_record(
+                jpeg,
+                minimal_jpeg_info(width=2, height=1),
+                input_info=input_info,
+                expected_input_rgb_bytes=8,
+            )
+            mismatched = hjpeg_host.run_evidence_record(
+                jpeg,
+                minimal_jpeg_info(width=2, height=1),
+                input_info=input_info,
+                expected_input_rgb_bytes=12,
+            )
+
+            self.assertTrue(matched["input_rgb"]["byte_length_matches_expected"])
+            self.assertFalse(mismatched["input_rgb"]["byte_length_matches_expected"])
+
     def test_run_evidence_record_summarizes_status_checks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -3286,6 +3311,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["input_rgb"]["path"], str(input_rgb))
             self.assertEqual(record["input_rgb"]["byte_length"], 8)
             self.assertEqual(record["input_rgb"]["expected_byte_length"], 8)
+            self.assertTrue(record["input_rgb"]["byte_length_matches_expected"])
             self.assertEqual(
                 record["input_rgb"]["sha256"],
                 hashlib.sha256(input_rgb.read_bytes()).hexdigest(),

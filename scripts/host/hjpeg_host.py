@@ -1553,6 +1553,9 @@ def run_evidence_record(
         }
         if expected_input_rgb_bytes is not None:
             input_record["expected_byte_length"] = expected_input_rgb_bytes
+            input_record["byte_length_matches_expected"] = (
+                input_info.byte_length == expected_input_rgb_bytes
+            )
         record["input_rgb"] = input_record
     if axi_lite is not None:
         record["axi_lite"] = axi_lite

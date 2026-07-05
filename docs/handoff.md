@@ -362,12 +362,13 @@ chroma/JFIF/clear-error flags back to the AXI-Lite write value. Host register
 writes and JSON evidence now share the same `control_value` helper, which has
 table-driven coverage for all clear-error/chroma/JFIF bit combinations. The run evidence
 ties together the input RGB stream hash, output JPEG hash, AXI-Lite target,
-encoder configuration, status checkpoints, host-observed transfer elapsed
-seconds and derived byte rates when elapsed time is positive, optional decoder
-command, decoder timeout, and bounded decoder stdout/stderr. Non-finite or
-negative elapsed time is rejected as invalid evidence. RX and decoder timeout
-values must be finite and positive when present, and maximum output bytes must
-be positive. The CLI rejects invalid capture limits and decoder timeout values
+encoder configuration, expected input byte length and match result, status
+checkpoints, host-observed transfer elapsed seconds and derived byte rates when
+elapsed time is positive, optional decoder command, decoder timeout, and
+bounded decoder stdout/stderr. Non-finite or negative elapsed time is rejected
+as invalid evidence. RX and decoder timeout values must be finite and positive
+when present, and maximum output bytes must be positive. The CLI rejects invalid
+capture limits and decoder timeout values
 during argument parsing before device I/O or decoder subprocess setup. It also
 rejects nonpositive frame dimensions and limits, negative AXI-Lite base
 addresses, and out-of-range quality and restart interval values before AXI-Lite
