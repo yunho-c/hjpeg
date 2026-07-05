@@ -277,6 +277,7 @@ class CheckReportsTest(unittest.TestCase):
             root = Path(tmp)
             artifact = root / "hjpeg_kv260.bit"
             xsa = root / "hjpeg_kv260.xsa"
+            address_map = root / "hjpeg_kv260_address_map.rpt"
             timing = root / "timing.rpt"
             utilization = root / "util.rpt"
             drc = root / "post_impl_drc.rpt"
@@ -284,6 +285,7 @@ class CheckReportsTest(unittest.TestCase):
             clock_utilization = root / "post_impl_clock_utilization.rpt"
             artifact.write_bytes(b"bitstream")
             xsa.write_bytes(b"xsa")
+            address_map.write_text("Address Map\nhjpeg_0/s_axi_lite\n")
             timing.write_text(TIMING_TABLE)
             utilization.write_text(VIVADO_UTILIZATION_TABLE)
             drc.write_text(DRC_CLEAN_REPORT)
@@ -299,6 +301,8 @@ class CheckReportsTest(unittest.TestCase):
                             str(artifact),
                             "--artifact",
                             str(xsa),
+                            "--address-map",
+                            str(address_map),
                             "--timing",
                             str(timing),
                             "--hold-timing",
@@ -323,14 +327,15 @@ class CheckReportsTest(unittest.TestCase):
             self.assertTrue(record["passed"])
             self.assertEqual(record["failures"], [])
             self.assertEqual(record["failure_count"], 0)
-            self.assertEqual(record["checked_count"], 7)
-            self.assertEqual(record["passed_count"], 7)
+            self.assertEqual(record["checked_count"], 8)
+            self.assertEqual(record["passed_count"], 8)
             self.assertEqual(record["failed_count"], 0)
             self.assertEqual(
                 record["checked_paths"],
                 [
                     str(artifact),
                     str(xsa),
+                    str(address_map),
                     str(timing),
                     str(utilization),
                     str(drc),
@@ -343,6 +348,7 @@ class CheckReportsTest(unittest.TestCase):
                 [
                     str(artifact),
                     str(xsa),
+                    str(address_map),
                     str(timing),
                     str(utilization),
                     str(drc),
@@ -355,6 +361,7 @@ class CheckReportsTest(unittest.TestCase):
                 record["checked_counts"],
                 {
                     "artifacts": 2,
+                    "address_map": 1,
                     "timing": 1,
                     "utilization": 1,
                     "drc": 1,
@@ -367,25 +374,28 @@ class CheckReportsTest(unittest.TestCase):
                 {
                     "required_categories": [
                         "artifacts",
+                        "address_map",
                         "timing",
                         "utilization",
                         "drc",
                         "route_status",
                         "clock_utilization",
                     ],
-                    "required_category_count": 6,
+                    "required_category_count": 7,
                     "present": {
                         "artifacts": True,
+                        "address_map": True,
                         "timing": True,
                         "utilization": True,
                         "drc": True,
                         "route_status": True,
                         "clock_utilization": True,
                     },
-                    "present_category_count": 6,
+                    "present_category_count": 7,
                     "missing_category_count": 0,
                     "passing_counts": {
                         "artifacts": 2,
+                        "address_map": 1,
                         "timing": 1,
                         "utilization": 1,
                         "drc": 1,
@@ -394,6 +404,7 @@ class CheckReportsTest(unittest.TestCase):
                     },
                     "failing_counts": {
                         "artifacts": 0,
+                        "address_map": 0,
                         "timing": 0,
                         "utilization": 0,
                         "drc": 0,
@@ -402,6 +413,7 @@ class CheckReportsTest(unittest.TestCase):
                     },
                     "present_required_categories": [
                         "artifacts",
+                        "address_map",
                         "timing",
                         "utilization",
                         "drc",
@@ -434,6 +446,7 @@ class CheckReportsTest(unittest.TestCase):
                 record["arguments"],
                 {
                     "artifacts": [str(artifact), str(xsa)],
+                    "address_map": [str(address_map)],
                     "timing": [str(timing)],
                     "hold_timing": [str(timing)],
                     "utilization": [str(utilization)],
@@ -479,6 +492,13 @@ class CheckReportsTest(unittest.TestCase):
             )
             self.assertTrue(record["artifacts"][1]["exists"])
             self.assertTrue(record["artifacts"][1]["passed"])
+            self.assertEqual(record["address_map"][0]["path"], str(address_map))
+            self.assertEqual(
+                record["address_map"][0]["sha256"],
+                hashlib.sha256(address_map.read_bytes()).hexdigest(),
+            )
+            self.assertTrue(record["address_map"][0]["exists"])
+            self.assertTrue(record["address_map"][0]["passed"])
             self.assertEqual(record["timing"][0]["path"], str(timing))
             self.assertTrue(record["timing"][0]["exists"])
             self.assertEqual(record["timing"][0]["wns_ns"], 0.125)
@@ -551,6 +571,7 @@ class CheckReportsTest(unittest.TestCase):
                 record["complete_vivado_flow_evidence_missing_categories"],
                 [
                     "artifacts",
+                    "address_map",
                     "utilization",
                     "drc",
                     "route_status",
@@ -693,6 +714,7 @@ class CheckReportsTest(unittest.TestCase):
                 record["complete_vivado_flow_evidence_missing_categories"],
                 [
                     "artifacts",
+                    "address_map",
                     "timing",
                     "utilization",
                     "drc",
@@ -716,6 +738,7 @@ class CheckReportsTest(unittest.TestCase):
                 record["checked_counts"],
                 {
                     "artifacts": 1,
+                    "address_map": 0,
                     "timing": 1,
                     "utilization": 0,
                     "drc": 0,
@@ -727,6 +750,7 @@ class CheckReportsTest(unittest.TestCase):
                 record["evidence_categories"]["missing_required_categories"],
                 [
                     "artifacts",
+                    "address_map",
                     "timing",
                     "utilization",
                     "drc",

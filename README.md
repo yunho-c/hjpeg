@@ -135,6 +135,7 @@ python3 scripts/vivado/check_reports.py \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa \
   --artifact build/vivado/hjpeg-kv260-artifacts/post_impl.dcp \
+  --address-map build/vivado/hjpeg-kv260-bd/hjpeg_kv260_address_map.rpt \
   --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --hold-timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --utilization build/vivado/hjpeg-kv260-artifacts/post_impl_utilization.rpt \
@@ -148,12 +149,12 @@ python3 scripts/vivado/check_reports.py \
 Add `--json` to include artifact/report paths, byte lengths, SHA-256 hex hashes,
 parsed setup WNS and hold WHS values, utilization rows, thresholds, and
 target clock period/frequency, DRC violations, route-status counts, required
-clock-utilization report hashes, the requested input path lists and gate values,
-checked report/artifact count, per-category checked counts, required evidence
-category presence, per-category passing/failing counts, present and missing
-category names, failing category names, required `.bit`/`.xsa` artifact suffix
-presence, present and missing required suffix names, failing required suffix
-names, required suffix passing/failing counts,
+clock-utilization and address-map report hashes, the requested input path lists
+and gate values, checked report/artifact count, per-category checked counts,
+required evidence category presence, per-category passing/failing counts,
+present and missing category names, failing category names, required
+`.bit`/`.xsa` artifact suffix presence, present and missing required suffix
+names, failing required suffix names, required suffix passing/failing counts,
 required/present/missing category and suffix counts, aggregate pass/fail counts,
 diagnostic failure count, checked/passed/failed path lists, complete-evidence
 required/missing/failing lists, and pass/fail state in machine-readable build

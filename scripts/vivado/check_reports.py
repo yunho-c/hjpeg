@@ -38,6 +38,7 @@ ROUTE_STATUS_RE = re.compile(
 IGNORED_UTILIZATION_ROWS = {"PS8"}
 REQUIRED_EVIDENCE_CATEGORIES = (
     "artifacts",
+    "address_map",
     "timing",
     "utilization",
     "drc",
@@ -582,6 +583,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         help="Generated artifact to hash in evidence; may be passed multiple times",
     )
+    parser.add_argument(
+        "--address-map",
+        type=Path,
+        action="append",
+        default=[],
+        help="Vivado block-design address map report to require and hash in evidence; may be passed multiple times",
+    )
     parser.add_argument("--min-wns", type=finite_float, default=0.0)
     parser.add_argument("--min-whs", type=finite_float, default=0.0)
     parser.add_argument("--max-utilization", type=nonnegative_float, default=90.0)
@@ -594,7 +602,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--require-complete-evidence",
         action="store_true",
-        help="fail unless all required report categories and .bit/.xsa artifacts passed",
+        help="fail unless all required report categories, address-map evidence, and .bit/.xsa artifacts passed",
     )
     parser.add_argument("--json", action="store_true", help="print parsed report evidence as JSON")
     return parser
@@ -604,6 +612,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     failures = []
     artifact_records = []
+    address_map_records = []
     timing_records = []
     utilization_records = []
     drc_records = []
@@ -613,6 +622,10 @@ def main(argv: list[str] | None = None) -> int:
     for artifact in args.artifact:
         record, record_failures = artifact_record(artifact)
         artifact_records.append(record)
+        failures.extend(record_failures)
+    for address_map in args.address_map:
+        record, record_failures = evidence_file_record(address_map, "address map")
+        address_map_records.append(record)
         failures.extend(record_failures)
     timing_paths = []
     hold_timing_paths = {str(path) for path in args.hold_timing}
@@ -652,6 +665,7 @@ def main(argv: list[str] | None = None) -> int:
 
     checked = (
         len(args.artifact)
+        + len(args.address_map)
         + len(timing_paths)
         + len(args.utilization)
         + len(args.drc)
@@ -660,6 +674,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     checked_counts = {
         "artifacts": len(args.artifact),
+        "address_map": len(args.address_map),
         "timing": len(timing_paths),
         "utilization": len(args.utilization),
         "drc": len(args.drc),
@@ -668,6 +683,7 @@ def main(argv: list[str] | None = None) -> int:
     }
     checked_records = [
         *artifact_records,
+        *address_map_records,
         *timing_records,
         *utilization_records,
         *drc_records,
@@ -690,6 +706,7 @@ def main(argv: list[str] | None = None) -> int:
     evidence_categories = evidence_category_record(
         {
             "artifacts": artifact_records,
+            "address_map": address_map_records,
             "timing": timing_records,
             "utilization": utilization_records,
             "drc": drc_records,
@@ -721,6 +738,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         arguments = {
             "artifacts": [str(path) for path in args.artifact],
+            "address_map": [str(path) for path in args.address_map],
             "timing": [str(path) for path in args.timing],
             "hold_timing": [str(path) for path in args.hold_timing],
             "utilization": [str(path) for path in args.utilization],
@@ -768,6 +786,7 @@ def main(argv: list[str] | None = None) -> int:
                     "clock_period_ns": args.clock_period_ns,
                     "clock_frequency_mhz": 1000.0 / args.clock_period_ns,
                     "artifacts": artifact_records,
+                    "address_map": address_map_records,
                     "timing": timing_records,
                     "utilization": utilization_records,
                     "drc": drc_records,

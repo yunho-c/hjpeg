@@ -113,18 +113,19 @@ hardware-tool entry points:
   bitstream included.
 - `check_reports.py` hashes generated artifacts, parses Vivado
   timing/utilization/DRC/route-status reports, requires requested
-  clock-utilization reports, and fails when a requested artifact is missing or
-  empty,
+  clock-utilization and address-map reports, and fails when a requested artifact
+  is missing or empty,
   setup WNS is below the requested threshold, hold WHS is below the requested
   threshold for reports passed with `--hold-timing`, any utilization row
   exceeds the configured percentage, DRC reports Error or Critical Warning
   violations, route status reports unrouted nets or routing errors, or a
-  required clock-utilization report is missing or empty. Its `--json` mode emits
+  required clock-utilization or address-map report is missing or empty. Its
+  `--json` mode emits
   artifact/report SHA-256 hex hashes, byte lengths, target clock
   period/frequency, parsed WNS/WHS values, utilization rows, thresholds, DRC
-  violations, route-status counts, clock-utilization report hashes, requested
-  input path lists and gate values, checked report/artifact count, per-category
-  checked counts, required evidence category presence, per-category
+  violations, route-status counts, clock-utilization and address-map report
+  hashes, requested input path lists and gate values, checked report/artifact
+  count, per-category checked counts, required evidence category presence, per-category
   passing/failing counts, present and missing category names, failing category
   names, required `.bit`/`.xsa` artifact suffix presence, present and missing
   required suffix names, failing required suffix names, required suffix
@@ -137,8 +138,8 @@ hardware-tool entry points:
   Vivado evidence counts only records whose `passed` field is an actual JSON
   boolean `true`. Missing or unparseable reports are included as structured
   failure records. Full bitstream gates can pass `--require-complete-evidence`
-  to fail unless all required categories and `.bit`/`.xsa` artifact suffixes
-  are present.
+  to fail unless all required categories, address-map evidence, and `.bit`/`.xsa`
+  artifact suffixes are present.
 
 These scripts are intended to be run after:
 

@@ -415,15 +415,15 @@ custom RTL elaboration with different `HjpegConfig` frame limits.
 
 The Vivado report checker supports `--json` plus repeated `--artifact`
 arguments so the bitstream, XSA, timing reports, utilization reports, DRC
-reports, route-status reports, and clock-utilization reports can be recorded
-with byte lengths, hashes, target clock period/frequency, parsed setup WNS and
-hold WHS, utilization rows, DRC violations, route-status counts, thresholds,
-requested input path lists and gate values, checked report/artifact count,
-per-category checked counts, required evidence category presence, present and
-missing category names, failing category names, per-category passing/failing
-counts, required `.bit`/`.xsa` artifact suffix presence, present and missing
-required suffix names, failing required suffix names, required suffix
-passing/failing counts, aggregate pass/fail counts,
+reports, route-status reports, clock-utilization reports, and address-map
+reports can be recorded with byte lengths, hashes, target clock
+period/frequency, parsed setup WNS and hold WHS, utilization rows, DRC
+violations, route-status counts, thresholds, requested input path lists and gate
+values, checked report/artifact count, per-category checked counts, required
+evidence category presence, present and missing category names, failing category
+names, per-category passing/failing counts, required `.bit`/`.xsa` artifact
+suffix presence, present and missing required suffix names, failing required
+suffix names, required suffix passing/failing counts, aggregate pass/fail counts,
 required/present/missing category and suffix counts, diagnostic failure count,
 checked/passed/failed path lists, complete-evidence required/missing/failing
 lists, and pass/fail state.
@@ -435,17 +435,18 @@ JSON boolean `true`. Missing, non-file, or unparseable reports are recorded as
 structured JSON failures instead of aborting the transcript. Full bitstream
 gates should pass `--require-complete-evidence`; partial post-synthesis checks
 can omit it.
-Requested artifacts and clock-utilization reports must be non-empty. Use
+Requested artifacts, clock-utilization reports, and address-map reports must be
+non-empty. Use
 `--hold-timing` for post-implementation timing reports; post-synthesis hold can
 be negative before implementation fixes it. The utilization parser handles Vivado's
 `Prohibited` column and records hard-system rows such as `PS8` without gating
 them against the fabric utilization threshold. The DRC gate fails Error and
 Critical Warning violations, the route-status gate fails nonzero unrouted or
-routing-error counts, and clock-utilization reports are required and hashed as
-review evidence. The checker rejects non-finite timing thresholds, non-finite
-clock periods, nonpositive clock periods, non-finite utilization thresholds,
-and negative utilization thresholds before JSON evidence can record meaningless
-gate values.
+routing-error counts, and clock-utilization/address-map reports are required
+and hashed as review evidence. The checker rejects non-finite timing thresholds,
+non-finite clock periods, nonpositive clock periods, non-finite utilization
+thresholds, and negative utilization thresholds before JSON evidence can record
+meaningless gate values.
 
 ## Last Known Local Verification
 
@@ -477,6 +478,7 @@ python3 scripts/vivado/check_reports.py \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa \
   --artifact build/vivado/hjpeg-kv260-artifacts/post_impl.dcp \
+  --address-map build/vivado/hjpeg-kv260-bd/hjpeg_kv260_address_map.rpt \
   --timing build/vivado/hjpeg-kv260-artifacts/post_synth_timing_summary.rpt \
   --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --hold-timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
@@ -564,6 +566,7 @@ python3 scripts/vivado/check_reports.py \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa \
   --artifact build/vivado/hjpeg-kv260-artifacts/post_impl.dcp \
+  --address-map build/vivado/hjpeg-kv260-bd/hjpeg_kv260_address_map.rpt \
   --timing build/vivado/hjpeg-kv260-artifacts/post_synth_timing_summary.rpt \
   --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --hold-timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
@@ -785,9 +788,10 @@ If the new PC has Vivado:
 4. Run block design creation and confirm `validate_bd_design` plus the generated
    `build/vivado/hjpeg-kv260-bd/hjpeg_kv260_address_map.rpt`.
 5. Run bitstream/XSA generation.
-6. Run `check_reports.py` with `--artifact`, timing/utilization/DRC,
-   route-status, clock-utilization report paths, `--hold-timing` for
-   post-implementation timing, `--require-complete-evidence`, and `--json`.
+6. Run `check_reports.py` with `--artifact`, `--address-map`,
+   timing/utilization/DRC, route-status, clock-utilization report paths,
+   `--hold-timing` for post-implementation timing, `--require-complete-evidence`,
+   and `--json`.
 7. Save the report/artifact JSON evidence, then move to KV260 board validation.
 
 If the new PC has KV260 access too:

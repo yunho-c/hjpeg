@@ -71,6 +71,7 @@ python3 scripts/vivado/check_reports.py \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa \
   --artifact build/vivado/hjpeg-kv260-artifacts/post_impl.dcp \
+  --address-map build/vivado/hjpeg-kv260-bd/hjpeg_kv260_address_map.rpt \
   --timing build/vivado/hjpeg-kv260-artifacts/post_synth_timing_summary.rpt \
   --timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
   --hold-timing build/vivado/hjpeg-kv260-artifacts/post_impl_timing_summary.rpt \
@@ -94,6 +95,7 @@ Expected evidence:
 - `build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit`
 - `build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa`
 - `build/vivado/hjpeg-kv260-artifacts/post_impl.dcp`
+- `build/vivado/hjpeg-kv260-bd/hjpeg_kv260_address_map.rpt`
 - `post_synth_utilization.rpt`
 - `post_synth_timing_summary.rpt`
 - `post_impl_utilization.rpt`
@@ -115,17 +117,17 @@ Pass criteria:
   reports zero unrouted nets and zero routing errors.
 - Resource use leaves enough headroom for the intended KV260 platform shell.
 - `check_reports.py` exits successfully for the generated timing, utilization,
-  DRC, route-status, and clock-utilization reports, with hold timing gated on
-  the post-implementation timing report.
+  DRC, route-status, clock-utilization, and address-map reports, with hold
+  timing gated on the post-implementation timing report.
 - The JSON evidence records artifact/report paths, byte lengths, SHA-256 hex
   hashes, target clock period/frequency, parsed setup WNS and hold WHS values,
   utilization rows, thresholds, DRC violations, route-status counts, required
-  clock-utilization report hashes, requested input path lists and gate values,
-  checked report/artifact count, per-category checked counts, required evidence
-  category presence, per-category passing/failing counts, present and missing
-  category names, failing category names, required `.bit`/`.xsa` artifact
-  suffix presence, present and missing required suffix names, failing required
-  suffix names, required suffix passing/failing counts,
+  clock-utilization and address-map report hashes, requested input path lists
+  and gate values, checked report/artifact count, per-category checked counts,
+  required evidence category presence, per-category passing/failing counts,
+  present and missing category names, failing category names, required
+  `.bit`/`.xsa` artifact suffix presence, present and missing required suffix
+  names, failing required suffix names, required suffix passing/failing counts,
   required/present/missing category and suffix counts, aggregate pass/fail
   counts, diagnostic failure count, checked/passed/failed path lists,
   complete-evidence required/missing/failing lists, and pass/fail state.
