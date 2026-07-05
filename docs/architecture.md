@@ -119,13 +119,14 @@ hardware-tool entry points:
   exceeds the configured percentage, DRC reports Error or Critical Warning
   violations, route status reports unrouted nets or routing errors, or a
   required clock-utilization report is missing or empty. Its `--json` mode emits
-  artifact/report hashes, byte lengths, target clock period/frequency, parsed
-  WNS/WHS values, utilization rows, thresholds, DRC violations, route-status
-  counts, clock-utilization report hashes, requested input path lists and gate
-  values, checked report/artifact count, per-category checked counts, required
-  evidence category presence, missing category names, required `.bit`/`.xsa`
-  artifact suffix presence, and pass/fail state for build evidence logs,
-  including structured failure records for missing or unparseable reports.
+  artifact/report SHA-256 hex hashes, byte lengths, target clock
+  period/frequency, parsed WNS/WHS values, utilization rows, thresholds, DRC
+  violations, route-status counts, clock-utilization report hashes, requested
+  input path lists and gate values, checked report/artifact count, per-category
+  checked counts, required evidence category presence, missing category names,
+  required `.bit`/`.xsa` artifact suffix presence, and pass/fail state for
+  build evidence logs, including structured failure records for missing or
+  unparseable reports.
 
 These scripts are intended to be run after:
 
@@ -207,10 +208,10 @@ evidence must include the command string, resolved argv, positive timeout,
 nonnegative elapsed time, zero return code, bounded stdout/stderr strings with
 matching captured lengths, a positive capture limit, and non-truncated captured
 output metadata. Frame dimensions are cross-checked across the output JPEG,
-encoder configuration, validation
-expectations, source PPM, and expected RGB stream byte length, and the parsed
-marker sequence must begin with SOI and end with EOI. Input RGB evidence must
-include positive byte length, a SHA-256 hash, a positive expected byte length,
+encoder configuration, validation expectations, source PPM, and expected RGB
+stream byte length, and the parsed marker sequence must begin with SOI and end
+with EOI. Input RGB evidence must
+include positive byte length, a SHA-256 hex hash, a positive expected byte length,
 and an actual-vs-expected length match. Capture configuration evidence must
 include a positive maximum output byte count and either no timeout or a finite
 positive timeout. AXI-Lite target evidence must include a device path,
@@ -219,7 +220,7 @@ configuration evidence must include supported dimensions, quality/restart values
 in range, boolean control flags, and a control word/hex string matching those
 flags. Validation expectations evidence must include the baseline shape, marker
 order, table order, SOS spectral fields, and standard-Huffman requirement.
-Source PPM evidence must include file and packed-RGB hashes,
+Source PPM evidence must include file and packed-RGB SHA-256 hex hashes,
 dimension-consistent RGB and packed byte lengths, an input-byte match, and
 non-flat/color image stats. Status evidence must include the detailed
 checkpoint list, matching checkpoint count, expected ordered contexts, zero raw

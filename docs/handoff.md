@@ -630,8 +630,9 @@ Hardware completion evidence should include:
   restart interval, exact RST marker count for the parsed MCU count, JFIF APP0
   signature presence, and valid DQT/DHT table references from SOF0/SOS, with
   the expected baseline marker order through SOS and EOI.
-- JSON evidence records the bitstream/XSA/report hashes, PPM/RGB input hashes,
-  AXI-Lite target, encoder configuration, host capture limits, status
+- JSON evidence records the bitstream/XSA/report SHA-256 hex hashes, PPM/RGB
+  input SHA-256 hex hashes, AXI-Lite target, encoder configuration, host capture
+  limits, status
   checkpoints, output JPEG hash, scan payload length, SOF0/SOS marker counts,
   unstuffed scan-data SHA-256, SOF0 sample precision, SOF0/SOS component ID
   order, SOS component coverage, SOS spectral fields, DQT precision, DQT table
@@ -659,7 +660,7 @@ Hardware completion evidence should include:
   the output JPEG, encoder configuration, validation expectations, source PPM,
   and expected RGB stream byte length, and requires the parsed marker sequence
   to begin with SOI and end with EOI. Input RGB evidence must include positive
-  byte length, a SHA-256 hash, a positive expected byte length, and an
+  byte length, a SHA-256 hex hash, a positive expected byte length, and an
   actual-vs-expected length match. Capture configuration evidence must include a
   positive maximum output byte count and either no timeout or a finite positive
   timeout. AXI-Lite target evidence must include a device path, nonnegative base
@@ -668,7 +669,7 @@ Hardware completion evidence should include:
   boolean control flags, and a control word/hex string matching those flags.
   Validation expectations evidence must include the baseline shape, marker
   order, table order, SOS spectral fields, and standard-Huffman requirement.
-  Source PPM evidence must include file and packed-RGB hashes,
+  Source PPM evidence must include file and packed-RGB SHA-256 hex hashes,
   dimension-consistent RGB and packed byte lengths, an input-byte match, and
   non-flat/color image stats. Status evidence must include the detailed
   checkpoint list, matching checkpoint count, expected ordered contexts, zero
@@ -692,7 +693,7 @@ fixture for repeatable visual checks when no external image is available; PPM
 JSON evidence records channel min/max values plus non-flat/color flags.
 `run-stream-devices --input-ppm` validates the source PPM dimensions and packed
 RGB bytes against the configured frame and `--input-rgb` before device I/O, then
-records the PPM stats, PPM-derived packed RGB byte length and SHA-256, and
+records the PPM stats, PPM-derived packed RGB byte length and SHA-256 hex, and
 packed-RGB match result in run JSON evidence. Pass
 `--decoder-command 'magick identify {jpeg}'` or an equivalent installed decoder
 command to `validate-jpeg` or `run-stream-devices` when you want the standard

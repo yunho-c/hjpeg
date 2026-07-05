@@ -1510,7 +1510,7 @@ class HjpegHostTest(unittest.TestCase):
         incomplete = {
             "input_rgb": {
                 "byte_length": 8,
-                "sha256": "",
+                "sha256": "g" * 64,
                 "expected_byte_length": 8,
                 "byte_length_matches_expected": True,
             }
@@ -1541,12 +1541,12 @@ class HjpegHostTest(unittest.TestCase):
         incomplete = {
             "input_ppm": {
                 "byte_length": 16,
-                "sha256": "",
+                "sha256": "g" * 64,
                 "width": 2,
                 "height": 1,
                 "rgb_bytes": 6,
                 "packed_rgb_byte_length": 8,
-                "packed_rgb_sha256": "1" * 64,
+                "packed_rgb_sha256": "h" * 64,
                 "packed_rgb_matches_input": True,
                 "image_stats": {"non_flat": True, "has_color_pixels": False},
             }
@@ -1570,6 +1570,9 @@ class HjpegHostTest(unittest.TestCase):
 
         self.assertFalse(incomplete_summary["evidence_present"]["input_ppm"])
         self.assertFalse(incomplete_summary["checks"]["input_ppm_sha256_present"])
+        self.assertFalse(
+            incomplete_summary["checks"]["input_ppm_packed_rgb_sha256_present"]
+        )
         self.assertFalse(incomplete_summary["checks"]["input_ppm_has_color_pixels"])
         self.assertTrue(complete_summary["evidence_present"]["input_ppm"])
         self.assertTrue(complete_summary["checks"]["input_ppm_byte_length_positive"])
@@ -2039,22 +2042,23 @@ class HjpegHostTest(unittest.TestCase):
 
     def test_hardware_summary_requires_output_hash_and_scan_evidence(self) -> None:
         record = {
-            "byte_length": 0,
-            "sha256": "",
-            "scan_data_bytes": 0,
-            "scan_data_sha256": "",
+            "byte_length": 16,
+            "sha256": "g" * 64,
+            "scan_data_bytes": 1,
+            "scan_data_sha256": "h" * 64,
+            "marker_sequence": ["SOI", "SOS", "EOI"],
         }
 
         summary = hjpeg_host.hardware_run_summary_record(record)
 
         self.assertFalse(summary["evidence_present"]["jpeg_output"])
         self.assertFalse(summary["all_recorded_checks_passed"])
-        self.assertFalse(summary["checks"]["jpeg_byte_length_positive"])
-        self.assertFalse(summary["checks"]["jpeg_scan_data_bytes_positive"])
+        self.assertTrue(summary["checks"]["jpeg_byte_length_positive"])
+        self.assertTrue(summary["checks"]["jpeg_scan_data_bytes_positive"])
         self.assertFalse(summary["checks"]["jpeg_sha256_present"])
         self.assertFalse(summary["checks"]["jpeg_scan_data_sha256_present"])
-        self.assertFalse(summary["checks"]["jpeg_marker_sequence_starts_with_soi"])
-        self.assertFalse(summary["checks"]["jpeg_marker_sequence_ends_with_eoi"])
+        self.assertTrue(summary["checks"]["jpeg_marker_sequence_starts_with_soi"])
+        self.assertTrue(summary["checks"]["jpeg_marker_sequence_ends_with_eoi"])
 
     def test_hardware_summary_checks_frame_consistency(self) -> None:
         record = {

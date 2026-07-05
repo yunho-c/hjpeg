@@ -1478,6 +1478,12 @@ def file_info(path: Path, data: bytes) -> FileInfo:
     )
 
 
+def is_sha256_hex(value: object) -> bool:
+    return isinstance(value, str) and len(value) == 64 and all(
+        char in "0123456789abcdefABCDEF" for char in value
+    )
+
+
 def file_info_record(info: FileInfo) -> dict[str, object]:
     return {
         "path": info.path,
@@ -1577,10 +1583,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     marker_sequence = record.get("marker_sequence")
     jpeg_byte_length_positive = isinstance(jpeg_byte_length, int) and jpeg_byte_length > 0
     scan_data_bytes_positive = isinstance(scan_data_bytes, int) and scan_data_bytes > 0
-    jpeg_sha256_present = isinstance(jpeg_sha256, str) and len(jpeg_sha256) == 64
-    scan_data_sha256_present = (
-        isinstance(scan_data_sha256, str) and len(scan_data_sha256) == 64
-    )
+    jpeg_sha256_present = is_sha256_hex(jpeg_sha256)
+    scan_data_sha256_present = is_sha256_hex(scan_data_sha256)
     marker_sequence_values = (
         marker_sequence if isinstance(marker_sequence, (list, tuple)) else ()
     )
@@ -1757,9 +1761,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         input_rgb_byte_length_positive = (
             isinstance(input_rgb_byte_length, int) and input_rgb_byte_length > 0
         )
-        input_rgb_sha256_present = (
-            isinstance(input_rgb_sha256, str) and len(input_rgb_sha256) == 64
-        )
+        input_rgb_sha256_present = is_sha256_hex(input_rgb_sha256)
         input_rgb_expected_byte_length_positive = (
             isinstance(input_rgb_expected_byte_length, int)
             and input_rgb_expected_byte_length > 0
@@ -1833,9 +1835,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         input_ppm_byte_length_positive = (
             isinstance(input_ppm_byte_length, int) and input_ppm_byte_length > 0
         )
-        input_ppm_sha256_present = (
-            isinstance(input_ppm_sha256, str) and len(input_ppm_sha256) == 64
-        )
+        input_ppm_sha256_present = is_sha256_hex(input_ppm_sha256)
         input_ppm_dimensions_positive = (
             isinstance(input_ppm_width, int)
             and isinstance(input_ppm_height, int)
@@ -1850,9 +1850,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             input_ppm_dimensions_positive
             and input_ppm_packed_rgb_byte_length == input_ppm_width * input_ppm_height * 4
         )
-        input_ppm_packed_rgb_sha256_present = (
-            isinstance(input_ppm_packed_rgb_sha256, str)
-            and len(input_ppm_packed_rgb_sha256) == 64
+        input_ppm_packed_rgb_sha256_present = is_sha256_hex(
+            input_ppm_packed_rgb_sha256
         )
         checks["input_ppm_matches_input"] = input_ppm_matches
         checks["input_ppm_byte_length_positive"] = input_ppm_byte_length_positive

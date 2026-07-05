@@ -143,7 +143,7 @@ python3 scripts/vivado/check_reports.py \
   --clock-period-ns 10.0
 ```
 
-Add `--json` to include artifact/report paths, byte lengths, SHA-256 hashes,
+Add `--json` to include artifact/report paths, byte lengths, SHA-256 hex hashes,
 parsed setup WNS and hold WHS values, utilization rows, thresholds, and
 target clock period/frequency, DRC violations, route-status counts, required
 clock-utilization report hashes, the requested input path lists and gate values,
@@ -248,12 +248,12 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
 Add `--json` to `make-test-ppm`, `pack-ppm`, `config`, `status`,
 `clear-error`, `validate-jpeg`, or `run-stream-devices` when you want evidence in a
 machine-readable form for logs. Input-prep evidence includes dimensions, checked
-frame limits, byte lengths, SHA-256 hashes for generated files, and PPM
+frame limits, byte lengths, SHA-256 hex hashes for generated files, and PPM
 per-channel min/max values plus non-flat/color flags. `run-stream-devices`
 accepts `--input-ppm` to validate that the saved source PPM dimensions match
 the configured frame and that its packed RGB bytes exactly match `--input-rgb`;
 JSON evidence then records the PPM stats, PPM-derived packed RGB byte length
-and SHA-256, and packed-RGB match result.
+and SHA-256 hex, and packed-RGB match result.
 Configuration evidence
 includes the AXI-Lite target, frame settings,
 checked frame limits, quality, restart interval, chroma mode, JFIF setting, and
@@ -311,7 +311,7 @@ check standalone JPEG table payloads. For `run-stream-devices`, the configured
 restart interval, chroma mode, JFIF setting, quality-scaled DQT payloads, and
 standard DHT payloads are checked against the captured JPEG automatically; the
 run evidence also records those validation expectations, the input RGB stream
-byte length, expected byte length, whether those lengths matched, and SHA-256,
+byte length, expected byte length, whether those lengths matched, and SHA-256 hex,
 host capture limits, plus the AXI-Lite target, status checkpoints enforced
 during the run, status checkpoint count, actual and expected status checkpoint
 context lists, whether those lists matched, and run-level summaries for
@@ -329,21 +329,21 @@ limit, and non-truncated captured output evidence. The summary also cross-checks
 JPEG dimensions against the encoder configuration, validation expectations,
 source PPM dimensions, and expected RGB stream byte length, and requires the
 parsed marker sequence to begin with SOI and end with EOI. Input RGB evidence
-must include positive byte length, a SHA-256 hash, a positive expected byte
+must include positive byte length, a SHA-256 hex hash, a positive expected byte
 length, and an actual-vs-expected length match. Capture configuration evidence
-must include a positive maximum
-output byte count and either no timeout or a finite positive timeout. AXI-Lite
+must include a positive maximum output byte count and either no timeout or a
+finite positive timeout. AXI-Lite
 target evidence must include a device path, nonnegative base address, and
 matching hexadecimal base-address text. Encoder configuration evidence must
 include supported dimensions, quality/restart values in range, boolean control
 flags, and a control word/hex string matching those flags. Validation
 expectations evidence must include the baseline shape, marker order, table
 order, SOS spectral fields, and standard-Huffman requirement. Source PPM
-evidence must include file and packed-RGB hashes, dimension-consistent RGB and
-packed byte lengths, an input-byte match, and non-flat/color image stats. Status
-evidence must include the detailed checkpoint list, matching checkpoint count,
-expected ordered contexts, zero raw status words, and all checkpoints idle with
-no protocol error or busy state.
+evidence must include file and packed-RGB SHA-256 hex hashes,
+dimension-consistent RGB and packed byte lengths, an input-byte match, and
+non-flat/color image stats. Status evidence must include the detailed checkpoint
+list, matching checkpoint count, expected ordered contexts, zero raw status
+words, and all checkpoints idle with no protocol error or busy state.
 Maximum output bytes must be positive, and RX timeout values must be finite and
 positive when present. It
 also records host-observed transfer elapsed seconds and derived byte rates when

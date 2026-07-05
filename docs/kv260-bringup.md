@@ -115,7 +115,7 @@ Pass criteria:
 - `check_reports.py` exits successfully for the generated timing, utilization,
   DRC, route-status, and clock-utilization reports, with hold timing gated on
   the post-implementation timing report.
-- The JSON evidence records artifact/report paths, byte lengths, SHA-256
+- The JSON evidence records artifact/report paths, byte lengths, SHA-256 hex
   hashes, target clock period/frequency, parsed setup WNS and hold WHS values,
   utilization rows, thresholds, DRC violations, route-status counts, required
   clock-utilization report hashes, requested input path lists and gate values,
@@ -154,7 +154,7 @@ Expected evidence:
 - `input.rgb` size is exactly `width * height * 4` bytes: R, G, B, and one
   ignored padding byte per pixel.
 - The JSON evidence records input/output paths, dimensions, byte lengths, and
-  SHA-256 hashes for the PPM fixture and packed RGB stream, plus PPM
+  SHA-256 hex hashes for the PPM fixture and packed RGB stream, plus PPM
   per-channel min/max values and non-flat/color flags. Run evidence records the
   expected packed RGB byte length and whether the actual input length matched it.
 - The input image dimensions are within the configured `HjpegConfig` maximums.
@@ -197,8 +197,8 @@ Expected evidence:
 - JSON evidence records the AXI-Lite target and encoder configuration used for
   the run, including the frame limits checked by the host helper.
 - If `--input-ppm` is provided, JSON evidence records the source PPM dimensions,
-  SHA-256, non-flat/color stats, PPM-derived packed RGB byte length and
-  SHA-256, and that its packed RGB bytes match `--input-rgb`; mismatches fail
+  SHA-256 hex, non-flat/color stats, PPM-derived packed RGB byte length and
+  SHA-256 hex, and that its packed RGB bytes match `--input-rgb`; mismatches fail
   before device I/O.
 - Standalone `status --json` evidence records the AXI-Lite target, raw status
   word, decoded `busy` and `protocol_error` flags, and text state.
@@ -218,7 +218,7 @@ Expected evidence:
   cross-checks the output JPEG dimensions against the encoder configuration,
   validation expectations, source PPM dimensions, and expected RGB stream byte
   length, and requires the parsed marker sequence to begin with SOI and end
-  with EOI. Input RGB evidence must include positive byte length, a SHA-256
+  with EOI. Input RGB evidence must include positive byte length, a SHA-256 hex
   hash, a positive expected byte length, and an actual-vs-expected length match.
   Capture configuration evidence must include a positive maximum output byte
   count and either no timeout or a finite positive timeout. AXI-Lite target
@@ -228,9 +228,9 @@ Expected evidence:
   values in range, boolean control flags, and a control word/hex string matching
   those flags. Validation expectations evidence must include the baseline shape,
   marker order, table order, SOS spectral fields, and standard-Huffman
-  requirement. Source PPM evidence must include file and packed-RGB hashes,
-  dimension-consistent RGB and packed byte lengths, an input-byte match, and
-  non-flat/color image stats. Status evidence must include the detailed
+  requirement. Source PPM evidence must include file and packed-RGB SHA-256 hex
+  hashes, dimension-consistent RGB and packed byte lengths, an input-byte match,
+  and non-flat/color image stats. Status evidence must include the detailed
   checkpoint list, matching checkpoint count, expected ordered contexts, zero
   raw status words, and all checkpoints idle with no protocol error or busy
   state.
@@ -328,10 +328,10 @@ Expected evidence:
   non-JFIF APP0 segments, and more than one APP0 marker, and can enforce the
   JFIF signature with `--expect-jfif present` or `absent`; `run-stream-devices`
   checks this automatically against the configured JFIF control bit.
-- The helper reports the total JPEG byte length and SHA-256 so the captured
+- The helper reports the total JPEG byte length and SHA-256 hex so the captured
   artifact can be matched against saved files and logs.
 - For `run-stream-devices`, the helper reports the actual and expected input
-  RGB stream byte lengths plus SHA-256 so the output can be tied to the exact
+  RGB stream byte lengths plus SHA-256 hex so the output can be tied to the exact
   input payload, and rejects trailing bytes already returned after the first
   JPEG EOI instead of writing a truncated artifact. JSON evidence records the
   validation expectations enforced from the configured dimensions, restart
