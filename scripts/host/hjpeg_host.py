@@ -1562,7 +1562,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         "axi_lite": False,
         "encoder_config": False,
         "capture_config": False,
-        "status_checks": "status_checks" in record,
+        "status_checks": False,
         "validation_expectations": False,
         "input_ppm": False,
         "transfer_timing": False,
@@ -1888,18 +1888,26 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
 
     if "status_checks" in record:
-        checks["status_check_contexts_match_expected"] = bool(
+        status_check_contexts_match_expected = bool(
             record.get("status_check_contexts_match_expected", False)
         )
-        checks["status_checks_all_idle"] = bool(
-            record.get("status_checks_all_idle", False)
-        )
-        checks["status_checks_no_protocol_error"] = not bool(
+        status_checks_all_idle = bool(record.get("status_checks_all_idle", False))
+        status_checks_no_protocol_error = not bool(
             record.get("status_checks_any_protocol_error", True)
         )
-        checks["status_checks_no_busy"] = not bool(
-            record.get("status_checks_any_busy", True)
+        status_checks_no_busy = not bool(record.get("status_checks_any_busy", True))
+        evidence_present["status_checks"] = (
+            status_check_contexts_match_expected
+            and status_checks_all_idle
+            and status_checks_no_protocol_error
+            and status_checks_no_busy
         )
+        checks["status_check_contexts_match_expected"] = (
+            status_check_contexts_match_expected
+        )
+        checks["status_checks_all_idle"] = status_checks_all_idle
+        checks["status_checks_no_protocol_error"] = status_checks_no_protocol_error
+        checks["status_checks_no_busy"] = status_checks_no_busy
 
     if "decoder_passed" in record:
         decoder_passed = bool(record.get("decoder_passed", False))

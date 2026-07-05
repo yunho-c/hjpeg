@@ -666,7 +666,9 @@ Hardware completion evidence should include:
   order, table order, SOS spectral fields, and standard-Huffman requirement.
   Source PPM evidence must include file and packed-RGB hashes,
   dimension-consistent RGB and packed byte lengths, an input-byte match, and
-  non-flat/color image stats.
+  non-flat/color image stats. Status evidence must include the expected
+  checkpoint contexts with all checkpoints idle, no protocol error, and no busy
+  state.
 - A standard JPEG decoder opens the result.
 - A non-flat/color image decodes into recognizable visual content.
 

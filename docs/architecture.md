@@ -218,7 +218,8 @@ flags. Validation expectations evidence must include the baseline shape, marker
 order, table order, SOS spectral fields, and standard-Huffman requirement.
 Source PPM evidence must include file and packed-RGB hashes,
 dimension-consistent RGB and packed byte lengths, an input-byte match, and
-non-flat/color image stats.
+non-flat/color image stats. Status evidence must include the expected checkpoint
+contexts with all checkpoints idle, no protocol error, and no busy state.
 The `run-stream-devices` command supports Linux board images that expose DMA
 MM2S/S2MM endpoints as byte-stream device files by writing padded RGB bytes to
 the TX device and reading JPEG bytes from the RX device until EOI, while

@@ -227,7 +227,9 @@ Expected evidence:
   marker order, table order, SOS spectral fields, and standard-Huffman
   requirement. Source PPM evidence must include file and packed-RGB hashes,
   dimension-consistent RGB and packed byte lengths, an input-byte match, and
-  non-flat/color image stats.
+  non-flat/color image stats. Status evidence must include the expected
+  checkpoint contexts with all checkpoints idle, no protocol error, and no busy
+  state.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after

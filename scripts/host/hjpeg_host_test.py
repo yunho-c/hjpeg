@@ -1809,6 +1809,9 @@ class HjpegHostTest(unittest.TestCase):
                 },
             )
             self.assertTrue(record["hardware_run_summary"]["all_recorded_checks_passed"])
+            self.assertTrue(
+                record["hardware_run_summary"]["evidence_present"]["status_checks"]
+            )
             self.assertFalse(record["hardware_run_summary"]["evidence_present"]["input_ppm"])
             self.assertFalse(record["hardware_run_summary"]["evidence_present"]["decoder"])
             self.assertFalse(record["hardware_run_summary"]["complete_hardware_run_evidence"])
@@ -1831,6 +1834,9 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(faulted["status_checks_any_busy"])
             self.assertFalse(faulted["status_check_contexts_match_expected"])
             self.assertFalse(faulted["hardware_run_summary"]["all_recorded_checks_passed"])
+            self.assertFalse(
+                faulted["hardware_run_summary"]["evidence_present"]["status_checks"]
+            )
             self.assertFalse(
                 faulted["hardware_run_summary"]["checks"][
                     "status_check_contexts_match_expected"

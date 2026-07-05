@@ -336,7 +336,9 @@ flags, and a control word/hex string matching those flags. Validation
 expectations evidence must include the baseline shape, marker order, table
 order, SOS spectral fields, and standard-Huffman requirement. Source PPM
 evidence must include file and packed-RGB hashes, dimension-consistent RGB and
-packed byte lengths, an input-byte match, and non-flat/color image stats.
+packed byte lengths, an input-byte match, and non-flat/color image stats. Status
+evidence must include the expected checkpoint contexts with all checkpoints
+idle, no protocol error, and no busy state.
 Maximum output bytes must be positive, and RX timeout values must be finite and
 positive when present. It
 also records host-observed transfer elapsed seconds and derived byte rates when
