@@ -175,8 +175,8 @@ run. Standalone
 validation can require an expected restart interval, exact RST marker count for
 the parsed MCU count, chroma/JFIF mode, quality-matched standard DQT payloads,
 and standard DHT payloads; standalone JSON evidence records the expectations
-that were enforced, including the derived expected RST marker count and expected
-DQT/DHT payload hashes when table checks are enabled.
+that were enforced, including expected marker counts, the derived expected RST
+marker count, and expected DQT/DHT payload hashes when table checks are enabled.
 `run-stream-devices` checks the configured restart
 interval, chroma mode, JFIF setting, quality-scaled DQT payloads, and standard
 DHT payloads against the captured JPEG automatically and records those

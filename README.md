@@ -268,11 +268,11 @@ DQT/DHT/DRI/restart marker counts, a grouped `marker_counts` object,
 parsed marker sequence,
 parsed DRI restart interval, RST marker sequence, total JPEG byte length,
 SHA-256, standalone validation expectations including derived expected RST
-marker count and expected DQT/DHT payload hashes when table checks are enabled,
-decoder command, resolved decoder argv, decoder timeout, and decoder elapsed
-seconds when one was provided, plus decoder return code and bounded
-stdout/stderr when a decoder command ran, including captured output lengths and
-the capture limit. JFIF
+marker count, expected marker counts, and expected DQT/DHT payload hashes when
+table checks are enabled, decoder command, resolved decoder argv, decoder
+timeout, and decoder elapsed seconds when one was provided, plus decoder return
+code and bounded stdout/stderr when a decoder command ran, including captured
+output lengths and the capture limit. JFIF
 APP0 segments must match the encoder's baseline version, density, and
 no-thumbnail fields. The validator rejects non-8-bit or
 non-three-component SOF0 frames, zero SOF0 dimensions, duplicate SOF0/SOS

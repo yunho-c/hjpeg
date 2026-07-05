@@ -255,8 +255,8 @@ Expected evidence:
   quality-scaled standard DQT payloads and standard DHT payloads. Standalone
   validation JSON evidence records the expected dimensions and optional
   restart/chroma/JFIF/quality/Huffman checks that were enforced, including the
-  derived expected RST marker count and expected DQT/DHT payload hashes when
-  table checks are enabled. Pass
+  expected marker counts, derived expected RST marker count, and expected
+  DQT/DHT payload hashes when table checks are enabled. Pass
   `--restart-interval` to standalone `validate-jpeg` to check the expected DRI
   value and exact RST marker count for the parsed MCU count;
   `run-stream-devices` checks this automatically against the configured
@@ -291,9 +291,10 @@ Expected evidence:
   input payload, and rejects trailing bytes already returned after the first
   JPEG EOI instead of writing a truncated artifact. JSON evidence records the
   validation expectations enforced from the configured dimensions, restart
-  interval, derived expected RST marker count, chroma mode, JFIF setting,
-  quality, standard Huffman contract, and expected DQT/DHT payload hashes, plus
-  the host capture limits used for maximum output bytes and RX timeout. RX
+  interval, expected marker counts, derived expected RST marker count, chroma
+  mode, JFIF setting, quality, standard Huffman contract, and expected DQT/DHT
+  payload hashes, plus the host capture limits used for maximum output bytes
+  and RX timeout. RX
   timeout values must be finite and positive when present, and maximum output
   bytes must be positive. Frame dimensions and frame limits must be positive,
   and AXI-Lite base addresses must be nonnegative.

@@ -1123,11 +1123,29 @@ def validation_expectations_record(
     quality: int | None,
     require_standard_huffman: bool,
 ) -> dict[str, object]:
+    expected_app0_segments: int | None
+    if expect_jfif == "present":
+        expected_app0_segments = 1
+    elif expect_jfif == "absent":
+        expected_app0_segments = 0
+    else:
+        expected_app0_segments = None
+    expected_marker_counts: dict[str, int | None] = {
+        "APP0": expected_app0_segments,
+        "JFIF_APP0": expected_app0_segments,
+        "DQT": 2,
+        "SOF0": 1,
+        "DHT": 4,
+        "SOS": 1,
+        "DRI": None if restart_interval is None else (0 if restart_interval == 0 else 1),
+        "RST": expected_restart_marker_count(info, restart_interval),
+    }
     record: dict[str, object] = {
         "width": width,
         "height": height,
         "restart_interval": restart_interval,
         "expected_restart_markers": expected_restart_marker_count(info, restart_interval),
+        "expected_marker_counts": expected_marker_counts,
         "check_chroma_mode": check_chroma_mode,
         "chroma_subsample": chroma_subsample,
         "expect_jfif": expect_jfif,
