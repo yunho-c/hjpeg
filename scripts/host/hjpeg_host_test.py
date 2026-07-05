@@ -2197,6 +2197,19 @@ class HjpegHostTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "sampling factors"):
                 hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
 
+    def test_validate_jpeg_rejects_zero_sampling_factors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "zero-sampling.jpg"
+            jpeg.write_bytes(
+                with_sof0_sampling_factors(
+                    minimal_jpeg(width=17, height=13),
+                    (0x10, 0x11, 0x11),
+                )
+            )
+
+            with self.assertRaisesRegex(ValueError, "zero sampling factor"):
+                hjpeg_host.validate_jpeg(jpeg, expected_width=17, expected_height=13)
+
     def test_validate_jpeg_rejects_non_baseline_sos_spectral_fields(self) -> None:
         cases = (
             ("bad-start.jpg", 1, 63, 0),

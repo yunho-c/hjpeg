@@ -157,7 +157,8 @@ or duplicate APP0 markers, requires the encoder's baseline marker order of
 optional APP0/JFIF, DQT, SOF0, DHT, optional DRI, SOS, entropy, and EOI, records
 the parsed marker sequence, RST marker sequence, and MCU count in JSON evidence,
 rejects RST markers without DRI or out-of-sequence RST markers, and requires the
-SOF0 sampling factors to match the supported 4:4:4 or 4:2:0 modes. The helper
+SOF0 sampling factors to be nonzero and match the supported 4:4:4 or 4:2:0
+modes. The helper
 can also run an external JPEG decoder command with a configurable timeout and
 bounded stdout/stderr capture so decoder-open evidence is captured in the same
 transcript without risking a hung or oversized validation run. Standalone

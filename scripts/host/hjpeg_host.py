@@ -539,11 +539,17 @@ def jpeg_info(data: bytes) -> JpegInfo:
             for component_index in range(component_count):
                 component_offset = offset + 8 + component_index * 3
                 sampling = data[component_offset + 1]
+                horizontal_sampling = (sampling >> 4) & 0x0F
+                vertical_sampling = sampling & 0x0F
+                if horizontal_sampling == 0 or vertical_sampling == 0:
+                    raise ValueError(
+                        f"JPEG SOF0 component {data[component_offset]} has zero sampling factor"
+                    )
                 parsed_components.append(
                     JpegComponent(
                         component_id=data[component_offset],
-                        horizontal_sampling=(sampling >> 4) & 0x0F,
-                        vertical_sampling=sampling & 0x0F,
+                        horizontal_sampling=horizontal_sampling,
+                        vertical_sampling=vertical_sampling,
                         quantization_table=data[component_offset + 2],
                     )
                 )
