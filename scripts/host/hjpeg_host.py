@@ -313,6 +313,26 @@ def file_info(path: Path, data: bytes) -> FileInfo:
     )
 
 
+def file_info_record(info: FileInfo) -> dict[str, object]:
+    return {
+        "path": info.path,
+        "byte_length": info.byte_length,
+        "sha256": info.sha256,
+    }
+
+
+def ppm_evidence_record(path: Path, image: PpmImage) -> dict[str, object]:
+    record = file_info_record(file_info(path, path.read_bytes()))
+    record.update(
+        {
+            "width": image.width,
+            "height": image.height,
+            "rgb_bytes": len(image.rgb),
+        }
+    )
+    return record
+
+
 def run_evidence_record(
     jpeg: Path,
     info: JpegInfo,
@@ -543,6 +563,7 @@ def build_parser() -> argparse.ArgumentParser:
     pack.add_argument("output", type=Path)
     pack.add_argument("--max-width", type=int, default=4096)
     pack.add_argument("--max-height", type=int, default=4096)
+    pack.add_argument("--json", action="store_true", help="print packed stream evidence as JSON")
 
     make_ppm = subparsers.add_parser(
         "make-test-ppm",
@@ -551,6 +572,7 @@ def build_parser() -> argparse.ArgumentParser:
     make_ppm.add_argument("output", type=Path)
     make_ppm.add_argument("--width", type=int, required=True)
     make_ppm.add_argument("--height", type=int, required=True)
+    make_ppm.add_argument("--json", action="store_true", help="print generated PPM evidence as JSON")
 
     validate = subparsers.add_parser("validate-jpeg", help="validate JPEG markers and dimensions")
     validate.add_argument("jpeg", type=Path)
@@ -619,14 +641,40 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError(
                 f"image {image.width}x{image.height} exceeds configured maximum "
                 f"{args.max_width}x{args.max_height}"
-            )
+        )
         write_rgb_stream(image, args.output)
+        if args.json:
+            output_data = args.output.read_bytes()
+            print(
+                json.dumps(
+                    {
+                        "input_ppm": ppm_evidence_record(args.input, image),
+                        "output_rgb": file_info_record(file_info(args.output, output_data)),
+                        "width": image.width,
+                        "height": image.height,
+                        "expected_rgb_stream_bytes": image.width * image.height * 4,
+                    },
+                    sort_keys=True,
+                )
+            )
+            return 0
         print(f"wrote {image.width * image.height * 4} RGB stream bytes for {image.width}x{image.height}")
         return 0
 
     if args.command == "make-test-ppm":
         image = make_test_image(args.width, args.height)
         write_ppm(image, args.output)
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "output_ppm": ppm_evidence_record(args.output, image),
+                        "deterministic_pattern": True,
+                    },
+                    sort_keys=True,
+                )
+            )
+            return 0
         print(f"wrote deterministic P6 PPM {args.width}x{args.height} to {args.output}")
         return 0
 

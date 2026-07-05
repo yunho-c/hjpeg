@@ -95,6 +95,40 @@ class HjpegHostTest(unittest.TestCase):
             image = hjpeg_host.read_ppm(ppm)
             self.assertEqual((image.width, image.height), (3, 2))
 
+    def test_make_test_ppm_cli_can_print_json_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ppm = Path(tmp) / "pattern.ppm"
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "make-test-ppm",
+                            str(ppm),
+                            "--width",
+                            "3",
+                            "--height",
+                            "2",
+                            "--json",
+                        ]
+                    ),
+                    0,
+                )
+
+            record = json.loads(stdout.getvalue())
+            ppm_bytes = ppm.read_bytes()
+            self.assertTrue(record["deterministic_pattern"])
+            self.assertEqual(record["output_ppm"]["path"], str(ppm))
+            self.assertEqual(record["output_ppm"]["width"], 3)
+            self.assertEqual(record["output_ppm"]["height"], 2)
+            self.assertEqual(record["output_ppm"]["rgb_bytes"], 18)
+            self.assertEqual(record["output_ppm"]["byte_length"], len(ppm_bytes))
+            self.assertEqual(
+                record["output_ppm"]["sha256"],
+                hashlib.sha256(ppm_bytes).hexdigest(),
+            )
+
     def test_read_ppm_with_comment_and_pack_rgb_stream(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -109,6 +143,39 @@ class HjpegHostTest(unittest.TestCase):
 
             hjpeg_host.write_rgb_stream(image, rgb)
             self.assertEqual(rgb.read_bytes(), bytes([1, 2, 3, 0, 4, 5, 6, 0]))
+
+    def test_pack_ppm_cli_can_print_json_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ppm = root / "input.ppm"
+            rgb = root / "input.rgb"
+            ppm.write_bytes(b"P6\n2 1\n255\n" + bytes([1, 2, 3, 4, 5, 6]))
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(["pack-ppm", str(ppm), str(rgb), "--json"]),
+                    0,
+                )
+
+            record = json.loads(stdout.getvalue())
+            ppm_bytes = ppm.read_bytes()
+            rgb_bytes = rgb.read_bytes()
+            self.assertEqual(record["width"], 2)
+            self.assertEqual(record["height"], 1)
+            self.assertEqual(record["expected_rgb_stream_bytes"], 8)
+            self.assertEqual(record["input_ppm"]["path"], str(ppm))
+            self.assertEqual(record["input_ppm"]["byte_length"], len(ppm_bytes))
+            self.assertEqual(
+                record["input_ppm"]["sha256"],
+                hashlib.sha256(ppm_bytes).hexdigest(),
+            )
+            self.assertEqual(record["output_rgb"]["path"], str(rgb))
+            self.assertEqual(record["output_rgb"]["byte_length"], len(rgb_bytes))
+            self.assertEqual(
+                record["output_rgb"]["sha256"],
+                hashlib.sha256(rgb_bytes).hexdigest(),
+            )
 
     def test_validate_jpeg_checks_sof0_dimensions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

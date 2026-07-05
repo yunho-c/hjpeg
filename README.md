@@ -154,8 +154,8 @@ The host utility prepares payloads and register writes for the KV260 AXI-Lite /
 AXI DMA design:
 
 ```sh
-python3 scripts/host/hjpeg_host.py make-test-ppm input.ppm --width 640 --height 480
-python3 scripts/host/hjpeg_host.py pack-ppm input.ppm input.rgb
+python3 scripts/host/hjpeg_host.py make-test-ppm input.ppm --width 640 --height 480 --json
+python3 scripts/host/hjpeg_host.py pack-ppm input.ppm input.rgb --json
 python3 scripts/host/hjpeg_host.py config --base-addr 0xa0000000 --width 640 --height 480
 python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000 --json
 python3 scripts/host/hjpeg_host.py run-stream-devices \
@@ -191,10 +191,12 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
   --decoder-command 'magick identify {jpeg}'
 ```
 
-Add `--json` to `status`, `validate-jpeg`, or `run-stream-devices` when you
-want evidence in a machine-readable form for logs. JPEG validation evidence
-includes dimensions, scan-data byte count, total JPEG byte length, and SHA-256.
-For `run-stream-devices`, it also includes the input RGB stream byte length and
+Add `--json` to `make-test-ppm`, `pack-ppm`, `status`, `validate-jpeg`, or
+`run-stream-devices` when you want evidence in a machine-readable form for logs.
+Input-prep evidence includes dimensions, byte lengths, and SHA-256 hashes for
+the generated PPM and packed RGB stream. JPEG validation evidence includes
+dimensions, scan-data byte count, total JPEG byte length, and SHA-256. For
+`run-stream-devices`, it also includes the input RGB stream byte length and
 SHA-256 plus the AXI-Lite status checkpoints enforced during the run.
 
 ## Versions

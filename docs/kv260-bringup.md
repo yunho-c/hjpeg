@@ -91,8 +91,8 @@ Latest local Vivado 2026.1 evidence:
 ## 5. Prepare Host Input
 
 ```sh
-python3 scripts/host/hjpeg_host.py make-test-ppm input.ppm --width WIDTH --height HEIGHT
-python3 scripts/host/hjpeg_host.py pack-ppm input.ppm input.rgb
+python3 scripts/host/hjpeg_host.py make-test-ppm input.ppm --width WIDTH --height HEIGHT --json
+python3 scripts/host/hjpeg_host.py pack-ppm input.ppm input.rgb --json
 ```
 
 Expected evidence:
@@ -101,6 +101,8 @@ Expected evidence:
   binary P6 PPM fixture with recognizable visual content.
 - `input.rgb` size is exactly `width * height * 4` bytes: R, G, B, and one
   ignored padding byte per pixel.
+- The JSON evidence records input/output paths, dimensions, byte lengths, and
+  SHA-256 hashes for the PPM fixture and packed RGB stream.
 - The input image dimensions are within the configured `HjpegConfig` maximums.
 
 ## 6. Configure and Run Hardware
@@ -156,8 +158,8 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
   --decoder-command 'magick identify {jpeg}'
 ```
 
-Use `--json` with `status`, `validate-jpeg`, or `run-stream-devices` when
-saving evidence for automation or later comparison.
+Use `--json` with `make-test-ppm`, `pack-ppm`, `status`, `validate-jpeg`, or
+`run-stream-devices` when saving evidence for automation or later comparison.
 
 Expected evidence:
 
