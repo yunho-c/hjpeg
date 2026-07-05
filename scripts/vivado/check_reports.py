@@ -229,20 +229,102 @@ def check_address_map(path: Path) -> list[str]:
         return [f"{path}: address map report is empty"]
 
     entries = parse_address_map_entries(report)
-    present_interfaces = {entry.interface for entry in entries}
-    failures = []
-    for component, interface in REQUIRED_ADDRESS_MAP_INTERFACES:
-        interface_name = f"{component}/{interface}"
-        if interface_name not in present_interfaces:
-            failures.append(f"{path}: address map missing {interface_name} base address")
-
-    for entry in entries:
-        if entry.high_address is not None and entry.high_address < entry.base_address:
-            failures.append(
-                f"{path}: address map {entry.interface} high address "
-                f"0x{entry.high_address:08x} is below base address 0x{entry.base_address:08x}"
-            )
+    _, failures = address_map_validation(entries, path)
     return failures
+
+
+def address_map_validation(
+    entries: list[AddressMapEntry], path: Path
+) -> tuple[dict[str, object], list[str]]:
+    required_interfaces = [
+        f"{component}/{interface}"
+        for component, interface in REQUIRED_ADDRESS_MAP_INTERFACES
+    ]
+    entries_by_interface = {
+        interface_name: [
+            entry for entry in entries if entry.interface == interface_name
+        ]
+        for interface_name in required_interfaces
+    }
+    missing_interfaces = [
+        interface_name
+        for interface_name, interface_entries in entries_by_interface.items()
+        if not interface_entries
+    ]
+    duplicate_interfaces = [
+        interface_name
+        for interface_name, interface_entries in entries_by_interface.items()
+        if len(interface_entries) > 1
+    ]
+    invalid_range_interfaces = [
+        entry.interface
+        for entry in entries
+        if entry.high_address is not None and entry.high_address < entry.base_address
+    ]
+
+    range_overlaps = []
+    checked_entries = [
+        entry
+        for entry in entries
+        if entry.interface in required_interfaces
+        and entry.high_address is not None
+        and entry.high_address >= entry.base_address
+    ]
+    for index, first in enumerate(checked_entries):
+        for second in checked_entries[index + 1 :]:
+            if first.interface == second.interface:
+                continue
+            if first.base_address <= second.high_address and second.base_address <= first.high_address:
+                range_overlaps.append(
+                    {
+                        "first_interface": first.interface,
+                        "first_base_address_hex": f"0x{first.base_address:08x}",
+                        "first_high_address_hex": f"0x{first.high_address:08x}",
+                        "second_interface": second.interface,
+                        "second_base_address_hex": f"0x{second.base_address:08x}",
+                        "second_high_address_hex": f"0x{second.high_address:08x}",
+                    }
+                )
+
+    failures = [
+        f"{path}: address map missing {interface_name} base address"
+        for interface_name in missing_interfaces
+    ]
+    failures.extend(
+        f"{path}: address map has duplicate {interface_name} base addresses"
+        for interface_name in duplicate_interfaces
+    )
+    failures.extend(
+        f"{path}: address map {entry.interface} high address "
+        f"0x{entry.high_address:08x} is below base address 0x{entry.base_address:08x}"
+        for entry in entries
+        if entry.high_address is not None
+        and entry.high_address < entry.base_address
+    )
+    failures.extend(
+        f"{path}: address map {overlap['first_interface']} range "
+        f"{overlap['first_base_address_hex']}-{overlap['first_high_address_hex']} "
+        f"overlaps {overlap['second_interface']} range "
+        f"{overlap['second_base_address_hex']}-{overlap['second_high_address_hex']}"
+        for overlap in range_overlaps
+    )
+
+    present_interfaces = sorted(
+        interface_name
+        for interface_name, interface_entries in entries_by_interface.items()
+        if interface_entries
+    )
+    return (
+        {
+            "required_interfaces": required_interfaces,
+            "present_interfaces": present_interfaces,
+            "missing_interfaces": missing_interfaces,
+            "duplicate_interfaces": duplicate_interfaces,
+            "invalid_range_interfaces": invalid_range_interfaces,
+            "range_overlaps": range_overlaps,
+        },
+        failures,
+    )
 
 
 def check_timing(path: Path, min_wns: float, min_whs: float = 0.0, check_whs: bool = False) -> list[str]:
@@ -529,29 +611,15 @@ def address_map_record(path: Path) -> tuple[dict[str, object], list[str]]:
     report_bytes = path.read_bytes()
     report = report_bytes.decode(errors="replace")
     entries = parse_address_map_entries(report)
-    present_interfaces = {entry.interface for entry in entries}
-    failures = []
+    validation, failures = address_map_validation(entries, path)
     if not report_bytes:
         failures.append(f"{path}: address map report is empty")
-
-    required_interfaces = [
-        f"{component}/{interface}"
-        for component, interface in REQUIRED_ADDRESS_MAP_INTERFACES
-    ]
-    for interface_name in required_interfaces:
-        if interface_name not in present_interfaces:
-            failures.append(f"{path}: address map missing {interface_name} base address")
 
     entry_records = []
     for entry in entries:
         high_address_valid = (
             entry.high_address is None or entry.high_address >= entry.base_address
         )
-        if not high_address_valid:
-            failures.append(
-                f"{path}: address map {entry.interface} high address "
-                f"0x{entry.high_address:08x} is below base address 0x{entry.base_address:08x}"
-            )
         entry_records.append(
             {
                 "interface": entry.interface,
@@ -564,6 +632,11 @@ def address_map_record(path: Path) -> tuple[dict[str, object], list[str]]:
                     else None
                 ),
                 "high_address_valid": high_address_valid,
+                "aperture_bytes": (
+                    entry.high_address - entry.base_address + 1
+                    if entry.high_address is not None and high_address_valid
+                    else None
+                ),
             }
         )
 
@@ -571,13 +644,7 @@ def address_map_record(path: Path) -> tuple[dict[str, object], list[str]]:
     record.update(
         {
             "exists": True,
-            "required_interfaces": required_interfaces,
-            "present_interfaces": sorted(present_interfaces),
-            "missing_interfaces": [
-                interface_name
-                for interface_name in required_interfaces
-                if interface_name not in present_interfaces
-            ],
+            **validation,
             "entries": entry_records,
             "passed": not failures,
         }

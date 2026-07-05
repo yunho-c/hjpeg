@@ -123,9 +123,10 @@ Pass criteria:
   hashes, target clock period/frequency, parsed setup WNS and hold WHS values,
   utilization rows, thresholds, DRC violations, route-status counts, required
   clock-utilization report hashes, parsed address-map AXI-Lite aperture
-  base/high addresses for `hjpeg_0/s_axi_lite` and `axi_dma_0/S_AXI_LITE`,
-  requested input path lists and gate values, checked report/artifact count,
-  per-category checked counts, required evidence category presence,
+  base/high addresses and byte ranges for `hjpeg_0/s_axi_lite` and
+  `axi_dma_0/S_AXI_LITE`, duplicate/missing/overlapping address-map interface
+  checks, requested input path lists and gate values, checked report/artifact
+  count, per-category checked counts, required evidence category presence,
   per-category passing/failing counts, present and missing category names,
   failing category names, required `.bit`/`.xsa` artifact suffix presence,
   present and missing required suffix names, failing required suffix names,

@@ -419,13 +419,14 @@ reports, route-status reports, clock-utilization reports, and address-map
 reports can be recorded with byte lengths, hashes, target clock
 period/frequency, parsed setup WNS and hold WHS, utilization rows, DRC
 violations, route-status counts, thresholds, parsed address-map AXI-Lite
-aperture base/high addresses for `hjpeg_0/s_axi_lite` and
-`axi_dma_0/S_AXI_LITE`, requested input path lists and gate values, checked
-report/artifact count, per-category checked counts, required evidence category
-presence, present and missing category names, failing category names,
-per-category passing/failing counts, required `.bit`/`.xsa` artifact suffix
-presence, present and missing required suffix names, failing required suffix
-names, required suffix passing/failing counts, aggregate pass/fail counts,
+aperture base/high addresses and byte ranges for `hjpeg_0/s_axi_lite` and
+`axi_dma_0/S_AXI_LITE`, duplicate/missing/overlapping address-map interface
+checks, requested input path lists and gate values, checked report/artifact
+count, per-category checked counts, required evidence category presence,
+present and missing category names, failing category names, per-category
+passing/failing counts, required `.bit`/`.xsa` artifact suffix presence,
+present and missing required suffix names, failing required suffix names,
+required suffix passing/failing counts, aggregate pass/fail counts,
 required/present/missing category and suffix counts, diagnostic failure count,
 checked/passed/failed path lists, complete-evidence required/missing/failing
 lists, and pass/fail state.
@@ -439,7 +440,9 @@ gates should pass `--require-complete-evidence`; partial post-synthesis checks
 can omit it.
 Requested artifacts, clock-utilization reports, and address-map reports must be
 non-empty. Address-map reports must include parseable base addresses for both
-the HJPEG AXI-Lite control aperture and the AXI DMA control aperture. Use
+the HJPEG AXI-Lite control aperture and the AXI DMA control aperture, and those
+control apertures must be unique and non-overlapping when high addresses are
+reported. Use
 `--hold-timing` for post-implementation timing reports; post-synthesis hold can
 be negative before implementation fixes it. The utilization parser handles Vivado's
 `Prohibited` column and records hard-system rows such as `PS8` without gating

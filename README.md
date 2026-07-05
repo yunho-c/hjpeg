@@ -150,12 +150,13 @@ Add `--json` to include artifact/report paths, byte lengths, SHA-256 hex hashes,
 parsed setup WNS and hold WHS values, utilization rows, thresholds, and
 target clock period/frequency, DRC violations, route-status counts, required
 clock-utilization report hashes, parsed address-map AXI-Lite aperture base/high
-addresses for `hjpeg_0/s_axi_lite` and `axi_dma_0/S_AXI_LITE`, the requested
-input path lists and gate values, checked report/artifact count, per-category
-checked counts, required evidence category presence, per-category
-passing/failing counts, present and missing category names, failing category
-names, required `.bit`/`.xsa` artifact suffix presence, present and missing
-required suffix names, failing required suffix names, required suffix
+addresses and byte ranges for `hjpeg_0/s_axi_lite` and
+`axi_dma_0/S_AXI_LITE`, duplicate/missing/overlapping address-map interface
+checks, the requested input path lists and gate values, checked report/artifact
+count, per-category checked counts, required evidence category presence,
+per-category passing/failing counts, present and missing category names, failing
+category names, required `.bit`/`.xsa` artifact suffix presence, present and
+missing required suffix names, failing required suffix names, required suffix
 passing/failing counts, required/present/missing category and suffix counts,
 aggregate pass/fail counts, diagnostic failure count, checked/passed/failed path
 lists, complete-evidence required/missing/failing lists, and pass/fail state in

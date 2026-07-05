@@ -121,12 +121,14 @@ hardware-tool entry points:
   violations, route status reports unrouted nets or routing errors, or a
   required clock-utilization report is missing or empty, or an address-map
   report is missing, empty, lacks `hjpeg_0/s_axi_lite` or
-  `axi_dma_0/S_AXI_LITE` base addresses, or reports a high address below its
-  base address. Its `--json` mode emits
+  `axi_dma_0/S_AXI_LITE` base addresses, duplicates one of those control
+  interfaces, overlaps their address ranges, or reports a high address below
+  its base address. Its `--json` mode emits
   artifact/report SHA-256 hex hashes, byte lengths, target clock
   period/frequency, parsed WNS/WHS values, utilization rows, thresholds, DRC
   violations, route-status counts, clock-utilization report hashes, parsed
-  address-map AXI-Lite aperture base/high addresses, requested input path lists
+  address-map AXI-Lite aperture base/high addresses and byte ranges, missing,
+  duplicate, invalid-range, and overlap summaries, requested input path lists
   and gate values, checked report/artifact count, per-category checked counts,
   required evidence category presence, per-category passing/failing counts,
   present and missing category names, failing category names, required

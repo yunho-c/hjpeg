@@ -542,6 +542,9 @@ class CheckReportsTest(unittest.TestCase):
                 ["axi_dma_0/s_axi_lite", "hjpeg_0/s_axi_lite"],
             )
             self.assertEqual(record["address_map"][0]["missing_interfaces"], [])
+            self.assertEqual(record["address_map"][0]["duplicate_interfaces"], [])
+            self.assertEqual(record["address_map"][0]["invalid_range_interfaces"], [])
+            self.assertEqual(record["address_map"][0]["range_overlaps"], [])
             self.assertEqual(
                 record["address_map"][0]["entries"][0],
                 {
@@ -551,6 +554,7 @@ class CheckReportsTest(unittest.TestCase):
                     "high_address": 0xA000FFFF,
                     "high_address_hex": "0xa000ffff",
                     "high_address_valid": True,
+                    "aperture_bytes": 0x10000,
                 },
             )
             self.assertEqual(record["timing"][0]["path"], str(timing))
@@ -918,12 +922,62 @@ class CheckReportsTest(unittest.TestCase):
                 record["address_map"][0]["missing_interfaces"],
                 ["hjpeg_0/s_axi_lite", "axi_dma_0/s_axi_lite"],
             )
+            self.assertEqual(record["address_map"][0]["duplicate_interfaces"], [])
+            self.assertEqual(record["address_map"][0]["invalid_range_interfaces"], [])
+            self.assertEqual(record["address_map"][0]["range_overlaps"], [])
             self.assertFalse(record["address_map"][0]["passed"])
             self.assertTrue(
                 any("address map missing hjpeg_0/s_axi_lite" in failure for failure in record["failures"])
             )
             self.assertTrue(
                 any("address map missing axi_dma_0/s_axi_lite" in failure for failure in record["failures"])
+            )
+
+    def test_cli_json_rejects_ambiguous_address_map_ranges(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            address_map = root / "hjpeg_kv260_address_map.rpt"
+            address_map.write_text(
+                "Address Map\n"
+                "| ps/M_AXI_HPM0_FPD | hjpeg_0/s_axi_lite/Reg | 0xA0000000 | 0xA000FFFF |\n"
+                "| ps/M_AXI_HPM0_FPD | hjpeg_0/s_axi_lite/Reg | 0xA0020000 | 0xA002FFFF |\n"
+                "| ps/M_AXI_HPM0_FPD | axi_dma_0/S_AXI_LITE/Reg | 0xA0008000 | 0xA0017FFF |\n"
+            )
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    check_reports.main(
+                        [
+                            "--address-map",
+                            str(address_map),
+                            "--json",
+                        ]
+                    ),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertEqual(
+                record["address_map"][0]["duplicate_interfaces"],
+                ["hjpeg_0/s_axi_lite"],
+            )
+            self.assertEqual(record["address_map"][0]["missing_interfaces"], [])
+            self.assertEqual(len(record["address_map"][0]["range_overlaps"]), 1)
+            self.assertEqual(
+                record["address_map"][0]["range_overlaps"][0]["first_interface"],
+                "hjpeg_0/s_axi_lite",
+            )
+            self.assertEqual(
+                record["address_map"][0]["range_overlaps"][0]["second_interface"],
+                "axi_dma_0/s_axi_lite",
+            )
+            self.assertTrue(
+                any("duplicate hjpeg_0/s_axi_lite" in failure for failure in record["failures"])
+            )
+            self.assertTrue(
+                any("overlaps axi_dma_0/s_axi_lite" in failure for failure in record["failures"])
             )
 
     def test_cli_json_records_drc_and_route_failures(self) -> None:
