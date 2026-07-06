@@ -3955,16 +3955,21 @@ def expected_vivado_diagnostic_summary(record: object) -> dict[str, object] | No
     failing_counts = evidence_categories.get("failing_counts")
     if not (isinstance(passing_counts, dict) and isinstance(failing_counts, dict)):
         return None
+    checked_count_values = [
+        checked_counts.get(category)
+        for category in VIVADO_REQUIRED_EVIDENCE_CATEGORIES
+    ]
+    checked_counts_strict_numbers = all(
+        is_strict_int(count) and count >= 0 for count in checked_count_values
+    )
     checked_counts_sum = sum(
         int(count)
-        for count in checked_counts.values()
+        for count in checked_count_values
         if is_strict_int(count)
     )
     checked_counts_sum_matches = checked_counts_sum == checked_count
     checked_counts_positive = all(
-        is_strict_int(checked_counts.get(category))
-        and checked_counts[category] > 0
-        for category in VIVADO_REQUIRED_EVIDENCE_CATEGORIES
+        is_strict_int(count) and count > 0 for count in checked_count_values
     )
     checked_counts_match_categories = all(
         is_strict_int(checked_counts.get(category))
@@ -3989,6 +3994,7 @@ def expected_vivado_diagnostic_summary(record: object) -> dict[str, object] | No
         and failed_count == 0
         and failure_count == 0
         and checked_counts_sum_matches
+        and checked_counts_strict_numbers
         and checked_counts_positive
         and checked_counts_match_categories
         and count_balance_valid
@@ -4004,6 +4010,7 @@ def expected_vivado_diagnostic_summary(record: object) -> dict[str, object] | No
         "failure_count": failure_count,
         "checked_counts_sum": checked_counts_sum,
         "checked_counts_sum_matches": checked_counts_sum_matches,
+        "checked_counts_strict_numbers": checked_counts_strict_numbers,
         "checked_counts_positive": checked_counts_positive,
         "checked_counts_match_categories": checked_counts_match_categories,
         "count_balance_valid": count_balance_valid,

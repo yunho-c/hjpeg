@@ -1163,6 +1163,7 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
             "failure_count": 0,
             "checked_counts_sum": 12,
             "checked_counts_sum_matches": True,
+            "checked_counts_strict_numbers": True,
             "checked_counts_positive": True,
             "checked_counts_match_categories": True,
             "count_balance_valid": True,
@@ -6261,6 +6262,24 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["vivado_passed"])
             self.assertTrue(record["complete_vivado_flow_evidence"])
             self.assertFalse(record["vivado_summary_counts_consistent"])
+            self.assertFalse(record["passed"])
+            self.assertTrue(
+                any("diagnostic summary counts" in failure for failure in failures)
+            )
+
+    def test_vivado_evidence_file_record_rejects_boolean_checked_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["checked_counts"]["artifacts"] = True
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertTrue(record["vivado_passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertFalse(record["vivado_summary_counts_consistent"])
+            self.assertFalse(record["vivado_diagnostic_summary_consistent"])
             self.assertFalse(record["passed"])
             self.assertTrue(
                 any("diagnostic summary counts" in failure for failure in failures)

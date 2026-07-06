@@ -1075,16 +1075,27 @@ def diagnostic_summary_record(
     ]
     passing_counts = evidence_categories.get("passing_counts")
     failing_counts = evidence_categories.get("failing_counts")
-    checked_counts_sum = sum(checked_counts.values())
-    checked_counts_positive = all(
-        checked_counts.get(category, 0) > 0
+    checked_count_values = [
+        checked_counts.get(category)
         for category in REQUIRED_EVIDENCE_CATEGORIES
+    ]
+    checked_counts_strict_numbers = all(
+        type(value) is int and value >= 0 for value in checked_count_values
+    )
+    checked_counts_sum = sum(
+        value
+        for value in checked_count_values
+        if type(value) is int
+    )
+    checked_counts_positive = all(
+        type(value) is int and value > 0 for value in checked_count_values
     )
     checked_counts_match_categories = bool(
         isinstance(passing_counts, dict)
         and isinstance(failing_counts, dict)
         and all(
-            checked_counts.get(category)
+            type(checked_counts.get(category)) is int
+            and checked_counts.get(category)
             == passing_counts.get(category, 0) + failing_counts.get(category, 0)
             for category in REQUIRED_EVIDENCE_CATEGORIES
         )
@@ -1107,6 +1118,7 @@ def diagnostic_summary_record(
         and checked_paths_match_passed_paths
         and no_failed_paths
         and checked_counts_sum == checked_count
+        and checked_counts_strict_numbers
         and checked_counts_positive
         and checked_counts_match_categories
         and no_failures
@@ -1118,6 +1130,7 @@ def diagnostic_summary_record(
         "failure_count": len(failures),
         "checked_counts_sum": checked_counts_sum,
         "checked_counts_sum_matches": checked_counts_sum == checked_count,
+        "checked_counts_strict_numbers": checked_counts_strict_numbers,
         "checked_counts_positive": checked_counts_positive,
         "checked_counts_match_categories": checked_counts_match_categories,
         "count_balance_valid": count_balance_valid,

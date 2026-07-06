@@ -194,6 +194,7 @@ class CheckReportsTest(unittest.TestCase):
         self.assertEqual(record["failure_count"], 0)
         self.assertEqual(record["checked_counts_sum"], len(checked_records))
         self.assertTrue(record["checked_counts_sum_matches"])
+        self.assertTrue(record["checked_counts_strict_numbers"])
         self.assertTrue(record["checked_counts_positive"])
         self.assertTrue(record["checked_counts_match_categories"])
         self.assertTrue(record["count_balance_valid"])
@@ -212,9 +213,39 @@ class CheckReportsTest(unittest.TestCase):
 
         self.assertFalse(inconsistent["valid"])
         self.assertFalse(inconsistent["checked_counts_sum_matches"])
+        self.assertTrue(inconsistent["checked_counts_strict_numbers"])
         self.assertFalse(inconsistent["checked_counts_positive"])
         self.assertFalse(inconsistent["checked_counts_match_categories"])
         self.assertFalse(inconsistent["no_failures"])
+
+    def test_diagnostic_summary_rejects_boolean_checked_counts(self) -> None:
+        checked_records = [
+            {"path": f"{category}.rpt", "passed": True}
+            for category in check_reports.REQUIRED_EVIDENCE_CATEGORIES
+        ]
+        checked_counts = {
+            category: 1
+            for category in check_reports.REQUIRED_EVIDENCE_CATEGORIES
+        }
+        checked_counts["artifacts"] = True
+        evidence_categories = check_reports.evidence_category_record(
+            {
+                category: [{"passed": True}]
+                for category in check_reports.REQUIRED_EVIDENCE_CATEGORIES
+            }
+        )
+
+        record = check_reports.diagnostic_summary_record(
+            checked_records,
+            checked_counts,
+            evidence_categories,
+            [],
+        )
+
+        self.assertFalse(record["valid"])
+        self.assertFalse(record["checked_counts_strict_numbers"])
+        self.assertFalse(record["checked_counts_positive"])
+        self.assertFalse(record["checked_counts_match_categories"])
 
     def test_parse_wns_from_timing_table(self) -> None:
         self.assertEqual(check_reports.parse_wns(TIMING_TABLE), 0.125)
@@ -669,6 +700,7 @@ class CheckReportsTest(unittest.TestCase):
                     "failure_count": 0,
                     "checked_counts_sum": 12,
                     "checked_counts_sum_matches": True,
+                    "checked_counts_strict_numbers": True,
                     "checked_counts_positive": True,
                     "checked_counts_match_categories": True,
                     "count_balance_valid": True,
@@ -1288,6 +1320,7 @@ class CheckReportsTest(unittest.TestCase):
                     "failure_count": 10,
                     "checked_counts_sum": 1,
                     "checked_counts_sum_matches": True,
+                    "checked_counts_strict_numbers": True,
                     "checked_counts_positive": False,
                     "checked_counts_match_categories": True,
                     "count_balance_valid": True,
