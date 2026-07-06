@@ -201,7 +201,11 @@ requires every supplied required evidence category and required `.bit`/`.xsa`/
 `.dcp` artifact suffix to have no failing records, and requires the named
 artifacts `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and `post_impl.dcp` to be present
 and passing, plus the named address-map, timing/utilization/implementation, and
-floorplan reports.
+floorplan reports. Complete Vivado evidence also requires the generated
+diagnostic summary to be valid, required route-status counts to be present and
+zero, address-map hexadecimal fields to match parsed numeric addresses, passing
+required records to carry nonempty file metadata and SHA-256 hashes, and the
+floorplan record to include a positive placed-cell count.
 Complete Vivado evidence counts only records whose `passed` field is an actual
 JSON boolean `true`. Use
 `--require-complete-evidence` for full bitstream evidence gates; partial

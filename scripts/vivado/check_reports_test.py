@@ -1004,6 +1004,10 @@ class CheckReportsTest(unittest.TestCase):
             )
             self.assertTrue(record["complete_vivado_flow_evidence"])
             self.assertFalse(record["complete_vivado_flow_evidence_required"])
+            self.assertTrue(record["route_status_counts_present"])
+            self.assertTrue(record["floorplan_evidence_present"])
+            self.assertTrue(record["address_map_hex_fields_consistent"])
+            self.assertTrue(record["record_hashes_present"])
             self.assertEqual(
                 record["complete_vivado_flow_evidence_missing_categories"], []
             )
@@ -1264,13 +1268,17 @@ class CheckReportsTest(unittest.TestCase):
             self.assertTrue(record["evidence_categories"]["present"]["timing"])
             self.assertFalse(record["evidence_categories"]["present"]["artifacts"])
             self.assertFalse(record["artifact_suffixes"]["all_required_suffixes_present"])
+            self.assertFalse(record["route_status_counts_present"])
+            self.assertFalse(record["floorplan_evidence_present"])
+            self.assertFalse(record["address_map_hex_fields_consistent"])
+            self.assertFalse(record["record_hashes_present"])
             self.assertEqual(
                 record["diagnostic_summary"],
                 {
                     "checked_count": 1,
                     "passed_count": 1,
                     "failed_count": 0,
-                    "failure_count": 6,
+                    "failure_count": 10,
                     "checked_counts_sum": 1,
                     "checked_counts_sum_matches": True,
                     "checked_counts_positive": False,
@@ -1288,6 +1296,18 @@ class CheckReportsTest(unittest.TestCase):
             )
             self.assertTrue(
                 any("missing required artifact suffixes" in failure for failure in record["failures"])
+            )
+            self.assertTrue(
+                any("route-status counts" in failure for failure in record["failures"])
+            )
+            self.assertTrue(
+                any("floorplan placed-cell" in failure for failure in record["failures"])
+            )
+            self.assertTrue(
+                any("address-map hex fields" in failure for failure in record["failures"])
+            )
+            self.assertTrue(
+                any("file metadata" in failure for failure in record["failures"])
             )
 
     def test_complete_vivado_flow_evidence_requires_post_impl_hold_timing(self) -> None:

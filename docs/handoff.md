@@ -481,7 +481,11 @@ top-level `clock_period_ns` and `clock_frequency_mhz` must agree, the structured
 `clock_target.valid` and top-level `clock_target_valid` must be strict JSON
 booleans set to true. The host saved-run checker rejects Vivado evidence whose
 structured clock target is missing, tampered, or inconsistent with the
-top-level clock fields.
+top-level clock fields. The Vivado checker's complete-evidence flag also gates
+on a valid diagnostic summary, required route-status counts present and zero,
+address-map hexadecimal fields matching parsed numeric addresses, nonempty file
+metadata plus SHA-256 hashes on passing required records, and positive
+floorplan placed-cell evidence.
 `all_required_present` requires at least one passing record in each required
 category, not just a requested input path. Complete Vivado evidence counts only
 records whose `passed` field is an actual JSON boolean `true`. Missing,

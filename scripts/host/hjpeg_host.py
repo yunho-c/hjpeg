@@ -3601,7 +3601,10 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         and evidence_categories_present
         and summary_counts_consistent
         and diagnostic_summary_consistent
+        and route_status_counts_present
         and floorplan_evidence_present
+        and address_map_hex_fields_consistent
+        and record_hashes_present
     )
     complete_vivado_flow_evidence_matches = (
         isinstance(parsed, dict)

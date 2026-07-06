@@ -1106,6 +1106,111 @@ def diagnostic_summary_record(
     }
 
 
+def route_status_counts_present(route_status_records: list[dict[str, object]]) -> bool:
+    for record in route_status_records:
+        if record.get("passed") is not True:
+            continue
+        counts = record.get("counts")
+        missing_counts = record.get("missing_counts")
+        required_counts = record.get("required_counts")
+        if (
+            isinstance(counts, dict)
+            and isinstance(required_counts, list)
+            and missing_counts == []
+            and all(label in required_counts for label in REQUIRED_ROUTE_STATUS_COUNTS)
+            and all(counts.get(label) == 0 for label in REQUIRED_ROUTE_STATUS_COUNTS)
+        ):
+            return True
+    return False
+
+
+def floorplan_evidence_present(floorplan_records: list[dict[str, object]]) -> bool:
+    for record in floorplan_records:
+        if (
+            record.get("passed") is True
+            and record.get("exists") is True
+            and type(record.get("pblock_count")) is int
+            and record["pblock_count"] >= 0
+            and type(record.get("placed_cell_count")) is int
+            and record["placed_cell_count"] > 0
+            and isinstance(record.get("sha256"), str)
+            and re.fullmatch(r"[0-9a-f]{64}", record["sha256"]) is not None
+        ):
+            return True
+    return False
+
+
+def address_map_hex_fields_consistent(address_map_records: list[dict[str, object]]) -> bool:
+    checked_entries = 0
+    for record in address_map_records:
+        if record.get("passed") is not True:
+            continue
+        entries = record.get("entries")
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if not isinstance(entry, dict):
+                return False
+            base_address = entry.get("base_address")
+            high_address = entry.get("high_address")
+            base_address_hex = entry.get("base_address_hex")
+            high_address_hex = entry.get("high_address_hex")
+            if type(base_address) is not int or base_address < 0:
+                return False
+            try:
+                base_address_matches = (
+                    isinstance(base_address_hex, str)
+                    and int(base_address_hex, 16) == base_address
+                )
+                high_address_matches = (
+                    high_address_hex is None
+                    if high_address is None
+                    else (
+                        isinstance(high_address_hex, str)
+                        and int(high_address_hex, 16) == high_address
+                    )
+                )
+            except ValueError:
+                return False
+            if not base_address_matches:
+                return False
+            if high_address is None:
+                if not high_address_matches:
+                    return False
+            elif (
+                type(high_address) is not int
+                or high_address < base_address
+                or not high_address_matches
+            ):
+                return False
+            checked_entries += 1
+    return checked_entries > 0
+
+
+def record_hashes_present(
+    evidence_records: dict[str, list[dict[str, object]]]
+) -> bool:
+    for category in REQUIRED_EVIDENCE_CATEGORIES:
+        passing_records = [
+            record
+            for record in evidence_records.get(category, [])
+            if record.get("passed") is True
+        ]
+        if not passing_records:
+            return False
+        for record in passing_records:
+            sha256 = record.get("sha256")
+            if (
+                record.get("exists") is not True
+                or type(record.get("byte_length")) is not int
+                or record["byte_length"] <= 0
+                or not isinstance(sha256, str)
+                or re.fullmatch(r"[0-9a-f]{64}", sha256) is None
+            ):
+                return False
+    return True
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="check Vivado timing and utilization reports")
     parser.add_argument(
@@ -1292,18 +1397,17 @@ def main(argv: list[str] | None = None) -> int:
         for record in checked_records
         if record.get("passed") is not True
     ]
-    evidence_categories = evidence_category_record(
-        {
-            "artifacts": artifact_records,
-            "address_map": address_map_records,
-            "timing": timing_records,
-            "utilization": utilization_records,
-            "drc": drc_records,
-            "route_status": route_status_records,
-            "clock_utilization": clock_utilization_records,
-            "floorplan": floorplan_records,
-        }
-    )
+    evidence_records = {
+        "artifacts": artifact_records,
+        "address_map": address_map_records,
+        "timing": timing_records,
+        "utilization": utilization_records,
+        "drc": drc_records,
+        "route_status": route_status_records,
+        "clock_utilization": clock_utilization_records,
+        "floorplan": floorplan_records,
+    }
+    evidence_categories = evidence_category_record(evidence_records)
     artifact_suffixes = artifact_suffix_record(artifact_records)
     artifact_filenames = artifact_filename_record(artifact_records)
     address_map_filenames = required_filename_record(
@@ -1350,6 +1454,12 @@ def main(argv: list[str] | None = None) -> int:
         evidence_categories,
         failures,
     )
+    route_status_counts_complete = route_status_counts_present(route_status_records)
+    floorplan_evidence_complete = floorplan_evidence_present(floorplan_records)
+    address_map_hex_fields_complete = address_map_hex_fields_consistent(
+        address_map_records
+    )
+    record_hashes_complete = record_hashes_present(evidence_records)
     complete_vivado_flow_evidence = bool(
         evidence_categories["all_required_present"]
         and artifact_suffixes["all_required_suffixes_present"]
@@ -1365,6 +1475,10 @@ def main(argv: list[str] | None = None) -> int:
         and not failing_report_filenames
         and not failing_hold_timing_filenames
         and completion_diagnostic_summary["valid"]
+        and route_status_counts_complete
+        and floorplan_evidence_complete
+        and address_map_hex_fields_complete
+        and record_hashes_complete
     )
     if args.require_complete_evidence and not complete_vivado_flow_evidence:
         if missing_categories:
@@ -1429,6 +1543,22 @@ def main(argv: list[str] | None = None) -> int:
             )
         if not clock_target_valid:
             failures.append("complete Vivado flow evidence has invalid clock target")
+        if not route_status_counts_complete:
+            failures.append(
+                "complete Vivado flow evidence is missing required route-status counts"
+            )
+        if not floorplan_evidence_complete:
+            failures.append(
+                "complete Vivado flow evidence is missing positive floorplan placed-cell evidence"
+            )
+        if not address_map_hex_fields_complete:
+            failures.append(
+                "complete Vivado flow evidence has inconsistent address-map hex fields"
+            )
+        if not record_hashes_complete:
+            failures.append(
+                "complete Vivado flow evidence is missing file metadata for passing required records"
+            )
 
     if args.json:
         diagnostic_summary = diagnostic_summary_record(
@@ -1475,6 +1605,12 @@ def main(argv: list[str] | None = None) -> int:
                     "hold_timing_filenames": hold_timing_filenames,
                     "clock_target": clock_target,
                     "clock_target_valid": clock_target_valid,
+                    "route_status_counts_present": route_status_counts_complete,
+                    "floorplan_evidence_present": floorplan_evidence_complete,
+                    "address_map_hex_fields_consistent": (
+                        address_map_hex_fields_complete
+                    ),
+                    "record_hashes_present": record_hashes_complete,
                     "complete_vivado_flow_evidence": complete_vivado_flow_evidence,
                     "complete_vivado_flow_evidence_required": (
                         args.require_complete_evidence

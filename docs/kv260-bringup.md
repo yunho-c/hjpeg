@@ -167,7 +167,10 @@ Pass criteria:
   `hjpeg_kv260.xsa`, and `post_impl.dcp` present and passing, plus the named
   address-map report `hjpeg_kv260_address_map.rpt` and the named
   timing/utilization/implementation and floorplan reports. The floorplan record
-  must include a positive placed-cell count.
+  must include a positive placed-cell count. The complete-evidence flag also
+  requires a valid diagnostic summary, required route-status counts present and
+  zero, address-map hexadecimal fields matching parsed numeric addresses, and
+  nonempty file metadata plus SHA-256 hashes on passing required records.
   `all_required_present` requires at least one passing record in each required
   category, not just a requested input path. Complete Vivado evidence counts only
   records whose `passed` field is an actual JSON boolean `true`. Missing,
