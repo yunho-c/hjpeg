@@ -6551,6 +6551,7 @@ class HjpegHostTest(unittest.TestCase):
                 )
 
             record = json.loads(stdout.getvalue())
+            self.assertTrue(record["complete_hardware_run_evidence"])
             self.assertTrue(record["complete_hardware_run_evidence_required"])
             self.assertEqual(record["complete_hardware_run_evidence_missing"], [])
             self.assertEqual(
@@ -6947,6 +6948,7 @@ class HjpegHostTest(unittest.TestCase):
                 )
 
             record = json.loads(stdout.getvalue())
+            self.assertFalse(record["complete_hardware_run_evidence"])
             self.assertTrue(record["complete_hardware_run_evidence_required"])
             self.assertEqual(
                 record["complete_hardware_run_evidence_missing"],

@@ -181,7 +181,9 @@ without changing mapped control/status registers.
 
 Recent commits, newest first:
 
-- current commit: `2f4f78f fix: require structured vivado clock evidence`
+- current commit: `84a7e77 fix: verify complete run evidence flag`
+- `05e5da1 docs: refresh structured vivado evidence handoff`
+- `2f4f78f fix: require structured vivado clock evidence`
 - `bbc939e fix: gate vivado clock target evidence`
 - `caa6c71 docs: align hardware evidence checks`
 - `5c71f34 fix: verify marker count evidence`
