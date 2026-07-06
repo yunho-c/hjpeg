@@ -448,9 +448,10 @@ target evidence must include a non-empty string device path, nonnegative base
 address, and matching hexadecimal base-address text. Encoder configuration
 evidence must include supported dimensions, quality/restart values in range,
 boolean control flags, and a control word/hex string matching those flags. Validation
-expectations evidence must include the baseline shape, marker order, table
-order, marker counts, restart marker count/sequence when applicable, SOS
-spectral fields, matching marker order, matching minimum scan-data length,
+expectations evidence must include strict JSON integer dimensions matching the
+JPEG dimensions, the baseline shape, marker order, table order, marker counts,
+restart marker count/sequence when applicable, SOS spectral fields, matching
+marker order, matching minimum scan-data length,
 matching table order, matching SOS spectral fields, matching SOF0/SOS component
 records, matching JFIF APP0 policy and fields, matching chroma mode when
 requested, matching DQT payload hashes when quality checking was requested,

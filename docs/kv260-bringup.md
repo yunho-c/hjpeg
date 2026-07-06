@@ -513,9 +513,11 @@ Expected evidence:
   mode, JFIF setting, quality, standard Huffman contract, expected marker
   order, expected minimum scan-data length, expected table order, expected SOS
   spectral fields, expected SOF0/SOS component records, expected JFIF APP0
-  fields, and expected DQT/DHT payload hashes. `check-run-evidence` cross-checks
-  the expected marker order through SOS and terminal EOI against the parsed JPEG
-  marker sequence, expected minimum scan-data length against the parsed entropy
+  fields, and expected DQT/DHT payload hashes. `check-run-evidence` requires
+  strict JSON integer validation dimensions matching the parsed JPEG dimensions,
+  then cross-checks the expected marker order through SOS and terminal EOI
+  against the parsed JPEG marker sequence, expected minimum scan-data length
+  against the parsed entropy
   scan length, expected DQT/DHT table order and SOS spectral fields against the
   parsed JPEG, the expected SOF0/SOS component records against the parsed JPEG,
   expected JFIF APP0

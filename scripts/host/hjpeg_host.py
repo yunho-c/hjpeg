@@ -1786,9 +1786,13 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
                 and encoder_config.get("height") == height
             )
         if isinstance(validation_expectations, dict):
+            validation_width = validation_expectations.get("width")
+            validation_height = validation_expectations.get("height")
             checks["validation_expectations_match_jpeg_dimensions"] = (
-                validation_expectations.get("width") == width
-                and validation_expectations.get("height") == height
+                is_strict_int(validation_width)
+                and is_strict_int(validation_height)
+                and validation_width == width
+                and validation_height == height
             )
         if isinstance(input_ppm, dict):
             checks["input_ppm_dimensions_match_jpeg"] = (
