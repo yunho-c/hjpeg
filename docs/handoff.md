@@ -802,7 +802,10 @@ cross-checks the expected chroma mode against the parsed JPEG chroma mode when
 chroma checking was requested and expected DQT payload hashes against the parsed
 DQT table hashes when quality checking was requested, plus expected DHT table
 hashes against parsed DHT table hashes when standard-Huffman checking was
-requested. It also rejects trailing bytes already returned after the first JPEG EOI instead of writing a truncated artifact, and its JSON
+requested. Complete validation evidence requires those expected DQT/DHT hash
+records whenever the corresponding quality or standard-Huffman check is
+requested. It also rejects trailing bytes already returned after the first JPEG
+EOI instead of writing a truncated artifact, and its JSON
 evidence records the dimensions, restart interval, chroma mode, JFIF setting,
 quality, standard Huffman expectations, status
 checkpoint count, actual and expected checkpoint context lists, context-list

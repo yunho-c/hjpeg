@@ -1830,6 +1830,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
         expected_marker_counts = validation_expectations.get("expected_marker_counts")
         expected_chroma_mode = validation_expectations.get("expected_chroma_mode")
+        expected_quality = validation_expectations.get("quality")
         expected_dqt_payload_hashes = validation_expectations.get(
             "expected_quantization_payload_sha256"
         )
@@ -1887,15 +1888,19 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
                 payload_sha256 = table.get("payload_sha256")
                 if is_strict_int(table_id) and is_sha256_hex(payload_sha256):
                     actual_dqt_payload_hashes[str(table_id)] = payload_sha256
+        dqt_hashes_required = is_strict_int(expected_quality)
+        expected_dqt_payload_hashes_valid = (
+            isinstance(expected_dqt_payload_hashes, dict)
+            and set(expected_dqt_payload_hashes.keys()) == {"0", "1"}
+            and all(is_sha256_hex(payload) for payload in expected_dqt_payload_hashes.values())
+        )
         validation_dqt_payload_hashes_match = (
-            expected_dqt_payload_hashes is None
+            (expected_dqt_payload_hashes is None and not dqt_hashes_required)
             or "quantization_table_details" not in record
             or (
-                isinstance(expected_dqt_payload_hashes, dict)
+                expected_dqt_payload_hashes_valid
                 and all(
-                    isinstance(expected_hash, str)
-                    and actual_dqt_payload_hashes.get(str(table_id))
-                    == expected_hash
+                    actual_dqt_payload_hashes.get(table_id) == expected_hash
                     for table_id, expected_hash in expected_dqt_payload_hashes.items()
                 )
             )
@@ -1920,28 +1925,44 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
                         symbol_count,
                         payload_sha256,
                     )
+        expected_huffman_table_keys = {(0, 0), (0, 1), (1, 0), (1, 1)}
+        expected_huffman_table_hashes = {}
+        expected_huffman_tables_valid = isinstance(expected_huffman_tables, list)
+        if expected_huffman_tables_valid:
+            for expected_table in expected_huffman_tables:
+                if not isinstance(expected_table, dict):
+                    expected_huffman_tables_valid = False
+                    break
+                table_class = expected_table.get("table_class")
+                table_id = expected_table.get("table_id")
+                symbol_count = expected_table.get("symbol_count")
+                payload_sha256 = expected_table.get("payload_sha256")
+                if (
+                    not is_strict_int(table_class)
+                    or not is_strict_int(table_id)
+                    or not is_strict_int(symbol_count)
+                    or not is_sha256_hex(payload_sha256)
+                ):
+                    expected_huffman_tables_valid = False
+                    break
+                expected_huffman_table_hashes[(table_class, table_id)] = (
+                    symbol_count,
+                    payload_sha256,
+                )
+        if (
+            expected_huffman_tables_valid
+            and validation_requires_standard_huffman
+            and set(expected_huffman_table_hashes.keys()) != expected_huffman_table_keys
+        ):
+            expected_huffman_tables_valid = False
         validation_huffman_tables_match = (
-            expected_huffman_tables is None
+            (expected_huffman_tables is None and not validation_requires_standard_huffman)
             or "huffman_tables" not in record
             or (
-                isinstance(expected_huffman_tables, list)
+                expected_huffman_tables_valid
                 and all(
-                    isinstance(expected_table, dict)
-                    and is_strict_int(expected_table.get("table_class"))
-                    and is_strict_int(expected_table.get("table_id"))
-                    and is_strict_int(expected_table.get("symbol_count"))
-                    and isinstance(expected_table.get("payload_sha256"), str)
-                    and actual_huffman_tables.get(
-                        (
-                            expected_table["table_class"],
-                            expected_table["table_id"],
-                        )
-                    )
-                    == (
-                        expected_table["symbol_count"],
-                        expected_table["payload_sha256"],
-                    )
-                    for expected_table in expected_huffman_tables
+                    actual_huffman_tables.get(table) == expected
+                    for table, expected in expected_huffman_table_hashes.items()
                 )
             )
         )

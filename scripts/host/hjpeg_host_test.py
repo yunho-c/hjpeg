@@ -3808,6 +3808,48 @@ class HjpegHostTest(unittest.TestCase):
                 any("failing hardware checks" in failure for failure in failures)
             )
 
+    def test_check_run_evidence_file_rejects_missing_dqt_expectation_hashes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "run.json"
+            evidence = complete_run_evidence_record(root)
+            del evidence["validation_expectations"][
+                "expected_quantization_payload_sha256"
+            ]
+            evidence["hardware_run_summary"] = hjpeg_host.hardware_run_summary_record(
+                evidence
+            )
+            evidence["complete_hardware_run_evidence"] = evidence[
+                "hardware_run_summary"
+            ]["complete_hardware_run_evidence"]
+            evidence["complete_hardware_run_evidence_missing"] = evidence[
+                "hardware_run_summary"
+            ]["missing_evidence"]
+            evidence["complete_hardware_run_evidence_failing_checks"] = evidence[
+                "hardware_run_summary"
+            ]["failing_checks"]
+            path.write_text(json.dumps(evidence))
+
+            record, failures = hjpeg_host.check_run_evidence_file(path)
+
+            self.assertFalse(record["passed"])
+            self.assertFalse(record["all_recorded_checks_passed"])
+            self.assertTrue(record["hardware_run_summary_matches_computed"])
+            self.assertFalse(record["complete_hardware_run_evidence"])
+            self.assertEqual(record["evidence_present_count"], 9)
+            self.assertEqual(record["evidence_missing_count"], 1)
+            self.assertEqual(record["missing_evidence"], ["validation_expectations"])
+            self.assertEqual(record["recorded_check_count"], 87)
+            self.assertEqual(record["passing_check_count"], 86)
+            self.assertEqual(record["failing_check_count"], 1)
+            self.assertEqual(
+                record["failing_checks"],
+                ["validation_dqt_payload_hashes_match"],
+            )
+            self.assertTrue(
+                any("failing hardware checks" in failure for failure in failures)
+            )
+
     def test_check_run_evidence_file_rejects_huffman_expectation_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -3816,6 +3858,46 @@ class HjpegHostTest(unittest.TestCase):
             evidence["validation_expectations"]["expected_huffman_tables"][0][
                 "payload_sha256"
             ] = "0" * 64
+            evidence["hardware_run_summary"] = hjpeg_host.hardware_run_summary_record(
+                evidence
+            )
+            evidence["complete_hardware_run_evidence"] = evidence[
+                "hardware_run_summary"
+            ]["complete_hardware_run_evidence"]
+            evidence["complete_hardware_run_evidence_missing"] = evidence[
+                "hardware_run_summary"
+            ]["missing_evidence"]
+            evidence["complete_hardware_run_evidence_failing_checks"] = evidence[
+                "hardware_run_summary"
+            ]["failing_checks"]
+            path.write_text(json.dumps(evidence))
+
+            record, failures = hjpeg_host.check_run_evidence_file(path)
+
+            self.assertFalse(record["passed"])
+            self.assertFalse(record["all_recorded_checks_passed"])
+            self.assertTrue(record["hardware_run_summary_matches_computed"])
+            self.assertFalse(record["complete_hardware_run_evidence"])
+            self.assertEqual(record["evidence_present_count"], 9)
+            self.assertEqual(record["evidence_missing_count"], 1)
+            self.assertEqual(record["missing_evidence"], ["validation_expectations"])
+            self.assertEqual(record["recorded_check_count"], 87)
+            self.assertEqual(record["passing_check_count"], 86)
+            self.assertEqual(record["failing_check_count"], 1)
+            self.assertEqual(
+                record["failing_checks"],
+                ["validation_huffman_tables_match"],
+            )
+            self.assertTrue(
+                any("failing hardware checks" in failure for failure in failures)
+            )
+
+    def test_check_run_evidence_file_rejects_missing_huffman_expectation_hashes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "run.json"
+            evidence = complete_run_evidence_record(root)
+            del evidence["validation_expectations"]["expected_huffman_tables"]
             evidence["hardware_run_summary"] = hjpeg_host.hardware_run_summary_record(
                 evidence
             )

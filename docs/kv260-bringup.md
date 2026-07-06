@@ -456,8 +456,10 @@ Expected evidence:
   against the parsed JPEG chroma mode when chroma checking was requested and
   expected DQT payload hashes against parsed DQT table hashes when quality
   checking was requested, and expected DHT table hashes against parsed DHT table
-  hashes when standard-Huffman checking was requested, plus the host capture
-  limits used for maximum output bytes and RX timeout. RX
+  hashes when standard-Huffman checking was requested. Complete validation
+  evidence requires the expected DQT/DHT hash records whenever the corresponding
+  quality or standard-Huffman check is requested, plus the host capture limits
+  used for maximum output bytes and RX timeout. RX
   timeout values must be finite and positive when present, and maximum output
   bytes must be positive. Frame dimensions and frame limits must be positive,
   and AXI-Lite base addresses must be nonnegative.

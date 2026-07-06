@@ -393,7 +393,9 @@ validation expectations when those expectations are present, plus the expected
 chroma mode against the parsed JPEG chroma mode when chroma checking was
 requested and expected DQT payload hashes against the parsed DQT table hashes
 when quality checking was requested, and expected DHT table hashes against the
-parsed DHT table hashes when standard-Huffman checking was requested. Input RGB evidence
+parsed DHT table hashes when standard-Huffman checking was requested. Those
+expected hash records are required when the corresponding quality or
+standard-Huffman check is requested. Input RGB evidence
 must include positive byte length, a SHA-256 hex hash, a positive expected byte
 length, and an actual-vs-expected length match. Capture configuration evidence
 must include a positive maximum output byte count and either no timeout or a
@@ -406,7 +408,8 @@ expectations evidence must include the baseline shape, marker order, table
 order, marker counts, restart marker count/sequence when applicable, SOS
 spectral fields, matching chroma mode when requested, matching DQT payload
 hashes when quality checking was requested, matching DHT table hashes when
-standard-Huffman checking was requested, and standard-Huffman requirement. Source PPM
+standard-Huffman checking was requested, and standard-Huffman requirement.
+Source PPM
 evidence must include file and packed-RGB SHA-256 hex hashes,
 dimension-consistent RGB and packed byte lengths, an input-byte match, and
 non-flat/color image stats. Status evidence must include the detailed checkpoint
