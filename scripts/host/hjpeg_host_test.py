@@ -1005,6 +1005,7 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
         "failed_paths": [],
         "clock_period_ns": 10.0,
         "clock_frequency_mhz": 100.0,
+        "arguments": {"require_complete_evidence": True},
         "complete_vivado_flow_evidence": True,
         "complete_vivado_flow_evidence_required": True,
         "complete_vivado_flow_evidence_missing_categories": [],
@@ -3679,6 +3680,11 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertTrue(
                 record["vivado_evidence"][0][
+                    "complete_vivado_flow_evidence_argument_required"
+                ]
+            )
+            self.assertTrue(
+                record["vivado_evidence"][0][
                     "complete_vivado_flow_evidence_diagnostics_match"
                 ]
             )
@@ -3704,6 +3710,28 @@ class HjpegHostTest(unittest.TestCase):
                 any(
                     "complete_vivado_flow_evidence_required is not true"
                     in failure
+                    for failure in failures
+                )
+            )
+
+    def test_vivado_evidence_file_record_requires_complete_gate_argument(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["arguments"]["require_complete_evidence"] = False
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertFalse(record["passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["complete_vivado_flow_evidence_required"])
+            self.assertFalse(
+                record["complete_vivado_flow_evidence_argument_required"]
+            )
+            self.assertTrue(
+                any(
+                    "arguments.require_complete_evidence is not true" in failure
                     for failure in failures
                 )
             )

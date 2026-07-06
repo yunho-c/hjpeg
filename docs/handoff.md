@@ -791,8 +791,9 @@ failed recorded checks, or incomplete hardware evidence. Pass
 to cross-check the run transcript's AXI-Lite base address against the Vivado
 `hjpeg_0/s_axi_lite` address-map entry. The Vivado transcript must have
 `passed`, `complete_vivado_flow_evidence`,
-`complete_vivado_flow_evidence_required`, the required `.bit`, `.xsa`, and
-`.dcp` artifact suffix evidence true, and the required `hjpeg_kv260.bit`,
+`complete_vivado_flow_evidence_required`, an
+`arguments.require_complete_evidence` value of true, the required `.bit`, `.xsa`,
+and `.dcp` artifact suffix evidence true, and the required `hjpeg_kv260.bit`,
 `hjpeg_kv260.xsa`, `post_impl.dcp`, `hjpeg_kv260_address_map.rpt`,
 `post_synth_timing_summary.rpt`, `post_impl_timing_summary.rpt`,
 `post_synth_utilization.rpt`, `post_impl_utilization.rpt`,
