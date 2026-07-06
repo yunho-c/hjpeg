@@ -516,7 +516,8 @@ mismatched counts and paths, aggregate evidence group present/missing counts and
 names, aggregate recorded/passing/failing check counts and names, Vivado
 address-map evidence counts, aggregate raw/resolved stream endpoint counts and
 device lists, aggregate AXI-Lite target device/base-address counts and lists,
-aggregate JPEG/input artifact path and decoder-command inventories, Vivado
+aggregate frame dimensions and encoder configuration values, aggregate
+JPEG/input artifact path and decoder-command inventories, Vivado
 checked/passed/failed evidence path lists,
 parsed HJPEG base addresses, HJPEG base-address count and consistency flag, plus
 the recomputed summary, evidence/check counts, missing evidence groups, and

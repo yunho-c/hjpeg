@@ -2918,6 +2918,37 @@ def check_run_evidence_record(
             "failing_checks": failing_checks,
         }
     )
+    width = record.get("width")
+    height = record.get("height")
+    if is_strict_int(width):
+        result["width"] = int(width)
+    if is_strict_int(height):
+        result["height"] = int(height)
+    encoder_config = record.get("encoder_config")
+    if isinstance(encoder_config, dict):
+        for source_key, result_key in (
+            ("width", "encoder_width"),
+            ("height", "encoder_height"),
+            ("max_width", "encoder_max_width"),
+            ("max_height", "encoder_max_height"),
+            ("quality", "encoder_quality"),
+            ("restart_interval", "encoder_restart_interval"),
+            ("control", "encoder_control"),
+        ):
+            value = encoder_config.get(source_key)
+            if is_strict_int(value):
+                result[result_key] = int(value)
+        for source_key, result_key in (
+            ("chroma_subsample", "encoder_chroma_subsample"),
+            ("emit_jfif", "encoder_emit_jfif"),
+            ("clear_error", "encoder_clear_error"),
+        ):
+            value = encoder_config.get(source_key)
+            if isinstance(value, bool):
+                result[result_key] = value
+        control_hex = encoder_config.get("control_hex")
+        if isinstance(control_hex, str):
+            result["encoder_control_hex"] = control_hex
     stream_devices = record.get("stream_devices")
     if isinstance(stream_devices, dict):
         stream_tx_device = stream_devices.get("tx_device")
@@ -3898,6 +3929,19 @@ def unique_int_values(records: list[dict[str, object]], key: str) -> list[int]:
     return values
 
 
+def unique_bool_values(records: list[dict[str, object]], key: str) -> list[bool]:
+    values: list[bool] = []
+    seen: set[bool] = set()
+    for record in records:
+        value = record.get(key)
+        if not isinstance(value, bool):
+            continue
+        if value not in seen:
+            seen.add(value)
+            values.append(value)
+    return values
+
+
 def require_capture_config(max_output_bytes: int, timeout_seconds: float | None) -> None:
     if max_output_bytes <= 0:
         raise ValueError("max output bytes must be positive")
@@ -4657,6 +4701,31 @@ def main(argv: list[str] | None = None) -> int:
         aggregate_axi_lite_base_addresses_hex = [
             f"0x{base:x}" for base in aggregate_axi_lite_base_addresses
         ]
+        aggregate_frame_widths = unique_int_values(records, "width")
+        aggregate_frame_heights = unique_int_values(records, "height")
+        aggregate_encoder_widths = unique_int_values(records, "encoder_width")
+        aggregate_encoder_heights = unique_int_values(records, "encoder_height")
+        aggregate_encoder_max_widths = unique_int_values(records, "encoder_max_width")
+        aggregate_encoder_max_heights = unique_int_values(
+            records, "encoder_max_height"
+        )
+        aggregate_encoder_qualities = unique_int_values(records, "encoder_quality")
+        aggregate_encoder_restart_intervals = unique_int_values(
+            records, "encoder_restart_interval"
+        )
+        aggregate_encoder_controls = unique_int_values(records, "encoder_control")
+        aggregate_encoder_control_hex_values = unique_scalar_string_values(
+            records, "encoder_control_hex"
+        )
+        aggregate_encoder_chroma_subsample_values = unique_bool_values(
+            records, "encoder_chroma_subsample"
+        )
+        aggregate_encoder_emit_jfif_values = unique_bool_values(
+            records, "encoder_emit_jfif"
+        )
+        aggregate_encoder_clear_error_values = unique_bool_values(
+            records, "encoder_clear_error"
+        )
         aggregate_jpeg_paths = unique_scalar_string_values(records, "jpeg")
         aggregate_input_rgb_paths = unique_scalar_string_values(records, "input_rgb")
         aggregate_input_ppm_paths = unique_scalar_string_values(records, "input_ppm")
@@ -4750,6 +4819,68 @@ def main(argv: list[str] | None = None) -> int:
                         ),
                         "aggregate_axi_lite_base_addresses_hex": (
                             aggregate_axi_lite_base_addresses_hex
+                        ),
+                        "aggregate_frame_width_count": len(aggregate_frame_widths),
+                        "aggregate_frame_height_count": len(aggregate_frame_heights),
+                        "aggregate_encoder_width_count": len(
+                            aggregate_encoder_widths
+                        ),
+                        "aggregate_encoder_height_count": len(
+                            aggregate_encoder_heights
+                        ),
+                        "aggregate_encoder_max_width_count": len(
+                            aggregate_encoder_max_widths
+                        ),
+                        "aggregate_encoder_max_height_count": len(
+                            aggregate_encoder_max_heights
+                        ),
+                        "aggregate_encoder_quality_count": len(
+                            aggregate_encoder_qualities
+                        ),
+                        "aggregate_encoder_restart_interval_count": len(
+                            aggregate_encoder_restart_intervals
+                        ),
+                        "aggregate_encoder_control_count": len(
+                            aggregate_encoder_controls
+                        ),
+                        "aggregate_encoder_control_hex_count": len(
+                            aggregate_encoder_control_hex_values
+                        ),
+                        "aggregate_encoder_chroma_subsample_count": len(
+                            aggregate_encoder_chroma_subsample_values
+                        ),
+                        "aggregate_encoder_emit_jfif_count": len(
+                            aggregate_encoder_emit_jfif_values
+                        ),
+                        "aggregate_encoder_clear_error_count": len(
+                            aggregate_encoder_clear_error_values
+                        ),
+                        "aggregate_frame_widths": aggregate_frame_widths,
+                        "aggregate_frame_heights": aggregate_frame_heights,
+                        "aggregate_encoder_widths": aggregate_encoder_widths,
+                        "aggregate_encoder_heights": aggregate_encoder_heights,
+                        "aggregate_encoder_max_widths": (
+                            aggregate_encoder_max_widths
+                        ),
+                        "aggregate_encoder_max_heights": (
+                            aggregate_encoder_max_heights
+                        ),
+                        "aggregate_encoder_qualities": aggregate_encoder_qualities,
+                        "aggregate_encoder_restart_intervals": (
+                            aggregate_encoder_restart_intervals
+                        ),
+                        "aggregate_encoder_controls": aggregate_encoder_controls,
+                        "aggregate_encoder_control_hex_values": (
+                            aggregate_encoder_control_hex_values
+                        ),
+                        "aggregate_encoder_chroma_subsample_values": (
+                            aggregate_encoder_chroma_subsample_values
+                        ),
+                        "aggregate_encoder_emit_jfif_values": (
+                            aggregate_encoder_emit_jfif_values
+                        ),
+                        "aggregate_encoder_clear_error_values": (
+                            aggregate_encoder_clear_error_values
                         ),
                         "aggregate_jpeg_path_count": len(aggregate_jpeg_paths),
                         "aggregate_input_rgb_path_count": len(
