@@ -259,7 +259,7 @@ with EOI. Input RGB evidence must
 include positive byte length, a SHA-256 hex hash, a positive expected byte length,
 and an actual-vs-expected length match. Capture configuration evidence must
 include a positive maximum output byte count and either no timeout or a finite
-positive timeout. AXI-Lite target evidence must include a device path,
+positive timeout. AXI-Lite target evidence must include a non-empty string device path,
 nonnegative base address, and matching hexadecimal base-address text. Encoder
 configuration evidence must include supported dimensions, quality/restart values
 in range, boolean control flags, and a control word/hex string matching those

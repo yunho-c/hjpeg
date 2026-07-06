@@ -1851,7 +1851,10 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
 
     axi_lite = record.get("axi_lite")
     if isinstance(axi_lite, dict):
-        axi_lite_device_present = bool(axi_lite.get("device"))
+        axi_lite_device = axi_lite.get("device")
+        axi_lite_device_present = isinstance(axi_lite_device, str) and bool(
+            axi_lite_device
+        )
         axi_lite_base_addr = axi_lite.get("base_addr")
         axi_lite_base_addr_nonnegative = (
             is_strict_int(axi_lite_base_addr) and axi_lite_base_addr >= 0

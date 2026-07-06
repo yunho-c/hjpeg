@@ -2163,6 +2163,13 @@ class HjpegHostTest(unittest.TestCase):
                 "base_addr_hex": "0x20",
             }
         }
+        invalid_truthy_device = {
+            "axi_lite": {
+                "device": True,
+                "base_addr": 16,
+                "base_addr_hex": "0x10",
+            }
+        }
         valid = {
             "axi_lite": {
                 "device": "/dev/mem",
@@ -2172,12 +2179,29 @@ class HjpegHostTest(unittest.TestCase):
         }
 
         invalid_summary = hjpeg_host.hardware_run_summary_record(invalid)
+        invalid_truthy_device_summary = hjpeg_host.hardware_run_summary_record(
+            invalid_truthy_device
+        )
         valid_summary = hjpeg_host.hardware_run_summary_record(valid)
 
         self.assertFalse(invalid_summary["evidence_present"]["axi_lite"])
         self.assertFalse(invalid_summary["checks"]["axi_lite_device_present"])
         self.assertTrue(invalid_summary["checks"]["axi_lite_base_addr_nonnegative"])
         self.assertFalse(invalid_summary["checks"]["axi_lite_base_addr_hex_matches"])
+        self.assertFalse(
+            invalid_truthy_device_summary["evidence_present"]["axi_lite"]
+        )
+        self.assertFalse(
+            invalid_truthy_device_summary["checks"]["axi_lite_device_present"]
+        )
+        self.assertTrue(
+            invalid_truthy_device_summary["checks"][
+                "axi_lite_base_addr_nonnegative"
+            ]
+        )
+        self.assertTrue(
+            invalid_truthy_device_summary["checks"]["axi_lite_base_addr_hex_matches"]
+        )
         self.assertTrue(valid_summary["evidence_present"]["axi_lite"])
         self.assertTrue(valid_summary["checks"]["axi_lite_device_present"])
         self.assertTrue(valid_summary["checks"]["axi_lite_base_addr_nonnegative"])
