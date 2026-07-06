@@ -3289,6 +3289,104 @@ def vivado_summary_counts_consistent(record: object) -> bool:
     )
 
 
+def expected_vivado_diagnostic_summary(record: object) -> dict[str, object] | None:
+    if not isinstance(record, dict):
+        return None
+    checked_count = record.get("checked_count")
+    passed_count = record.get("passed_count")
+    failed_count = record.get("failed_count")
+    failure_count = record.get("failure_count")
+    failures = record.get("failures")
+    checked_counts = record.get("checked_counts")
+    checked_paths = record.get("checked_paths")
+    failed_paths = record.get("failed_paths")
+    passed_paths = record.get("passed_paths")
+    evidence_categories = record.get("evidence_categories")
+    if not (
+        is_strict_int(checked_count)
+        and is_strict_int(passed_count)
+        and is_strict_int(failed_count)
+        and is_strict_int(failure_count)
+        and isinstance(failures, list)
+        and isinstance(checked_counts, dict)
+        and isinstance(checked_paths, list)
+        and isinstance(failed_paths, list)
+        and isinstance(passed_paths, list)
+        and isinstance(evidence_categories, dict)
+    ):
+        return None
+    passing_counts = evidence_categories.get("passing_counts")
+    failing_counts = evidence_categories.get("failing_counts")
+    if not (isinstance(passing_counts, dict) and isinstance(failing_counts, dict)):
+        return None
+    checked_counts_sum = sum(
+        int(count)
+        for count in checked_counts.values()
+        if is_strict_int(count)
+    )
+    checked_counts_sum_matches = checked_counts_sum == checked_count
+    checked_counts_positive = all(
+        is_strict_int(checked_counts.get(category))
+        and checked_counts[category] > 0
+        for category in VIVADO_REQUIRED_EVIDENCE_CATEGORIES
+    )
+    checked_counts_match_categories = all(
+        is_strict_int(checked_counts.get(category))
+        and is_strict_int(passing_counts.get(category))
+        and is_strict_int(failing_counts.get(category))
+        and checked_counts[category]
+        == passing_counts[category] + failing_counts[category]
+        for category in VIVADO_REQUIRED_EVIDENCE_CATEGORIES
+    )
+    count_balance_valid = checked_count == passed_count + failed_count
+    path_counts_valid = (
+        len(checked_paths) == checked_count
+        and len(passed_paths) == passed_count
+        and len(failed_paths) == failed_count
+    )
+    checked_paths_match_passed_paths = checked_paths == passed_paths
+    no_failed_paths = failed_paths == []
+    no_failures = failures == []
+    valid = bool(
+        checked_count > 0
+        and passed_count == checked_count
+        and failed_count == 0
+        and failure_count == 0
+        and checked_counts_sum_matches
+        and checked_counts_positive
+        and checked_counts_match_categories
+        and count_balance_valid
+        and path_counts_valid
+        and checked_paths_match_passed_paths
+        and no_failed_paths
+        and no_failures
+    )
+    return {
+        "checked_count": checked_count,
+        "passed_count": passed_count,
+        "failed_count": failed_count,
+        "failure_count": failure_count,
+        "checked_counts_sum": checked_counts_sum,
+        "checked_counts_sum_matches": checked_counts_sum_matches,
+        "checked_counts_positive": checked_counts_positive,
+        "checked_counts_match_categories": checked_counts_match_categories,
+        "count_balance_valid": count_balance_valid,
+        "path_counts_valid": path_counts_valid,
+        "checked_paths_match_passed_paths": checked_paths_match_passed_paths,
+        "no_failed_paths": no_failed_paths,
+        "no_failures": no_failures,
+        "valid": valid,
+    }
+
+
+def vivado_diagnostic_summary_consistent(record: object) -> bool:
+    if not isinstance(record, dict):
+        return False
+    diagnostic_summary = record.get("diagnostic_summary")
+    expected = expected_vivado_diagnostic_summary(record)
+    return isinstance(diagnostic_summary, dict) and diagnostic_summary == expected
+
+
 def vivado_route_status_counts_present(record: object) -> bool:
     if not isinstance(record, dict):
         return False
@@ -3381,6 +3479,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     clock_target_present = vivado_clock_target_present(parsed)
     evidence_categories_present = vivado_evidence_categories_present(parsed)
     summary_counts_consistent = vivado_summary_counts_consistent(parsed)
+    diagnostic_summary_consistent = vivado_diagnostic_summary_consistent(parsed)
     route_status_counts_present = vivado_route_status_counts_present(parsed)
     address_map_hex_fields_consistent = vivado_address_map_hex_fields_consistent(parsed)
     record_hashes_present = vivado_record_hashes_present(parsed)
@@ -3460,6 +3559,8 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         and vivado_hold_timing_filenames_present
         and clock_target_present
         and evidence_categories_present
+        and summary_counts_consistent
+        and diagnostic_summary_consistent
     )
     complete_vivado_flow_evidence_matches = (
         isinstance(parsed, dict)
@@ -3514,6 +3615,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
             "vivado_clock_target_present": clock_target_present,
             "vivado_evidence_categories_present": evidence_categories_present,
             "vivado_summary_counts_consistent": summary_counts_consistent,
+            "vivado_diagnostic_summary_consistent": diagnostic_summary_consistent,
             "vivado_route_status_counts_present": route_status_counts_present,
             "vivado_address_map_hex_fields_consistent": address_map_hex_fields_consistent,
             "vivado_record_hashes_present": record_hashes_present,
@@ -3537,6 +3639,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
                 and clock_target_present
                 and evidence_categories_present
                 and summary_counts_consistent
+                and diagnostic_summary_consistent
                 and route_status_counts_present
                 and address_map_hex_fields_consistent
                 and record_hashes_present
@@ -3591,6 +3694,11 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     if not summary_counts_consistent:
         failures.append(
             f"{path}: Vivado evidence diagnostic summary counts are inconsistent"
+        )
+    if not diagnostic_summary_consistent:
+        failures.append(
+            f"{path}: Vivado evidence diagnostic_summary does not match "
+            "the aggregate Vivado evidence fields"
         )
     if not route_status_counts_present:
         failures.append(

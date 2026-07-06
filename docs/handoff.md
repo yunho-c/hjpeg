@@ -862,10 +862,11 @@ Vivado clock target must include finite positive `clock_period_ns` and
 and the top-level `clock_target_valid` flag true, and the Vivado checked path
 list must match the passed path list. Its top-level
 `complete_vivado_flow_evidence` flag and complete-evidence missing/failing lists
-must match nested evidence summaries, and `diagnostic_summary.valid` must be
-true. Its per-category checked counts must be positive, sum to the total checked
-count, and match the per-category pass/fail totals. Supplying multiple Vivado
-evidence files is allowed only when they agree on the same HJPEG base address.
+must match nested evidence summaries, and its `diagnostic_summary` object must
+match the aggregate Vivado fields with `valid` true. Its per-category checked
+counts must be positive, sum to the total checked count, and match the
+per-category pass/fail totals. Supplying multiple Vivado evidence files is
+allowed only when they agree on the same HJPEG base address.
 JSON output includes aggregate checked/pass/fail transcript counts, diagnostic
 failure count, checked/passed/failed path lists, summary checked, matched, and
 mismatched counts and paths, aggregate evidence group present/missing counts,

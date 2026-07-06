@@ -185,9 +185,10 @@ required report filename presence for `post_synth_timing_summary.rpt`,
 present/missing/failing filename names, required suffix/filename passing/failing
 counts, required/present/missing category, suffix, artifact-filename,
 address-map-filename, and report-filename counts, aggregate pass/fail counts,
-diagnostic failure count, checked/passed/failed path lists, complete-evidence
-required/missing/failing lists, and pass/fail state in machine-readable build
-evidence.
+diagnostic failure count, checked/passed/failed path lists, a
+`diagnostic_summary` that checks aggregate count/path/category consistency,
+complete-evidence required/missing/failing lists, and pass/fail state in
+machine-readable build evidence.
 Required evidence category presence is based on at least one passing record in
 that category, not just a requested input path. Complete Vivado evidence also
 requires every supplied required evidence category and required `.bit`/`.xsa`/
@@ -472,10 +473,11 @@ evidence-category summary to show every required category present and passing,
 the top-level `complete_vivado_flow_evidence` flag and complete-evidence
 missing/failing lists to match nested evidence summaries,
 zero diagnostic failures and failed paths in the Vivado summary, checked paths
-matching passed paths, positive per-category checked counts whose sum matches
-the total checked count and match the per-category pass/fail totals, plus a
-passing route-status record with zero unrouted nets and zero nets with routing
-errors. Address-map evidence must also keep its hexadecimal address strings
+matching passed paths, a `diagnostic_summary` object that matches the aggregate
+Vivado fields and has `valid` true, positive per-category checked counts whose
+sum matches the total checked count and match the per-category pass/fail totals,
+plus a passing route-status record with zero unrouted nets and zero nets with
+routing errors. Address-map evidence must also keep its hexadecimal address strings
 consistent with the parsed numeric base/high address fields.
 The checker fails if the run
 transcript's AXI-Lite base address does not match the Vivado build evidence, or

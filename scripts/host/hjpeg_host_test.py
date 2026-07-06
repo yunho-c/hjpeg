@@ -1045,6 +1045,22 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
             "post_impl_clock_utilization.rpt",
         ],
         "failed_paths": [],
+        "diagnostic_summary": {
+            "checked_count": 11,
+            "passed_count": 11,
+            "failed_count": 0,
+            "failure_count": 0,
+            "checked_counts_sum": 11,
+            "checked_counts_sum_matches": True,
+            "checked_counts_positive": True,
+            "checked_counts_match_categories": True,
+            "count_balance_valid": True,
+            "path_counts_valid": True,
+            "checked_paths_match_passed_paths": True,
+            "no_failed_paths": True,
+            "no_failures": True,
+            "valid": True,
+        },
         "clock_period_ns": 10.0,
         "clock_frequency_mhz": 100.0,
         "clock_target": {
@@ -4507,6 +4523,9 @@ class HjpegHostTest(unittest.TestCase):
                 record["vivado_evidence"][0]["vivado_summary_counts_consistent"]
             )
             self.assertTrue(
+                record["vivado_evidence"][0]["vivado_diagnostic_summary_consistent"]
+            )
+            self.assertTrue(
                 record["vivado_evidence"][0]["vivado_route_status_counts_present"]
             )
             self.assertTrue(
@@ -4771,6 +4790,44 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(record["passed"])
             self.assertTrue(
                 any("diagnostic summary counts" in failure for failure in failures)
+            )
+
+    def test_vivado_evidence_file_record_rejects_missing_diagnostic_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            del vivado_record["diagnostic_summary"]
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertTrue(record["vivado_passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["vivado_summary_counts_consistent"])
+            self.assertFalse(record["vivado_diagnostic_summary_consistent"])
+            self.assertFalse(record["complete_vivado_flow_evidence_matches"])
+            self.assertFalse(record["passed"])
+            self.assertTrue(
+                any("diagnostic_summary" in failure for failure in failures)
+            )
+
+    def test_vivado_evidence_file_record_rejects_tampered_diagnostic_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["diagnostic_summary"]["checked_counts_sum"] = 10
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertTrue(record["vivado_passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["vivado_summary_counts_consistent"])
+            self.assertFalse(record["vivado_diagnostic_summary_consistent"])
+            self.assertFalse(record["complete_vivado_flow_evidence_matches"])
+            self.assertFalse(record["passed"])
+            self.assertTrue(
+                any("diagnostic_summary" in failure for failure in failures)
             )
 
     def test_vivado_evidence_file_record_rejects_missing_route_status_counts(self) -> None:

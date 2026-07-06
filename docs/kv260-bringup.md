@@ -332,11 +332,12 @@ Expected evidence:
   a top-level `complete_vivado_flow_evidence` flag and complete-evidence
   missing/failing lists matching nested evidence summaries,
   zero diagnostic failures and failed paths in the Vivado summary,
-  `diagnostic_summary.valid` true, checked paths matching passed paths,
-  positive per-category checked counts whose sum matches the total checked
-  count and match the per-category pass/fail totals, plus a passing
-  route-status record with zero unrouted nets and zero nets with routing
-  errors. Vivado numeric transcript fields such as address-map base/high
+  checked paths matching passed paths, a `diagnostic_summary` object that
+  matches the aggregate Vivado fields and has `valid` true, positive
+  per-category checked counts whose sum matches the total checked count and
+  match the per-category pass/fail totals, plus a passing route-status record
+  with zero unrouted nets and zero nets with routing errors. Vivado numeric
+  transcript fields such as address-map base/high
   addresses, clock period/frequency, evidence-category counts, summary counts,
   and route-status counts must also be actual JSON numbers, not booleans. The
   checker fails if the run transcript's AXI-Lite base address does not match the
