@@ -2195,17 +2195,40 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     if isinstance(stream_devices, dict):
         tx_device = stream_devices.get("tx_device")
         rx_device = stream_devices.get("rx_device")
+        tx_device_resolved = stream_devices.get("tx_device_resolved")
+        rx_device_resolved = stream_devices.get("rx_device_resolved")
         tx_device_present = isinstance(tx_device, str) and bool(tx_device)
         rx_device_present = isinstance(rx_device, str) and bool(rx_device)
+        tx_device_resolved_present = (
+            isinstance(tx_device_resolved, str) and bool(tx_device_resolved)
+        )
+        rx_device_resolved_present = (
+            isinstance(rx_device_resolved, str) and bool(rx_device_resolved)
+        )
         stream_devices_distinct = (
             tx_device_present and rx_device_present and tx_device != rx_device
         )
+        stream_devices_resolved_distinct = (
+            tx_device_resolved_present
+            and rx_device_resolved_present
+            and tx_device_resolved != rx_device_resolved
+        )
         evidence_present["stream_devices"] = (
-            tx_device_present and rx_device_present and stream_devices_distinct
+            tx_device_present
+            and rx_device_present
+            and tx_device_resolved_present
+            and rx_device_resolved_present
+            and stream_devices_distinct
+            and stream_devices_resolved_distinct
         )
         checks["stream_tx_device_present"] = tx_device_present
         checks["stream_rx_device_present"] = rx_device_present
         checks["stream_devices_distinct"] = stream_devices_distinct
+        checks["stream_tx_device_resolved_present"] = tx_device_resolved_present
+        checks["stream_rx_device_resolved_present"] = rx_device_resolved_present
+        checks["stream_devices_resolved_distinct"] = (
+            stream_devices_resolved_distinct
+        )
 
     capture_config = record.get("capture_config")
     if isinstance(capture_config, dict):
@@ -3834,6 +3857,8 @@ def stream_devices_record(tx_device: Path, rx_device: Path) -> dict[str, object]
     return {
         "tx_device": str(tx_device),
         "rx_device": str(rx_device),
+        "tx_device_resolved": str(tx_device.resolve(strict=False)),
+        "rx_device_resolved": str(rx_device.resolve(strict=False)),
     }
 
 
