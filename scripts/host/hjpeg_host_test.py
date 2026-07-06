@@ -1006,6 +1006,7 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
         "clock_period_ns": 10.0,
         "clock_frequency_mhz": 100.0,
         "complete_vivado_flow_evidence": True,
+        "complete_vivado_flow_evidence_required": True,
         "evidence_categories": {
             "all_required_present": True,
             "present": {
@@ -3659,10 +3660,35 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(
                 record["vivado_evidence"][0]["vivado_record_hashes_present"]
             )
+            self.assertTrue(
+                record["vivado_evidence"][0][
+                    "complete_vivado_flow_evidence_required"
+                ]
+            )
             self.assertEqual(record["vivado_hjpeg_base_addresses"], [0])
             self.assertEqual(record["vivado_hjpeg_base_addresses_hex"], ["0x0"])
             self.assertTrue(
                 record["records"][0]["axi_lite_base_matches_vivado_evidence"]
+            )
+
+    def test_vivado_evidence_file_record_requires_complete_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            del vivado_record["complete_vivado_flow_evidence_required"]
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertFalse(record["passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertFalse(record["complete_vivado_flow_evidence_required"])
+            self.assertTrue(
+                any(
+                    "complete_vivado_flow_evidence_required is not true"
+                    in failure
+                    for failure in failures
+                )
             )
 
     def test_vivado_evidence_file_record_rejects_missing_report_filenames(self) -> None:

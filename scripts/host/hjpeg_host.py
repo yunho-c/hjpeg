@@ -2943,6 +2943,10 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         isinstance(parsed, dict)
         and parsed.get("complete_vivado_flow_evidence") is True
     )
+    complete_vivado_flow_evidence_required = (
+        isinstance(parsed, dict)
+        and parsed.get("complete_vivado_flow_evidence_required") is True
+    )
     vivado_artifact_suffixes_present = vivado_required_artifact_suffixes_present(parsed)
     vivado_artifact_filenames_present = vivado_required_artifact_filenames_present(parsed)
     vivado_address_map_filenames_present = (
@@ -2963,6 +2967,9 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         {
             "vivado_passed": vivado_passed,
             "complete_vivado_flow_evidence": complete_vivado_flow_evidence,
+            "complete_vivado_flow_evidence_required": (
+                complete_vivado_flow_evidence_required
+            ),
             "vivado_artifact_suffixes_present": vivado_artifact_suffixes_present,
             "vivado_artifact_filenames_present": vivado_artifact_filenames_present,
             "vivado_address_map_filenames_present": vivado_address_map_filenames_present,
@@ -2980,6 +2987,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
                 bool(bases)
                 and vivado_passed
                 and complete_vivado_flow_evidence
+                and complete_vivado_flow_evidence_required
                 and vivado_artifact_suffixes_present
                 and vivado_artifact_filenames_present
                 and vivado_address_map_filenames_present
@@ -2999,6 +3007,10 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         failures.append(f"{path}: Vivado evidence did not pass")
     if not complete_vivado_flow_evidence:
         failures.append(f"{path}: complete_vivado_flow_evidence is false")
+    if not complete_vivado_flow_evidence_required:
+        failures.append(
+            f"{path}: complete_vivado_flow_evidence_required is not true"
+        )
     if not vivado_artifact_suffixes_present:
         failures.append(f"{path}: Vivado evidence missing required .bit/.xsa/.dcp artifacts")
     if not vivado_artifact_filenames_present:

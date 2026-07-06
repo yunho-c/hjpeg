@@ -304,8 +304,10 @@ Expected evidence:
   recomputed summary. When `--vivado-evidence`
   points at the `check_reports.py --json` output saved from the bitstream build,
   it also extracts the passing `hjpeg_0/s_axi_lite` address-map base address and
-  requires that Vivado transcript to have `passed` and
-  `complete_vivado_flow_evidence` true, plus required `.bit`, `.xsa`, and `.dcp`
+  requires that Vivado transcript to have `passed`,
+  `complete_vivado_flow_evidence`, and
+  `complete_vivado_flow_evidence_required` true, plus required `.bit`, `.xsa`,
+  and `.dcp`
   artifact suffix evidence and required `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and
   `post_impl.dcp` filename evidence, plus required `hjpeg_kv260_address_map.rpt`
   filename evidence, plus required `post_synth_timing_summary.rpt`,
