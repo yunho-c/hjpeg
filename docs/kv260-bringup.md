@@ -393,9 +393,10 @@ Expected evidence:
 
 The `run-stream-devices` helper checks the AXI-Lite status register after
 configuration, immediately before streaming input, and after validating the
-captured JPEG. It exits with an error if `busy` or `protocol_error` is set at
-any of those points. It also rejects identical TX/RX stream-device paths before
-device I/O.
+captured JPEG. The recorded checkpoint context names are `after configuration`,
+`before transfer`, and `after validation`. It exits with an error if `busy` or
+`protocol_error` is set at any of those points. It also rejects identical TX/RX
+stream-device paths before device I/O.
 
 ## 8. Validate JPEG Output
 
@@ -522,7 +523,7 @@ Expected evidence:
   making final throughput claims.
 - For `run-stream-devices --json`, the helper records the AXI-Lite status
   checkpoints enforced after configuration, before transfer, and after
-  transfer, including the AXI-Lite target sampled for each checkpoint, the
+  validation, including the AXI-Lite target sampled for each checkpoint, the
   checkpoint count, actual and expected checkpoint context lists, whether those
   lists matched, and run-level summaries for all-idle, any-busy, and
   any-protocol-error checkpoints.

@@ -78,7 +78,7 @@ VIVADO_REQUIRED_ROUTE_STATUS_COUNTS = (
 RUN_STATUS_CHECK_CONTEXTS = [
     "after configuration",
     "before transfer",
-    "after transfer",
+    "after validation",
 ]
 DECODER_OUTPUT_CAPTURE_CHARS = 4096
 
@@ -4569,7 +4569,7 @@ def run_stream_devices(
         if decoder_results is not None:
             decoder_results.append(decoder_result)
     if check_status is not None:
-        check_status("after transfer")
+        check_status("after validation")
     return info, input_info
 
 

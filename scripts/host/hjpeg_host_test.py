@@ -2840,7 +2840,7 @@ class HjpegHostTest(unittest.TestCase):
                     "protocol_error": False,
                 },
                 {
-                    "context": "after transfer",
+                    "context": "after validation",
                     "status": 0,
                     "status_hex": "0x00000000",
                     "text": "idle",
@@ -2858,11 +2858,11 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["status_check_count"], 3)
             self.assertEqual(
                 record["status_check_contexts"],
-                ["after configuration", "before transfer", "after transfer"],
+                ["after configuration", "before transfer", "after validation"],
             )
             self.assertEqual(
                 record["expected_status_check_contexts"],
-                ["after configuration", "before transfer", "after transfer"],
+                ["after configuration", "before transfer", "after validation"],
             )
             self.assertTrue(record["status_check_contexts_match_expected"])
             self.assertTrue(record["status_checks_all_idle"])
@@ -2926,7 +2926,7 @@ class HjpegHostTest(unittest.TestCase):
                 status_checks=[
                     {"context": "before transfer", "text": "idle", "busy": False},
                     {
-                        "context": "after transfer",
+                        "context": "after validation",
                         "text": "protocol_error",
                         "busy": True,
                         "protocol_error": True,
@@ -2982,12 +2982,12 @@ class HjpegHostTest(unittest.TestCase):
             "status_check_contexts": [
                 "after configuration",
                 "before transfer",
-                "after transfer",
+                "after validation",
             ],
             "expected_status_check_contexts": [
                 "after configuration",
                 "before transfer",
-                "after transfer",
+                "after validation",
             ],
             "status_check_contexts_match_expected": True,
             "status_checks_all_idle": True,
@@ -3002,7 +3002,7 @@ class HjpegHostTest(unittest.TestCase):
                     "protocol_error": False,
                 },
                 {
-                    "context": "after transfer",
+                    "context": "after validation",
                     "status": 0,
                     "text": "idle",
                     "busy": False,
@@ -3089,12 +3089,12 @@ class HjpegHostTest(unittest.TestCase):
             "status_check_contexts": [
                 "after configuration",
                 "before transfer",
-                "after transfer",
+                "after validation",
             ],
             "expected_status_check_contexts": [
                 "after configuration",
                 "before transfer",
-                "after transfer",
+                "after validation",
             ],
             "status_check_contexts_match_expected": True,
             "status_checks_all_idle": True,
@@ -3116,7 +3116,7 @@ class HjpegHostTest(unittest.TestCase):
                     "protocol_error": False,
                 },
                 {
-                    "context": "after transfer",
+                    "context": "after validation",
                     "status": 0,
                     "text": "idle",
                     "busy": False,
@@ -3139,12 +3139,12 @@ class HjpegHostTest(unittest.TestCase):
             "status_check_contexts": [
                 "after configuration",
                 "before transfer",
-                "after transfer",
+                "after validation",
             ],
             "expected_status_check_contexts": [
                 "after configuration",
                 "before transfer",
-                "after transfer",
+                "after validation",
             ],
             "status_check_contexts_match_expected": True,
             "status_checks_all_idle": True,
@@ -3166,7 +3166,7 @@ class HjpegHostTest(unittest.TestCase):
                     "protocol_error": False,
                 },
                 {
-                    "context": "after transfer",
+                    "context": "after validation",
                     "text": "idle",
                     "busy": False,
                     "protocol_error": False,
@@ -8634,7 +8634,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(input_info.path, str(input_rgb))
             self.assertEqual(input_info.byte_length, 8)
             self.assertEqual(input_info.sha256, hashlib.sha256(input_rgb.read_bytes()).hexdigest())
-            self.assertEqual(status_checks, ["before transfer", "after transfer"])
+            self.assertEqual(status_checks, ["before transfer", "after validation"])
             self.assertEqual(tx_device.read_bytes(), bytes([1, 2, 3, 0, 4, 5, 6, 0]))
             self.assertEqual(output_jpeg.read_bytes(), minimal_jpeg(width=2, height=1))
             self.assertEqual((root / "decoder.txt").read_text(), "ffd8")
@@ -8935,16 +8935,16 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(decoder_marker.read_text(), "ffd8")
             self.assertEqual(
                 [status["context"] for status in record["status_checks"]],
-                ["after configuration", "before transfer", "after transfer"],
+                ["after configuration", "before transfer", "after validation"],
             )
             self.assertEqual(record["status_check_count"], 3)
             self.assertEqual(
                 record["status_check_contexts"],
-                ["after configuration", "before transfer", "after transfer"],
+                ["after configuration", "before transfer", "after validation"],
             )
             self.assertEqual(
                 record["expected_status_check_contexts"],
-                ["after configuration", "before transfer", "after transfer"],
+                ["after configuration", "before transfer", "after validation"],
             )
             self.assertTrue(record["status_check_contexts_match_expected"])
             self.assertTrue(record["status_checks_all_idle"])
@@ -9532,7 +9532,7 @@ class HjpegHostTest(unittest.TestCase):
 
                 regs.write32(hjpeg_host.REG_STATUS, hjpeg_host.STATUS_PROTOCOL_ERROR)
                 with self.assertRaisesRegex(RuntimeError, "protocol_error"):
-                    hjpeg_host.require_idle_status(regs, "after transfer")
+                    hjpeg_host.require_idle_status(regs, "after validation")
 
 
 if __name__ == "__main__":
