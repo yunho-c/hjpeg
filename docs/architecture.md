@@ -252,7 +252,8 @@ checks, the ordered required evidence group list, evidence/check counts, missing
 and present evidence group names, ordered recorded check names, and passing and
 failing check names for board-run transcripts; the complete-evidence flag
 requires a passing
-decoder check, a captured output JPEG path plus hashes and non-empty scan data, source PPM
+decoder check, a captured output JPEG path, positive parsed dimensions, hashes,
+and non-empty scan data, source PPM
 evidence with non-flat/color image stats, and positive host-observed transfer
 timing with finite positive derived input and output byte rates. Decoder
 evidence must include the command string, resolved argv, positive timeout,

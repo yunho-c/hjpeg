@@ -788,10 +788,11 @@ Hardware completion evidence should include:
   code, stdout/stderr strings with matching captured lengths, output lengths
   within the positive capture limit, non-truncated decoder output metadata, and
   an argv list matching the command and JPEG path.
-  The hardware-run summary cross-checks frame dimensions across
-  the output JPEG, encoder configuration, validation expectations, source PPM,
-  and expected RGB stream byte length, and requires a captured JPEG path and the parsed marker sequence
-  to begin with SOI and end with EOI. It also cross-checks grouped marker
+  The hardware-run summary requires positive parsed output JPEG dimensions and
+  cross-checks frame dimensions across the output JPEG, encoder configuration,
+  validation expectations, source PPM, and expected RGB stream byte length, and
+  requires a captured JPEG path and the parsed marker sequence to begin with
+  SOI and end with EOI. It also cross-checks grouped marker
   counts against scalar APP0/JFIF APP0/DQT/SOF0/DHT/SOS/DRI/RST counts,
   verifies RST sequence length against the recorded RST count, and checks
   marker-count/RST expectations when present. Input RGB evidence must include

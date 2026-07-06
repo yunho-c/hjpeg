@@ -276,9 +276,9 @@ Expected evidence:
   string, resolved argv, positive timeout, nonnegative elapsed time, zero return
   code, stdout/stderr strings with matching captured lengths, output lengths
   within the positive capture limit, non-truncated captured output metadata,
-  and an argv list matching the command and JPEG path. The summary
-  cross-checks the output JPEG dimensions against the encoder configuration,
-  validation expectations, source PPM dimensions, and expected RGB stream byte
+  and an argv list matching the command and JPEG path. The summary requires
+  positive parsed output JPEG dimensions and cross-checks them against the
+  encoder configuration, validation expectations, source PPM dimensions, and expected RGB stream byte
   length, requires the parsed marker sequence to begin with SOI and end with
   EOI, cross-checks grouped marker counts against scalar
   APP0/JFIF APP0/DQT/SOF0/DHT/SOS/DRI/RST counts, verifies RST sequence length

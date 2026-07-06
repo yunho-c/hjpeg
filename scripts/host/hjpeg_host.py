@@ -1651,6 +1651,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     jpeg_sha256 = record.get("sha256")
     scan_data_sha256 = record.get("scan_data_sha256")
     jpeg_path = record.get("jpeg")
+    width = record.get("width")
+    height = record.get("height")
     marker_sequence = record.get("marker_sequence")
     marker_counts = record.get("marker_counts")
     expected_marker_count_fields = {
@@ -1674,6 +1676,9 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     jpeg_sha256_present = is_sha256_hex(jpeg_sha256)
     scan_data_sha256_present = is_sha256_hex(scan_data_sha256)
     jpeg_path_present = isinstance(jpeg_path, str) and len(jpeg_path) > 0
+    jpeg_dimensions_positive = (
+        is_strict_int(width) and is_strict_int(height) and width > 0 and height > 0
+    )
     marker_sequence_values = (
         marker_sequence if isinstance(marker_sequence, (list, tuple)) else ()
     )
@@ -1712,6 +1717,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         and scan_data_bytes_positive
         and jpeg_sha256_present
         and scan_data_sha256_present
+        and jpeg_dimensions_positive
         and jpeg_marker_sequence_starts_with_soi
         and jpeg_marker_sequence_ends_with_eoi
         and restart_marker_sequence_length_matches_count
@@ -1723,6 +1729,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     checks["jpeg_scan_data_bytes_positive"] = scan_data_bytes_positive
     checks["jpeg_sha256_present"] = jpeg_sha256_present
     checks["jpeg_scan_data_sha256_present"] = scan_data_sha256_present
+    checks["jpeg_dimensions_positive"] = jpeg_dimensions_positive
     checks["jpeg_marker_sequence_starts_with_soi"] = (
         jpeg_marker_sequence_starts_with_soi
     )
@@ -1735,8 +1742,6 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     )
     checks["marker_counts_match_segment_counts"] = marker_counts_match_segment_counts
 
-    width = record.get("width")
-    height = record.get("height")
     encoder_config = record.get("encoder_config")
     validation_expectations = record.get("validation_expectations")
     input_rgb = record.get("input_rgb")
