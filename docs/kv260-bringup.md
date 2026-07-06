@@ -284,7 +284,8 @@ Expected evidence:
   APP0/JFIF APP0/DQT/SOF0/DHT/SOS/DRI/RST counts, verifies RST sequence length
   against the recorded RST count, and checks marker-count/RST expectations when
   present. Input RGB evidence must include a nonempty path, positive byte length,
-  a SHA-256 hex hash, a positive expected byte length, and an actual-vs-expected length match.
+  a SHA-256 hex hash, a positive expected byte length, and a boolean
+  actual-vs-expected length-match flag that matches the recomputed result.
   Stream-device evidence must include nonempty TX/RX device paths, resolved
   identities that match the raw paths, and distinct raw and resolved endpoints.
   Capture configuration evidence must include a positive maximum output byte

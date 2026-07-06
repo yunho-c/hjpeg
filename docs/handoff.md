@@ -796,7 +796,8 @@ Hardware completion evidence should include:
   verifies RST sequence length against the recorded RST count, and checks
   marker-count/RST expectations when present. Input RGB evidence must include
   a nonempty path, positive byte length, a SHA-256 hex hash, a positive expected byte length, and
-  an actual-vs-expected length match. Stream-device evidence must include
+  a boolean actual-vs-expected length-match flag that matches the recomputed
+  result. Stream-device evidence must include
   nonempty TX/RX device paths, resolved identities that match the raw paths, and
   distinct raw and resolved endpoints. Capture configuration evidence must
   include a positive maximum output byte count and either no timeout or a finite

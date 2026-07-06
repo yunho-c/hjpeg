@@ -2168,9 +2168,13 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and is_strict_int(input_rgb_expected_byte_length)
             and input_rgb_byte_length == input_rgb_expected_byte_length
         )
+        input_rgb_length_match_flag = input_rgb.get("byte_length_matches_expected")
+        input_rgb_length_match_flag_present = isinstance(
+            input_rgb_length_match_flag, bool
+        )
         input_rgb_length_match_flag_matches = (
-            input_rgb.get("byte_length_matches_expected")
-            == input_rgb_length_matches_expected
+            input_rgb_length_match_flag_present
+            and input_rgb_length_match_flag == input_rgb_length_matches_expected
         )
         evidence_present["input_rgb"] = (
             input_rgb_path_present
@@ -2178,6 +2182,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and input_rgb_sha256_present
             and input_rgb_expected_byte_length_positive
             and input_rgb_length_matches_expected
+            and input_rgb_length_match_flag_present
             and input_rgb_length_match_flag_matches
         )
         checks["input_rgb_path_present"] = input_rgb_path_present
@@ -2187,6 +2192,9 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             input_rgb_expected_byte_length_positive
         )
         checks["input_rgb_length_matches_expected"] = input_rgb_length_matches_expected
+        checks["input_rgb_length_match_flag_present"] = (
+            input_rgb_length_match_flag_present
+        )
         checks["input_rgb_length_match_flag_matches"] = (
             input_rgb_length_match_flag_matches
         )
