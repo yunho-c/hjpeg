@@ -5939,6 +5939,13 @@ class HjpegHostTest(unittest.TestCase):
             {"max_output_bytes": 1024, "timeout_seconds": None},
         )
 
+    def test_stream_devices_record_rejects_same_endpoint(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            device = Path(tmp) / "stream.dev"
+
+            with self.assertRaisesRegex(ValueError, "TX and RX stream devices"):
+                hjpeg_host.stream_devices_record(device, device)
+
     def test_validate_jpeg_cli_rejects_invalid_decoder_timeout(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             jpeg = Path(tmp) / "out.jpg"
@@ -8149,6 +8156,29 @@ class HjpegHostTest(unittest.TestCase):
                     expected_height=1,
                     timeout_seconds=1.0,
                 )
+
+    def test_run_stream_devices_rejects_same_tx_rx_device_before_io(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_rgb = root / "input.rgb"
+            stream_device = root / "stream.dev"
+            output_jpeg = root / "output.jpg"
+            input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
+            stream_device.write_bytes(minimal_jpeg(width=2, height=1))
+
+            with self.assertRaisesRegex(ValueError, "TX and RX stream devices"):
+                hjpeg_host.run_stream_devices(
+                    input_rgb=input_rgb,
+                    output_jpeg=output_jpeg,
+                    tx_device=stream_device,
+                    rx_device=stream_device,
+                    max_output_bytes=1024,
+                    expected_width=2,
+                    expected_height=1,
+                )
+
+            self.assertEqual(stream_device.read_bytes(), minimal_jpeg(width=2, height=1))
+            self.assertFalse(output_jpeg.exists())
 
     def test_run_stream_devices_rejects_nonpositive_timeout(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

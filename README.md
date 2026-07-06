@@ -288,8 +288,9 @@ before reading the RGB payload.
 `run-stream-devices` targets Linux board images that expose AXI DMA MM2S/S2MM
 endpoints as byte-stream device files: it configures AXI-Lite registers through
 `/dev/mem`, writes the padded RGB stream to the TX device, captures bytes from
-the RX device until JPEG EOI, rejects trailing bytes already returned after that
-EOI, checks status for `busy` / `protocol_error`, and validates the resulting
+the RX device until JPEG EOI, rejects identical TX/RX endpoint paths before
+device I/O, rejects trailing bytes already returned after that EOI, checks status
+for `busy` / `protocol_error`, and validates the resulting
 dimensions, quality-matched DQT payloads, standard DHT payloads, and non-empty
 scan data. DMA
 drivers that use ioctls or buffer queues still need a small adapter around the

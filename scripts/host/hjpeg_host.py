@@ -3824,7 +3824,13 @@ def capture_config_record(max_output_bytes: int, timeout_seconds: float | None) 
     }
 
 
+def require_stream_devices(tx_device: Path, rx_device: Path) -> None:
+    if tx_device.resolve(strict=False) == rx_device.resolve(strict=False):
+        raise ValueError("TX and RX stream devices must be distinct")
+
+
 def stream_devices_record(tx_device: Path, rx_device: Path) -> dict[str, object]:
+    require_stream_devices(tx_device, rx_device)
     return {
         "tx_device": str(tx_device),
         "rx_device": str(rx_device),
@@ -3874,6 +3880,7 @@ def run_stream_devices(
 ) -> tuple[JpegInfo, FileInfo]:
     require_supported_dimensions(expected_width, expected_height, max_width, max_height)
     require_capture_config(max_output_bytes, timeout_seconds)
+    require_stream_devices(tx_device, rx_device)
     if not 1 <= quality <= 100:
         raise ValueError("quality must be in 1..100")
     if expected_restart_interval is not None and not 0 <= expected_restart_interval <= 0xFFFF:

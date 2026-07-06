@@ -379,7 +379,8 @@ Expected evidence:
 The `run-stream-devices` helper checks the AXI-Lite status register after
 configuration, immediately before streaming input, and after validating the
 captured JPEG. It exits with an error if `busy` or `protocol_error` is set at
-any of those points.
+any of those points. It also rejects identical TX/RX stream-device paths before
+device I/O.
 
 ## 8. Validate JPEG Output
 
