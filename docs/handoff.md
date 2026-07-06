@@ -769,7 +769,7 @@ Hardware completion evidence should include:
   counts against scalar APP0/JFIF APP0/DQT/SOF0/DHT/SOS/DRI/RST counts,
   verifies RST sequence length against the recorded RST count, and checks
   marker-count/RST expectations when present. Input RGB evidence must include
-  positive byte length, a SHA-256 hex hash, a positive expected byte length, and
+  a nonempty path, positive byte length, a SHA-256 hex hash, a positive expected byte length, and
   an actual-vs-expected length match. Capture configuration evidence must
   include a positive maximum output byte count and either no timeout or a finite
   positive timeout. AXI-Lite target evidence must include a non-empty string
@@ -780,7 +780,7 @@ Hardware completion evidence should include:
   Validation expectations evidence must include the baseline shape, marker
   order, marker counts, restart marker count/sequence when applicable, table
   order, SOS spectral fields, and standard-Huffman requirement.
-  Source PPM evidence must include file and packed-RGB SHA-256 hex hashes,
+  Source PPM evidence must include a nonempty path, file and packed-RGB SHA-256 hex hashes,
   dimension-consistent RGB and packed byte lengths, an input-byte match, and
   non-flat/color image stats. Status evidence must include the detailed
   checkpoint list, matching checkpoint count, expected ordered contexts,
