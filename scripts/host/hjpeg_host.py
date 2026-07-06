@@ -2894,6 +2894,7 @@ def vivado_clock_target_present(record: object) -> bool:
         return False
     clock_period_ns = record.get("clock_period_ns")
     clock_frequency_mhz = record.get("clock_frequency_mhz")
+    clock_target = record.get("clock_target")
     if not (
         is_strict_number(clock_period_ns)
         and is_strict_number(clock_frequency_mhz)
@@ -2903,7 +2904,34 @@ def vivado_clock_target_present(record: object) -> bool:
         and clock_frequency_mhz > 0
     ):
         return False
-    return math.isclose(clock_frequency_mhz, 1000.0 / clock_period_ns, rel_tol=1e-12)
+    if not math.isclose(clock_frequency_mhz, 1000.0 / clock_period_ns, rel_tol=1e-12):
+        return False
+    if not (
+        record.get("clock_target_valid") is True
+        and isinstance(clock_target, dict)
+        and clock_target.get("valid") is True
+        and clock_target.get("clock_period_finite") is True
+        and clock_target.get("clock_period_positive") is True
+        and clock_target.get("clock_frequency_finite") is True
+        and clock_target.get("clock_frequency_positive") is True
+        and clock_target.get("period_frequency_match") is True
+        and is_strict_number(clock_target.get("clock_period_ns"))
+        and is_strict_number(clock_target.get("clock_frequency_mhz"))
+    ):
+        return False
+    target_period_ns = clock_target["clock_period_ns"]
+    target_frequency_mhz = clock_target["clock_frequency_mhz"]
+    return (
+        math.isfinite(target_period_ns)
+        and math.isfinite(target_frequency_mhz)
+        and math.isclose(target_period_ns, clock_period_ns, rel_tol=0.0, abs_tol=0.0)
+        and math.isclose(
+            target_frequency_mhz,
+            clock_frequency_mhz,
+            rel_tol=0.0,
+            abs_tol=0.0,
+        )
+    )
 
 
 def vivado_evidence_categories_present(record: object) -> bool:

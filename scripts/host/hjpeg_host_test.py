@@ -1035,6 +1035,17 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
         "failed_paths": [],
         "clock_period_ns": 10.0,
         "clock_frequency_mhz": 100.0,
+        "clock_target": {
+            "clock_period_ns": 10.0,
+            "clock_frequency_mhz": 100.0,
+            "clock_period_finite": True,
+            "clock_period_positive": True,
+            "clock_frequency_finite": True,
+            "clock_frequency_positive": True,
+            "period_frequency_match": True,
+            "valid": True,
+        },
+        "clock_target_valid": True,
         "arguments": {"require_complete_evidence": True},
         "complete_vivado_flow_evidence": True,
         "complete_vivado_flow_evidence_required": True,
@@ -4301,6 +4312,40 @@ class HjpegHostTest(unittest.TestCase):
             path = Path(tmp) / "vivado.json"
             vivado_record = vivado_evidence_record(0)
             vivado_record["clock_frequency_mhz"] = 125.0
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertTrue(record["vivado_passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertFalse(record["vivado_clock_target_present"])
+            self.assertFalse(record["passed"])
+            self.assertTrue(
+                any("clock target" in failure for failure in failures)
+            )
+
+    def test_vivado_evidence_file_record_rejects_missing_structured_clock_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            del vivado_record["clock_target"]
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertTrue(record["vivado_passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertFalse(record["vivado_clock_target_present"])
+            self.assertFalse(record["passed"])
+            self.assertTrue(
+                any("clock target" in failure for failure in failures)
+            )
+
+    def test_vivado_evidence_file_record_rejects_tampered_structured_clock_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["clock_target"]["clock_frequency_mhz"] = 125.0
             path.write_text(json.dumps(vivado_record))
 
             record, failures = hjpeg_host.vivado_evidence_file_record(path)
