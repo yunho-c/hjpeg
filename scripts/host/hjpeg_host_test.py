@@ -3914,7 +3914,7 @@ class HjpegHostTest(unittest.TestCase):
             summary["checks"]["input_rgb_expected_length_matches_dimensions"]
         )
 
-    def test_hardware_summary_requires_strict_validation_dimensions(self) -> None:
+    def test_hardware_summary_requires_strict_dimension_evidence(self) -> None:
         record = {
             "width": 1,
             "height": 1,
@@ -3924,15 +3924,21 @@ class HjpegHostTest(unittest.TestCase):
             "scan_data_sha256": "1" * 64,
             "marker_sequence": ["SOI", "SOS", "EOI"],
             **baseline_marker_count_record(),
+            "encoder_config": {"width": True, "height": True},
             "validation_expectations": {"width": True, "height": True},
+            "input_ppm": {"width": True, "height": True},
         }
 
         summary = hjpeg_host.hardware_run_summary_record(record)
 
         self.assertFalse(summary["all_recorded_checks_passed"])
         self.assertFalse(
+            summary["checks"]["encoder_config_matches_jpeg_dimensions"]
+        )
+        self.assertFalse(
             summary["checks"]["validation_expectations_match_jpeg_dimensions"]
         )
+        self.assertFalse(summary["checks"]["input_ppm_dimensions_match_jpeg"])
 
     def test_hardware_summary_requires_soi_eoi_marker_sequence(self) -> None:
         record = {

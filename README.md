@@ -446,7 +446,8 @@ must include a positive maximum output byte count and either no timeout or a
 finite positive timeout. AXI-Lite
 target evidence must include a non-empty string device path, nonnegative base
 address, and matching hexadecimal base-address text. Encoder configuration
-evidence must include supported dimensions, quality/restart values in range,
+evidence must include strict JSON integer dimensions matching the JPEG
+dimensions and supported by the frame limits, quality/restart values in range,
 boolean control flags, and a control word/hex string matching those flags. Validation
 expectations evidence must include strict JSON integer dimensions matching the
 JPEG dimensions, the baseline shape, marker order, table order, marker counts,
@@ -461,7 +462,8 @@ validation quality value that is either absent or an actual JSON integer in
 `1..100`, plus a validation restart interval that is either absent or an actual
 JSON integer in `0..65535`.
 Source PPM
-evidence must include a nonempty path and resolved path, file and packed-RGB SHA-256 hex hashes,
+evidence must include strict JSON integer dimensions matching the JPEG
+dimensions, a nonempty path and resolved path, file and packed-RGB SHA-256 hex hashes,
 positive dimension-consistent RGB and packed byte lengths, a recomputed input-RGB
 length/hash match with a boolean packed-RGB match flag, and
 non-flat/color image stats. Status evidence must include the detailed checkpoint
