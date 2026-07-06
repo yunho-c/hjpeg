@@ -196,7 +196,8 @@ required report filename presence for `post_synth_timing_summary.rpt`,
 present/missing/failing filename names, required suffix/filename passing/failing
 counts, required/present/missing category, suffix, artifact-filename,
 address-map-filename, and report-filename counts, aggregate pass/fail counts,
-diagnostic failure count, checked/passed/failed path lists, a
+diagnostic failure count, strict JSON integer checked/passed/failed inventory
+counts, checked/passed/failed path lists, a
 `diagnostic_summary` that checks aggregate count/path/category consistency,
 including strict JSON integer checked, passing, and failing category counts,
 complete-evidence required/missing/failing lists, and pass/fail state in

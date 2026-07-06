@@ -156,10 +156,11 @@ Pass criteria:
   present/missing/failing filename names,
   required suffix/filename passing/failing counts, required/present/missing category,
   suffix, artifact-filename, address-map-filename, and report-filename counts,
-  aggregate pass/fail counts, diagnostic failure count, checked/passed/failed
-  path lists, a `diagnostic_summary` that checks aggregate count/path/category
-  consistency with strict JSON integer checked, passing, and failing category
-  counts, complete-evidence required/missing/failing lists, and pass/fail state.
+  aggregate pass/fail counts, diagnostic failure count, strict JSON integer
+  checked/passed/failed inventory counts, checked/passed/failed path lists, a
+  `diagnostic_summary` that checks aggregate count/path/category consistency
+  with strict JSON integer checked, passing, and failing category counts,
+  complete-evidence required/missing/failing lists, and pass/fail state.
   Complete Vivado flow evidence has
   `all_required_present` and `all_required_suffixes_present` true, with no
   failing records in the required evidence categories or required `.bit`/`.xsa`/

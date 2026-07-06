@@ -159,6 +159,7 @@ hardware-tool entry points:
   counts, aggregate pass/fail counts, required/present/missing category, suffix,
   artifact-filename, address-map-filename, and report-filename counts,
   diagnostic failure count,
+  strict JSON integer checked/passed/failed inventory counts,
   checked/passed/failed path lists, strict JSON integer checked, passing, and
   failing category counts in the diagnostic summary,
   complete-evidence required/missing/failing lists, and pass/fail state for

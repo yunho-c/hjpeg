@@ -4077,7 +4077,11 @@ def vivado_record_inventory_consistent(record: object) -> bool:
         records = record.get(category)
         if not isinstance(records, list):
             return False
-        if checked_counts.get(category) != len(records):
+        checked_category_count = checked_counts.get(category)
+        if (
+            not is_strict_int(checked_category_count)
+            or checked_category_count != len(records)
+        ):
             return False
         for item in records:
             if not isinstance(item, dict):
@@ -4095,11 +4099,22 @@ def vivado_record_inventory_consistent(record: object) -> bool:
         for item in checked_records
         if item.get("passed") is not True
     ]
+    checked_count = record.get("checked_count")
+    passed_count = record.get("passed_count")
+    failed_count = record.get("failed_count")
+    failure_count = record.get("failure_count")
+    if not (
+        is_strict_int(checked_count)
+        and is_strict_int(passed_count)
+        and is_strict_int(failed_count)
+        and is_strict_int(failure_count)
+    ):
+        return False
     return (
-        record.get("checked_count") == len(checked_records)
-        and record.get("passed_count") == len(passed_paths)
-        and record.get("failed_count") == len(failed_paths)
-        and record.get("failure_count") == len(failures)
+        checked_count == len(checked_records)
+        and passed_count == len(passed_paths)
+        and failed_count == len(failed_paths)
+        and failure_count == len(failures)
         and record.get("checked_paths") == checked_paths
         and record.get("passed_paths") == passed_paths
         and record.get("failed_paths") == failed_paths
@@ -4567,7 +4582,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         )
     if not record_inventory_consistent:
         failures.append(
-            f"{path}: Vivado evidence top-level inventory does not match nested records"
+            f"{path}: Vivado evidence record inventory does not match nested records"
         )
     if not route_status_counts_present:
         failures.append(

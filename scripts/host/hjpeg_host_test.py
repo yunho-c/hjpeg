@@ -5996,7 +5996,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(record["vivado_record_inventory_consistent"])
             self.assertTrue(
                 any(
-                    "top-level inventory does not match nested records" in failure
+                    "record inventory does not match nested records" in failure
                     for failure in failures
                 )
             )
@@ -6373,6 +6373,25 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(record["passed"])
             self.assertTrue(
                 any("diagnostic summary counts" in failure for failure in failures)
+            )
+
+    def test_vivado_evidence_file_record_rejects_boolean_inventory_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["checked_counts"]["address_map"] = True
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertTrue(record["vivado_passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertFalse(record["vivado_record_inventory_consistent"])
+            self.assertFalse(record["vivado_summary_counts_consistent"])
+            self.assertFalse(record["vivado_diagnostic_summary_consistent"])
+            self.assertFalse(record["passed"])
+            self.assertTrue(
+                any("record inventory" in failure for failure in failures)
             )
 
     def test_vivado_evidence_file_record_rejects_extra_checked_count_categories(self) -> None:
