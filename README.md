@@ -514,7 +514,8 @@ evidence true, with
 matching missing/failing filename, hold-timing, and suffix lists empty. The
 Vivado `arguments` object must match the recorded artifact, address-map, report,
 hold-timing, floorplan, clock-period, timing-threshold, and utilization-threshold
-evidence. The Vivado clock target must include finite positive `clock_period_ns` and
+evidence, with timing records matched against the deduplicated union of setup
+and hold timing arguments. The Vivado clock target must include finite positive `clock_period_ns` and
 `clock_frequency_mhz` values that match each other, with `clock_target.valid`
 and the top-level `clock_target_valid` flag true. It also requires the Vivado
 evidence-category summary to show every required category present and passing,

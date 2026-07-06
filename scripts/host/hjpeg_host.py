@@ -4211,6 +4211,16 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
             for record in timing_records
             if isinstance(record, dict) and record.get("check_whs") is True
         ]
+        argument_timing_paths = arguments.get("timing")
+        argument_hold_timing_paths = arguments.get("hold_timing")
+        if not isinstance(argument_timing_paths, list):
+            argument_timing_paths = []
+        if not isinstance(argument_hold_timing_paths, list):
+            argument_hold_timing_paths = []
+        expected_timing_paths = []
+        for path_value in [*argument_timing_paths, *argument_hold_timing_paths]:
+            if path_value not in expected_timing_paths:
+                expected_timing_paths.append(path_value)
         timing_thresholds_match = all(
             isinstance(record, dict)
             and record.get("min_wns_ns") == arguments.get("min_wns")
@@ -4225,7 +4235,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         vivado_arguments_match_record = (
             arguments.get("artifacts") == record_paths("artifacts")
             and arguments.get("address_map") == record_paths("address_map")
-            and arguments.get("timing") == record_paths("timing")
+            and expected_timing_paths == record_paths("timing")
             and arguments.get("hold_timing") == hold_timing_paths
             and arguments.get("utilization") == record_paths("utilization")
             and arguments.get("drc") == record_paths("drc")

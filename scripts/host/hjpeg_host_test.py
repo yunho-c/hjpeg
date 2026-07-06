@@ -1485,7 +1485,7 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
     return record
 
 
-def write_generated_vivado_evidence(root: Path) -> Path:
+def write_generated_vivado_evidence(root: Path, post_impl_timing_as_hold_only: bool = False) -> Path:
     bit = root / "hjpeg_kv260.bit"
     xsa = root / "hjpeg_kv260.xsa"
     dcp = root / "post_impl.dcp"
@@ -1520,41 +1520,44 @@ def write_generated_vivado_evidence(root: Path) -> Path:
     )
 
     stdout = io.StringIO()
+    args = [
+        "--artifact",
+        str(bit),
+        "--artifact",
+        str(xsa),
+        "--artifact",
+        str(dcp),
+        "--address-map",
+        str(address_map),
+        "--timing",
+        str(post_synth_timing),
+    ]
+    if not post_impl_timing_as_hold_only:
+        args.extend(["--timing", str(post_impl_timing)])
+    args.extend(
+        [
+            "--hold-timing",
+            str(post_impl_timing),
+            "--utilization",
+            str(post_synth_utilization),
+            "--utilization",
+            str(post_impl_utilization),
+            "--drc",
+            str(drc),
+            "--route-status",
+            str(route_status),
+            "--clock-utilization",
+            str(clock_utilization),
+            "--floorplan",
+            str(floorplan),
+            "--clock-period-ns",
+            "10.0",
+            "--require-complete-evidence",
+            "--json",
+        ]
+    )
     with contextlib.redirect_stdout(stdout):
-        exit_code = check_reports.main(
-            [
-                "--artifact",
-                str(bit),
-                "--artifact",
-                str(xsa),
-                "--artifact",
-                str(dcp),
-                "--address-map",
-                str(address_map),
-                "--timing",
-                str(post_synth_timing),
-                "--timing",
-                str(post_impl_timing),
-                "--hold-timing",
-                str(post_impl_timing),
-                "--utilization",
-                str(post_synth_utilization),
-                "--utilization",
-                str(post_impl_utilization),
-                "--drc",
-                str(drc),
-                "--route-status",
-                str(route_status),
-                "--clock-utilization",
-                str(clock_utilization),
-                "--floorplan",
-                str(floorplan),
-                "--clock-period-ns",
-                "10.0",
-                "--require-complete-evidence",
-                "--json",
-            ]
-        )
+        exit_code = check_reports.main(args)
     if exit_code != 0:
         raise AssertionError(f"check_reports failed with exit code {exit_code}")
     vivado.write_text(stdout.getvalue())
@@ -5862,6 +5865,22 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["vivado_route_status_counts_present"])
             self.assertTrue(record["vivado_arguments_match_record"])
             self.assertEqual(record["hjpeg_base_addresses"], [0])
+
+    def test_vivado_evidence_file_record_accepts_hold_only_timing_argument(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            vivado = write_generated_vivado_evidence(
+                root,
+                post_impl_timing_as_hold_only=True,
+            )
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(vivado)
+
+            self.assertEqual(failures, [])
+            self.assertTrue(record["passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["vivado_arguments_match_record"])
+            self.assertTrue(record["vivado_record_inventory_consistent"])
 
     def test_vivado_evidence_file_record_rejects_stale_nested_inventory(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

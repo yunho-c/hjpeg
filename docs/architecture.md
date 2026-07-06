@@ -329,7 +329,9 @@ evidence true, with
 matching missing/failing filename, hold-timing, and suffix lists empty, a Vivado
 `arguments` object that matches the recorded artifact, address-map, report,
 hold-timing, floorplan, clock-period, timing-threshold, and
-utilization-threshold evidence, finite positive `clock_period_ns` and
+utilization-threshold evidence, with timing records matched against the
+deduplicated union of setup and hold timing arguments, finite positive
+`clock_period_ns` and
 `clock_frequency_mhz` values that match each
 other, `clock_target.valid` and top-level `clock_target_valid` true, a required
 evidence-category summary showing every required category
