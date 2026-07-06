@@ -2268,7 +2268,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         input_ppm_packed_rgb_sha256_present = is_sha256_hex(
             input_ppm_packed_rgb_sha256
         )
-        input_ppm_matches_input_flag_matches = True
+        input_ppm_matches_input_flag_matches = False
         input_rgb = record.get("input_rgb")
         if isinstance(input_rgb, dict):
             input_rgb_byte_length = input_rgb.get("byte_length")

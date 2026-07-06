@@ -2280,6 +2280,13 @@ class HjpegHostTest(unittest.TestCase):
             }
         }
         complete = {
+            "input_rgb": {
+                "path": "input.rgb",
+                "byte_length": 8,
+                "sha256": "1" * 64,
+                "expected_byte_length": 8,
+                "byte_length_matches_expected": True,
+            },
             "input_ppm": {
                 "path": "input.ppm",
                 "byte_length": 16,
@@ -2302,6 +2309,9 @@ class HjpegHostTest(unittest.TestCase):
         self.assertFalse(incomplete_summary["checks"]["input_ppm_sha256_present"])
         self.assertFalse(
             incomplete_summary["checks"]["input_ppm_packed_rgb_sha256_present"]
+        )
+        self.assertFalse(
+            incomplete_summary["checks"]["input_ppm_matches_input_flag_matches"]
         )
         self.assertFalse(incomplete_summary["checks"]["input_ppm_has_color_pixels"])
         self.assertTrue(
