@@ -179,8 +179,25 @@ without changing mapped control/status registers.
 
 ## Recent Progress
 
-Recent baseline commits before this handoff update, newest first:
+Recent baseline commits before this handoff update, newest first. Use
+`git log --oneline` as the source of truth if this list drifts again:
 
+- `7d73e68 fix: preflight duplicate stream endpoints`
+- `34895c9 test: cover duplicate stream endpoint cli`
+- `2746cf9 fix: reject duplicate stream endpoints`
+- `562ab70 fix: record stream device run evidence`
+- `fc0251b fix: align vivado complete evidence gate`
+- `bf845df fix: verify ppm input match evidence`
+- `c632d0a fix: require source input path evidence`
+- `4b13809 fix: require captured jpeg path evidence`
+- `3a4d142 test: cover floorplan report script`
+- `72f0fbd feat: regenerate kv260 floorplan report`
+- `4ca5c37 feat: require vivado floorplan evidence`
+- `6e50e63 feat: record chiselsim tool versions`
+- `1850385 fix: summarize vivado evidence paths`
+- `31edfee fix: summarize vivado base address consistency`
+- `e81a54e test: check generated vivado evidence via cli`
+- `05fe5a2 test: accept generated vivado evidence`
 - `7ef93be test: assert run complete evidence flag`
 - `84a7e77 fix: verify complete run evidence flag`
 - `05e5da1 docs: refresh structured vivado evidence handoff`
