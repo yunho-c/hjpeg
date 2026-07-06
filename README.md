@@ -354,7 +354,9 @@ EOI, SOF0 or SOS references to missing DQT/DHT tables, and decoder commands that
 fail or time out. Pass
 `validate-jpeg --restart-interval N` to require the parsed DRI interval to match
 `N` and the scan to contain the expected number of RST markers for the parsed
-MCU count, or `0` to require no DRI/RST markers. Pass
+MCU count, or `0` to require no DRI/RST markers. The parsed MCU count comes from
+SOF0 sampling factors, so 4:2:0 padded dimensions use 16x16 MCU geometry when
+deriving expected RST marker counts and sequences. Pass
 `--check-chroma-mode` with `--chroma-subsample` when validating a standalone
 4:2:0 file. Pass `--expect-jfif present` or `absent` to check optional JFIF APP0
 signature emission. Pass `--quality N` and `--require-standard-huffman` to

@@ -431,6 +431,8 @@ requested dimensions and optional restart/chroma/JFIF/quality/Huffman
 expectations that were enforced, including expected marker counts, the derived
 expected RST marker count, and expected DQT/DHT payload hashes when table checks
 are enabled.
+The parsed MCU count comes from SOF0 sampling factors, so 4:2:0 padded frames
+use 16x16 MCU geometry when deriving expected RST marker counts and sequences.
 `run-stream-devices` enforces those expectations automatically from the
 configured AXI-Lite control fields and quality setting and records the same
 expectation object, including expected marker counts, expected RST marker count,

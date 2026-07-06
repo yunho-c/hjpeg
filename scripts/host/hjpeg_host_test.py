@@ -5377,6 +5377,56 @@ class HjpegHostTest(unittest.TestCase):
                 )
             self.assertEqual(json.loads(stdout.getvalue())["chroma_mode"], "4:2:0")
 
+    def test_validate_jpeg_cli_uses_chroma_mode_for_restart_expectations(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jpeg = Path(tmp) / "420-restart.jpg"
+            jpeg.write_bytes(
+                with_dri_segment(
+                    with_scan_restart_markers(
+                        minimal_jpeg(width=17, height=17, chroma_subsample=True),
+                        [0],
+                    ),
+                    restart_interval=2,
+                )
+            )
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "validate-jpeg",
+                            str(jpeg),
+                            "--width",
+                            "17",
+                            "--height",
+                            "17",
+                            "--restart-interval",
+                            "2",
+                            "--chroma-subsample",
+                            "--check-chroma-mode",
+                            "--json",
+                        ]
+                    ),
+                    0,
+                )
+            record = json.loads(stdout.getvalue())
+            self.assertEqual(record["mcu_count"], 4)
+            self.assertEqual(record["restart_markers"], 1)
+            self.assertEqual(record["restart_marker_sequence"], [0])
+            self.assertEqual(
+                record["validation_expectations"]["expected_restart_markers"],
+                1,
+            )
+            self.assertEqual(
+                record["validation_expectations"]["expected_restart_marker_sequence"],
+                ["RST0"],
+            )
+            self.assertEqual(
+                record["validation_expectations"]["expected_chroma_mode"],
+                "4:2:0",
+            )
+
     def test_validate_jpeg_can_check_expected_jfif_presence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

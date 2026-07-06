@@ -411,6 +411,8 @@ Expected evidence:
   DQT/DHT payload hashes when table checks are enabled. Pass
   `--restart-interval` to standalone `validate-jpeg` to check the expected DRI
   value and exact RST marker count for the parsed MCU count;
+  the parsed MCU count comes from SOF0 sampling factors, so 4:2:0 padded frames
+  use 16x16 MCU geometry for expected RST marker counts and sequences;
   `run-stream-devices` checks this automatically against the configured
   register value and also checks captured DQT/DHT payloads against the
   configured quality and standard Huffman tables. Host CLI restart interval
