@@ -1612,6 +1612,9 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     jpeg_sha256 = record.get("sha256")
     scan_data_sha256 = record.get("scan_data_sha256")
     marker_sequence = record.get("marker_sequence")
+    marker_counts = record.get("marker_counts")
+    restart_markers = record.get("restart_markers")
+    restart_marker_sequence = record.get("restart_marker_sequence")
     jpeg_byte_length_positive = (
         is_strict_int(jpeg_byte_length) and jpeg_byte_length > 0
     )
@@ -1629,6 +1632,21 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     jpeg_marker_sequence_ends_with_eoi = (
         len(marker_sequence_values) > 0 and marker_sequence_values[-1] == "EOI"
     )
+    restart_marker_sequence_values = (
+        restart_marker_sequence
+        if isinstance(restart_marker_sequence, (list, tuple))
+        and all(is_strict_int(marker) for marker in restart_marker_sequence)
+        else ()
+    )
+    restart_marker_sequence_length_matches_count = (
+        is_strict_int(restart_markers)
+        and len(restart_marker_sequence_values) == restart_markers
+    )
+    restart_marker_count_matches_marker_counts = (
+        isinstance(marker_counts, dict)
+        and is_strict_int(restart_markers)
+        and marker_counts.get("RST") == restart_markers
+    )
     evidence_present["jpeg_output"] = (
         jpeg_byte_length_positive
         and scan_data_bytes_positive
@@ -1636,6 +1654,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         and scan_data_sha256_present
         and jpeg_marker_sequence_starts_with_soi
         and jpeg_marker_sequence_ends_with_eoi
+        and restart_marker_sequence_length_matches_count
+        and restart_marker_count_matches_marker_counts
     )
     checks["jpeg_byte_length_positive"] = jpeg_byte_length_positive
     checks["jpeg_scan_data_bytes_positive"] = scan_data_bytes_positive
@@ -1645,6 +1665,12 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         jpeg_marker_sequence_starts_with_soi
     )
     checks["jpeg_marker_sequence_ends_with_eoi"] = jpeg_marker_sequence_ends_with_eoi
+    checks["restart_marker_sequence_length_matches_count"] = (
+        restart_marker_sequence_length_matches_count
+    )
+    checks["restart_marker_count_matches_marker_counts"] = (
+        restart_marker_count_matches_marker_counts
+    )
 
     width = record.get("width")
     height = record.get("height")
@@ -1776,12 +1802,37 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         validation_requires_standard_huffman = (
             validation_expectations.get("require_standard_huffman") is True
         )
+        expected_restart_markers = validation_expectations.get(
+            "expected_restart_markers"
+        )
+        expected_restart_marker_sequence = validation_expectations.get(
+            "expected_restart_marker_sequence"
+        )
+        validation_restart_marker_count_matches = (
+            expected_restart_markers is None
+            or "restart_markers" not in record
+            or (
+                is_strict_int(restart_markers)
+                and expected_restart_markers == restart_markers
+            )
+        )
+        validation_restart_marker_sequence_matches = (
+            expected_restart_marker_sequence is None
+            or "restart_marker_sequence" not in record
+            or (
+                isinstance(expected_restart_marker_sequence, list)
+                and expected_restart_marker_sequence
+                == [f"RST{marker}" for marker in restart_marker_sequence_values]
+            )
+        )
         evidence_present["validation_expectations"] = (
             validation_baseline_shape
             and validation_marker_order_present
             and validation_table_order_present
             and validation_sos_spectral_baseline
             and validation_requires_standard_huffman
+            and validation_restart_marker_count_matches
+            and validation_restart_marker_sequence_matches
         )
         checks["validation_baseline_shape"] = validation_baseline_shape
         checks["validation_marker_order_present"] = validation_marker_order_present
@@ -1789,6 +1840,12 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         checks["validation_sos_spectral_baseline"] = validation_sos_spectral_baseline
         checks["validation_requires_standard_huffman"] = (
             validation_requires_standard_huffman
+        )
+        checks["validation_restart_marker_count_matches"] = (
+            validation_restart_marker_count_matches
+        )
+        checks["validation_restart_marker_sequence_matches"] = (
+            validation_restart_marker_sequence_matches
         )
 
     input_rgb = record.get("input_rgb")
