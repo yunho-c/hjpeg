@@ -1613,6 +1613,16 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     scan_data_sha256 = record.get("scan_data_sha256")
     marker_sequence = record.get("marker_sequence")
     marker_counts = record.get("marker_counts")
+    expected_marker_count_fields = {
+        "APP0": "app0_segments",
+        "JFIF_APP0": "jfif_app0_segments",
+        "DQT": "dqt_segments",
+        "SOF0": "sof0_segments",
+        "DHT": "dht_segments",
+        "SOS": "sos_segments",
+        "DRI": "dri_segments",
+        "RST": "restart_markers",
+    }
     restart_markers = record.get("restart_markers")
     restart_marker_sequence = record.get("restart_marker_sequence")
     jpeg_byte_length_positive = (
@@ -1647,6 +1657,14 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         and is_strict_int(restart_markers)
         and marker_counts.get("RST") == restart_markers
     )
+    marker_counts_match_segment_counts = (
+        isinstance(marker_counts, dict)
+        and all(
+            is_strict_int(record.get(field_name))
+            and marker_counts.get(marker_name) == record.get(field_name)
+            for marker_name, field_name in expected_marker_count_fields.items()
+        )
+    )
     evidence_present["jpeg_output"] = (
         jpeg_byte_length_positive
         and scan_data_bytes_positive
@@ -1656,6 +1674,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         and jpeg_marker_sequence_ends_with_eoi
         and restart_marker_sequence_length_matches_count
         and restart_marker_count_matches_marker_counts
+        and marker_counts_match_segment_counts
     )
     checks["jpeg_byte_length_positive"] = jpeg_byte_length_positive
     checks["jpeg_scan_data_bytes_positive"] = scan_data_bytes_positive
@@ -1671,6 +1690,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     checks["restart_marker_count_matches_marker_counts"] = (
         restart_marker_count_matches_marker_counts
     )
+    checks["marker_counts_match_segment_counts"] = marker_counts_match_segment_counts
 
     width = record.get("width")
     height = record.get("height")
@@ -1808,6 +1828,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         expected_restart_marker_sequence = validation_expectations.get(
             "expected_restart_marker_sequence"
         )
+        expected_marker_counts = validation_expectations.get("expected_marker_counts")
         validation_restart_marker_count_matches = (
             expected_restart_markers is None
             or "restart_markers" not in record
@@ -1825,6 +1846,22 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
                 == [f"RST{marker}" for marker in restart_marker_sequence_values]
             )
         )
+        validation_marker_counts_match = (
+            expected_marker_counts is None
+            or "marker_counts" not in record
+            or (
+                isinstance(expected_marker_counts, dict)
+                and isinstance(marker_counts, dict)
+                and all(
+                    expected_count is None
+                    or (
+                        is_strict_int(expected_count)
+                        and marker_counts.get(marker_name) == expected_count
+                    )
+                    for marker_name, expected_count in expected_marker_counts.items()
+                )
+            )
+        )
         evidence_present["validation_expectations"] = (
             validation_baseline_shape
             and validation_marker_order_present
@@ -1833,6 +1870,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and validation_requires_standard_huffman
             and validation_restart_marker_count_matches
             and validation_restart_marker_sequence_matches
+            and validation_marker_counts_match
         )
         checks["validation_baseline_shape"] = validation_baseline_shape
         checks["validation_marker_order_present"] = validation_marker_order_present
@@ -1847,6 +1885,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         checks["validation_restart_marker_sequence_matches"] = (
             validation_restart_marker_sequence_matches
         )
+        checks["validation_marker_counts_match"] = validation_marker_counts_match
 
     input_rgb = record.get("input_rgb")
     if isinstance(input_rgb, dict):
