@@ -259,8 +259,11 @@ Expected evidence:
   matching the command and JPEG path. The summary
   cross-checks the output JPEG dimensions against the encoder configuration,
   validation expectations, source PPM dimensions, and expected RGB stream byte
-  length, and requires the parsed marker sequence to begin with SOI and end
-  with EOI. Input RGB evidence must include positive byte length, a SHA-256 hex
+  length, requires the parsed marker sequence to begin with SOI and end with
+  EOI, cross-checks grouped marker counts against scalar
+  APP0/JFIF APP0/DQT/SOF0/DHT/SOS/DRI/RST counts, verifies RST sequence length
+  against the recorded RST count, and checks marker-count/RST expectations when
+  present. Input RGB evidence must include positive byte length, a SHA-256 hex
   hash, a positive expected byte length, and an actual-vs-expected length match.
   Capture configuration evidence must include a positive maximum output byte
   count and either no timeout or a finite positive timeout. AXI-Lite target
@@ -269,10 +272,11 @@ Expected evidence:
   configuration evidence must include supported dimensions, quality/restart
   values in range, boolean control flags, and a control word/hex string matching
   those flags. Validation expectations evidence must include the baseline shape,
-  marker order, table order, SOS spectral fields, and standard-Huffman
-  requirement. Source PPM evidence must include file and packed-RGB SHA-256 hex
-  hashes, dimension-consistent RGB and packed byte lengths, an input-byte match,
-  and non-flat/color image stats. Status evidence must include the detailed
+  marker order, marker counts, restart marker count/sequence when applicable,
+  table order, SOS spectral fields, and standard-Huffman requirement. Source PPM
+  evidence must include file and packed-RGB SHA-256 hex hashes,
+  dimension-consistent RGB and packed byte lengths, an input-byte match, and
+  non-flat/color image stats. Status evidence must include the detailed
   checkpoint list, matching checkpoint count, expected ordered contexts,
   per-checkpoint AXI-Lite targets matching the run target, zero raw status
   words, and all checkpoints idle with no protocol error or busy state. Summary

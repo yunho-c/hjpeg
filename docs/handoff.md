@@ -181,7 +181,10 @@ without changing mapped control/status registers.
 
 Recent commits, newest first:
 
-- current commit: `0520f5e test: cover host restart marker wraparound`
+- current commit: `5c71f34 fix: verify marker count evidence`
+- `a2c746f fix: verify restart evidence in run summaries`
+- `f5e669b docs: refresh continuation handoff`
+- `0520f5e test: cover host restart marker wraparound`
 - `8209a72 test: cover restart marker wraparound`
 - `34d90aa fix: validate vivado evidence arguments`
 - `b30e9c6 fix: validate vivado evidence diagnostics`
@@ -731,17 +734,21 @@ Hardware completion evidence should include:
   The hardware-run summary cross-checks frame dimensions across
   the output JPEG, encoder configuration, validation expectations, source PPM,
   and expected RGB stream byte length, and requires the parsed marker sequence
-  to begin with SOI and end with EOI. Input RGB evidence must include positive
-  byte length, a SHA-256 hex hash, a positive expected byte length, and an
-  actual-vs-expected length match. Capture configuration evidence must include a
-  positive maximum output byte count and either no timeout or a finite positive
-  timeout. AXI-Lite target evidence must include a non-empty string device path,
-  nonnegative base address, and matching hexadecimal base-address text. Encoder
-  configuration evidence must include supported dimensions, quality/restart
-  values in range, boolean control flags, and a control word/hex string matching
-  those flags.
+  to begin with SOI and end with EOI. It also cross-checks grouped marker
+  counts against scalar APP0/JFIF APP0/DQT/SOF0/DHT/SOS/DRI/RST counts,
+  verifies RST sequence length against the recorded RST count, and checks
+  marker-count/RST expectations when present. Input RGB evidence must include
+  positive byte length, a SHA-256 hex hash, a positive expected byte length, and
+  an actual-vs-expected length match. Capture configuration evidence must
+  include a positive maximum output byte count and either no timeout or a finite
+  positive timeout. AXI-Lite target evidence must include a non-empty string
+  device path, nonnegative base address, and matching hexadecimal base-address
+  text. Encoder configuration evidence must include supported dimensions,
+  quality/restart values in range, boolean control flags, and a control word/hex
+  string matching those flags.
   Validation expectations evidence must include the baseline shape, marker
-  order, table order, SOS spectral fields, and standard-Huffman requirement.
+  order, marker counts, restart marker count/sequence when applicable, table
+  order, SOS spectral fields, and standard-Huffman requirement.
   Source PPM evidence must include file and packed-RGB SHA-256 hex hashes,
   dimension-consistent RGB and packed byte lengths, an input-byte match, and
   non-flat/color image stats. Status evidence must include the detailed
