@@ -3905,8 +3905,12 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["passed"])
             self.assertTrue(record["exists"])
             self.assertTrue(record["complete_hardware_run_evidence"])
+            self.assertTrue(record["complete_hardware_run_evidence_flag_present"])
             self.assertTrue(record["complete_hardware_run_evidence_matches"])
             self.assertTrue(record["complete_hardware_run_evidence_required"])
+            self.assertTrue(
+                record["complete_hardware_run_evidence_required_flag_present"]
+            )
             self.assertTrue(record["complete_hardware_run_evidence_missing_matches"])
             self.assertTrue(
                 record["complete_hardware_run_evidence_failing_checks_matches"]
@@ -4295,6 +4299,41 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(
                 any(
                     "top-level complete_hardware_run_evidence does not match"
+                    in failure
+                    for failure in failures
+                )
+            )
+
+    def test_check_run_evidence_file_rejects_nonboolean_complete_flags(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "run.json"
+            evidence = complete_run_evidence_record(root)
+            evidence["complete_hardware_run_evidence"] = 1
+            evidence["complete_hardware_run_evidence_required"] = "true"
+            path.write_text(json.dumps(evidence))
+
+            record, failures = hjpeg_host.check_run_evidence_file(path)
+
+            self.assertFalse(record["passed"])
+            self.assertTrue(record["complete_hardware_run_evidence"])
+            self.assertFalse(record["complete_hardware_run_evidence_flag_present"])
+            self.assertFalse(record["complete_hardware_run_evidence_matches"])
+            self.assertFalse(record["complete_hardware_run_evidence_required"])
+            self.assertFalse(
+                record["complete_hardware_run_evidence_required_flag_present"]
+            )
+            self.assertTrue(record["hardware_run_summary_matches_computed"])
+            self.assertTrue(
+                any(
+                    "complete_hardware_run_evidence is not a JSON boolean"
+                    in failure
+                    for failure in failures
+                )
+            )
+            self.assertTrue(
+                any(
+                    "complete_hardware_run_evidence_required is not a JSON boolean"
                     in failure
                     for failure in failures
                 )
@@ -4963,7 +5002,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["passed_count"], 1)
             self.assertEqual(record["failed_count"], 3)
             self.assertEqual(record["failure_count"], len(record["failures"]))
-            self.assertEqual(record["failure_count"], 12)
+            self.assertEqual(record["failure_count"], 14)
             self.assertEqual(
                 record["checked_paths"],
                 [str(complete), str(incomplete), str(malformed), str(missing)],

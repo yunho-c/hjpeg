@@ -481,9 +481,10 @@ python3 scripts/host/hjpeg_host.py check-run-evidence run.json \
 
 The saved-evidence checker recomputes `hardware_run_summary` from the transcript
 and fails if the stored summary does not match the recomputed evidence, if the
-run did not record `complete_hardware_run_evidence_required`, if the top-level
-`complete_hardware_run_evidence` flag is missing or does not match the
-recomputed summary, or if the recorded missing-evidence and failing-check
+run did not record JSON boolean `true` for
+`complete_hardware_run_evidence_required`, if the top-level
+`complete_hardware_run_evidence` flag is missing, is not a JSON boolean, or does
+not match the recomputed summary, or if the recorded missing-evidence and failing-check
 diagnostic lists do not match the recomputed summary. When
 `--vivado-evidence` points at `check_reports.py --json` output, it also extracts
 the passing `hjpeg_0/s_axi_lite` address-map base address. The Vivado transcript
