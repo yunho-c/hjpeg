@@ -8136,6 +8136,44 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(tx_device.exists())
             self.assertFalse(output_jpeg.exists())
 
+    def test_run_stream_devices_cli_rejects_same_tx_rx_device_before_io(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_rgb = root / "input.rgb"
+            stream_device = root / "stream.dev"
+            mem = root / "mem.bin"
+            output_jpeg = root / "output.jpg"
+            captured_jpeg = minimal_jpeg(width=2, height=1)
+            input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
+            stream_device.write_bytes(captured_jpeg)
+
+            with self.assertRaisesRegex(ValueError, "TX and RX stream devices"):
+                hjpeg_host.main(
+                    [
+                        "run-stream-devices",
+                        "--dev",
+                        str(mem),
+                        "--base-addr",
+                        "0",
+                        "--tx-device",
+                        str(stream_device),
+                        "--rx-device",
+                        str(stream_device),
+                        "--input-rgb",
+                        str(input_rgb),
+                        "--output-jpeg",
+                        str(output_jpeg),
+                        "--width",
+                        "2",
+                        "--height",
+                        "1",
+                    ]
+                )
+
+            self.assertFalse(mem.exists())
+            self.assertEqual(stream_device.read_bytes(), captured_jpeg)
+            self.assertFalse(output_jpeg.exists())
+
     def test_run_stream_devices_rejects_wrong_input_size(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
