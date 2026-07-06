@@ -389,10 +389,11 @@ parsed marker sequence to begin with SOI and end with EOI. It also cross-checks
 the grouped marker counts against the scalar APP0/JFIF
 APP0/DQT/SOF0/DHT/SOS/DRI/RST counts, the RST sequence length against the
 recorded RST count, and the recorded marker counts/RST sequence against
-validation expectations when those expectations are present, plus expected
-SOF0 component records and SOS component selectors against the parsed JPEG,
-the expected chroma mode against the parsed JPEG chroma mode when chroma checking
-was requested, and expected DQT payload hashes against the parsed DQT table hashes
+validation expectations when those expectations are present, expected marker
+order through SOS and terminal EOI against the parsed JPEG marker sequence,
+expected SOF0 component records and SOS component selectors against the parsed
+JPEG, the expected chroma mode against the parsed JPEG chroma mode when chroma
+checking was requested, and expected DQT payload hashes against the parsed DQT table hashes
 when quality checking was requested, and expected DHT table hashes against the
 parsed DHT table hashes when standard-Huffman checking was requested. Those
 expected hash records are required when the corresponding quality or
@@ -407,10 +408,10 @@ evidence must include supported dimensions, quality/restart values in range,
 boolean control flags, and a control word/hex string matching those flags. Validation
 expectations evidence must include the baseline shape, marker order, table
 order, marker counts, restart marker count/sequence when applicable, SOS
-spectral fields, matching SOF0/SOS component records, matching chroma mode when
-requested, matching DQT payload hashes when quality checking was requested,
-matching DHT table hashes when standard-Huffman checking was requested, and
-standard-Huffman requirement.
+spectral fields, matching marker order, matching SOF0/SOS component records,
+matching chroma mode when requested, matching DQT payload hashes when quality
+checking was requested, matching DHT table hashes when standard-Huffman checking
+was requested, and standard-Huffman requirement.
 Source PPM
 evidence must include file and packed-RGB SHA-256 hex hashes,
 dimension-consistent RGB and packed byte lengths, an input-byte match, and

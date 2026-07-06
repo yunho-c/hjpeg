@@ -451,11 +451,13 @@ Expected evidence:
   JPEG EOI instead of writing a truncated artifact. JSON evidence records the
   validation expectations enforced from the configured dimensions, restart
   interval, expected marker counts, derived expected RST marker count, chroma
-  mode, JFIF setting, quality, standard Huffman contract, expected SOF0/SOS
-  component records, and expected DQT/DHT payload hashes. `check-run-evidence`
-  cross-checks the expected SOF0/SOS component records against the parsed JPEG,
-  the expected chroma mode against the parsed JPEG chroma mode when chroma
-  checking was requested, expected DQT payload hashes against parsed DQT table
+  mode, JFIF setting, quality, standard Huffman contract, expected marker
+  order, expected SOF0/SOS component records, and expected DQT/DHT payload
+  hashes. `check-run-evidence` cross-checks the expected marker order through
+  SOS and terminal EOI against the parsed JPEG marker sequence, the expected
+  SOF0/SOS component records against the parsed JPEG, the expected chroma mode
+  against the parsed JPEG chroma mode when chroma checking was requested,
+  expected DQT payload hashes against parsed DQT table
   hashes when quality checking was requested, and expected DHT table hashes
   against parsed DHT table hashes when standard-Huffman checking was requested.
   Complete validation evidence requires the expected DQT/DHT hash records

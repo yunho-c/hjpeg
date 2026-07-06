@@ -798,12 +798,13 @@ after configuration, before streaming RGB input, and after validating the
 captured JPEG. It fails if the encoder reports `busy` or `protocol_error` at
 any of those points, or if the captured JPEG metadata contradicts the configured
 restart interval, chroma mode, or JFIF setting. Saved-run evidence checking also
-cross-checks expected SOF0/SOS component records against the parsed JPEG, the
-expected chroma mode against the parsed JPEG chroma mode when chroma checking
-was requested and expected DQT payload hashes against the parsed DQT table hashes
-when quality checking was requested, plus expected DHT table hashes against
-parsed DHT table hashes when standard-Huffman checking was requested. Complete
-validation evidence requires those expected DQT/DHT hash
+cross-checks expected marker order through SOS and terminal EOI against the
+parsed JPEG marker sequence, expected SOF0/SOS component records against the
+parsed JPEG, the expected chroma mode against the parsed JPEG chroma mode when
+chroma checking was requested and expected DQT payload hashes against the parsed
+DQT table hashes when quality checking was requested, plus expected DHT table
+hashes against parsed DHT table hashes when standard-Huffman checking was
+requested. Complete validation evidence requires those expected DQT/DHT hash
 records whenever the corresponding quality or standard-Huffman check is
 requested. It also rejects trailing bytes already returned after the first JPEG
 EOI instead of writing a truncated artifact, and its JSON

@@ -1824,6 +1824,15 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and expected_through_sos[-1] == "SOS"
             and expected_marker_order.get("terminal_marker") == "EOI"
         )
+        actual_through_sos = None
+        if "SOS" in marker_sequence_values:
+            sos_index = marker_sequence_values.index("SOS")
+            actual_through_sos = list(marker_sequence_values[: sos_index + 1])
+        validation_marker_order_matches = (
+            validation_marker_order_present
+            and actual_through_sos == expected_through_sos
+            and jpeg_marker_sequence_ends_with_eoi
+        )
         validation_table_order_present = (
             validation_expectations.get("expected_quantization_tables") == [0, 1]
             and validation_expectations.get("expected_quantization_table_order")
@@ -2008,6 +2017,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         evidence_present["validation_expectations"] = (
             validation_baseline_shape
             and validation_marker_order_present
+            and validation_marker_order_matches
             and validation_table_order_present
             and validation_sos_spectral_baseline
             and validation_requires_standard_huffman
@@ -2022,6 +2032,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
         checks["validation_baseline_shape"] = validation_baseline_shape
         checks["validation_marker_order_present"] = validation_marker_order_present
+        checks["validation_marker_order_matches"] = validation_marker_order_matches
         checks["validation_table_order_present"] = validation_table_order_present
         checks["validation_sos_spectral_baseline"] = validation_sos_spectral_baseline
         checks["validation_requires_standard_huffman"] = (
