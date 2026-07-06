@@ -335,8 +335,9 @@ evidence group present/missing names, aggregate recorded/passing/failing check
 counts and names, Vivado evidence counts and parsed HJPEG base addresses,
 aggregate frame dimensions, encoder configuration values, and validation
 expectation values, aggregate status-check context/flag values and host transfer
-rates, plus the recomputed summary, evidence/check counts, missing evidence
-groups, and failing check names for each object-shaped transcript.
+rates, aggregate capture/input byte-count and source-image values, plus the
+recomputed summary, evidence/check counts, missing evidence groups, and failing
+check names for each object-shaped transcript.
 The `run-stream-devices` command supports Linux board images that expose DMA
 MM2S/S2MM endpoints as byte-stream device files by writing padded RGB bytes to
 the TX device and reading JPEG bytes from the RX device until EOI, while

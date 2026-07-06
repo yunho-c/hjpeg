@@ -3029,6 +3029,14 @@ def check_run_evidence_record(
             result["axi_lite_base_addr_hex"] = f"0x{int(axi_lite_base_addr):x}"
         if isinstance(axi_lite_base_addr_hex, str):
             result["recorded_axi_lite_base_addr_hex"] = axi_lite_base_addr_hex
+    capture_config = record.get("capture_config")
+    if isinstance(capture_config, dict):
+        max_output_bytes = capture_config.get("max_output_bytes")
+        timeout_seconds = capture_config.get("timeout_seconds")
+        if is_strict_int(max_output_bytes):
+            result["capture_max_output_bytes"] = int(max_output_bytes)
+        if is_strict_number(timeout_seconds):
+            result["capture_timeout_seconds"] = timeout_seconds
     jpeg_path = record.get("jpeg")
     if isinstance(jpeg_path, str):
         result["jpeg"] = jpeg_path
@@ -3037,11 +3045,47 @@ def check_run_evidence_record(
         input_rgb_path = input_rgb.get("path")
         if isinstance(input_rgb_path, str):
             result["input_rgb"] = input_rgb_path
+        input_rgb_byte_length = input_rgb.get("byte_length")
+        input_rgb_expected_byte_length = input_rgb.get("expected_byte_length")
+        input_rgb_length_matches_expected = input_rgb.get(
+            "byte_length_matches_expected"
+        )
+        if is_strict_int(input_rgb_byte_length):
+            result["input_rgb_byte_length"] = int(input_rgb_byte_length)
+        if is_strict_int(input_rgb_expected_byte_length):
+            result["input_rgb_expected_byte_length"] = int(
+                input_rgb_expected_byte_length
+            )
+        if isinstance(input_rgb_length_matches_expected, bool):
+            result["input_rgb_length_matches_expected"] = (
+                input_rgb_length_matches_expected
+            )
     input_ppm = record.get("input_ppm")
     if isinstance(input_ppm, dict):
         input_ppm_path = input_ppm.get("path")
         if isinstance(input_ppm_path, str):
             result["input_ppm"] = input_ppm_path
+        for source_key, result_key in (
+            ("width", "input_ppm_width"),
+            ("height", "input_ppm_height"),
+            ("byte_length", "input_ppm_byte_length"),
+            ("rgb_bytes", "input_ppm_rgb_bytes"),
+            ("packed_rgb_byte_length", "input_ppm_packed_rgb_byte_length"),
+        ):
+            value = input_ppm.get(source_key)
+            if is_strict_int(value):
+                result[result_key] = int(value)
+        packed_rgb_matches_input = input_ppm.get("packed_rgb_matches_input")
+        if isinstance(packed_rgb_matches_input, bool):
+            result["input_ppm_packed_rgb_matches_input"] = packed_rgb_matches_input
+        image_stats = input_ppm.get("image_stats")
+        if isinstance(image_stats, dict):
+            non_flat = image_stats.get("non_flat")
+            has_color_pixels = image_stats.get("has_color_pixels")
+            if isinstance(non_flat, bool):
+                result["input_ppm_non_flat"] = non_flat
+            if isinstance(has_color_pixels, bool):
+                result["input_ppm_has_color_pixels"] = has_color_pixels
     decoder_command = record.get("decoder_command")
     if isinstance(decoder_command, str):
         result["decoder_command"] = decoder_command
@@ -4852,6 +4896,41 @@ def main(argv: list[str] | None = None) -> int:
         aggregate_host_output_jpeg_bytes_per_second = unique_number_values(
             records, "host_output_jpeg_bytes_per_second"
         )
+        aggregate_capture_max_output_bytes = unique_int_values(
+            records, "capture_max_output_bytes"
+        )
+        aggregate_capture_timeout_seconds = unique_number_values(
+            records, "capture_timeout_seconds"
+        )
+        aggregate_input_rgb_byte_lengths = unique_int_values(
+            records, "input_rgb_byte_length"
+        )
+        aggregate_input_rgb_expected_byte_lengths = unique_int_values(
+            records, "input_rgb_expected_byte_length"
+        )
+        aggregate_input_rgb_length_matches_expected_values = unique_bool_values(
+            records, "input_rgb_length_matches_expected"
+        )
+        aggregate_input_ppm_widths = unique_int_values(records, "input_ppm_width")
+        aggregate_input_ppm_heights = unique_int_values(records, "input_ppm_height")
+        aggregate_input_ppm_byte_lengths = unique_int_values(
+            records, "input_ppm_byte_length"
+        )
+        aggregate_input_ppm_rgb_bytes = unique_int_values(
+            records, "input_ppm_rgb_bytes"
+        )
+        aggregate_input_ppm_packed_rgb_byte_lengths = unique_int_values(
+            records, "input_ppm_packed_rgb_byte_length"
+        )
+        aggregate_input_ppm_packed_rgb_matches_input_values = unique_bool_values(
+            records, "input_ppm_packed_rgb_matches_input"
+        )
+        aggregate_input_ppm_non_flat_values = unique_bool_values(
+            records, "input_ppm_non_flat"
+        )
+        aggregate_input_ppm_has_color_pixels_values = unique_bool_values(
+            records, "input_ppm_has_color_pixels"
+        )
         aggregate_jpeg_paths = unique_scalar_string_values(records, "jpeg")
         aggregate_input_rgb_paths = unique_scalar_string_values(records, "input_rgb")
         aggregate_input_ppm_paths = unique_scalar_string_values(records, "input_ppm")
@@ -5041,6 +5120,45 @@ def main(argv: list[str] | None = None) -> int:
                         "aggregate_host_output_jpeg_bytes_per_second_count": len(
                             aggregate_host_output_jpeg_bytes_per_second
                         ),
+                        "aggregate_capture_max_output_byte_count": len(
+                            aggregate_capture_max_output_bytes
+                        ),
+                        "aggregate_capture_timeout_second_count": len(
+                            aggregate_capture_timeout_seconds
+                        ),
+                        "aggregate_input_rgb_byte_length_count": len(
+                            aggregate_input_rgb_byte_lengths
+                        ),
+                        "aggregate_input_rgb_expected_byte_length_count": len(
+                            aggregate_input_rgb_expected_byte_lengths
+                        ),
+                        "aggregate_input_rgb_length_matches_expected_count": len(
+                            aggregate_input_rgb_length_matches_expected_values
+                        ),
+                        "aggregate_input_ppm_width_count": len(
+                            aggregate_input_ppm_widths
+                        ),
+                        "aggregate_input_ppm_height_count": len(
+                            aggregate_input_ppm_heights
+                        ),
+                        "aggregate_input_ppm_byte_length_count": len(
+                            aggregate_input_ppm_byte_lengths
+                        ),
+                        "aggregate_input_ppm_rgb_byte_count": len(
+                            aggregate_input_ppm_rgb_bytes
+                        ),
+                        "aggregate_input_ppm_packed_rgb_byte_length_count": len(
+                            aggregate_input_ppm_packed_rgb_byte_lengths
+                        ),
+                        "aggregate_input_ppm_packed_rgb_matches_input_count": len(
+                            aggregate_input_ppm_packed_rgb_matches_input_values
+                        ),
+                        "aggregate_input_ppm_non_flat_count": len(
+                            aggregate_input_ppm_non_flat_values
+                        ),
+                        "aggregate_input_ppm_has_color_pixels_count": len(
+                            aggregate_input_ppm_has_color_pixels_values
+                        ),
                         "aggregate_frame_widths": aggregate_frame_widths,
                         "aggregate_frame_heights": aggregate_frame_heights,
                         "aggregate_encoder_widths": aggregate_encoder_widths,
@@ -5121,6 +5239,39 @@ def main(argv: list[str] | None = None) -> int:
                         ),
                         "aggregate_host_output_jpeg_bytes_per_second": (
                             aggregate_host_output_jpeg_bytes_per_second
+                        ),
+                        "aggregate_capture_max_output_bytes": (
+                            aggregate_capture_max_output_bytes
+                        ),
+                        "aggregate_capture_timeout_seconds": (
+                            aggregate_capture_timeout_seconds
+                        ),
+                        "aggregate_input_rgb_byte_lengths": (
+                            aggregate_input_rgb_byte_lengths
+                        ),
+                        "aggregate_input_rgb_expected_byte_lengths": (
+                            aggregate_input_rgb_expected_byte_lengths
+                        ),
+                        "aggregate_input_rgb_length_matches_expected_values": (
+                            aggregate_input_rgb_length_matches_expected_values
+                        ),
+                        "aggregate_input_ppm_widths": aggregate_input_ppm_widths,
+                        "aggregate_input_ppm_heights": aggregate_input_ppm_heights,
+                        "aggregate_input_ppm_byte_lengths": (
+                            aggregate_input_ppm_byte_lengths
+                        ),
+                        "aggregate_input_ppm_rgb_bytes": aggregate_input_ppm_rgb_bytes,
+                        "aggregate_input_ppm_packed_rgb_byte_lengths": (
+                            aggregate_input_ppm_packed_rgb_byte_lengths
+                        ),
+                        "aggregate_input_ppm_packed_rgb_matches_input_values": (
+                            aggregate_input_ppm_packed_rgb_matches_input_values
+                        ),
+                        "aggregate_input_ppm_non_flat_values": (
+                            aggregate_input_ppm_non_flat_values
+                        ),
+                        "aggregate_input_ppm_has_color_pixels_values": (
+                            aggregate_input_ppm_has_color_pixels_values
                         ),
                         "aggregate_jpeg_path_count": len(aggregate_jpeg_paths),
                         "aggregate_input_rgb_path_count": len(

@@ -3795,9 +3795,22 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["transfer_elapsed_seconds"], 0.01)
             self.assertEqual(record["host_input_rgb_bytes_per_second"], 800.0)
             self.assertGreater(record["host_output_jpeg_bytes_per_second"], 0.0)
+            self.assertEqual(record["capture_max_output_bytes"], 1024)
+            self.assertEqual(record["capture_timeout_seconds"], 1.0)
             self.assertEqual(record["jpeg"], str(root / "output.jpg"))
             self.assertEqual(record["input_rgb"], str(root / "input.rgb"))
+            self.assertEqual(record["input_rgb_byte_length"], 8)
+            self.assertEqual(record["input_rgb_expected_byte_length"], 8)
+            self.assertTrue(record["input_rgb_length_matches_expected"])
             self.assertEqual(record["input_ppm"], str(root / "input.ppm"))
+            self.assertEqual(record["input_ppm_width"], 2)
+            self.assertEqual(record["input_ppm_height"], 1)
+            self.assertEqual(record["input_ppm_byte_length"], 17)
+            self.assertEqual(record["input_ppm_rgb_bytes"], 6)
+            self.assertEqual(record["input_ppm_packed_rgb_byte_length"], 8)
+            self.assertTrue(record["input_ppm_packed_rgb_matches_input"])
+            self.assertTrue(record["input_ppm_non_flat"])
+            self.assertTrue(record["input_ppm_has_color_pixels"])
             self.assertEqual(record["decoder_command"], "decoder {jpeg}")
 
     def test_check_run_evidence_file_matches_vivado_address_map(self) -> None:
@@ -4906,6 +4919,49 @@ class HjpegHostTest(unittest.TestCase):
             self.assertGreater(
                 record["aggregate_host_output_jpeg_bytes_per_second"][0], 0.0
             )
+            self.assertEqual(record["aggregate_capture_max_output_byte_count"], 1)
+            self.assertEqual(record["aggregate_capture_timeout_second_count"], 1)
+            self.assertEqual(record["aggregate_input_rgb_byte_length_count"], 1)
+            self.assertEqual(
+                record["aggregate_input_rgb_expected_byte_length_count"], 1
+            )
+            self.assertEqual(
+                record["aggregate_input_rgb_length_matches_expected_count"], 1
+            )
+            self.assertEqual(record["aggregate_input_ppm_width_count"], 1)
+            self.assertEqual(record["aggregate_input_ppm_height_count"], 1)
+            self.assertEqual(record["aggregate_input_ppm_byte_length_count"], 1)
+            self.assertEqual(record["aggregate_input_ppm_rgb_byte_count"], 1)
+            self.assertEqual(
+                record["aggregate_input_ppm_packed_rgb_byte_length_count"], 1
+            )
+            self.assertEqual(
+                record["aggregate_input_ppm_packed_rgb_matches_input_count"], 1
+            )
+            self.assertEqual(record["aggregate_input_ppm_non_flat_count"], 1)
+            self.assertEqual(record["aggregate_input_ppm_has_color_pixels_count"], 1)
+            self.assertEqual(record["aggregate_capture_max_output_bytes"], [1024])
+            self.assertEqual(record["aggregate_capture_timeout_seconds"], [1.0])
+            self.assertEqual(record["aggregate_input_rgb_byte_lengths"], [8])
+            self.assertEqual(record["aggregate_input_rgb_expected_byte_lengths"], [8])
+            self.assertEqual(
+                record["aggregate_input_rgb_length_matches_expected_values"], [True]
+            )
+            self.assertEqual(record["aggregate_input_ppm_widths"], [2])
+            self.assertEqual(record["aggregate_input_ppm_heights"], [1])
+            self.assertEqual(record["aggregate_input_ppm_byte_lengths"], [17])
+            self.assertEqual(record["aggregate_input_ppm_rgb_bytes"], [6])
+            self.assertEqual(
+                record["aggregate_input_ppm_packed_rgb_byte_lengths"], [8]
+            )
+            self.assertEqual(
+                record["aggregate_input_ppm_packed_rgb_matches_input_values"],
+                [True],
+            )
+            self.assertEqual(record["aggregate_input_ppm_non_flat_values"], [True])
+            self.assertEqual(
+                record["aggregate_input_ppm_has_color_pixels_values"], [True]
+            )
             self.assertEqual(record["aggregate_jpeg_path_count"], 1)
             self.assertEqual(record["aggregate_input_rgb_path_count"], 1)
             self.assertEqual(record["aggregate_input_ppm_path_count"], 1)
@@ -4975,6 +5031,23 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(
                 record["records"][0]["host_input_rgb_bytes_per_second"], 800.0
             )
+            self.assertEqual(record["records"][0]["capture_max_output_bytes"], 1024)
+            self.assertEqual(record["records"][0]["capture_timeout_seconds"], 1.0)
+            self.assertEqual(record["records"][0]["input_rgb_byte_length"], 8)
+            self.assertEqual(
+                record["records"][0]["input_rgb_expected_byte_length"], 8
+            )
+            self.assertTrue(record["records"][0]["input_rgb_length_matches_expected"])
+            self.assertEqual(record["records"][0]["input_ppm_width"], 2)
+            self.assertEqual(record["records"][0]["input_ppm_height"], 1)
+            self.assertEqual(
+                record["records"][0]["input_ppm_packed_rgb_byte_length"], 8
+            )
+            self.assertTrue(
+                record["records"][0]["input_ppm_packed_rgb_matches_input"]
+            )
+            self.assertTrue(record["records"][0]["input_ppm_non_flat"])
+            self.assertTrue(record["records"][0]["input_ppm_has_color_pixels"])
             self.assertEqual(record["records"][0]["jpeg"], str(root / "output.jpg"))
             self.assertEqual(
                 record["records"][0]["input_rgb"], str(root / "input.rgb")
