@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import contextlib
+import copy
 import hashlib
 import io
 import json
@@ -3685,6 +3686,45 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(
                 any("checkpoint filenames" in failure for failure in failures)
             )
+
+    def test_vivado_filename_evidence_requires_strict_presence_booleans(self) -> None:
+        vivado_record = vivado_evidence_record(0)
+
+        artifact_record = copy.deepcopy(vivado_record)
+        artifact_record["artifact_filenames"]["required_filenames_present"][
+            "hjpeg_kv260.bit"
+        ] = "true"
+        self.assertFalse(
+            hjpeg_host.vivado_required_artifact_filenames_present(artifact_record)
+        )
+
+        address_map_record = copy.deepcopy(vivado_record)
+        address_map_record["address_map_filenames"]["required_filenames_present"][
+            "hjpeg_kv260_address_map.rpt"
+        ] = 1
+        self.assertFalse(
+            hjpeg_host.vivado_required_address_map_filenames_present(
+                address_map_record
+            )
+        )
+
+        report_record = copy.deepcopy(vivado_record)
+        report_record["report_filenames"]["timing"]["required_filenames_present"][
+            "post_impl_timing_summary.rpt"
+        ] = "true"
+        self.assertFalse(
+            hjpeg_host.vivado_required_report_filenames_present(report_record)
+        )
+
+        hold_timing_record = copy.deepcopy(vivado_record)
+        hold_timing_record["hold_timing_filenames"]["required_filenames_present"][
+            "post_impl_timing_summary.rpt"
+        ] = 1
+        self.assertFalse(
+            hjpeg_host.vivado_required_hold_timing_filenames_present(
+                hold_timing_record
+            )
+        )
 
     def test_vivado_evidence_file_record_rejects_inconsistent_artifact_suffixes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
