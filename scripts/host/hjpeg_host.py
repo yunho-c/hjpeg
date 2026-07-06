@@ -4701,6 +4701,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "run-stream-devices":
+        require_stream_devices(args.tx_device, args.rx_device)
         status_checks: list[dict[str, object]] = []
 
         def record_status(context: str, status: int) -> None:

@@ -8140,11 +8140,11 @@ class HjpegHostTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             input_rgb = root / "input.rgb"
+            input_ppm = root / "input.ppm"
             stream_device = root / "stream.dev"
             mem = root / "mem.bin"
             output_jpeg = root / "output.jpg"
             captured_jpeg = minimal_jpeg(width=2, height=1)
-            input_rgb.write_bytes(bytes([1, 2, 3, 0, 4, 5, 6, 0]))
             stream_device.write_bytes(captured_jpeg)
 
             with self.assertRaisesRegex(ValueError, "TX and RX stream devices"):
@@ -8161,6 +8161,8 @@ class HjpegHostTest(unittest.TestCase):
                         str(stream_device),
                         "--input-rgb",
                         str(input_rgb),
+                        "--input-ppm",
+                        str(input_ppm),
                         "--output-jpeg",
                         str(output_jpeg),
                         "--width",
@@ -8171,6 +8173,8 @@ class HjpegHostTest(unittest.TestCase):
                 )
 
             self.assertFalse(mem.exists())
+            self.assertFalse(input_rgb.exists())
+            self.assertFalse(input_ppm.exists())
             self.assertEqual(stream_device.read_bytes(), captured_jpeg)
             self.assertFalse(output_jpeg.exists())
 
