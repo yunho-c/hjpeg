@@ -909,9 +909,10 @@ aggregate evidence group present/missing names, aggregate recorded/passing/faili
 check counts and names, Vivado evidence counts, Vivado checked/passed/failed
 evidence path lists, aggregate raw/resolved stream endpoint counts and device
 lists, aggregate AXI-Lite target device/base-address counts and lists, parsed
-HJPEG base addresses, HJPEG base-address count and consistency flag, plus the
-recomputed summary, evidence/check counts, missing evidence groups, and failing
-check names for each object-shaped transcript.
+HJPEG base addresses, HJPEG base-address count and consistency flag, aggregate
+JPEG/input artifact path and decoder-command inventories, plus the recomputed
+summary, evidence/check counts, missing evidence groups, and failing check names
+for each object-shaped transcript.
 
 ## Known Blockers And Bottlenecks
 

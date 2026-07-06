@@ -2944,6 +2944,22 @@ def check_run_evidence_record(
             result["axi_lite_base_addr_hex"] = f"0x{int(axi_lite_base_addr):x}"
         if isinstance(axi_lite_base_addr_hex, str):
             result["recorded_axi_lite_base_addr_hex"] = axi_lite_base_addr_hex
+    jpeg_path = record.get("jpeg")
+    if isinstance(jpeg_path, str):
+        result["jpeg"] = jpeg_path
+    input_rgb = record.get("input_rgb")
+    if isinstance(input_rgb, dict):
+        input_rgb_path = input_rgb.get("path")
+        if isinstance(input_rgb_path, str):
+            result["input_rgb"] = input_rgb_path
+    input_ppm = record.get("input_ppm")
+    if isinstance(input_ppm, dict):
+        input_ppm_path = input_ppm.get("path")
+        if isinstance(input_ppm_path, str):
+            result["input_ppm"] = input_ppm_path
+    decoder_command = record.get("decoder_command")
+    if isinstance(decoder_command, str):
+        result["decoder_command"] = decoder_command
     if not complete:
         failures.append(f"{path}: complete_hardware_run_evidence is false")
     if not complete_evidence_matches:
@@ -4641,6 +4657,12 @@ def main(argv: list[str] | None = None) -> int:
         aggregate_axi_lite_base_addresses_hex = [
             f"0x{base:x}" for base in aggregate_axi_lite_base_addresses
         ]
+        aggregate_jpeg_paths = unique_scalar_string_values(records, "jpeg")
+        aggregate_input_rgb_paths = unique_scalar_string_values(records, "input_rgb")
+        aggregate_input_ppm_paths = unique_scalar_string_values(records, "input_ppm")
+        aggregate_decoder_commands = unique_scalar_string_values(
+            records, "decoder_command"
+        )
         vivado_passed_count = sum(
             1 for record in vivado_records if record.get("passed") is True
         )
@@ -4729,6 +4751,20 @@ def main(argv: list[str] | None = None) -> int:
                         "aggregate_axi_lite_base_addresses_hex": (
                             aggregate_axi_lite_base_addresses_hex
                         ),
+                        "aggregate_jpeg_path_count": len(aggregate_jpeg_paths),
+                        "aggregate_input_rgb_path_count": len(
+                            aggregate_input_rgb_paths
+                        ),
+                        "aggregate_input_ppm_path_count": len(
+                            aggregate_input_ppm_paths
+                        ),
+                        "aggregate_decoder_command_count": len(
+                            aggregate_decoder_commands
+                        ),
+                        "aggregate_jpeg_paths": aggregate_jpeg_paths,
+                        "aggregate_input_rgb_paths": aggregate_input_rgb_paths,
+                        "aggregate_input_ppm_paths": aggregate_input_ppm_paths,
+                        "aggregate_decoder_commands": aggregate_decoder_commands,
                         "vivado_evidence_checked_count": len(vivado_records),
                         "vivado_evidence_passed_count": vivado_passed_count,
                         "vivado_evidence_failed_count": vivado_failed_count,

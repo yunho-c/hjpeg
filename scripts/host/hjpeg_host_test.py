@@ -3756,6 +3756,10 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["axi_lite_base_addr"], 0)
             self.assertEqual(record["axi_lite_base_addr_hex"], "0x0")
             self.assertEqual(record["recorded_axi_lite_base_addr_hex"], "0x0")
+            self.assertEqual(record["jpeg"], str(root / "output.jpg"))
+            self.assertEqual(record["input_rgb"], str(root / "input.rgb"))
+            self.assertEqual(record["input_ppm"], str(root / "input.ppm"))
+            self.assertEqual(record["decoder_command"], "decoder {jpeg}")
 
     def test_check_run_evidence_file_matches_vivado_address_map(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -4749,6 +4753,23 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertEqual(record["aggregate_axi_lite_base_addresses"], [0])
             self.assertEqual(record["aggregate_axi_lite_base_addresses_hex"], ["0x0"])
+            self.assertEqual(record["aggregate_jpeg_path_count"], 1)
+            self.assertEqual(record["aggregate_input_rgb_path_count"], 1)
+            self.assertEqual(record["aggregate_input_ppm_path_count"], 1)
+            self.assertEqual(record["aggregate_decoder_command_count"], 1)
+            self.assertEqual(
+                record["aggregate_jpeg_paths"],
+                [str(root / "output.jpg")],
+            )
+            self.assertEqual(
+                record["aggregate_input_rgb_paths"],
+                [str(root / "input.rgb")],
+            )
+            self.assertEqual(
+                record["aggregate_input_ppm_paths"],
+                [str(root / "input.ppm")],
+            )
+            self.assertEqual(record["aggregate_decoder_commands"], ["decoder {jpeg}"])
             self.assertTrue(record["records"][0]["passed"])
             self.assertTrue(
                 record["records"][0]["complete_hardware_run_evidence_required"]
@@ -4764,6 +4785,13 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertEqual(record["records"][0]["axi_lite_base_addr"], 0)
             self.assertEqual(record["records"][0]["axi_lite_base_addr_hex"], "0x0")
+            self.assertEqual(record["records"][0]["jpeg"], str(root / "output.jpg"))
+            self.assertEqual(
+                record["records"][0]["input_rgb"], str(root / "input.rgb")
+            )
+            self.assertEqual(
+                record["records"][0]["input_ppm"], str(root / "input.ppm")
+            )
             self.assertTrue(
                 record["records"][0][
                     "complete_hardware_run_evidence_missing_matches"
