@@ -124,6 +124,24 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
     total / count
   }
 
+  private def averageChannel(
+      image: java.awt.image.BufferedImage,
+      xStart: Int,
+      xEnd: Int,
+      channel: Int): Double = {
+    var total = 0.0
+    var count = 0
+    for {
+      y <- 0 until image.getHeight
+      x <- xStart until xEnd
+    } {
+      val rgb = image.getRGB(x, y)
+      total += ((rgb >> channel) & 0xff)
+      count += 1
+    }
+    total / count
+  }
+
   "HjpegCore should emit a complete JPEG for one supported 8x8 RGB frame" in {
     simulate(new HjpegCore()) { dut =>
       val bytes = emitFlatFrame(dut, width = 8, height = 8, r = 128, g = 128, b = 128)
@@ -181,6 +199,27 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       image.getWidth mustBe width
       image.getHeight mustBe height
       averageLuma(image, width / 2, width) - averageLuma(image, 0, width / 2) must be > 80.0
+      dut.io.protocolError.expect(false.B)
+    }
+  }
+
+  "HjpegCore should preserve recognizable non-flat color content" in {
+    simulate(new HjpegCore()) { dut =>
+      val width = 16
+      val height = 16
+      val bytes = emitFrame(dut, width = width, height = height) { index =>
+        val x = index % width
+        if (x < width / 2) (224, 32, 32) else (32, 32, 224)
+      }
+
+      bytes.take(2) mustBe Seq(0xff, 0xd8)
+      bytes.takeRight(2) mustBe Seq(0xff, 0xd9)
+      val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
+      image must not be null
+      image.getWidth mustBe width
+      image.getHeight mustBe height
+      averageChannel(image, 0, width / 2, 16) - averageChannel(image, 0, width / 2, 0) must be > 60.0
+      averageChannel(image, width / 2, width, 0) - averageChannel(image, width / 2, width, 16) must be > 60.0
       dut.io.protocolError.expect(false.B)
     }
   }
