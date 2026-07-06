@@ -115,6 +115,20 @@ class JpegMcuStreamEncoderStageSpec extends AnyFreeSpec with Matchers with Chise
     }
   }
 
+  "JpegMcuStreamEncoderStage should cycle restart marker numbers" in {
+    simulate(new JpegMcuStreamEncoderStage()) { dut =>
+      val bytes = emitMcus(dut, Seq.fill(10)(0), restartInterval = 1)
+
+      val restartMarkers = bytes.sliding(2).collect {
+        case Seq(0xff, marker) if marker >= 0xd0 && marker <= 0xd7 => marker
+      }.toSeq
+
+      restartMarkers mustBe Seq(
+        0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7, 0xd0)
+      bytes.takeRight(2) mustBe Seq(0xff, 0xd9)
+    }
+  }
+
   "JpegMcuStreamEncoderStage should hold the first header byte under backpressure" in {
     simulate(new JpegMcuStreamEncoderStage()) { dut =>
       dut.reset.poke(true.B)
