@@ -2427,6 +2427,33 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             == f"0x{status_check.get('status') & 0xFFFFFFFF:08x}"
             for status_check in status_checks
         )
+        status_checks_text_matches = status_checks_list_present and all(
+            isinstance(status_check, dict)
+            and is_strict_int(status_check.get("status"))
+            and status_check.get("text") == status_text(status_check.get("status"))
+            for status_check in status_checks
+        )
+        status_checks_busy_flag_matches = status_checks_list_present and all(
+            isinstance(status_check, dict)
+            and is_strict_int(status_check.get("status"))
+            and (
+                status_check.get("busy")
+                is bool(status_check.get("status") & STATUS_BUSY)
+            )
+            for status_check in status_checks
+        )
+        status_checks_protocol_error_flag_matches = (
+            status_checks_list_present
+            and all(
+                isinstance(status_check, dict)
+                and is_strict_int(status_check.get("status"))
+                and (
+                    status_check.get("protocol_error")
+                    is bool(status_check.get("status") & STATUS_PROTOCOL_ERROR)
+                )
+                for status_check in status_checks
+            )
+        )
         run_axi_lite = record.get("axi_lite")
         status_checks_have_axi_lite_targets = status_checks_list_present and all(
             isinstance(status_check, dict)
@@ -2495,6 +2522,9 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and status_check_contexts_expected_flag_matches
             and status_checks_have_status_words
             and status_checks_status_hex_matches
+            and status_checks_text_matches
+            and status_checks_busy_flag_matches
+            and status_checks_protocol_error_flag_matches
             and status_checks_have_axi_lite_targets
             and status_checks_axi_lite_targets_match
             and status_checks_each_idle
@@ -2518,6 +2548,11 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
         checks["status_checks_have_status_words"] = status_checks_have_status_words
         checks["status_checks_status_hex_matches"] = status_checks_status_hex_matches
+        checks["status_checks_text_matches"] = status_checks_text_matches
+        checks["status_checks_busy_flag_matches"] = status_checks_busy_flag_matches
+        checks["status_checks_protocol_error_flag_matches"] = (
+            status_checks_protocol_error_flag_matches
+        )
         checks["status_checks_have_axi_lite_targets"] = (
             status_checks_have_axi_lite_targets
         )

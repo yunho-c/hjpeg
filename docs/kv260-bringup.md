@@ -303,8 +303,9 @@ Expected evidence:
   checkpoint list, matching checkpoint count, expected ordered contexts,
   per-checkpoint AXI-Lite targets matching the run target, zero raw status
   words, and all checkpoints idle with no protocol error or busy state. Summary
-  checks recompute checkpoint order, checkpoint target matches, and aggregate
-  idle/error/busy flags from the detailed status records. They also recompute
+  checks recompute checkpoint order, checkpoint target matches, decoded status
+  text/flags, and aggregate idle/error/busy flags from the detailed status
+  records. They also recompute
   RGB byte-count matches, PPM-to-input-RGB consistency, and transfer byte rates
   from the saved lengths, hashes, and elapsed time. Required boolean evidence
   fields must be actual JSON booleans. Required numeric evidence fields such as
