@@ -537,8 +537,9 @@ transcript's AXI-Lite base address does not match the Vivado build evidence, or
 if multiple Vivado evidence files report conflicting HJPEG base addresses. Its JSON output
 includes aggregate checked/pass/fail transcript counts, diagnostic failure count,
 checked/passed/failed path lists, summary checked, matched, and
-mismatched counts and paths, aggregate evidence group present/missing counts and
-names, aggregate recorded/passing/failing check counts and names, Vivado
+mismatched counts and paths, summary-all-checked and summary-all-matched flags,
+aggregate evidence group present/missing counts and names,
+aggregate recorded/passing/failing check counts and names, Vivado
 address-map evidence counts, aggregate raw/resolved stream endpoint counts and
 device lists, aggregate AXI-Lite target device/base-address counts and lists,
 aggregate frame dimensions, encoder configuration values, and validation

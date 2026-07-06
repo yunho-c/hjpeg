@@ -5258,6 +5258,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["summary_checked_count"], 2)
             self.assertEqual(record["summary_match_count"], 1)
             self.assertEqual(record["summary_mismatch_count"], 1)
+            self.assertFalse(record["summary_all_checked"])
+            self.assertFalse(record["summary_all_matched"])
             self.assertEqual(
                 record["summary_checked_paths"],
                 [str(complete), str(incomplete)],

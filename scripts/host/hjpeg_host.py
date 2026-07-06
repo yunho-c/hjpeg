@@ -5385,6 +5385,8 @@ def main(argv: list[str] | None = None) -> int:
             for record in records
             if record.get("hardware_run_summary_matches_computed") is False
         ]
+        summary_all_checked = len(summary_checked_paths) == len(records)
+        summary_all_matched = summary_all_checked and not summary_mismatched_paths
         aggregate_present_evidence = unique_string_values(records, "present_evidence")
         aggregate_missing_evidence = unique_string_values(records, "missing_evidence")
         aggregate_passing_checks = unique_string_values(records, "passing_checks")
@@ -5655,6 +5657,8 @@ def main(argv: list[str] | None = None) -> int:
                         "summary_checked_count": len(summary_checked_paths),
                         "summary_match_count": len(summary_matched_paths),
                         "summary_mismatch_count": len(summary_mismatched_paths),
+                        "summary_all_checked": summary_all_checked,
+                        "summary_all_matched": summary_all_matched,
                         "summary_checked_paths": summary_checked_paths,
                         "summary_matched_paths": summary_matched_paths,
                         "summary_mismatched_paths": summary_mismatched_paths,

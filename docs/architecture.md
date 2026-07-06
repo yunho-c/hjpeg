@@ -352,8 +352,9 @@ AXI-Lite base address does not match the Vivado build evidence, or whose
 supplied Vivado evidence files report conflicting HJPEG base addresses. JSON output includes
 aggregate checked/pass/fail transcript counts, diagnostic failure count,
 checked/passed/failed path lists, summary checked, matched, and mismatched
-counts and paths, aggregate evidence group present/missing counts, aggregate
-evidence group present/missing names, aggregate recorded/passing/failing check
+counts and paths, summary-all-checked and summary-all-matched flags,
+aggregate evidence group present/missing counts, aggregate evidence group
+present/missing names, aggregate recorded/passing/failing check
 counts and names, Vivado evidence counts, Vivado checked/passed/failed
 evidence path and resolved-path lists, and parsed HJPEG base addresses,
 aggregate frame dimensions, encoder configuration values, and validation
