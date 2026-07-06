@@ -27,11 +27,31 @@ class CheckChiselSimEnvTest(unittest.TestCase):
         self.assertTrue(report["checks"]["msys_make"])
         self.assertTrue(report["checks"]["msys_sh"])
         self.assertTrue(report["checks"]["msys_verilator"])
+        self.assertFalse(report["checks"]["cmd_shell_override"])
+        self.assertEqual(report["environment"], {"SHELL": None, "MAKESHELL": None})
         self.assertEqual(
             report["tool_versions"],
             {"make": None, "sh": None, "verilator": None},
         )
         self.assertTrue(any("for /f" in problem for problem in report["problems"]))
+
+    def test_warns_about_cmd_shell_override_on_windows_msys_make(self) -> None:
+        report = check_chiselsim_env.evaluate_environment(
+            check_chiselsim_env.ToolPaths(
+                make=r"C:\msys64\usr\bin\make.exe",
+                sh=r"C:\msys64\usr\bin\sh.exe",
+                verilator=r"C:\msys64\ucrt64\bin\verilator",
+            ),
+            os_name="nt",
+            environment={"SHELL": r"C:\Windows\System32\cmd.exe"},
+        )
+
+        self.assertTrue(report["checks"]["cmd_shell_override"])
+        self.assertEqual(
+            report["environment"],
+            {"SHELL": r"C:\Windows\System32\cmd.exe", "MAKESHELL": None},
+        )
+        self.assertTrue(any("not a reliable ChiselSim workaround" in warning for warning in report["warnings"]))
 
     def test_accepts_linux_toolchain_paths(self) -> None:
         report = check_chiselsim_env.evaluate_environment(

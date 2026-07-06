@@ -122,6 +122,11 @@ def _basename(path: str) -> str:
     return path.replace("\\", "/").rstrip("/").split("/")[-1]
 
 
+def _is_cmd_shell(path: str | None) -> bool:
+    basename = _basename(path or "").lower()
+    return basename in {"cmd", "cmd.exe"}
+
+
 def _which(name: str) -> str | None:
     found = shutil.which(name)
     if found is not None:
@@ -144,9 +149,11 @@ def evaluate_environment(
     tools: ToolPaths,
     os_name: str = os.name,
     tool_versions: dict[str, str | None] | None = None,
+    environment: dict[str, str] | None = None,
 ) -> dict[str, object]:
     problems: list[str] = []
     warnings: list[str] = []
+    env = environment if environment is not None else os.environ
 
     if tools.make is None:
         problems.append("make was not found on PATH")
@@ -170,6 +177,15 @@ def evaluate_environment(
         warnings.append(
             "MSYS/MinGW Verilator on Windows may also expose svsim path-normalization and C++ harness issues"
         )
+    shell_env = env.get("SHELL")
+    makeshell_env = env.get("MAKESHELL")
+    cmd_shell_override = _is_cmd_shell(shell_env) or _is_cmd_shell(makeshell_env)
+    if windows and msys_make and cmd_shell_override:
+        warnings.append(
+            "Forcing MSYS make to use cmd.exe can get past Windows clean commands, "
+            "but svsim Makefiles also use POSIX shell fragments such as `$(shell pwd)` "
+            "and replay pipelines, so this is not a reliable ChiselSim workaround"
+        )
 
     compatible = not problems
     return {
@@ -191,6 +207,11 @@ def evaluate_environment(
             "msys_make": msys_make,
             "msys_sh": msys_sh,
             "msys_verilator": msys_verilator,
+            "cmd_shell_override": cmd_shell_override,
+        },
+        "environment": {
+            "SHELL": shell_env,
+            "MAKESHELL": makeshell_env,
         },
         "problems": problems,
         "warnings": warnings,

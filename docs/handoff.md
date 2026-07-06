@@ -591,16 +591,20 @@ Known local limitations:
 
 - Run `python3 scripts/dev/check_chiselsim_env.py` before ChiselSim-backed
   tests on Windows or a newly provisioned machine. It reports the detected
-  `make`, `sh`, and `verilator` paths and first-line `--version` output, flags
-  the known Windows/MSYS incompatibility below, and exits nonzero when
-  simulator-backed tests are expected to fail before RTL execution. Use
-  `--json` when saving this as handoff evidence.
+  `make`, `sh`, and `verilator` paths, first-line `--version` output, and
+  relevant `SHELL`/`MAKESHELL` overrides, flags the known Windows/MSYS
+  incompatibility below, and exits nonzero when simulator-backed tests are
+  expected to fail before RTL execution. Use `--json` when saving this as
+  handoff evidence.
 - Full ChiselSim tests on Windows/MSYS currently fail before simulation or
   harness compilation because svsim emits Windows-style Makefile/file-list paths
   while MSYS `make`, Verilator, and the MinGW/UCRT C++ toolchain consume parts
   of the flow as POSIX paths. A local shim proved the first `make clean` failure
   can be bypassed, but the generated harness then hit path normalization issues
-  and a missing POSIX `getline` symbol in the MinGW build.
+  and a missing POSIX `getline` symbol in the MinGW build. Forcing `SHELL` or
+  `MAKESHELL` to `cmd.exe` is also not a reliable workaround because generated
+  svsim Makefiles mix Windows clean rules with POSIX fragments such as
+  `$(shell pwd)` and replay pipelines.
 - Latest focused attempt on this Windows/MSYS setup:
   `sbt 'testOnly hjpeg.HjpegAxiStreamCoreSpec'` compiled the updated spec, then
   all simulations failed at svsim `make clean` because the generated Makefile
