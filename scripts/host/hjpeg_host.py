@@ -1858,11 +1858,29 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
                 {"table_class": 1, "table_id": 1},
             ]
         )
+        validation_table_order_matches = (
+            validation_table_order_present
+            and record.get("quantization_tables")
+            == validation_expectations.get("expected_quantization_tables")
+            and record.get("quantization_table_order")
+            == validation_expectations.get("expected_quantization_table_order")
+            and record.get("huffman_table_order")
+            == validation_expectations.get("expected_huffman_table_order")
+        )
         validation_sos_spectral_baseline = (
             isinstance(expected_sos_spectral, dict)
             and expected_sos_spectral.get("spectral_start") == 0
             and expected_sos_spectral.get("spectral_end") == 63
             and expected_sos_spectral.get("successive_approximation") == 0
+        )
+        validation_sos_spectral_matches = (
+            validation_sos_spectral_baseline
+            and record.get("spectral_start")
+            == expected_sos_spectral.get("spectral_start")
+            and record.get("spectral_end")
+            == expected_sos_spectral.get("spectral_end")
+            and record.get("successive_approximation")
+            == expected_sos_spectral.get("successive_approximation")
         )
         validation_requires_standard_huffman = (
             validation_expectations.get("require_standard_huffman") is True
@@ -2063,7 +2081,9 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and validation_marker_order_present
             and validation_marker_order_matches
             and validation_table_order_present
+            and validation_table_order_matches
             and validation_sos_spectral_baseline
+            and validation_sos_spectral_matches
             and validation_requires_standard_huffman
             and validation_restart_marker_count_matches
             and validation_restart_marker_sequence_matches
@@ -2080,7 +2100,9 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         checks["validation_marker_order_present"] = validation_marker_order_present
         checks["validation_marker_order_matches"] = validation_marker_order_matches
         checks["validation_table_order_present"] = validation_table_order_present
+        checks["validation_table_order_matches"] = validation_table_order_matches
         checks["validation_sos_spectral_baseline"] = validation_sos_spectral_baseline
+        checks["validation_sos_spectral_matches"] = validation_sos_spectral_matches
         checks["validation_requires_standard_huffman"] = (
             validation_requires_standard_huffman
         )
