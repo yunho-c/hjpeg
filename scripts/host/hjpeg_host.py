@@ -1649,6 +1649,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     scan_data_bytes = record.get("scan_data_bytes")
     jpeg_sha256 = record.get("sha256")
     scan_data_sha256 = record.get("scan_data_sha256")
+    jpeg_path = record.get("jpeg")
     marker_sequence = record.get("marker_sequence")
     marker_counts = record.get("marker_counts")
     expected_marker_count_fields = {
@@ -1671,6 +1672,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     )
     jpeg_sha256_present = is_sha256_hex(jpeg_sha256)
     scan_data_sha256_present = is_sha256_hex(scan_data_sha256)
+    jpeg_path_present = isinstance(jpeg_path, str) and len(jpeg_path) > 0
     marker_sequence_values = (
         marker_sequence if isinstance(marker_sequence, (list, tuple)) else ()
     )
@@ -1704,7 +1706,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
     )
     evidence_present["jpeg_output"] = (
-        jpeg_byte_length_positive
+        jpeg_path_present
+        and jpeg_byte_length_positive
         and scan_data_bytes_positive
         and jpeg_sha256_present
         and scan_data_sha256_present
@@ -1714,6 +1717,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         and restart_marker_count_matches_marker_counts
         and marker_counts_match_segment_counts
     )
+    checks["jpeg_path_present"] = jpeg_path_present
     checks["jpeg_byte_length_positive"] = jpeg_byte_length_positive
     checks["jpeg_scan_data_bytes_positive"] = scan_data_bytes_positive
     checks["jpeg_sha256_present"] = jpeg_sha256_present

@@ -394,7 +394,7 @@ group list, ordered recorded check names, evidence/check counts, failing check
 names, passing check names, missing and present evidence group names, and
 whether complete hardware-run evidence was captured. Complete
 hardware-run evidence requires an explicit `jpeg_validation_passed` flag,
-a hashed output JPEG with non-empty scan data, source PPM supplied through
+a captured output JPEG path plus hashes and non-empty scan data, source PPM supplied through
 `--input-ppm`, non-flat/color source-image stats, positive host-observed
 transfer timing with finite positive derived input and output byte rates, and a
 passing decoder check from `--decoder-command` with the command string, resolved

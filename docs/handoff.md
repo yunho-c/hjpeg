@@ -554,7 +554,7 @@ python scripts/vivado/check_reports.py \
 Most recent focused verification:
 
 ```sh
-python scripts/host/hjpeg_host_test.py      # 203 tests
+python scripts/host/hjpeg_host_test.py      # 204 tests
 python scripts/vivado/check_reports_test.py # 52 tests
 git diff --check                            # CRLF warnings only
 ```
@@ -734,7 +734,7 @@ Hardware completion evidence should include:
 - JSON evidence records the bitstream/XSA/report SHA-256 hex hashes, PPM/RGB
   input SHA-256 hex hashes, AXI-Lite target, encoder configuration, host capture
   limits, status
-  checkpoints, output JPEG hash, scan payload length, SOF0/SOS marker counts,
+  checkpoints, captured output JPEG path, output JPEG hash, scan payload length, SOF0/SOS marker counts,
   unstuffed scan-data SHA-256, SOF0 sample precision, SOF0/SOS component ID
   order, SOS component coverage, SOS spectral fields, DQT precision, DQT table
   set, DQT/DHT segment counts, component sampling factors, marker counts,
@@ -764,7 +764,7 @@ Hardware completion evidence should include:
   command and JPEG path.
   The hardware-run summary cross-checks frame dimensions across
   the output JPEG, encoder configuration, validation expectations, source PPM,
-  and expected RGB stream byte length, and requires the parsed marker sequence
+  and expected RGB stream byte length, and requires a captured JPEG path and the parsed marker sequence
   to begin with SOI and end with EOI. It also cross-checks grouped marker
   counts against scalar APP0/JFIF APP0/DQT/SOF0/DHT/SOS/DRI/RST counts,
   verifies RST sequence length against the recorded RST count, and checks
