@@ -249,6 +249,36 @@ class CheckReportsTest(unittest.TestCase):
         self.assertFalse(record["checked_counts_positive"])
         self.assertFalse(record["checked_counts_match_categories"])
 
+    def test_diagnostic_summary_rejects_boolean_category_counts(self) -> None:
+        checked_records = [
+            {"path": f"{category}.rpt", "passed": True}
+            for category in check_reports.REQUIRED_EVIDENCE_CATEGORIES
+        ]
+        checked_counts = {
+            category: 1
+            for category in check_reports.REQUIRED_EVIDENCE_CATEGORIES
+        }
+        evidence_categories = check_reports.evidence_category_record(
+            {
+                category: [{"passed": True}]
+                for category in check_reports.REQUIRED_EVIDENCE_CATEGORIES
+            }
+        )
+        evidence_categories["passing_counts"]["artifacts"] = True
+        evidence_categories["failing_counts"]["artifacts"] = False
+
+        record = check_reports.diagnostic_summary_record(
+            checked_records,
+            checked_counts,
+            evidence_categories,
+            [],
+        )
+
+        self.assertFalse(record["valid"])
+        self.assertTrue(record["checked_counts_strict_numbers"])
+        self.assertTrue(record["checked_counts_positive"])
+        self.assertFalse(record["checked_counts_match_categories"])
+
     def test_diagnostic_summary_rejects_extra_checked_count_categories(self) -> None:
         checked_records = [
             {"path": f"{category}.rpt", "passed": True}

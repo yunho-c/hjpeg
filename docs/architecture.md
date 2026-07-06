@@ -159,8 +159,10 @@ hardware-tool entry points:
   counts, aggregate pass/fail counts, required/present/missing category, suffix,
   artifact-filename, address-map-filename, and report-filename counts,
   diagnostic failure count,
-  checked/passed/failed path lists, complete-evidence required/missing/failing
-  lists, and pass/fail state for build evidence logs.
+  checked/passed/failed path lists, strict JSON integer checked, passing, and
+  failing category counts in the diagnostic summary,
+  complete-evidence required/missing/failing lists, and pass/fail state for
+  build evidence logs.
   Required evidence category presence is based on at least
   one passing record in that category, not just a requested input path. Complete
   Vivado evidence also requires every supplied required evidence category and

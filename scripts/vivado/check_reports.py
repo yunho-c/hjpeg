@@ -1098,6 +1098,8 @@ def diagnostic_summary_record(
         and isinstance(failing_counts, dict)
         and all(
             type(checked_counts.get(category)) is int
+            and type(passing_counts.get(category)) is int
+            and type(failing_counts.get(category)) is int
             and checked_counts.get(category)
             == passing_counts.get(category, 0) + failing_counts.get(category, 0)
             for category in REQUIRED_EVIDENCE_CATEGORIES
