@@ -3898,6 +3898,8 @@ def vivado_summary_counts_consistent(record: object) -> bool:
         and isinstance(passed_paths, list)
     ):
         return False
+    if set(checked_counts.keys()) != set(VIVADO_REQUIRED_EVIDENCE_CATEGORIES):
+        return False
     return (
         passed_count == checked_count
         and failed_count == 0
