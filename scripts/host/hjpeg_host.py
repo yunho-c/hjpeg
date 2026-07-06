@@ -1829,6 +1829,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             "expected_restart_marker_sequence"
         )
         expected_marker_counts = validation_expectations.get("expected_marker_counts")
+        expected_chroma_mode = validation_expectations.get("expected_chroma_mode")
         validation_restart_marker_count_matches = (
             expected_restart_markers is None
             or "restart_markers" not in record
@@ -1862,6 +1863,14 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
                 )
             )
         )
+        validation_chroma_mode_matches = (
+            expected_chroma_mode is None
+            or "chroma_mode" not in record
+            or (
+                isinstance(expected_chroma_mode, str)
+                and record.get("chroma_mode") == expected_chroma_mode
+            )
+        )
         evidence_present["validation_expectations"] = (
             validation_baseline_shape
             and validation_marker_order_present
@@ -1871,6 +1880,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and validation_restart_marker_count_matches
             and validation_restart_marker_sequence_matches
             and validation_marker_counts_match
+            and validation_chroma_mode_matches
         )
         checks["validation_baseline_shape"] = validation_baseline_shape
         checks["validation_marker_order_present"] = validation_marker_order_present
@@ -1886,6 +1896,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             validation_restart_marker_sequence_matches
         )
         checks["validation_marker_counts_match"] = validation_marker_counts_match
+        checks["validation_chroma_mode_matches"] = validation_chroma_mode_matches
 
     input_rgb = record.get("input_rgb")
     if isinstance(input_rgb, dict):

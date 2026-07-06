@@ -797,10 +797,12 @@ The `run-stream-devices` host helper now checks and records AXI-Lite status
 after configuration, before streaming RGB input, and after validating the
 captured JPEG. It fails if the encoder reports `busy` or `protocol_error` at
 any of those points, or if the captured JPEG metadata contradicts the configured
-restart interval, chroma mode, or JFIF setting. It also rejects trailing bytes
-already returned after the first JPEG EOI instead of writing a truncated
-artifact, and its JSON evidence records the dimensions, restart interval,
-chroma mode, JFIF setting, quality, standard Huffman expectations, status
+restart interval, chroma mode, or JFIF setting. Saved-run evidence checking also
+cross-checks the expected chroma mode against the parsed JPEG chroma mode when
+chroma checking was requested. It also rejects trailing bytes already returned
+after the first JPEG EOI instead of writing a truncated artifact, and its JSON
+evidence records the dimensions, restart interval, chroma mode, JFIF setting,
+quality, standard Huffman expectations, status
 checkpoint count, actual and expected checkpoint context lists, context-list
 match result, and run-level all-idle/any-busy/any-protocol-error summaries that
 were checked against the captured JPEG. `make-test-ppm` can generate a deterministic non-flat/color P6 PPM

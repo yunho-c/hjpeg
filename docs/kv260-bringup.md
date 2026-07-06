@@ -452,8 +452,9 @@ Expected evidence:
   validation expectations enforced from the configured dimensions, restart
   interval, expected marker counts, derived expected RST marker count, chroma
   mode, JFIF setting, quality, standard Huffman contract, and expected DQT/DHT
-  payload hashes, plus the host capture limits used for maximum output bytes
-  and RX timeout. RX
+  payload hashes, and `check-run-evidence` cross-checks the expected chroma mode
+  against the parsed JPEG chroma mode when chroma checking was requested, plus
+  the host capture limits used for maximum output bytes and RX timeout. RX
   timeout values must be finite and positive when present, and maximum output
   bytes must be positive. Frame dimensions and frame limits must be positive,
   and AXI-Lite base addresses must be nonnegative.

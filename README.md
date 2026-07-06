@@ -389,7 +389,9 @@ parsed marker sequence to begin with SOI and end with EOI. It also cross-checks
 the grouped marker counts against the scalar APP0/JFIF
 APP0/DQT/SOF0/DHT/SOS/DRI/RST counts, the RST sequence length against the
 recorded RST count, and the recorded marker counts/RST sequence against
-validation expectations when those expectations are present. Input RGB evidence
+validation expectations when those expectations are present, plus the expected
+chroma mode against the parsed JPEG chroma mode when chroma checking was
+requested. Input RGB evidence
 must include positive byte length, a SHA-256 hex hash, a positive expected byte
 length, and an actual-vs-expected length match. Capture configuration evidence
 must include a positive maximum output byte count and either no timeout or a
@@ -400,7 +402,8 @@ evidence must include supported dimensions, quality/restart values in range,
 boolean control flags, and a control word/hex string matching those flags. Validation
 expectations evidence must include the baseline shape, marker order, table
 order, marker counts, restart marker count/sequence when applicable, SOS
-spectral fields, and standard-Huffman requirement. Source PPM
+spectral fields, matching chroma mode when requested, and standard-Huffman
+requirement. Source PPM
 evidence must include file and packed-RGB SHA-256 hex hashes,
 dimension-consistent RGB and packed byte lengths, an input-byte match, and
 non-flat/color image stats. Status evidence must include the detailed checkpoint
