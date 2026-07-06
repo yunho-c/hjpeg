@@ -3911,6 +3911,55 @@ class HjpegHostTest(unittest.TestCase):
                             transfer_elapsed_seconds=elapsed,
                         )
 
+    def test_check_run_evidence_filters_nonfinite_numeric_summaries(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "run.json"
+            evidence = complete_run_evidence_record(root)
+            evidence["transfer_elapsed_seconds"] = float("inf")
+            evidence["host_transfer_rates"]["input_rgb_bytes_per_second"] = float(
+                "nan"
+            )
+            evidence["host_transfer_rates"]["output_jpeg_bytes_per_second"] = float(
+                "inf"
+            )
+            evidence["capture_config"]["timeout_seconds"] = float("inf")
+            evidence["decoder_timeout_seconds"] = float("inf")
+            evidence["decoder_elapsed_seconds"] = float("nan")
+            path.write_text(json.dumps(evidence))
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(["check-run-evidence", str(path), "--json"]),
+                    1,
+                )
+
+            output = stdout.getvalue()
+            self.assertNotIn("NaN", output)
+            self.assertNotIn("Infinity", output)
+            record = json.loads(output)
+            self.assertEqual(record["aggregate_transfer_elapsed_seconds_count"], 0)
+            self.assertEqual(
+                record["aggregate_host_input_rgb_bytes_per_second_count"], 0
+            )
+            self.assertEqual(
+                record["aggregate_host_output_jpeg_bytes_per_second_count"], 0
+            )
+            self.assertEqual(record["aggregate_capture_timeout_second_count"], 0)
+            self.assertEqual(record["aggregate_decoder_timeout_second_count"], 0)
+            self.assertEqual(record["aggregate_decoder_elapsed_second_count"], 0)
+            self.assertNotIn("transfer_elapsed_seconds", record["records"][0])
+            self.assertNotIn(
+                "host_input_rgb_bytes_per_second", record["records"][0]
+            )
+            self.assertNotIn(
+                "host_output_jpeg_bytes_per_second", record["records"][0]
+            )
+            self.assertNotIn("capture_timeout_seconds", record["records"][0])
+            self.assertNotIn("decoder_timeout_seconds", record["records"][0])
+            self.assertNotIn("decoder_elapsed_seconds", record["records"][0])
+
     def test_check_run_evidence_file_reports_complete_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

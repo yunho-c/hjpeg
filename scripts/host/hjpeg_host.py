@@ -1517,6 +1517,10 @@ def is_strict_number(value: object) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
+def is_finite_strict_number(value: object) -> bool:
+    return is_strict_number(value) and math.isfinite(value)
+
+
 def file_info_record(info: FileInfo) -> dict[str, object]:
     return {
         "path": info.path,
@@ -3148,15 +3152,15 @@ def check_run_evidence_record(
         if isinstance(value, bool):
             result[key] = value
     transfer_elapsed_seconds = record.get("transfer_elapsed_seconds")
-    if is_strict_number(transfer_elapsed_seconds):
+    if is_finite_strict_number(transfer_elapsed_seconds):
         result["transfer_elapsed_seconds"] = transfer_elapsed_seconds
     host_transfer_rates = record.get("host_transfer_rates")
     if isinstance(host_transfer_rates, dict):
         input_rgb_rate = host_transfer_rates.get("input_rgb_bytes_per_second")
         output_jpeg_rate = host_transfer_rates.get("output_jpeg_bytes_per_second")
-        if is_strict_number(input_rgb_rate):
+        if is_finite_strict_number(input_rgb_rate):
             result["host_input_rgb_bytes_per_second"] = input_rgb_rate
-        if is_strict_number(output_jpeg_rate):
+        if is_finite_strict_number(output_jpeg_rate):
             result["host_output_jpeg_bytes_per_second"] = output_jpeg_rate
     stream_devices = record.get("stream_devices")
     if isinstance(stream_devices, dict):
@@ -3190,7 +3194,7 @@ def check_run_evidence_record(
         timeout_seconds = capture_config.get("timeout_seconds")
         if is_strict_int(max_output_bytes):
             result["capture_max_output_bytes"] = int(max_output_bytes)
-        if is_strict_number(timeout_seconds):
+        if is_finite_strict_number(timeout_seconds):
             result["capture_timeout_seconds"] = timeout_seconds
     jpeg_path = record.get("jpeg")
     if isinstance(jpeg_path, str):
@@ -3309,7 +3313,7 @@ def check_run_evidence_record(
             result[key] = int(value)
     for key in ("decoder_timeout_seconds", "decoder_elapsed_seconds"):
         value = record.get(key)
-        if is_strict_number(value):
+        if is_finite_strict_number(value):
             result[key] = value
     if not complete:
         failures.append(f"{path}: complete_hardware_run_evidence is false")
@@ -4310,6 +4314,8 @@ def unique_number_values(
         if not is_strict_number(value):
             continue
         number = int(value) if isinstance(value, int) else float(value)
+        if not math.isfinite(number):
+            continue
         if number not in seen:
             seen.add(number)
             values.append(number)
