@@ -340,7 +340,10 @@ Expected evidence:
   top-level `complete_hardware_run_evidence` flag is missing, not a JSON
   boolean, or stale, or if the
   recorded missing-evidence and failing-check diagnostic lists do not match the
-  recomputed summary. The host and Vivado helpers emit strict JSON for evidence
+  recomputed summary. Aggregate JSON should also report
+  `summary_all_checked` and `summary_all_matched` as true for final evidence,
+  proving every supplied run transcript had a recomputable summary and every
+  recomputed summary matched. The host and Vivado helpers emit strict JSON for evidence
   output, and saved run/Vivado evidence files must be strict JSON; non-standard
   constants such as `NaN` and `Infinity` are rejected as malformed evidence.
   When `--vivado-evidence`

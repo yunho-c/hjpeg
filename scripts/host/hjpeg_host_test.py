@@ -5771,6 +5771,11 @@ class HjpegHostTest(unittest.TestCase):
 
             record = json.loads(stdout.getvalue())
             self.assertTrue(record["passed"])
+            self.assertEqual(record["summary_checked_count"], 1)
+            self.assertEqual(record["summary_match_count"], 1)
+            self.assertEqual(record["summary_mismatch_count"], 0)
+            self.assertTrue(record["summary_all_checked"])
+            self.assertTrue(record["summary_all_matched"])
             self.assertEqual(record["vivado_evidence_checked_count"], 1)
             self.assertEqual(record["vivado_evidence_passed_count"], 1)
             self.assertEqual(record["vivado_evidence_failed_count"], 0)
