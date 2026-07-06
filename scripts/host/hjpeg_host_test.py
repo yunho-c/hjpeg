@@ -3752,6 +3752,10 @@ class HjpegHostTest(unittest.TestCase):
                 record["stream_rx_device_resolved"],
                 str((root / "rx.dev").resolve(strict=False)),
             )
+            self.assertEqual(record["axi_lite_device"], str(root / "mem.bin"))
+            self.assertEqual(record["axi_lite_base_addr"], 0)
+            self.assertEqual(record["axi_lite_base_addr_hex"], "0x0")
+            self.assertEqual(record["recorded_axi_lite_base_addr_hex"], "0x0")
 
     def test_check_run_evidence_file_matches_vivado_address_map(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -4737,6 +4741,14 @@ class HjpegHostTest(unittest.TestCase):
                 record["aggregate_stream_rx_device_resolved"],
                 [str((root / "rx.dev").resolve(strict=False))],
             )
+            self.assertEqual(record["aggregate_axi_lite_device_count"], 1)
+            self.assertEqual(record["aggregate_axi_lite_base_address_count"], 1)
+            self.assertEqual(
+                record["aggregate_axi_lite_devices"],
+                [str(root / "mem.bin")],
+            )
+            self.assertEqual(record["aggregate_axi_lite_base_addresses"], [0])
+            self.assertEqual(record["aggregate_axi_lite_base_addresses_hex"], ["0x0"])
             self.assertTrue(record["records"][0]["passed"])
             self.assertTrue(
                 record["records"][0]["complete_hardware_run_evidence_required"]
@@ -4747,6 +4759,11 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(
                 record["records"][0]["stream_rx_device"], str(root / "rx.dev")
             )
+            self.assertEqual(
+                record["records"][0]["axi_lite_device"], str(root / "mem.bin")
+            )
+            self.assertEqual(record["records"][0]["axi_lite_base_addr"], 0)
+            self.assertEqual(record["records"][0]["axi_lite_base_addr_hex"], "0x0")
             self.assertTrue(
                 record["records"][0][
                     "complete_hardware_run_evidence_missing_matches"

@@ -2932,6 +2932,18 @@ def check_run_evidence_record(
             result["stream_tx_device_resolved"] = stream_tx_device_resolved
         if isinstance(stream_rx_device_resolved, str):
             result["stream_rx_device_resolved"] = stream_rx_device_resolved
+    axi_lite = record.get("axi_lite")
+    if isinstance(axi_lite, dict):
+        axi_lite_device = axi_lite.get("device")
+        axi_lite_base_addr = axi_lite.get("base_addr")
+        axi_lite_base_addr_hex = axi_lite.get("base_addr_hex")
+        if isinstance(axi_lite_device, str):
+            result["axi_lite_device"] = axi_lite_device
+        if is_strict_int(axi_lite_base_addr):
+            result["axi_lite_base_addr"] = int(axi_lite_base_addr)
+            result["axi_lite_base_addr_hex"] = f"0x{int(axi_lite_base_addr):x}"
+        if isinstance(axi_lite_base_addr_hex, str):
+            result["recorded_axi_lite_base_addr_hex"] = axi_lite_base_addr_hex
     if not complete:
         failures.append(f"{path}: complete_hardware_run_evidence is false")
     if not complete_evidence_matches:
@@ -2961,7 +2973,6 @@ def check_run_evidence_record(
         failures.append(f"{path}: failing hardware checks: {', '.join(failing_checks)}")
 
     if vivado_hjpeg_base_addresses:
-        axi_lite = record.get("axi_lite")
         axi_lite_base_addr = (
             axi_lite.get("base_addr") if isinstance(axi_lite, dict) else None
         )
@@ -3857,6 +3868,20 @@ def unique_scalar_string_values(records: list[dict[str, object]], key: str) -> l
     return values
 
 
+def unique_int_values(records: list[dict[str, object]], key: str) -> list[int]:
+    values: list[int] = []
+    seen: set[int] = set()
+    for record in records:
+        value = record.get(key)
+        if not is_strict_int(value):
+            continue
+        number = int(value)
+        if number not in seen:
+            seen.add(number)
+            values.append(number)
+    return values
+
+
 def require_capture_config(max_output_bytes: int, timeout_seconds: float | None) -> None:
     if max_output_bytes <= 0:
         raise ValueError("max output bytes must be positive")
@@ -4607,6 +4632,15 @@ def main(argv: list[str] | None = None) -> int:
         aggregate_stream_rx_device_resolved = unique_scalar_string_values(
             records, "stream_rx_device_resolved"
         )
+        aggregate_axi_lite_devices = unique_scalar_string_values(
+            records, "axi_lite_device"
+        )
+        aggregate_axi_lite_base_addresses = unique_int_values(
+            records, "axi_lite_base_addr"
+        )
+        aggregate_axi_lite_base_addresses_hex = [
+            f"0x{base:x}" for base in aggregate_axi_lite_base_addresses
+        ]
         vivado_passed_count = sum(
             1 for record in vivado_records if record.get("passed") is True
         )
@@ -4681,6 +4715,19 @@ def main(argv: list[str] | None = None) -> int:
                         ),
                         "aggregate_stream_rx_device_resolved": (
                             aggregate_stream_rx_device_resolved
+                        ),
+                        "aggregate_axi_lite_device_count": len(
+                            aggregate_axi_lite_devices
+                        ),
+                        "aggregate_axi_lite_base_address_count": len(
+                            aggregate_axi_lite_base_addresses
+                        ),
+                        "aggregate_axi_lite_devices": aggregate_axi_lite_devices,
+                        "aggregate_axi_lite_base_addresses": (
+                            aggregate_axi_lite_base_addresses
+                        ),
+                        "aggregate_axi_lite_base_addresses_hex": (
+                            aggregate_axi_lite_base_addresses_hex
                         ),
                         "vivado_evidence_checked_count": len(vivado_records),
                         "vivado_evidence_passed_count": vivado_passed_count,
