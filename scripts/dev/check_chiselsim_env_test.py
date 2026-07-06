@@ -128,6 +128,10 @@ class CheckChiselSimEnvTest(unittest.TestCase):
         self.assertTrue(report["checks"]["windows_host"])
         self.assertIn("tool_versions", report)
 
+    def test_strict_json_dumps_rejects_nonfinite_numbers(self) -> None:
+        with self.assertRaises(ValueError):
+            check_chiselsim_env.strict_json_dumps({"elapsed": float("nan")})
+
 
 if __name__ == "__main__":
     unittest.main()

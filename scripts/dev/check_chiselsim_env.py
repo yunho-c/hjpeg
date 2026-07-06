@@ -136,6 +136,10 @@ def _which(name: str) -> str | None:
     return None
 
 
+def strict_json_dumps(value: object, **kwargs: object) -> str:
+    return json.dumps(value, allow_nan=False, **kwargs)
+
+
 def evaluate_environment(
     tools: ToolPaths,
     os_name: str = os.name,
@@ -248,7 +252,7 @@ def main(argv: list[str] | None = None, os_name: str = os.name) -> int:
         tool_versions=collect_tool_versions(tools),
     )
     if args.json:
-        print(json.dumps(report, indent=2, sort_keys=True))
+        print(strict_json_dumps(report, indent=2, sort_keys=True))
     else:
         print(format_text(report))
     return 0 if report["compatible"] else 1
