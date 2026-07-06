@@ -526,6 +526,8 @@ Expected evidence:
   against parsed DHT table hashes when standard-Huffman checking was requested.
   Complete validation evidence requires the expected DQT/DHT hash records
   whenever the corresponding quality or standard-Huffman check is requested,
+  and the validation quality value must be absent or an actual JSON integer in
+  `1..100`, not a boolean,
   plus the host capture limits used for maximum output bytes and RX timeout. RX
   timeout values must be finite and positive when present, and maximum output
   bytes must be positive. Frame dimensions and frame limits must be positive,

@@ -1938,6 +1938,10 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         validation_requires_standard_huffman = (
             validation_expectations.get("require_standard_huffman") is True
         )
+        expected_quality = validation_expectations.get("quality")
+        validation_quality_valid = expected_quality is None or (
+            is_strict_int(expected_quality) and 1 <= expected_quality <= 100
+        )
         expected_restart_markers = validation_expectations.get(
             "expected_restart_markers"
         )
@@ -1954,7 +1958,6 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         expected_jfif = validation_expectations.get("expect_jfif")
         expected_jfif_app0 = validation_expectations.get("expected_jfif_app0")
         expected_chroma_mode = validation_expectations.get("expected_chroma_mode")
-        expected_quality = validation_expectations.get("quality")
         expected_dqt_payload_hashes = validation_expectations.get(
             "expected_quantization_payload_sha256"
         )
@@ -2051,7 +2054,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
                 payload_sha256 = table.get("payload_sha256")
                 if is_strict_int(table_id) and is_sha256_hex(payload_sha256):
                     actual_dqt_payload_hashes[str(table_id)] = payload_sha256
-        dqt_hashes_required = is_strict_int(expected_quality)
+        dqt_hashes_required = validation_quality_valid and is_strict_int(expected_quality)
         expected_dqt_payload_hashes_valid = (
             isinstance(expected_dqt_payload_hashes, dict)
             and set(expected_dqt_payload_hashes.keys()) == {"0", "1"}
@@ -2139,6 +2142,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and validation_sos_spectral_baseline
             and validation_sos_spectral_matches
             and validation_requires_standard_huffman
+            and validation_quality_valid
             and validation_restart_marker_count_matches
             and validation_restart_marker_sequence_matches
             and validation_marker_counts_match
@@ -2163,6 +2167,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         checks["validation_requires_standard_huffman"] = (
             validation_requires_standard_huffman
         )
+        checks["validation_quality_valid"] = validation_quality_valid
         checks["validation_restart_marker_count_matches"] = (
             validation_restart_marker_count_matches
         )
