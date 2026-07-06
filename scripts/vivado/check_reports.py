@@ -76,7 +76,10 @@ REQUIRED_ROUTE_STATUS_COUNTS = (
 
 
 def finite_float(value: str) -> float:
-    parsed = float(value)
+    try:
+        parsed = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError("value must be finite") from None
     if not math.isfinite(parsed):
         raise argparse.ArgumentTypeError("value must be finite")
     return parsed

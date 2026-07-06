@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import contextlib
 import hashlib
 import io
@@ -2152,6 +2153,18 @@ class CheckReportsTest(unittest.TestCase):
                 with self.subTest(option=option, value=value):
                     with self.assertRaises(SystemExit):
                         check_reports.main([f"{option}={value}", "--json"])
+
+    def test_cli_numeric_helpers_report_malformed_values(self) -> None:
+        for helper in (
+            check_reports.finite_float,
+            check_reports.positive_float,
+            check_reports.nonnegative_float,
+        ):
+            with self.subTest(helper=helper.__name__):
+                with self.assertRaisesRegex(
+                    argparse.ArgumentTypeError, "finite"
+                ):
+                    helper("not-a-number")
 
     def test_cli_rejects_invalid_utilization_thresholds(self) -> None:
         for value in ["-0.001", "nan", "inf", "-inf"]:
