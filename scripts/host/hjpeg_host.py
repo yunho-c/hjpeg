@@ -31,7 +31,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import BinaryIO, Callable
+from typing import BinaryIO, Callable, Sequence
 
 
 AXI_LITE_APERTURE_BYTES = 0x1000
@@ -3132,6 +3132,57 @@ def check_run_evidence_record(
         isinstance(arguments, dict)
         and arguments.get("require_complete_evidence") is True
     )
+    arguments_match_record = False
+    if isinstance(arguments, dict):
+        def optional_matches(
+            evidence: object,
+            pairs: Sequence[tuple[str, str]],
+        ) -> bool:
+            if not isinstance(evidence, dict):
+                return True
+            return all(
+                arguments.get(argument_key) == evidence.get(evidence_key)
+                for argument_key, evidence_key in pairs
+            )
+
+        stream_devices = record.get("stream_devices")
+        input_rgb = record.get("input_rgb")
+        input_ppm = record.get("input_ppm")
+        axi_lite = record.get("axi_lite")
+        encoder_config = record.get("encoder_config")
+        capture_config = record.get("capture_config")
+        arguments_match_record = (
+            optional_matches(axi_lite, (("dev", "device"), ("base_addr", "base_addr")))
+            and optional_matches(
+                stream_devices,
+                (("tx_device", "tx_device"), ("rx_device", "rx_device")),
+            )
+            and optional_matches(input_rgb, (("input_rgb", "path"),))
+            and optional_matches(input_ppm, (("input_ppm", "path"),))
+            and optional_matches(
+                encoder_config,
+                (
+                    ("max_width", "max_width"),
+                    ("max_height", "max_height"),
+                    ("quality", "quality"),
+                    ("restart_interval", "restart_interval"),
+                    ("chroma_subsample", "chroma_subsample"),
+                    ("emit_jfif", "emit_jfif"),
+                    ("clear_error", "clear_error"),
+                ),
+            )
+            and optional_matches(
+                capture_config,
+                (
+                    ("max_output_bytes", "max_output_bytes"),
+                    ("timeout_seconds", "timeout_seconds"),
+                ),
+            )
+            and arguments.get("output_jpeg") == record.get("jpeg")
+            and arguments.get("width") == record.get("width")
+            and arguments.get("height") == record.get("height")
+            and arguments.get("decoder_command") == record.get("decoder_command")
+        )
     complete_evidence_missing_matches = (
         record.get("complete_hardware_run_evidence_missing") == missing_evidence
     )
@@ -3155,6 +3206,7 @@ def check_run_evidence_record(
             "arguments_require_complete_evidence_flag_present": (
                 arguments_require_complete_evidence_flag_present
             ),
+            "arguments_match_record": arguments_match_record,
             "complete_hardware_run_evidence_missing_matches": (
                 complete_evidence_missing_matches
             ),
@@ -3449,6 +3501,8 @@ def check_run_evidence_record(
         )
     if not arguments_require_complete_evidence:
         failures.append(f"{path}: arguments.require_complete_evidence is not true")
+    if not arguments_match_record:
+        failures.append(f"{path}: arguments do not match run evidence record")
     if not complete_evidence_missing_matches:
         failures.append(
             f"{path}: complete_hardware_run_evidence_missing does not match "

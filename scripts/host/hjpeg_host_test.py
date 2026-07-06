@@ -4042,6 +4042,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(
                 record["arguments_require_complete_evidence_flag_present"]
             )
+            self.assertTrue(record["arguments_match_record"])
             self.assertTrue(record["complete_hardware_run_evidence_missing_matches"])
             self.assertTrue(
                 record["complete_hardware_run_evidence_failing_checks_matches"]
@@ -4517,6 +4518,30 @@ class HjpegHostTest(unittest.TestCase):
                 any(
                     "arguments.require_complete_evidence is not a JSON boolean"
                     in failure
+                    for failure in failures
+                )
+            )
+
+    def test_check_run_evidence_file_rejects_stale_arguments(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "run.json"
+            evidence = complete_run_evidence_record(root)
+            evidence["arguments"]["width"] = evidence["width"] + 1
+            evidence["arguments"]["input_rgb"] = str(root / "stale.rgb")
+            path.write_text(json.dumps(evidence))
+
+            record, failures = hjpeg_host.check_run_evidence_file(path)
+
+            self.assertFalse(record["passed"])
+            self.assertTrue(record["complete_hardware_run_evidence"])
+            self.assertTrue(record["arguments_require_complete_evidence"])
+            self.assertTrue(record["arguments_require_complete_evidence_flag_present"])
+            self.assertFalse(record["arguments_match_record"])
+            self.assertTrue(record["hardware_run_summary_matches_computed"])
+            self.assertTrue(
+                any(
+                    "arguments do not match run evidence record" in failure
                     for failure in failures
                 )
             )
@@ -5184,7 +5209,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["passed_count"], 1)
             self.assertEqual(record["failed_count"], 3)
             self.assertEqual(record["failure_count"], len(record["failures"]))
-            self.assertEqual(record["failure_count"], 16)
+            self.assertEqual(record["failure_count"], 17)
             self.assertEqual(
                 record["checked_paths"],
                 [str(complete), str(incomplete), str(malformed), str(missing)],
@@ -5675,6 +5700,12 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(
                 any(
                     "arguments.require_complete_evidence is not true" in failure
+                    for failure in record["failures"]
+                )
+            )
+            self.assertTrue(
+                any(
+                    "arguments do not match run evidence record" in failure
                     for failure in record["failures"]
                 )
             )

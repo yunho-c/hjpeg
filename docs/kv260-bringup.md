@@ -335,6 +335,7 @@ Expected evidence:
   summary does not match the recomputed evidence, if
   `complete_hardware_run_evidence_required` and
   `arguments.require_complete_evidence` are not JSON boolean `true`, if the
+  `arguments` object does not match the recorded run transcript, if the
   top-level `complete_hardware_run_evidence` flag is missing, not a JSON
   boolean, or stale, or if the
   recorded missing-evidence and failing-check diagnostic lists do not match the

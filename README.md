@@ -490,7 +490,8 @@ The saved-evidence checker recomputes `hardware_run_summary` from the transcript
 and fails if the stored summary does not match the recomputed evidence, if the
 run did not record JSON boolean `true` for
 `complete_hardware_run_evidence_required` and
-`arguments.require_complete_evidence`, if the top-level
+`arguments.require_complete_evidence`, if the `arguments` object does not match
+the recorded run transcript, if the top-level
 `complete_hardware_run_evidence` flag is missing, is not a JSON boolean, or does
 not match the recomputed summary, or if the recorded missing-evidence and failing-check
 diagnostic lists do not match the recomputed summary. The host and Vivado
