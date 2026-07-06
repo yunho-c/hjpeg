@@ -598,6 +598,67 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
     }
   }
 
+  "HjpegKv260AxiLiteTop should apply AXI-Lite config writes after the active frame" in {
+    simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      init(dut)
+      configure(dut, width = 16, height = 8, subsample = false, emitJfif = true)
+      val gray = BigInt(128) | (BigInt(128) << 8) | (BigInt(128) << 16)
+
+      dut.io.sAxisRgb.valid.poke(true.B)
+      dut.io.sAxisRgb.bits.data.poke(gray.U)
+      dut.io.sAxisRgb.bits.keep.poke("b1111".U)
+      dut.io.sAxisRgb.bits.last.poke(false.B)
+      dut.io.sAxisRgb.ready.expect(true.B)
+      dut.clock.step()
+      dut.io.sAxisRgb.valid.poke(false.B)
+
+      configure(dut, width = 8, height = 8, subsample = true, emitJfif = false)
+      readReg(dut, HjpegAxiLiteRegisters.XSize) mustBe 8
+      readReg(dut, HjpegAxiLiteRegisters.YSize) mustBe 8
+      readReg(dut, HjpegAxiLiteRegisters.Control) mustBe 0x2
+
+      for (index <- 1 until 16 * 8) {
+        dut.io.sAxisRgb.valid.poke(true.B)
+        dut.io.sAxisRgb.bits.data.poke(gray.U)
+        dut.io.sAxisRgb.bits.keep.poke("b1111".U)
+        dut.io.sAxisRgb.bits.last.poke((index == 16 * 8 - 1).B)
+        dut.io.sAxisRgb.ready.expect(true.B)
+        dut.clock.step()
+      }
+      dut.io.sAxisRgb.valid.poke(false.B)
+
+      val bytes = scala.collection.mutable.ArrayBuffer.empty[Int]
+      var sawLast = false
+      var cycles = 0
+      while (!sawLast) {
+        assert(cycles < JpegHeaderBytes.HeaderLength + 4096, "timeout waiting for active-frame AXI-Lite snapshot output")
+        if (dut.io.mAxisJpeg.valid.peek().litToBoolean) {
+          dut.io.mAxisJpeg.bits.keep.expect(1.U)
+          bytes += dut.io.mAxisJpeg.bits.data.peek().litValue.toInt
+          sawLast = dut.io.mAxisJpeg.bits.last.peek().litToBoolean
+        }
+        dut.clock.step()
+        cycles += 1
+      }
+
+      bytes.take(2) mustBe Seq(0xff, 0xd8)
+      bytes.slice(2, 20) mustBe JpegHeaderBytes.App0
+      bytes(JpegHeaderBytes.Sof0WidthHigh) mustBe 0x00
+      bytes(JpegHeaderBytes.Sof0WidthLow) mustBe 0x10
+      bytes(JpegHeaderBytes.Sof0HeightHigh) mustBe 0x00
+      bytes(JpegHeaderBytes.Sof0HeightLow) mustBe 0x08
+      bytes(JpegHeaderBytes.Sof0LuminanceSamplingFactor) mustBe 0x11
+      val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
+      image must not be null
+      image.getWidth mustBe 16
+      image.getHeight mustBe 8
+      readReg(dut, HjpegAxiLiteRegisters.Status) mustBe 0
+    }
+  }
+
   "HjpegKv260AxiLiteTop should honor the emit JFIF control bit" in {
     simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
       dut.reset.poke(true.B)
