@@ -26,6 +26,7 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
     val packageIp = read("scripts/vivado/package_kv260_axi_lite_ip.tcl")
     val blockDesign = read("scripts/vivado/create_kv260_block_design.tcl")
     val bitstream = read("scripts/vivado/build_kv260_bitstream.tcl")
+    val floorplan = read("scripts/vivado/write_kv260_floorplan_report.tcl")
 
     for (script <- Seq(synth, packageIp)) {
       script must include("HjpegKv260AxiLiteTop")
@@ -149,5 +150,22 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
     bitstream must include("hjpeg_kv260.xsa")
     bitstream must include("write_checkpoint -force")
     bitstream must include("post_impl.dcp")
+
+    floorplan must include("hjpeg_kv260_bd.xpr")
+    floorplan must include("open_project")
+    floorplan must include("Expected at most 2 arguments: project_dir artifacts_dir")
+    floorplan must include("proc require_nonempty_file")
+    floorplan must include("proc require_complete_impl_run")
+    floorplan must include("Missing implementation run impl_1")
+    floorplan must include("impl_1 is not complete")
+    floorplan must include("impl_1 has not completed bitstream generation")
+    floorplan must include("open_run impl_1")
+    floorplan must include("proc write_floorplan_report")
+    floorplan must include("get_pblocks -quiet")
+    floorplan must include("get_cells -hierarchical -filter {IS_PRIMITIVE && LOC != \"\"} -quiet")
+    floorplan must include("Pblock Count")
+    floorplan must include("Placed Cell Count")
+    floorplan must include("post_impl_floorplan.rpt")
+    floorplan must include("require_nonempty_file $floorplan_report")
   }
 }
