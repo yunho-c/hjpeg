@@ -3040,6 +3040,47 @@ def check_run_evidence_record(
     jpeg_path = record.get("jpeg")
     if isinstance(jpeg_path, str):
         result["jpeg"] = jpeg_path
+    for source_key, result_key in (
+        ("byte_length", "jpeg_byte_length"),
+        ("mcu_count", "jpeg_mcu_count"),
+        ("component_count", "jpeg_component_count"),
+        ("scan_data_bytes", "jpeg_scan_data_bytes"),
+        ("stuffed_ff_bytes", "jpeg_stuffed_ff_bytes"),
+        ("app0_segments", "jpeg_app0_segments"),
+        ("jfif_app0_segments", "jpeg_jfif_app0_segments"),
+        ("dqt_segments", "jpeg_dqt_segments"),
+        ("sof0_segments", "jpeg_sof0_segments"),
+        ("dht_segments", "jpeg_dht_segments"),
+        ("sos_segments", "jpeg_sos_segments"),
+        ("dri_segments", "jpeg_dri_segments"),
+        ("restart_interval", "jpeg_restart_interval"),
+        ("restart_markers", "jpeg_restart_markers"),
+    ):
+        value = record.get(source_key)
+        if is_strict_int(value):
+            result[result_key] = int(value)
+    for source_key, result_key in (
+        ("sha256", "jpeg_sha256"),
+        ("scan_data_sha256", "jpeg_scan_data_sha256"),
+        ("chroma_mode", "jpeg_chroma_mode"),
+    ):
+        value = record.get(source_key)
+        if isinstance(value, str):
+            result[result_key] = value
+    marker_sequence = record.get("marker_sequence")
+    if (
+        isinstance(marker_sequence, list)
+        and all(isinstance(marker, str) for marker in marker_sequence)
+    ):
+        result["jpeg_marker_sequence"] = list(marker_sequence)
+    restart_marker_sequence = record.get("restart_marker_sequence")
+    if (
+        isinstance(restart_marker_sequence, list)
+        and all(is_strict_int(marker) for marker in restart_marker_sequence)
+    ):
+        result["jpeg_restart_marker_sequence"] = [
+            int(marker) for marker in restart_marker_sequence
+        ]
     input_rgb = record.get("input_rgb")
     if isinstance(input_rgb, dict):
         input_rgb_path = input_rgb.get("path")
@@ -3089,6 +3130,32 @@ def check_run_evidence_record(
     decoder_command = record.get("decoder_command")
     if isinstance(decoder_command, str):
         result["decoder_command"] = decoder_command
+    decoder_argv = record.get("decoder_argv")
+    if isinstance(decoder_argv, list) and all(
+        isinstance(arg, str) for arg in decoder_argv
+    ):
+        result["decoder_argv"] = list(decoder_argv)
+    for key in (
+        "decoder_passed",
+        "decoder_stdout_truncated",
+        "decoder_stderr_truncated",
+    ):
+        value = record.get(key)
+        if isinstance(value, bool):
+            result[key] = value
+    for key in (
+        "decoder_returncode",
+        "decoder_stdout_chars",
+        "decoder_stderr_chars",
+        "decoder_output_capture_chars",
+    ):
+        value = record.get(key)
+        if is_strict_int(value):
+            result[key] = int(value)
+    for key in ("decoder_timeout_seconds", "decoder_elapsed_seconds"):
+        value = record.get(key)
+        if is_strict_number(value):
+            result[key] = value
     if not complete:
         failures.append(f"{path}: complete_hardware_run_evidence is false")
     if not complete_evidence_matches:
@@ -4931,6 +4998,59 @@ def main(argv: list[str] | None = None) -> int:
         aggregate_input_ppm_has_color_pixels_values = unique_bool_values(
             records, "input_ppm_has_color_pixels"
         )
+        aggregate_jpeg_byte_lengths = unique_int_values(records, "jpeg_byte_length")
+        aggregate_jpeg_mcu_counts = unique_int_values(records, "jpeg_mcu_count")
+        aggregate_jpeg_component_counts = unique_int_values(
+            records, "jpeg_component_count"
+        )
+        aggregate_jpeg_scan_data_bytes = unique_int_values(
+            records, "jpeg_scan_data_bytes"
+        )
+        aggregate_jpeg_stuffed_ff_bytes = unique_int_values(
+            records, "jpeg_stuffed_ff_bytes"
+        )
+        aggregate_jpeg_restart_intervals = unique_int_values(
+            records, "jpeg_restart_interval"
+        )
+        aggregate_jpeg_restart_markers = unique_int_values(
+            records, "jpeg_restart_markers"
+        )
+        aggregate_jpeg_chroma_modes = unique_scalar_string_values(
+            records, "jpeg_chroma_mode"
+        )
+        aggregate_jpeg_marker_names = unique_string_values(
+            records, "jpeg_marker_sequence"
+        )
+        aggregate_jpeg_scan_data_sha256_values = unique_scalar_string_values(
+            records, "jpeg_scan_data_sha256"
+        )
+        aggregate_jpeg_sha256_values = unique_scalar_string_values(
+            records, "jpeg_sha256"
+        )
+        aggregate_decoder_passed_values = unique_bool_values(
+            records, "decoder_passed"
+        )
+        aggregate_decoder_returncodes = unique_int_values(
+            records, "decoder_returncode"
+        )
+        aggregate_decoder_timeout_seconds = unique_number_values(
+            records, "decoder_timeout_seconds"
+        )
+        aggregate_decoder_elapsed_seconds = unique_number_values(
+            records, "decoder_elapsed_seconds"
+        )
+        aggregate_decoder_stdout_chars = unique_int_values(
+            records, "decoder_stdout_chars"
+        )
+        aggregate_decoder_stderr_chars = unique_int_values(
+            records, "decoder_stderr_chars"
+        )
+        aggregate_decoder_stdout_truncated_values = unique_bool_values(
+            records, "decoder_stdout_truncated"
+        )
+        aggregate_decoder_stderr_truncated_values = unique_bool_values(
+            records, "decoder_stderr_truncated"
+        )
         aggregate_jpeg_paths = unique_scalar_string_values(records, "jpeg")
         aggregate_input_rgb_paths = unique_scalar_string_values(records, "input_rgb")
         aggregate_input_ppm_paths = unique_scalar_string_values(records, "input_ppm")
@@ -5159,6 +5279,63 @@ def main(argv: list[str] | None = None) -> int:
                         "aggregate_input_ppm_has_color_pixels_count": len(
                             aggregate_input_ppm_has_color_pixels_values
                         ),
+                        "aggregate_jpeg_byte_length_count": len(
+                            aggregate_jpeg_byte_lengths
+                        ),
+                        "aggregate_jpeg_mcu_count_count": len(
+                            aggregate_jpeg_mcu_counts
+                        ),
+                        "aggregate_jpeg_component_count_count": len(
+                            aggregate_jpeg_component_counts
+                        ),
+                        "aggregate_jpeg_scan_data_byte_count": len(
+                            aggregate_jpeg_scan_data_bytes
+                        ),
+                        "aggregate_jpeg_stuffed_ff_byte_count": len(
+                            aggregate_jpeg_stuffed_ff_bytes
+                        ),
+                        "aggregate_jpeg_restart_interval_count": len(
+                            aggregate_jpeg_restart_intervals
+                        ),
+                        "aggregate_jpeg_restart_marker_count": len(
+                            aggregate_jpeg_restart_markers
+                        ),
+                        "aggregate_jpeg_chroma_mode_count": len(
+                            aggregate_jpeg_chroma_modes
+                        ),
+                        "aggregate_jpeg_marker_name_count": len(
+                            aggregate_jpeg_marker_names
+                        ),
+                        "aggregate_jpeg_scan_data_sha256_count": len(
+                            aggregate_jpeg_scan_data_sha256_values
+                        ),
+                        "aggregate_jpeg_sha256_count": len(
+                            aggregate_jpeg_sha256_values
+                        ),
+                        "aggregate_decoder_passed_value_count": len(
+                            aggregate_decoder_passed_values
+                        ),
+                        "aggregate_decoder_returncode_count": len(
+                            aggregate_decoder_returncodes
+                        ),
+                        "aggregate_decoder_timeout_second_count": len(
+                            aggregate_decoder_timeout_seconds
+                        ),
+                        "aggregate_decoder_elapsed_second_count": len(
+                            aggregate_decoder_elapsed_seconds
+                        ),
+                        "aggregate_decoder_stdout_char_count": len(
+                            aggregate_decoder_stdout_chars
+                        ),
+                        "aggregate_decoder_stderr_char_count": len(
+                            aggregate_decoder_stderr_chars
+                        ),
+                        "aggregate_decoder_stdout_truncated_count": len(
+                            aggregate_decoder_stdout_truncated_values
+                        ),
+                        "aggregate_decoder_stderr_truncated_count": len(
+                            aggregate_decoder_stderr_truncated_values
+                        ),
                         "aggregate_frame_widths": aggregate_frame_widths,
                         "aggregate_frame_heights": aggregate_frame_heights,
                         "aggregate_encoder_widths": aggregate_encoder_widths,
@@ -5272,6 +5449,51 @@ def main(argv: list[str] | None = None) -> int:
                         ),
                         "aggregate_input_ppm_has_color_pixels_values": (
                             aggregate_input_ppm_has_color_pixels_values
+                        ),
+                        "aggregate_jpeg_byte_lengths": aggregate_jpeg_byte_lengths,
+                        "aggregate_jpeg_mcu_counts": aggregate_jpeg_mcu_counts,
+                        "aggregate_jpeg_component_counts": (
+                            aggregate_jpeg_component_counts
+                        ),
+                        "aggregate_jpeg_scan_data_bytes": (
+                            aggregate_jpeg_scan_data_bytes
+                        ),
+                        "aggregate_jpeg_stuffed_ff_bytes": (
+                            aggregate_jpeg_stuffed_ff_bytes
+                        ),
+                        "aggregate_jpeg_restart_intervals": (
+                            aggregate_jpeg_restart_intervals
+                        ),
+                        "aggregate_jpeg_restart_markers": (
+                            aggregate_jpeg_restart_markers
+                        ),
+                        "aggregate_jpeg_chroma_modes": aggregate_jpeg_chroma_modes,
+                        "aggregate_jpeg_marker_names": aggregate_jpeg_marker_names,
+                        "aggregate_jpeg_scan_data_sha256_values": (
+                            aggregate_jpeg_scan_data_sha256_values
+                        ),
+                        "aggregate_jpeg_sha256_values": aggregate_jpeg_sha256_values,
+                        "aggregate_decoder_passed_values": (
+                            aggregate_decoder_passed_values
+                        ),
+                        "aggregate_decoder_returncodes": aggregate_decoder_returncodes,
+                        "aggregate_decoder_timeout_seconds": (
+                            aggregate_decoder_timeout_seconds
+                        ),
+                        "aggregate_decoder_elapsed_seconds": (
+                            aggregate_decoder_elapsed_seconds
+                        ),
+                        "aggregate_decoder_stdout_chars": (
+                            aggregate_decoder_stdout_chars
+                        ),
+                        "aggregate_decoder_stderr_chars": (
+                            aggregate_decoder_stderr_chars
+                        ),
+                        "aggregate_decoder_stdout_truncated_values": (
+                            aggregate_decoder_stdout_truncated_values
+                        ),
+                        "aggregate_decoder_stderr_truncated_values": (
+                            aggregate_decoder_stderr_truncated_values
                         ),
                         "aggregate_jpeg_path_count": len(aggregate_jpeg_paths),
                         "aggregate_input_rgb_path_count": len(

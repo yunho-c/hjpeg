@@ -3702,6 +3702,7 @@ class HjpegHostTest(unittest.TestCase):
             path.write_text(json.dumps(complete_run_evidence_record(root)))
 
             record, failures = hjpeg_host.check_run_evidence_file(path)
+            expected_info = minimal_jpeg_info(width=2, height=1)
 
             self.assertEqual(failures, [])
             self.assertTrue(record["passed"])
@@ -3811,6 +3812,46 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["input_ppm_packed_rgb_matches_input"])
             self.assertTrue(record["input_ppm_non_flat"])
             self.assertTrue(record["input_ppm_has_color_pixels"])
+            self.assertEqual(record["jpeg_byte_length"], expected_info.byte_length)
+            self.assertEqual(record["jpeg_mcu_count"], expected_info.mcu_count)
+            self.assertEqual(record["jpeg_component_count"], 3)
+            self.assertEqual(
+                record["jpeg_scan_data_bytes"], expected_info.scan_data_bytes
+            )
+            self.assertEqual(
+                record["jpeg_scan_data_sha256"], expected_info.scan_data_sha256
+            )
+            self.assertEqual(
+                record["jpeg_stuffed_ff_bytes"], expected_info.stuffed_ff_bytes
+            )
+            self.assertEqual(record["jpeg_chroma_mode"], "4:4:4")
+            self.assertEqual(record["jpeg_app0_segments"], 1)
+            self.assertEqual(record["jpeg_jfif_app0_segments"], 1)
+            self.assertEqual(record["jpeg_dqt_segments"], 2)
+            self.assertEqual(record["jpeg_sof0_segments"], 1)
+            self.assertEqual(record["jpeg_dht_segments"], 4)
+            self.assertEqual(record["jpeg_sos_segments"], 1)
+            self.assertEqual(record["jpeg_dri_segments"], 0)
+            self.assertEqual(record["jpeg_restart_markers"], 0)
+            self.assertEqual(
+                record["jpeg_marker_sequence"], list(expected_info.marker_sequence)
+            )
+            self.assertEqual(record["jpeg_restart_marker_sequence"], [])
+            self.assertEqual(
+                record["decoder_argv"], ["decoder", str(root / "output.jpg")]
+            )
+            self.assertTrue(record["decoder_passed"])
+            self.assertEqual(record["decoder_timeout_seconds"], 1.0)
+            self.assertEqual(record["decoder_returncode"], 0)
+            self.assertEqual(record["decoder_elapsed_seconds"], 0.01)
+            self.assertEqual(record["decoder_stdout_chars"], len("decoded\n"))
+            self.assertEqual(record["decoder_stderr_chars"], 0)
+            self.assertEqual(
+                record["decoder_output_capture_chars"],
+                hjpeg_host.DECODER_OUTPUT_CAPTURE_CHARS,
+            )
+            self.assertFalse(record["decoder_stdout_truncated"])
+            self.assertFalse(record["decoder_stderr_truncated"])
             self.assertEqual(record["decoder_command"], "decoder {jpeg}")
 
     def test_check_run_evidence_file_matches_vivado_address_map(self) -> None:
@@ -4719,6 +4760,7 @@ class HjpegHostTest(unittest.TestCase):
                 )
 
             record = json.loads(stdout.getvalue())
+            expected_info = minimal_jpeg_info(width=2, height=1)
             self.assertFalse(record["passed"])
             self.assertEqual(record["checked_count"], 4)
             self.assertEqual(record["passed_count"], 1)
@@ -4962,6 +5004,67 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(
                 record["aggregate_input_ppm_has_color_pixels_values"], [True]
             )
+            self.assertEqual(record["aggregate_jpeg_byte_length_count"], 1)
+            self.assertEqual(record["aggregate_jpeg_mcu_count_count"], 1)
+            self.assertEqual(record["aggregate_jpeg_component_count_count"], 1)
+            self.assertEqual(record["aggregate_jpeg_scan_data_byte_count"], 1)
+            self.assertEqual(record["aggregate_jpeg_stuffed_ff_byte_count"], 1)
+            self.assertEqual(record["aggregate_jpeg_restart_marker_count"], 1)
+            self.assertEqual(record["aggregate_jpeg_chroma_mode_count"], 1)
+            self.assertEqual(record["aggregate_jpeg_marker_name_count"], 7)
+            self.assertEqual(record["aggregate_jpeg_scan_data_sha256_count"], 1)
+            self.assertEqual(record["aggregate_jpeg_sha256_count"], 1)
+            self.assertEqual(record["aggregate_decoder_passed_value_count"], 1)
+            self.assertEqual(record["aggregate_decoder_returncode_count"], 1)
+            self.assertEqual(record["aggregate_decoder_timeout_second_count"], 1)
+            self.assertEqual(record["aggregate_decoder_elapsed_second_count"], 1)
+            self.assertEqual(record["aggregate_decoder_stdout_char_count"], 1)
+            self.assertEqual(record["aggregate_decoder_stderr_char_count"], 1)
+            self.assertEqual(record["aggregate_decoder_stdout_truncated_count"], 1)
+            self.assertEqual(record["aggregate_decoder_stderr_truncated_count"], 1)
+            self.assertEqual(
+                record["aggregate_jpeg_byte_lengths"], [expected_info.byte_length]
+            )
+            self.assertEqual(
+                record["aggregate_jpeg_mcu_counts"], [expected_info.mcu_count]
+            )
+            self.assertEqual(record["aggregate_jpeg_component_counts"], [3])
+            self.assertEqual(
+                record["aggregate_jpeg_scan_data_bytes"],
+                [expected_info.scan_data_bytes],
+            )
+            self.assertEqual(
+                record["aggregate_jpeg_stuffed_ff_bytes"],
+                [expected_info.stuffed_ff_bytes],
+            )
+            self.assertEqual(record["aggregate_jpeg_restart_markers"], [0])
+            self.assertEqual(record["aggregate_jpeg_chroma_modes"], ["4:4:4"])
+            self.assertEqual(
+                record["aggregate_jpeg_marker_names"],
+                ["SOI", "APP0", "DQT", "SOF0", "DHT", "SOS", "EOI"],
+            )
+            self.assertEqual(
+                record["aggregate_jpeg_scan_data_sha256_values"],
+                [expected_info.scan_data_sha256],
+            )
+            self.assertEqual(
+                record["aggregate_jpeg_sha256_values"],
+                [expected_info.sha256],
+            )
+            self.assertEqual(record["aggregate_decoder_passed_values"], [True])
+            self.assertEqual(record["aggregate_decoder_returncodes"], [0])
+            self.assertEqual(record["aggregate_decoder_timeout_seconds"], [1.0])
+            self.assertEqual(record["aggregate_decoder_elapsed_seconds"], [0.01])
+            self.assertEqual(
+                record["aggregate_decoder_stdout_chars"], [len("decoded\n")]
+            )
+            self.assertEqual(record["aggregate_decoder_stderr_chars"], [0])
+            self.assertEqual(
+                record["aggregate_decoder_stdout_truncated_values"], [False]
+            )
+            self.assertEqual(
+                record["aggregate_decoder_stderr_truncated_values"], [False]
+            )
             self.assertEqual(record["aggregate_jpeg_path_count"], 1)
             self.assertEqual(record["aggregate_input_rgb_path_count"], 1)
             self.assertEqual(record["aggregate_input_ppm_path_count"], 1)
@@ -5048,6 +5151,23 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertTrue(record["records"][0]["input_ppm_non_flat"])
             self.assertTrue(record["records"][0]["input_ppm_has_color_pixels"])
+            self.assertEqual(
+                record["records"][0]["jpeg_byte_length"], expected_info.byte_length
+            )
+            self.assertEqual(
+                record["records"][0]["jpeg_mcu_count"], expected_info.mcu_count
+            )
+            self.assertEqual(
+                record["records"][0]["jpeg_scan_data_bytes"],
+                expected_info.scan_data_bytes,
+            )
+            self.assertEqual(
+                record["records"][0]["jpeg_marker_sequence"],
+                list(expected_info.marker_sequence),
+            )
+            self.assertTrue(record["records"][0]["decoder_passed"])
+            self.assertEqual(record["records"][0]["decoder_returncode"], 0)
+            self.assertEqual(record["records"][0]["decoder_timeout_seconds"], 1.0)
             self.assertEqual(record["records"][0]["jpeg"], str(root / "output.jpg"))
             self.assertEqual(
                 record["records"][0]["input_rgb"], str(root / "input.rgb")

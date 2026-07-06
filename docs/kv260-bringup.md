@@ -376,7 +376,8 @@ Expected evidence:
   aggregate frame dimensions, encoder configuration values, and validation
   expectation values, aggregate status-check context/flag values and host
   transfer rates, aggregate capture/input byte-count and source-image values,
-  aggregate JPEG/input artifact path and decoder-command inventories, Vivado
+  aggregate JPEG structure/hash values and decoder result values, aggregate
+  JPEG/input artifact path and decoder-command inventories, Vivado
   checked/passed/failed evidence path lists,
   parsed HJPEG base addresses, HJPEG base-address count and consistency flag,
   plus the recomputed summary, evidence/check counts, missing evidence groups,
