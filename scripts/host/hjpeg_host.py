@@ -2949,6 +2949,33 @@ def check_run_evidence_record(
         control_hex = encoder_config.get("control_hex")
         if isinstance(control_hex, str):
             result["encoder_control_hex"] = control_hex
+    validation_expectations = record.get("validation_expectations")
+    if isinstance(validation_expectations, dict):
+        for source_key, result_key in (
+            ("width", "validation_width"),
+            ("height", "validation_height"),
+            ("restart_interval", "validation_restart_interval"),
+            ("expected_restart_markers", "validation_expected_restart_markers"),
+            ("quality", "validation_quality"),
+        ):
+            value = validation_expectations.get(source_key)
+            if is_strict_int(value):
+                result[result_key] = int(value)
+        for source_key, result_key in (
+            ("check_chroma_mode", "validation_check_chroma_mode"),
+            ("chroma_subsample", "validation_chroma_subsample"),
+            ("require_standard_huffman", "validation_require_standard_huffman"),
+        ):
+            value = validation_expectations.get(source_key)
+            if isinstance(value, bool):
+                result[result_key] = value
+        for source_key, result_key in (
+            ("expected_chroma_mode", "validation_expected_chroma_mode"),
+            ("expect_jfif", "validation_expect_jfif"),
+        ):
+            value = validation_expectations.get(source_key)
+            if isinstance(value, str):
+                result[result_key] = value
     stream_devices = record.get("stream_devices")
     if isinstance(stream_devices, dict):
         stream_tx_device = stream_devices.get("tx_device")
@@ -4726,6 +4753,32 @@ def main(argv: list[str] | None = None) -> int:
         aggregate_encoder_clear_error_values = unique_bool_values(
             records, "encoder_clear_error"
         )
+        aggregate_validation_widths = unique_int_values(records, "validation_width")
+        aggregate_validation_heights = unique_int_values(records, "validation_height")
+        aggregate_validation_restart_intervals = unique_int_values(
+            records, "validation_restart_interval"
+        )
+        aggregate_validation_expected_restart_markers = unique_int_values(
+            records, "validation_expected_restart_markers"
+        )
+        aggregate_validation_qualities = unique_int_values(
+            records, "validation_quality"
+        )
+        aggregate_validation_check_chroma_mode_values = unique_bool_values(
+            records, "validation_check_chroma_mode"
+        )
+        aggregate_validation_chroma_subsample_values = unique_bool_values(
+            records, "validation_chroma_subsample"
+        )
+        aggregate_validation_require_standard_huffman_values = unique_bool_values(
+            records, "validation_require_standard_huffman"
+        )
+        aggregate_validation_expected_chroma_modes = unique_scalar_string_values(
+            records, "validation_expected_chroma_mode"
+        )
+        aggregate_validation_expect_jfif_values = unique_scalar_string_values(
+            records, "validation_expect_jfif"
+        )
         aggregate_jpeg_paths = unique_scalar_string_values(records, "jpeg")
         aggregate_input_rgb_paths = unique_scalar_string_values(records, "input_rgb")
         aggregate_input_ppm_paths = unique_scalar_string_values(records, "input_ppm")
@@ -4855,6 +4908,36 @@ def main(argv: list[str] | None = None) -> int:
                         "aggregate_encoder_clear_error_count": len(
                             aggregate_encoder_clear_error_values
                         ),
+                        "aggregate_validation_width_count": len(
+                            aggregate_validation_widths
+                        ),
+                        "aggregate_validation_height_count": len(
+                            aggregate_validation_heights
+                        ),
+                        "aggregate_validation_restart_interval_count": len(
+                            aggregate_validation_restart_intervals
+                        ),
+                        "aggregate_validation_expected_restart_marker_count": len(
+                            aggregate_validation_expected_restart_markers
+                        ),
+                        "aggregate_validation_quality_count": len(
+                            aggregate_validation_qualities
+                        ),
+                        "aggregate_validation_check_chroma_mode_count": len(
+                            aggregate_validation_check_chroma_mode_values
+                        ),
+                        "aggregate_validation_chroma_subsample_count": len(
+                            aggregate_validation_chroma_subsample_values
+                        ),
+                        "aggregate_validation_require_standard_huffman_count": len(
+                            aggregate_validation_require_standard_huffman_values
+                        ),
+                        "aggregate_validation_expected_chroma_mode_count": len(
+                            aggregate_validation_expected_chroma_modes
+                        ),
+                        "aggregate_validation_expect_jfif_count": len(
+                            aggregate_validation_expect_jfif_values
+                        ),
                         "aggregate_frame_widths": aggregate_frame_widths,
                         "aggregate_frame_heights": aggregate_frame_heights,
                         "aggregate_encoder_widths": aggregate_encoder_widths,
@@ -4881,6 +4964,32 @@ def main(argv: list[str] | None = None) -> int:
                         ),
                         "aggregate_encoder_clear_error_values": (
                             aggregate_encoder_clear_error_values
+                        ),
+                        "aggregate_validation_widths": aggregate_validation_widths,
+                        "aggregate_validation_heights": aggregate_validation_heights,
+                        "aggregate_validation_restart_intervals": (
+                            aggregate_validation_restart_intervals
+                        ),
+                        "aggregate_validation_expected_restart_markers": (
+                            aggregate_validation_expected_restart_markers
+                        ),
+                        "aggregate_validation_qualities": (
+                            aggregate_validation_qualities
+                        ),
+                        "aggregate_validation_check_chroma_mode_values": (
+                            aggregate_validation_check_chroma_mode_values
+                        ),
+                        "aggregate_validation_chroma_subsample_values": (
+                            aggregate_validation_chroma_subsample_values
+                        ),
+                        "aggregate_validation_require_standard_huffman_values": (
+                            aggregate_validation_require_standard_huffman_values
+                        ),
+                        "aggregate_validation_expected_chroma_modes": (
+                            aggregate_validation_expected_chroma_modes
+                        ),
+                        "aggregate_validation_expect_jfif_values": (
+                            aggregate_validation_expect_jfif_values
                         ),
                         "aggregate_jpeg_path_count": len(aggregate_jpeg_paths),
                         "aggregate_input_rgb_path_count": len(

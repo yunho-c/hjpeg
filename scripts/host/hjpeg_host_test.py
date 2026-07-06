@@ -3769,6 +3769,16 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(record["encoder_chroma_subsample"])
             self.assertTrue(record["encoder_emit_jfif"])
             self.assertFalse(record["encoder_clear_error"])
+            self.assertEqual(record["validation_width"], 2)
+            self.assertEqual(record["validation_height"], 1)
+            self.assertEqual(record["validation_restart_interval"], 0)
+            self.assertEqual(record["validation_expected_restart_markers"], 0)
+            self.assertEqual(record["validation_quality"], 50)
+            self.assertTrue(record["validation_check_chroma_mode"])
+            self.assertFalse(record["validation_chroma_subsample"])
+            self.assertTrue(record["validation_require_standard_huffman"])
+            self.assertEqual(record["validation_expected_chroma_mode"], "4:4:4")
+            self.assertEqual(record["validation_expect_jfif"], "present")
             self.assertEqual(record["jpeg"], str(root / "output.jpg"))
             self.assertEqual(record["input_rgb"], str(root / "input.rgb"))
             self.assertEqual(record["input_ppm"], str(root / "input.ppm"))
@@ -4796,6 +4806,45 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertEqual(record["aggregate_encoder_emit_jfif_values"], [True])
             self.assertEqual(record["aggregate_encoder_clear_error_values"], [False])
+            self.assertEqual(record["aggregate_validation_width_count"], 1)
+            self.assertEqual(record["aggregate_validation_height_count"], 1)
+            self.assertEqual(record["aggregate_validation_restart_interval_count"], 1)
+            self.assertEqual(
+                record["aggregate_validation_expected_restart_marker_count"], 1
+            )
+            self.assertEqual(record["aggregate_validation_quality_count"], 1)
+            self.assertEqual(record["aggregate_validation_check_chroma_mode_count"], 1)
+            self.assertEqual(record["aggregate_validation_chroma_subsample_count"], 1)
+            self.assertEqual(
+                record["aggregate_validation_require_standard_huffman_count"], 1
+            )
+            self.assertEqual(
+                record["aggregate_validation_expected_chroma_mode_count"], 1
+            )
+            self.assertEqual(record["aggregate_validation_expect_jfif_count"], 1)
+            self.assertEqual(record["aggregate_validation_widths"], [2])
+            self.assertEqual(record["aggregate_validation_heights"], [1])
+            self.assertEqual(record["aggregate_validation_restart_intervals"], [0])
+            self.assertEqual(
+                record["aggregate_validation_expected_restart_markers"], [0]
+            )
+            self.assertEqual(record["aggregate_validation_qualities"], [50])
+            self.assertEqual(
+                record["aggregate_validation_check_chroma_mode_values"], [True]
+            )
+            self.assertEqual(
+                record["aggregate_validation_chroma_subsample_values"], [False]
+            )
+            self.assertEqual(
+                record["aggregate_validation_require_standard_huffman_values"],
+                [True],
+            )
+            self.assertEqual(
+                record["aggregate_validation_expected_chroma_modes"], ["4:4:4"]
+            )
+            self.assertEqual(
+                record["aggregate_validation_expect_jfif_values"], ["present"]
+            )
             self.assertEqual(record["aggregate_jpeg_path_count"], 1)
             self.assertEqual(record["aggregate_input_rgb_path_count"], 1)
             self.assertEqual(record["aggregate_input_ppm_path_count"], 1)
@@ -4838,6 +4887,16 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertFalse(record["records"][0]["encoder_chroma_subsample"])
             self.assertTrue(record["records"][0]["encoder_emit_jfif"])
+            self.assertEqual(record["records"][0]["validation_width"], 2)
+            self.assertEqual(record["records"][0]["validation_height"], 1)
+            self.assertEqual(
+                record["records"][0]["validation_restart_interval"], 0
+            )
+            self.assertEqual(record["records"][0]["validation_quality"], 50)
+            self.assertEqual(
+                record["records"][0]["validation_expected_chroma_mode"], "4:4:4"
+            )
+            self.assertEqual(record["records"][0]["validation_expect_jfif"], "present")
             self.assertEqual(record["records"][0]["jpeg"], str(root / "output.jpg"))
             self.assertEqual(
                 record["records"][0]["input_rgb"], str(root / "input.rgb")
