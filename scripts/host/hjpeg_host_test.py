@@ -110,6 +110,7 @@ EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES = [
     "validation_sos_spectral_matches",
     "validation_requires_standard_huffman",
     "validation_quality_valid",
+    "validation_restart_interval_valid",
     "validation_restart_marker_count_matches",
     "validation_restart_marker_sequence_matches",
     "validation_marker_counts_match",
@@ -2846,6 +2847,7 @@ class HjpegHostTest(unittest.TestCase):
         self.assertTrue(valid_summary["checks"]["validation_sos_spectral_matches"])
         self.assertTrue(valid_summary["checks"]["validation_requires_standard_huffman"])
         self.assertTrue(valid_summary["checks"]["validation_quality_valid"])
+        self.assertTrue(valid_summary["checks"]["validation_restart_interval_valid"])
 
     def test_hardware_summary_requires_strict_validation_booleans(self) -> None:
         record = {
@@ -2892,6 +2894,34 @@ class HjpegHostTest(unittest.TestCase):
                 self.assertFalse(summary["evidence_present"]["validation_expectations"])
                 self.assertFalse(summary["all_recorded_checks_passed"])
                 self.assertFalse(summary["checks"]["validation_quality_valid"])
+
+    def test_hardware_summary_requires_strict_validation_restart_interval(self) -> None:
+        for restart_interval in (True, -1, 0x10000):
+            with self.subTest(restart_interval=restart_interval):
+                record = {
+                    "validation_expectations": hjpeg_host.validation_expectations_record(
+                        minimal_jpeg_info(width=2, height=1),
+                        width=2,
+                        height=1,
+                        restart_interval=0,
+                        check_chroma_mode=True,
+                        chroma_subsample=False,
+                        expect_jfif="present",
+                        quality=80,
+                        require_standard_huffman=True,
+                    )
+                }
+                record["validation_expectations"][
+                    "restart_interval"
+                ] = restart_interval
+
+                summary = hjpeg_host.hardware_run_summary_record(record)
+
+                self.assertFalse(summary["evidence_present"]["validation_expectations"])
+                self.assertFalse(summary["all_recorded_checks_passed"])
+                self.assertFalse(
+                    summary["checks"]["validation_restart_interval_valid"]
+                )
 
     def test_run_evidence_record_summarizes_status_checks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -4409,8 +4439,8 @@ class HjpegHostTest(unittest.TestCase):
                 record["recorded_check_names"],
                 list(evidence["hardware_run_summary"]["checks"].keys()),
             )
-            self.assertEqual(record["recorded_check_count"], 95)
-            self.assertEqual(record["passing_check_count"], 95)
+            self.assertEqual(record["recorded_check_count"], 96)
+            self.assertEqual(record["passing_check_count"], 96)
             self.assertEqual(
                 record["passing_checks"],
                 list(evidence["hardware_run_summary"]["checks"].keys()),
@@ -5275,7 +5305,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["aggregate_evidence_group_count"], 22)
             self.assertEqual(record["aggregate_evidence_present_count"], 11)
             self.assertEqual(record["aggregate_evidence_missing_count"], 11)
-            self.assertEqual(record["aggregate_recorded_check_count"], 141)
+            self.assertEqual(record["aggregate_recorded_check_count"], 142)
             self.assertEqual(
                 record["aggregate_passing_check_count"],
                 len(EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES),
@@ -9339,6 +9369,7 @@ class HjpegHostTest(unittest.TestCase):
                         "validation_sos_spectral_matches": True,
                         "validation_requires_standard_huffman": True,
                         "validation_quality_valid": True,
+                        "validation_restart_interval_valid": True,
                         "validation_restart_marker_count_matches": True,
                         "validation_restart_marker_sequence_matches": True,
                         "validation_marker_counts_match": True,

@@ -1942,6 +1942,11 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         validation_quality_valid = expected_quality is None or (
             is_strict_int(expected_quality) and 1 <= expected_quality <= 100
         )
+        expected_restart_interval = validation_expectations.get("restart_interval")
+        validation_restart_interval_valid = expected_restart_interval is None or (
+            is_strict_int(expected_restart_interval)
+            and 0 <= expected_restart_interval <= 0xFFFF
+        )
         expected_restart_markers = validation_expectations.get(
             "expected_restart_markers"
         )
@@ -2143,6 +2148,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and validation_sos_spectral_matches
             and validation_requires_standard_huffman
             and validation_quality_valid
+            and validation_restart_interval_valid
             and validation_restart_marker_count_matches
             and validation_restart_marker_sequence_matches
             and validation_marker_counts_match
@@ -2168,6 +2174,9 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             validation_requires_standard_huffman
         )
         checks["validation_quality_valid"] = validation_quality_valid
+        checks["validation_restart_interval_valid"] = (
+            validation_restart_interval_valid
+        )
         checks["validation_restart_marker_count_matches"] = (
             validation_restart_marker_count_matches
         )

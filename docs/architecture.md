@@ -279,7 +279,9 @@ in range, boolean control flags, and a control word/hex string matching those
 flags. Validation expectations evidence must include the baseline shape, marker
 order, marker counts, restart marker count/sequence when applicable, table
 order, SOS spectral fields, standard-Huffman requirement, and a validation
-quality value that is either absent or an actual JSON integer in `1..100`.
+quality value that is either absent or an actual JSON integer in `1..100`,
+plus a validation restart interval that is either absent or an actual JSON
+integer in `0..65535`.
 Source PPM evidence must include a nonempty path and resolved path, file and packed-RGB SHA-256 hex hashes,
 positive dimension-consistent RGB and packed byte lengths, a recomputed input-RGB
 length/hash match, and
