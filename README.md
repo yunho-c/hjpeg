@@ -171,7 +171,7 @@ python3 scripts/vivado/check_reports.py \
   --require-complete-evidence
 ```
 
-Add `--json` to include artifact/report paths, byte lengths, SHA-256 hex hashes,
+Add `--json` to include artifact/report paths, resolved paths, byte lengths, SHA-256 hex hashes,
 parsed setup WNS and hold WHS values, utilization rows, thresholds, and
 target clock period/frequency, DRC violations, route-status counts, required
 clock-utilization report hashes, floorplan pblock/placed-cell counts, parsed
@@ -206,7 +206,7 @@ and passing, plus the named address-map, timing/utilization/implementation, and
 floorplan reports. Complete Vivado evidence also requires the generated
 diagnostic summary to be valid, required route-status counts to be present and
 zero, address-map hexadecimal fields to match parsed numeric addresses, passing
-required records to carry nonempty file metadata and SHA-256 hashes, and the
+required records to carry nonempty path/resolved-path file metadata and SHA-256 hashes, and the
 floorplan record to include a positive placed-cell count.
 Complete Vivado evidence counts only records whose `passed` field is an actual
 JSON boolean `true`. Use

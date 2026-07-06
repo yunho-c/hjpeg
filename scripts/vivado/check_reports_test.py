@@ -1048,6 +1048,12 @@ class CheckReportsTest(unittest.TestCase):
             for category in check_reports.REQUIRED_EVIDENCE_CATEGORIES:
                 self.assertGreaterEqual(len(record[category]), 1)
                 for item in record[category]:
+                    self.assertIsInstance(item.get("path"), str)
+                    self.assertIsInstance(item.get("path_resolved"), str)
+                    self.assertEqual(
+                        item["path_resolved"],
+                        str(Path(item["path"]).resolve(strict=False)),
+                    )
                     if item["passed"]:
                         sha256 = item.get("sha256")
                         self.assertIsInstance(sha256, str)
@@ -2082,13 +2088,25 @@ class CheckReportsTest(unittest.TestCase):
             self.assertFalse(record["passed"])
             self.assertFalse(record["timing"][0]["exists"])
             self.assertFalse(record["timing"][0]["passed"])
+            self.assertEqual(
+                record["timing"][0]["path_resolved"],
+                str(missing_timing.resolve(strict=False)),
+            )
             self.assertEqual(record["timing"][0]["min_wns_ns"], 0.0)
             self.assertFalse(record["timing"][0]["check_whs"])
             self.assertFalse(record["utilization"][0]["exists"])
             self.assertFalse(record["utilization"][0]["passed"])
+            self.assertEqual(
+                record["utilization"][0]["path_resolved"],
+                str(missing_utilization.resolve(strict=False)),
+            )
             self.assertEqual(record["utilization"][0]["rows"], [])
             self.assertFalse(record["clock_utilization"][0]["exists"])
             self.assertFalse(record["clock_utilization"][0]["passed"])
+            self.assertEqual(
+                record["clock_utilization"][0]["path_resolved"],
+                str(missing_clock_utilization.resolve(strict=False)),
+            )
             self.assertTrue(any("timing report not found" in failure for failure in record["failures"]))
             self.assertTrue(
                 any("utilization report not found" in failure for failure in record["failures"])

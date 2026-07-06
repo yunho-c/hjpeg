@@ -132,7 +132,7 @@ Pass criteria:
 - `check_reports.py` exits successfully for the generated timing, utilization,
   DRC, route-status, clock-utilization, floorplan, and address-map reports, with
   hold timing gated on the post-implementation timing report.
-- The JSON evidence records artifact/report paths, byte lengths, SHA-256 hex
+- The JSON evidence records artifact/report paths, resolved paths, byte lengths, SHA-256 hex
   hashes, target clock period/frequency, parsed setup WNS and hold WHS values,
   utilization rows, thresholds, DRC violations, route-status counts plus the
   required and missing route-status count names, required clock-utilization
@@ -170,7 +170,8 @@ Pass criteria:
   must include a positive placed-cell count. The complete-evidence flag also
   requires a valid diagnostic summary, required route-status counts present and
   zero, address-map hexadecimal fields matching parsed numeric addresses, and
-  nonempty file metadata plus SHA-256 hashes on passing required records.
+  nonempty path/resolved-path file metadata plus SHA-256 hashes on passing
+  required records.
   `all_required_present` requires at least one passing record in each required
   category, not just a requested input path. Complete Vivado evidence counts only
   records whose `passed` field is an actual JSON boolean `true`. Missing,

@@ -494,16 +494,28 @@ def check_floorplan(path: Path) -> list[str]:
 def _file_record(path: Path, data: bytes) -> dict[str, object]:
     return {
         "path": str(path),
+        "path_resolved": str(path.resolve(strict=False)),
         "byte_length": len(data),
         "sha256": hashlib.sha256(data).hexdigest(),
     }
 
 
+def _path_record(path: Path) -> dict[str, object]:
+    return {
+        "path": str(path),
+        "path_resolved": str(path.resolve(strict=False)),
+    }
+
+
 def artifact_record(path: Path) -> tuple[dict[str, object], list[str]]:
     if not path.exists():
-        return {"path": str(path), "exists": False, "passed": False}, [f"{path}: artifact not found"]
+        record = _path_record(path)
+        record.update({"exists": False, "passed": False})
+        return record, [f"{path}: artifact not found"]
     if not path.is_file():
-        return {"path": str(path), "exists": True, "passed": False}, [f"{path}: artifact is not a file"]
+        record = _path_record(path)
+        record.update({"exists": True, "passed": False})
+        return record, [f"{path}: artifact is not a file"]
 
     data = path.read_bytes()
     record = _file_record(path, data)
@@ -530,13 +542,17 @@ def evidence_file_record(path: Path, report_kind: str) -> tuple[dict[str, object
 
 def missing_report_record(path: Path, report_kind: str) -> tuple[dict[str, object], list[str]] | None:
     if not path.exists():
+        record = _path_record(path)
+        record.update({"exists": False, "passed": False})
         return (
-            {"path": str(path), "exists": False, "passed": False},
+            record,
             [f"{path}: {report_kind} report not found"],
         )
     if not path.is_file():
+        record = _path_record(path)
+        record.update({"exists": True, "passed": False})
         return (
-            {"path": str(path), "exists": True, "passed": False},
+            record,
             [f"{path}: {report_kind} report is not a file"],
         )
     return None
@@ -1209,6 +1225,10 @@ def record_hashes_present(
             sha256 = record.get("sha256")
             if (
                 record.get("exists") is not True
+                or not isinstance(record.get("path"), str)
+                or not record["path"]
+                or not isinstance(record.get("path_resolved"), str)
+                or not record["path_resolved"]
                 or type(record.get("byte_length")) is not int
                 or record["byte_length"] <= 0
                 or not isinstance(sha256, str)

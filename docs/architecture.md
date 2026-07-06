@@ -138,7 +138,7 @@ hardware-tool entry points:
   `axi_dma_0/S_AXI_LITE` base addresses, duplicates one of those control
   interfaces, overlaps their address ranges, or reports a high address below
   its base address. Its `--json` mode emits
-  artifact/report SHA-256 hex hashes, byte lengths, target clock
+  artifact/report paths, resolved paths, SHA-256 hex hashes, byte lengths, target clock
   period/frequency, parsed WNS/WHS values, utilization rows, thresholds, DRC
   violations, route-status counts, clock-utilization report hashes, floorplan
   pblock/placed-cell counts, parsed address-map AXI-Lite aperture base/high addresses and byte ranges, missing,
@@ -333,9 +333,9 @@ complete-evidence missing/failing lists matching nested evidence summaries,
 zero diagnostic
 failures and failed paths in the Vivado summary, checked paths matching passed
 paths, positive per-category checked counts whose sum matches the total checked
-count and match the per-category pass/fail totals, `exists: true`, positive
-byte lengths, and well-formed SHA-256 hex hashes on passing records in every
-required evidence category, a floorplan record with a positive placed-cell
+count and match the per-category pass/fail totals, nonempty path/resolved-path
+file metadata, `exists: true`, positive byte lengths, and well-formed SHA-256
+hex hashes on passing records in every required evidence category, a floorplan record with a positive placed-cell
 count, and a passing route-status
 record with zero unrouted nets and zero nets with routing errors. It fails run transcripts whose
 AXI-Lite base address does not match the Vivado build evidence, or whose

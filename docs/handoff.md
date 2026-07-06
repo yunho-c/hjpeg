@@ -467,7 +467,7 @@ custom RTL elaboration with different `HjpegConfig` frame limits.
 The Vivado report checker supports `--json` plus repeated `--artifact`
 arguments so the bitstream, XSA, timing reports, utilization reports, DRC
 reports, route-status reports, clock-utilization reports, floorplan reports, and address-map
-reports can be recorded with byte lengths, hashes, target clock
+reports can be recorded with paths, resolved paths, byte lengths, hashes, target clock
 period/frequency, parsed setup WNS and hold WHS, utilization rows, DRC
 violations, route-status counts, thresholds, parsed address-map AXI-Lite
 aperture base/high addresses and byte ranges for `hjpeg_0/s_axi_lite` and
@@ -505,9 +505,9 @@ booleans set to true. The host saved-run checker rejects Vivado evidence whose
 structured clock target is missing, tampered, or inconsistent with the
 top-level clock fields. The Vivado checker's complete-evidence flag also gates
 on a valid diagnostic summary, required route-status counts present and zero,
-address-map hexadecimal fields matching parsed numeric addresses, nonempty file
-metadata plus SHA-256 hashes on passing required records, and positive
-floorplan placed-cell evidence.
+address-map hexadecimal fields matching parsed numeric addresses, nonempty
+path/resolved-path file metadata plus SHA-256 hashes on passing required
+records, and positive floorplan placed-cell evidence.
 `all_required_present` requires at least one passing record in each required
 category, not just a requested input path. Complete Vivado evidence counts only
 records whose `passed` field is an actual JSON boolean `true`. Missing,
