@@ -2307,7 +2307,11 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         input_ppm_rgb_bytes = input_ppm.get("rgb_bytes")
         input_ppm_packed_rgb_byte_length = input_ppm.get("packed_rgb_byte_length")
         input_ppm_packed_rgb_sha256 = input_ppm.get("packed_rgb_sha256")
-        input_ppm_matches = input_ppm["packed_rgb_matches_input"] is True
+        input_ppm_matches_flag = input_ppm.get("packed_rgb_matches_input")
+        input_ppm_matches_input_flag_present = isinstance(
+            input_ppm_matches_flag, bool
+        )
+        input_ppm_matches = input_ppm_matches_flag is True
         input_ppm_path_present = (
             isinstance(input_ppm_path, str) and len(input_ppm_path) > 0
         )
@@ -2356,6 +2360,9 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
                 input_ppm_matches == input_ppm_matches_input_derived
             )
         checks["input_ppm_matches_input"] = input_ppm_matches
+        checks["input_ppm_matches_input_flag_present"] = (
+            input_ppm_matches_input_flag_present
+        )
         checks["input_ppm_matches_input_flag_matches"] = (
             input_ppm_matches_input_flag_matches
         )
@@ -2397,6 +2404,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and input_ppm_packed_rgb_byte_length_positive
             and input_ppm_packed_rgb_length_matches_dimensions
             and input_ppm_packed_rgb_sha256_present
+            and input_ppm_matches_input_flag_present
             and input_ppm_matches_input_flag_matches
             and input_ppm_non_flat
             and input_ppm_has_color_pixels

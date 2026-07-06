@@ -811,7 +811,7 @@ Hardware completion evidence should include:
   order, SOS spectral fields, and standard-Huffman requirement.
   Source PPM evidence must include a nonempty path, file and packed-RGB SHA-256 hex hashes,
   positive dimension-consistent RGB and packed byte lengths, a recomputed input-RGB
-  length/hash match, and
+  length/hash match with a boolean packed-RGB match flag, and
   non-flat/color image stats. Status evidence must include the detailed
   checkpoint list, matching checkpoint count, expected ordered contexts,
   per-checkpoint AXI-Lite targets matching the run target, zero raw status
