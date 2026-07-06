@@ -303,13 +303,14 @@ complete-evidence checks failed. Saved
 run JSON can be checked later with
 `check-run-evidence`, which fails on malformed JSON, missing
 `hardware_run_summary`, a stored summary that does not match recomputed
-evidence, a missing or stale top-level `complete_hardware_run_evidence` flag,
-failed recorded checks, or incomplete hardware evidence. With
+evidence, missing or non-boolean top-level `complete_hardware_run_evidence`
+gates, failed recorded checks, or incomplete hardware evidence. With
 `--vivado-evidence`, the saved-run checker also parses `check_reports.py --json`
 Vivado evidence, extracts passing `hjpeg_0/s_axi_lite` address-map base
-addresses, and requires the Vivado transcript to have `passed`,
-`complete_vivado_flow_evidence`, `complete_vivado_flow_evidence_required`, an
-`arguments.require_complete_evidence` value of true, the required `.bit`, `.xsa`,
+addresses, and requires the Vivado transcript to have JSON boolean `true` values
+for `passed`, `complete_vivado_flow_evidence`,
+`complete_vivado_flow_evidence_required`, and
+`arguments.require_complete_evidence`, the required `.bit`, `.xsa`,
 and `.dcp` artifact suffix evidence, and the required
 `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`,
 `post_impl.dcp`, `hjpeg_kv260_address_map.rpt`,
