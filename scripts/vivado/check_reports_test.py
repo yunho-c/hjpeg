@@ -864,6 +864,19 @@ class CheckReportsTest(unittest.TestCase):
             )
             self.assertEqual(record["clock_period_ns"], 8.0)
             self.assertEqual(record["clock_frequency_mhz"], 125.0)
+            for category in check_reports.REQUIRED_EVIDENCE_CATEGORIES:
+                self.assertGreaterEqual(len(record[category]), 1)
+                for item in record[category]:
+                    if item["passed"]:
+                        sha256 = item.get("sha256")
+                        self.assertIsInstance(sha256, str)
+                        self.assertEqual(len(sha256), 64)
+                        self.assertTrue(
+                            all(
+                                char in "0123456789abcdef"
+                                for char in sha256
+                            )
+                        )
             self.assertEqual(record["artifacts"][0]["path"], str(artifact))
             self.assertEqual(record["artifacts"][0]["byte_length"], len(b"bitstream"))
             self.assertEqual(
