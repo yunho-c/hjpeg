@@ -322,7 +322,8 @@ Expected evidence:
   evidence, with `post_impl_timing_summary.rpt` also present as passing
   hold-timing evidence and matching missing/failing filename, hold-timing, and
   suffix lists empty, finite positive `clock_period_ns` and
-  `clock_frequency_mhz` values that match each other, a required
+  `clock_frequency_mhz` values that match each other, `clock_target.valid` and
+  top-level `clock_target_valid` true, a required
   evidence-category summary showing every required category present and passing,
   top-level complete-evidence missing/failing lists matching nested evidence
   summaries,

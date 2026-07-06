@@ -446,7 +446,8 @@ must have `passed`, `complete_vivado_flow_evidence`,
 `post_impl_timing_summary.rpt` also present as passing hold-timing evidence and
 matching missing/failing filename, hold-timing, and suffix lists empty. The
 Vivado clock target must include finite positive `clock_period_ns` and
-`clock_frequency_mhz` values that match each other. It also requires the Vivado
+`clock_frequency_mhz` values that match each other, with `clock_target.valid`
+and the top-level `clock_target_valid` flag true. It also requires the Vivado
 evidence-category summary to show every required category present and passing,
 the top-level complete-evidence missing/failing lists to match nested evidence
 summaries,

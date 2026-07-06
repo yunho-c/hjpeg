@@ -90,6 +90,51 @@ def nonnegative_float(value: str) -> float:
     return parsed
 
 
+def clock_target_record(clock_period_ns: float) -> dict[str, object]:
+    clock_period_finite = math.isfinite(clock_period_ns)
+    clock_period_positive = clock_period_ns > 0.0
+    if clock_period_finite and clock_period_ns != 0.0:
+        clock_frequency_mhz = 1000.0 / clock_period_ns
+    else:
+        clock_frequency_mhz = None
+    clock_frequency_finite = (
+        clock_frequency_mhz is not None and math.isfinite(clock_frequency_mhz)
+    )
+    clock_frequency_positive = (
+        clock_frequency_mhz is not None and clock_frequency_mhz > 0.0
+    )
+    period_frequency_match = (
+        clock_period_finite
+        and clock_period_positive
+        and clock_frequency_finite
+        and clock_frequency_positive
+        and clock_frequency_mhz is not None
+        and math.isclose(
+            clock_period_ns * clock_frequency_mhz,
+            1000.0,
+            rel_tol=1e-12,
+            abs_tol=1e-9,
+        )
+    )
+    valid = bool(
+        clock_period_finite
+        and clock_period_positive
+        and clock_frequency_finite
+        and clock_frequency_positive
+        and period_frequency_match
+    )
+    return {
+        "clock_period_ns": clock_period_ns if clock_period_finite else None,
+        "clock_frequency_mhz": clock_frequency_mhz,
+        "clock_period_finite": clock_period_finite,
+        "clock_period_positive": clock_period_positive,
+        "clock_frequency_finite": clock_frequency_finite,
+        "clock_frequency_positive": clock_frequency_positive,
+        "period_frequency_match": period_frequency_match,
+        "valid": valid,
+    }
+
+
 @dataclass(frozen=True)
 class UtilizationRow:
     name: str
@@ -1139,6 +1184,8 @@ def main(argv: list[str] | None = None) -> int:
     failing_address_map_filenames = address_map_filenames["failing_required_filenames"]
     failing_report_filenames = failing_required_filenames_by_category(report_filenames)
     failing_hold_timing_filenames = hold_timing_filenames["failing_required_filenames"]
+    clock_target = clock_target_record(args.clock_period_ns)
+    clock_target_valid = clock_target["valid"] is True
     complete_vivado_flow_evidence = bool(
         evidence_categories["all_required_present"]
         and artifact_suffixes["all_required_suffixes_present"]
@@ -1146,6 +1193,7 @@ def main(argv: list[str] | None = None) -> int:
         and address_map_filenames["all_required_filenames_present"]
         and all_required_filenames_present(report_filenames)
         and hold_timing_filenames["all_required_filenames_present"]
+        and clock_target_valid
         and not failing_categories
         and not failing_suffixes
         and not failing_filenames
@@ -1214,6 +1262,8 @@ def main(argv: list[str] | None = None) -> int:
                 "complete Vivado flow evidence has failing required hold-timing filenames: "
                 + ", ".join(str(filename) for filename in failing_hold_timing_filenames)
             )
+        if not clock_target_valid:
+            failures.append("complete Vivado flow evidence has invalid clock target")
 
     if args.json:
         arguments = {
@@ -1250,6 +1300,8 @@ def main(argv: list[str] | None = None) -> int:
                     "address_map_filenames": address_map_filenames,
                     "report_filenames": report_filenames,
                     "hold_timing_filenames": hold_timing_filenames,
+                    "clock_target": clock_target,
+                    "clock_target_valid": clock_target_valid,
                     "complete_vivado_flow_evidence": complete_vivado_flow_evidence,
                     "complete_vivado_flow_evidence_required": (
                         args.require_complete_evidence
@@ -1292,7 +1344,7 @@ def main(argv: list[str] | None = None) -> int:
                     ),
                     "arguments": arguments,
                     "clock_period_ns": args.clock_period_ns,
-                    "clock_frequency_mhz": 1000.0 / args.clock_period_ns,
+                    "clock_frequency_mhz": clock_target["clock_frequency_mhz"],
                     "artifacts": artifact_records,
                     "address_map": address_map_records,
                     "timing": timing_records,

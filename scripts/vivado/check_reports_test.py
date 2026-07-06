@@ -139,6 +139,22 @@ Address Map
 
 
 class CheckReportsTest(unittest.TestCase):
+    def test_clock_target_record_requires_positive_finite_period(self) -> None:
+        record = check_reports.clock_target_record(8.0)
+        self.assertEqual(record["clock_period_ns"], 8.0)
+        self.assertEqual(record["clock_frequency_mhz"], 125.0)
+        self.assertTrue(record["clock_period_finite"])
+        self.assertTrue(record["clock_period_positive"])
+        self.assertTrue(record["clock_frequency_finite"])
+        self.assertTrue(record["clock_frequency_positive"])
+        self.assertTrue(record["period_frequency_match"])
+        self.assertTrue(record["valid"])
+
+        for period in [0.0, -1.0, float("nan"), float("inf")]:
+            with self.subTest(period=period):
+                invalid = check_reports.clock_target_record(period)
+                self.assertFalse(invalid["valid"])
+
     def test_parse_wns_from_timing_table(self) -> None:
         self.assertEqual(check_reports.parse_wns(TIMING_TABLE), 0.125)
 
@@ -864,6 +880,20 @@ class CheckReportsTest(unittest.TestCase):
             )
             self.assertEqual(record["clock_period_ns"], 8.0)
             self.assertEqual(record["clock_frequency_mhz"], 125.0)
+            self.assertEqual(
+                record["clock_target"],
+                {
+                    "clock_period_ns": 8.0,
+                    "clock_frequency_mhz": 125.0,
+                    "clock_period_finite": True,
+                    "clock_period_positive": True,
+                    "clock_frequency_finite": True,
+                    "clock_frequency_positive": True,
+                    "period_frequency_match": True,
+                    "valid": True,
+                },
+            )
+            self.assertTrue(record["clock_target_valid"])
             for category in check_reports.REQUIRED_EVIDENCE_CATEGORIES:
                 self.assertGreaterEqual(len(record[category]), 1)
                 for item in record[category]:
