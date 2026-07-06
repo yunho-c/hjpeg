@@ -1080,7 +1080,7 @@ def complete_run_evidence_record(root: Path) -> dict[str, object]:
 
 
 def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
-    return {
+    record = {
         "passed": True,
         "checked_count": 12,
         "passed_count": 12,
@@ -1427,6 +1427,10 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
             }
         ],
     }
+    for category in hjpeg_host.VIVADO_REQUIRED_EVIDENCE_CATEGORIES:
+        for item in record[category]:
+            item["path_resolved"] = str(Path(item["path"]).resolve(strict=False))
+    return record
 
 
 def write_generated_vivado_evidence(root: Path) -> Path:
@@ -6148,6 +6152,26 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["vivado_evidence_categories_present"])
             self.assertTrue(record["vivado_summary_counts_consistent"])
             self.assertFalse(record["vivado_record_hashes_present"])
+            self.assertFalse(record["passed"])
+            self.assertTrue(
+                any("file metadata" in failure for failure in failures)
+            )
+
+    def test_vivado_evidence_file_record_rejects_missing_resolved_record_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            del vivado_record["artifacts"][0]["path_resolved"]
+            vivado_record["address_map"][0]["path_resolved"] = ""
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertTrue(record["vivado_passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["vivado_evidence_categories_present"])
+            self.assertFalse(record["vivado_record_hashes_present"])
+            self.assertFalse(record["complete_vivado_flow_evidence_matches"])
             self.assertFalse(record["passed"])
             self.assertTrue(
                 any("file metadata" in failure for failure in failures)

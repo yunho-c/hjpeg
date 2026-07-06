@@ -3926,6 +3926,10 @@ def vivado_record_hashes_present(record: object) -> bool:
             return False
         if any(
             item.get("exists") is not True
+            or not isinstance(item.get("path"), str)
+            or not item["path"]
+            or not isinstance(item.get("path_resolved"), str)
+            or not item["path_resolved"]
             or not is_strict_int(item.get("byte_length"))
             or item["byte_length"] <= 0
             or not is_sha256_hex(item.get("sha256"))
