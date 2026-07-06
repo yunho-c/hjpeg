@@ -1457,6 +1457,28 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
             }
         ],
     }
+    record["arguments"] = {
+        "artifacts": [item["path"] for item in record["artifacts"]],
+        "address_map": [item["path"] for item in record["address_map"]],
+        "timing": [item["path"] for item in record["timing"]],
+        "hold_timing": ["post_impl_timing_summary.rpt"],
+        "utilization": [item["path"] for item in record["utilization"]],
+        "drc": [item["path"] for item in record["drc"]],
+        "route_status": [item["path"] for item in record["route_status"]],
+        "clock_utilization": [item["path"] for item in record["clock_utilization"]],
+        "floorplan": [item["path"] for item in record["floorplan"]],
+        "min_wns": 0.0,
+        "min_whs": 0.0,
+        "max_utilization": 90.0,
+        "clock_period_ns": 10.0,
+        "require_complete_evidence": True,
+    }
+    for item in record["timing"]:
+        item["min_wns_ns"] = 0.0
+        item["min_whs_ns"] = 0.0
+        item["check_whs"] = item["path"] == "post_impl_timing_summary.rpt"
+    for item in record["utilization"]:
+        item["max_percent"] = 90.0
     for category in hjpeg_host.VIVADO_REQUIRED_EVIDENCE_CATEGORIES:
         for item in record[category]:
             item["path_resolved"] = str(Path(item["path"]).resolve(strict=False))
@@ -5837,7 +5859,31 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["vivado_summary_counts_consistent"])
             self.assertTrue(record["vivado_diagnostic_summary_consistent"])
             self.assertTrue(record["vivado_route_status_counts_present"])
+            self.assertTrue(record["vivado_arguments_match_record"])
             self.assertEqual(record["hjpeg_base_addresses"], [0])
+
+    def test_vivado_evidence_file_record_rejects_stale_arguments(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            vivado = write_generated_vivado_evidence(root)
+            evidence = json.loads(vivado.read_text())
+            evidence["arguments"]["artifacts"][0] = str(root / "stale.bit")
+            evidence["arguments"]["clock_period_ns"] = 8.0
+            vivado.write_text(json.dumps(evidence))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(vivado)
+
+            self.assertFalse(record["passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["complete_vivado_flow_evidence_required"])
+            self.assertTrue(record["complete_vivado_flow_evidence_matches"])
+            self.assertFalse(record["vivado_arguments_match_record"])
+            self.assertTrue(
+                any(
+                    "arguments do not match Vivado evidence record" in failure
+                    for failure in failures
+                )
+            )
 
     def test_vivado_evidence_file_record_rejects_nonstandard_json_constants(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

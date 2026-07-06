@@ -4144,6 +4144,57 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         isinstance(arguments, dict)
         and isinstance(arguments.get("require_complete_evidence"), bool)
     )
+    vivado_arguments_match_record = False
+    if isinstance(parsed, dict) and isinstance(arguments, dict):
+        def record_paths(record_key: str) -> list[str]:
+            records = parsed.get(record_key)
+            if not isinstance(records, list):
+                return []
+            return [
+                str(record.get("path"))
+                for record in records
+                if isinstance(record, dict)
+            ]
+
+        timing_records = (
+            parsed.get("timing") if isinstance(parsed.get("timing"), list) else []
+        )
+        utilization_records = (
+            parsed.get("utilization")
+            if isinstance(parsed.get("utilization"), list)
+            else []
+        )
+        hold_timing_paths = [
+            str(record.get("path"))
+            for record in timing_records
+            if isinstance(record, dict) and record.get("check_whs") is True
+        ]
+        timing_thresholds_match = all(
+            isinstance(record, dict)
+            and record.get("min_wns_ns") == arguments.get("min_wns")
+            and record.get("min_whs_ns") == arguments.get("min_whs")
+            for record in timing_records
+        )
+        utilization_thresholds_match = all(
+            isinstance(record, dict)
+            and record.get("max_percent") == arguments.get("max_utilization")
+            for record in utilization_records
+        )
+        vivado_arguments_match_record = (
+            arguments.get("artifacts") == record_paths("artifacts")
+            and arguments.get("address_map") == record_paths("address_map")
+            and arguments.get("timing") == record_paths("timing")
+            and arguments.get("hold_timing") == hold_timing_paths
+            and arguments.get("utilization") == record_paths("utilization")
+            and arguments.get("drc") == record_paths("drc")
+            and arguments.get("route_status") == record_paths("route_status")
+            and arguments.get("clock_utilization")
+            == record_paths("clock_utilization")
+            and arguments.get("floorplan") == record_paths("floorplan")
+            and timing_thresholds_match
+            and utilization_thresholds_match
+            and arguments.get("clock_period_ns") == parsed.get("clock_period_ns")
+        )
     vivado_artifact_suffixes_present = vivado_required_artifact_suffixes_present(parsed)
     vivado_artifact_filenames_present = vivado_required_artifact_filenames_present(parsed)
     vivado_address_map_filenames_present = (
@@ -4299,6 +4350,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
             "complete_vivado_flow_evidence_argument_required_flag_present": (
                 complete_vivado_flow_evidence_argument_required_flag_present
             ),
+            "vivado_arguments_match_record": vivado_arguments_match_record,
             "vivado_artifact_suffixes_present": vivado_artifact_suffixes_present,
             "vivado_artifact_filenames_present": vivado_artifact_filenames_present,
             "vivado_address_map_filenames_present": vivado_address_map_filenames_present,
@@ -4328,6 +4380,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
                 and complete_vivado_flow_evidence_required
                 and complete_vivado_flow_evidence_argument_required_flag_present
                 and complete_vivado_flow_evidence_argument_required
+                and vivado_arguments_match_record
                 and vivado_artifact_suffixes_present
                 and vivado_artifact_filenames_present
                 and vivado_address_map_filenames_present
@@ -4377,6 +4430,8 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         failures.append(
             f"{path}: arguments.require_complete_evidence is not true"
         )
+    if not vivado_arguments_match_record:
+        failures.append(f"{path}: arguments do not match Vivado evidence record")
     if not vivado_artifact_suffixes_present:
         failures.append(f"{path}: Vivado evidence missing required .bit/.xsa/.dcp artifacts")
     if not vivado_artifact_filenames_present:

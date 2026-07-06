@@ -326,8 +326,11 @@ and `.dcp` artifact suffix evidence, and the required
 `post_impl_clock_utilization.rpt`, and `post_impl_floorplan.rpt` filename
 evidence true, with
 `post_impl_timing_summary.rpt` also present as passing hold-timing evidence and
-matching missing/failing filename, hold-timing, and suffix lists empty, finite
-positive `clock_period_ns` and `clock_frequency_mhz` values that match each
+matching missing/failing filename, hold-timing, and suffix lists empty, a Vivado
+`arguments` object that matches the recorded artifact, address-map, report,
+hold-timing, floorplan, clock-period, timing-threshold, and
+utilization-threshold evidence, finite positive `clock_period_ns` and
+`clock_frequency_mhz` values that match each
 other, `clock_target.valid` and top-level `clock_target_valid` true, a required
 evidence-category summary showing every required category
 present and passing, a top-level `complete_vivado_flow_evidence` flag and
