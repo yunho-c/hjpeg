@@ -1592,6 +1592,29 @@ def run_input_ppm_record(
     return record
 
 
+def expected_component_records_match(
+    actual_components: object,
+    expected_components: object,
+    required_keys: tuple[str, ...],
+) -> bool:
+    if not isinstance(actual_components, list) or not isinstance(
+        expected_components, list
+    ):
+        return False
+    if len(actual_components) != len(expected_components):
+        return False
+    for actual, expected in zip(actual_components, expected_components):
+        if not isinstance(actual, dict) or not isinstance(expected, dict):
+            return False
+        for key in required_keys:
+            if not is_strict_int(expected.get(key)):
+                return False
+        for key, expected_value in expected.items():
+            if actual.get(key) != expected_value:
+                return False
+    return True
+
+
 def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     evidence_present = {
         "jpeg_output": False,
@@ -1829,6 +1852,12 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             "expected_restart_marker_sequence"
         )
         expected_marker_counts = validation_expectations.get("expected_marker_counts")
+        expected_sof0_components = validation_expectations.get(
+            "expected_sof0_components"
+        )
+        expected_sos_components = validation_expectations.get(
+            "expected_sos_components"
+        )
         expected_chroma_mode = validation_expectations.get("expected_chroma_mode")
         expected_quality = validation_expectations.get("quality")
         expected_dqt_payload_hashes = validation_expectations.get(
@@ -1869,6 +1898,16 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
                     for marker_name, expected_count in expected_marker_counts.items()
                 )
             )
+        )
+        validation_sof0_components_match = expected_component_records_match(
+            record.get("components"),
+            expected_sof0_components,
+            ("component_id", "quantization_table"),
+        )
+        validation_sos_components_match = expected_component_records_match(
+            record.get("scan_components"),
+            expected_sos_components,
+            ("component_id", "dc_table", "ac_table"),
         )
         validation_chroma_mode_matches = (
             expected_chroma_mode is None
@@ -1975,6 +2014,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and validation_restart_marker_count_matches
             and validation_restart_marker_sequence_matches
             and validation_marker_counts_match
+            and validation_sof0_components_match
+            and validation_sos_components_match
             and validation_chroma_mode_matches
             and validation_dqt_payload_hashes_match
             and validation_huffman_tables_match
@@ -1993,6 +2034,10 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             validation_restart_marker_sequence_matches
         )
         checks["validation_marker_counts_match"] = validation_marker_counts_match
+        checks["validation_sof0_components_match"] = (
+            validation_sof0_components_match
+        )
+        checks["validation_sos_components_match"] = validation_sos_components_match
         checks["validation_chroma_mode_matches"] = validation_chroma_mode_matches
         checks["validation_dqt_payload_hashes_match"] = (
             validation_dqt_payload_hashes_match
