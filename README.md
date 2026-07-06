@@ -401,7 +401,7 @@ group list, ordered recorded check names, evidence/check counts, failing check
 names, passing check names, missing and present evidence group names, and
 whether complete hardware-run evidence was captured. Complete
 hardware-run evidence requires an explicit `jpeg_validation_passed` flag,
-a captured output JPEG path, positive parsed dimensions, hashes, and non-empty
+a captured output JPEG path and resolved path, positive parsed dimensions, hashes, and non-empty
 scan data, source PPM supplied through
 `--input-ppm`, non-flat/color source-image stats, positive host-observed
 transfer timing with finite positive derived input and output byte rates, and a
@@ -429,7 +429,7 @@ when quality checking was requested, and expected DHT table hashes against the
 parsed DHT table hashes when standard-Huffman checking was requested. Those
 expected hash records are required when the corresponding quality or
 standard-Huffman check is requested. Input RGB evidence
-must include a nonempty path, positive byte length, a SHA-256 hex hash, a positive expected byte
+must include a nonempty path and resolved path, positive byte length, a SHA-256 hex hash, a positive expected byte
 length, and a boolean actual-vs-expected length-match flag that matches the
 recomputed result. Stream-device evidence must
 include nonempty TX/RX device paths, resolved identities that match the raw
@@ -449,7 +449,7 @@ requested, matching DQT payload hashes when quality checking was requested,
 matching DHT table hashes when
 standard-Huffman checking was requested, and standard-Huffman requirement.
 Source PPM
-evidence must include a nonempty path, file and packed-RGB SHA-256 hex hashes,
+evidence must include a nonempty path and resolved path, file and packed-RGB SHA-256 hex hashes,
 positive dimension-consistent RGB and packed byte lengths, a recomputed input-RGB
 length/hash match with a boolean packed-RGB match flag, and
 non-flat/color image stats. Status evidence must include the detailed checkpoint
@@ -531,7 +531,7 @@ aggregate frame dimensions, encoder configuration values, and validation
 expectation values, aggregate status-check context/flag values and host transfer
 rates, aggregate capture/input byte-count and source-image values, aggregate
 JPEG structure/hash values and decoder result values, aggregate JPEG/input
-artifact path and decoder-command inventories, Vivado
+artifact path/resolved-path and decoder-command inventories, Vivado
 checked/passed/failed evidence path and resolved-path lists,
 parsed HJPEG base addresses, HJPEG base-address count and consistency flag, plus
 the recomputed summary, evidence/check counts, missing evidence groups, and

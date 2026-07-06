@@ -286,6 +286,7 @@ class JpegInfo:
 @dataclass(frozen=True)
 class FileInfo:
     path: str
+    path_resolved: str
     byte_length: int
     sha256: str
 
@@ -1384,6 +1385,7 @@ def jpeg_info_record(
 ) -> dict[str, object]:
     record: dict[str, object] = {
         "jpeg": str(jpeg),
+        "jpeg_resolved": str(jpeg.resolve(strict=False)),
         "jpeg_validation_passed": True,
         "width": info.width,
         "height": info.height,
@@ -1498,6 +1500,7 @@ def jpeg_info_record(
 def file_info(path: Path, data: bytes) -> FileInfo:
     return FileInfo(
         path=str(path),
+        path_resolved=str(path.resolve(strict=False)),
         byte_length=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
     )
@@ -1536,6 +1539,7 @@ def strict_json_dumps(value: object, **kwargs: object) -> str:
 def file_info_record(info: FileInfo) -> dict[str, object]:
     return {
         "path": info.path,
+        "path_resolved": info.path_resolved,
         "byte_length": info.byte_length,
         "sha256": info.sha256,
     }
@@ -1667,6 +1671,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     jpeg_sha256 = record.get("sha256")
     scan_data_sha256 = record.get("scan_data_sha256")
     jpeg_path = record.get("jpeg")
+    jpeg_path_resolved = record.get("jpeg_resolved")
     width = record.get("width")
     height = record.get("height")
     marker_sequence = record.get("marker_sequence")
@@ -1692,6 +1697,14 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     jpeg_sha256_present = is_sha256_hex(jpeg_sha256)
     scan_data_sha256_present = is_sha256_hex(scan_data_sha256)
     jpeg_path_present = isinstance(jpeg_path, str) and len(jpeg_path) > 0
+    jpeg_path_resolved_present = (
+        isinstance(jpeg_path_resolved, str) and len(jpeg_path_resolved) > 0
+    )
+    jpeg_path_resolved_matches = (
+        jpeg_path_present
+        and jpeg_path_resolved_present
+        and jpeg_path_resolved == str(Path(jpeg_path).resolve(strict=False))
+    )
     jpeg_dimensions_positive = (
         is_strict_int(width) and is_strict_int(height) and width > 0 and height > 0
     )
@@ -1729,6 +1742,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     )
     evidence_present["jpeg_output"] = (
         jpeg_path_present
+        and jpeg_path_resolved_present
+        and jpeg_path_resolved_matches
         and jpeg_byte_length_positive
         and scan_data_bytes_positive
         and jpeg_sha256_present
@@ -1741,6 +1756,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         and marker_counts_match_segment_counts
     )
     checks["jpeg_path_present"] = jpeg_path_present
+    checks["jpeg_path_resolved_present"] = jpeg_path_resolved_present
+    checks["jpeg_path_resolved_matches"] = jpeg_path_resolved_matches
     checks["jpeg_byte_length_positive"] = jpeg_byte_length_positive
     checks["jpeg_scan_data_bytes_positive"] = scan_data_bytes_positive
     checks["jpeg_sha256_present"] = jpeg_sha256_present
@@ -2170,11 +2187,22 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     input_rgb = record.get("input_rgb")
     if isinstance(input_rgb, dict):
         input_rgb_path = input_rgb.get("path")
+        input_rgb_path_resolved = input_rgb.get("path_resolved")
         input_rgb_byte_length = input_rgb.get("byte_length")
         input_rgb_sha256 = input_rgb.get("sha256")
         input_rgb_expected_byte_length = input_rgb.get("expected_byte_length")
         input_rgb_path_present = (
             isinstance(input_rgb_path, str) and len(input_rgb_path) > 0
+        )
+        input_rgb_path_resolved_present = (
+            isinstance(input_rgb_path_resolved, str)
+            and len(input_rgb_path_resolved) > 0
+        )
+        input_rgb_path_resolved_matches = (
+            input_rgb_path_present
+            and input_rgb_path_resolved_present
+            and input_rgb_path_resolved
+            == str(Path(input_rgb_path).resolve(strict=False))
         )
         input_rgb_byte_length_positive = (
             is_strict_int(input_rgb_byte_length) and input_rgb_byte_length > 0
@@ -2199,6 +2227,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
         evidence_present["input_rgb"] = (
             input_rgb_path_present
+            and input_rgb_path_resolved_present
+            and input_rgb_path_resolved_matches
             and input_rgb_byte_length_positive
             and input_rgb_sha256_present
             and input_rgb_expected_byte_length_positive
@@ -2207,6 +2237,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and input_rgb_length_match_flag_matches
         )
         checks["input_rgb_path_present"] = input_rgb_path_present
+        checks["input_rgb_path_resolved_present"] = input_rgb_path_resolved_present
+        checks["input_rgb_path_resolved_matches"] = input_rgb_path_resolved_matches
         checks["input_rgb_byte_length_positive"] = input_rgb_byte_length_positive
         checks["input_rgb_sha256_present"] = input_rgb_sha256_present
         checks["input_rgb_expected_byte_length_positive"] = (
@@ -2321,6 +2353,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     input_ppm = record.get("input_ppm")
     if isinstance(input_ppm, dict) and "packed_rgb_matches_input" in input_ppm:
         input_ppm_path = input_ppm.get("path")
+        input_ppm_path_resolved = input_ppm.get("path_resolved")
         input_ppm_byte_length = input_ppm.get("byte_length")
         input_ppm_sha256 = input_ppm.get("sha256")
         input_ppm_width = input_ppm.get("width")
@@ -2335,6 +2368,16 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         input_ppm_matches = input_ppm_matches_flag is True
         input_ppm_path_present = (
             isinstance(input_ppm_path, str) and len(input_ppm_path) > 0
+        )
+        input_ppm_path_resolved_present = (
+            isinstance(input_ppm_path_resolved, str)
+            and len(input_ppm_path_resolved) > 0
+        )
+        input_ppm_path_resolved_matches = (
+            input_ppm_path_present
+            and input_ppm_path_resolved_present
+            and input_ppm_path_resolved
+            == str(Path(input_ppm_path).resolve(strict=False))
         )
         input_ppm_byte_length_positive = (
             is_strict_int(input_ppm_byte_length) and input_ppm_byte_length > 0
@@ -2388,6 +2431,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             input_ppm_matches_input_flag_matches
         )
         checks["input_ppm_path_present"] = input_ppm_path_present
+        checks["input_ppm_path_resolved_present"] = input_ppm_path_resolved_present
+        checks["input_ppm_path_resolved_matches"] = input_ppm_path_resolved_matches
         checks["input_ppm_byte_length_positive"] = input_ppm_byte_length_positive
         checks["input_ppm_sha256_present"] = input_ppm_sha256_present
         checks["input_ppm_dimensions_positive"] = input_ppm_dimensions_positive
@@ -2417,6 +2462,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         evidence_present["input_ppm"] = (
             input_ppm_matches
             and input_ppm_path_present
+            and input_ppm_path_resolved_present
+            and input_ppm_path_resolved_matches
             and input_ppm_byte_length_positive
             and input_ppm_sha256_present
             and input_ppm_dimensions_positive
@@ -2923,6 +2970,7 @@ def run_evidence_record(
     if input_info is not None:
         input_record: dict[str, object] = {
             "path": input_info.path,
+            "path_resolved": input_info.path_resolved,
             "byte_length": input_info.byte_length,
             "sha256": input_info.sha256,
         }
@@ -3211,6 +3259,9 @@ def check_run_evidence_record(
     jpeg_path = record.get("jpeg")
     if isinstance(jpeg_path, str):
         result["jpeg"] = jpeg_path
+    jpeg_path_resolved = record.get("jpeg_resolved")
+    if isinstance(jpeg_path_resolved, str):
+        result["jpeg_resolved"] = jpeg_path_resolved
     for source_key, result_key in (
         ("byte_length", "jpeg_byte_length"),
         ("mcu_count", "jpeg_mcu_count"),
@@ -3257,6 +3308,9 @@ def check_run_evidence_record(
         input_rgb_path = input_rgb.get("path")
         if isinstance(input_rgb_path, str):
             result["input_rgb"] = input_rgb_path
+        input_rgb_path_resolved = input_rgb.get("path_resolved")
+        if isinstance(input_rgb_path_resolved, str):
+            result["input_rgb_resolved"] = input_rgb_path_resolved
         input_rgb_byte_length = input_rgb.get("byte_length")
         input_rgb_expected_byte_length = input_rgb.get("expected_byte_length")
         input_rgb_length_matches_expected = input_rgb.get(
@@ -3277,6 +3331,9 @@ def check_run_evidence_record(
         input_ppm_path = input_ppm.get("path")
         if isinstance(input_ppm_path, str):
             result["input_ppm"] = input_ppm_path
+        input_ppm_path_resolved = input_ppm.get("path_resolved")
+        if isinstance(input_ppm_path_resolved, str):
+            result["input_ppm_resolved"] = input_ppm_path_resolved
         for source_key, result_key in (
             ("width", "input_ppm_width"),
             ("height", "input_ppm_height"),
@@ -5291,8 +5348,17 @@ def main(argv: list[str] | None = None) -> int:
             records, "decoder_stderr_truncated"
         )
         aggregate_jpeg_paths = unique_scalar_string_values(records, "jpeg")
+        aggregate_jpeg_paths_resolved = unique_scalar_string_values(
+            records, "jpeg_resolved"
+        )
         aggregate_input_rgb_paths = unique_scalar_string_values(records, "input_rgb")
+        aggregate_input_rgb_paths_resolved = unique_scalar_string_values(
+            records, "input_rgb_resolved"
+        )
         aggregate_input_ppm_paths = unique_scalar_string_values(records, "input_ppm")
+        aggregate_input_ppm_paths_resolved = unique_scalar_string_values(
+            records, "input_ppm_resolved"
+        )
         aggregate_decoder_commands = unique_scalar_string_values(
             records, "decoder_command"
         )
@@ -5748,18 +5814,36 @@ def main(argv: list[str] | None = None) -> int:
                             aggregate_decoder_stderr_truncated_values
                         ),
                         "aggregate_jpeg_path_count": len(aggregate_jpeg_paths),
+                        "aggregate_jpeg_path_resolved_count": len(
+                            aggregate_jpeg_paths_resolved
+                        ),
                         "aggregate_input_rgb_path_count": len(
                             aggregate_input_rgb_paths
                         ),
+                        "aggregate_input_rgb_path_resolved_count": len(
+                            aggregate_input_rgb_paths_resolved
+                        ),
                         "aggregate_input_ppm_path_count": len(
                             aggregate_input_ppm_paths
+                        ),
+                        "aggregate_input_ppm_path_resolved_count": len(
+                            aggregate_input_ppm_paths_resolved
                         ),
                         "aggregate_decoder_command_count": len(
                             aggregate_decoder_commands
                         ),
                         "aggregate_jpeg_paths": aggregate_jpeg_paths,
+                        "aggregate_jpeg_paths_resolved": (
+                            aggregate_jpeg_paths_resolved
+                        ),
                         "aggregate_input_rgb_paths": aggregate_input_rgb_paths,
+                        "aggregate_input_rgb_paths_resolved": (
+                            aggregate_input_rgb_paths_resolved
+                        ),
                         "aggregate_input_ppm_paths": aggregate_input_ppm_paths,
+                        "aggregate_input_ppm_paths_resolved": (
+                            aggregate_input_ppm_paths_resolved
+                        ),
                         "aggregate_decoder_commands": aggregate_decoder_commands,
                         "vivado_evidence_checked_count": len(vivado_records),
                         "vivado_evidence_passed_count": vivado_passed_count,

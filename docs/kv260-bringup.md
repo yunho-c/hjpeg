@@ -284,7 +284,7 @@ Expected evidence:
   EOI, cross-checks grouped marker counts against scalar
   APP0/JFIF APP0/DQT/SOF0/DHT/SOS/DRI/RST counts, verifies RST sequence length
   against the recorded RST count, and checks marker-count/RST expectations when
-  present. Input RGB evidence must include a nonempty path, positive byte length,
+  present. Input RGB evidence must include a nonempty path and resolved path, positive byte length,
   a SHA-256 hex hash, a positive expected byte length, and a boolean
   actual-vs-expected length-match flag that matches the recomputed result.
   Stream-device evidence must include nonempty TX/RX device paths, resolved
@@ -298,7 +298,7 @@ Expected evidence:
   those flags. Validation expectations evidence must include the baseline shape,
   marker order, marker counts, restart marker count/sequence when applicable,
   table order, SOS spectral fields, and standard-Huffman requirement. Source PPM
-  evidence must include a nonempty path, file and packed-RGB SHA-256 hex hashes,
+  evidence must include a nonempty path and resolved path, file and packed-RGB SHA-256 hex hashes,
   positive dimension-consistent RGB and packed byte lengths, a recomputed input-RGB
   length/hash match with a boolean packed-RGB match flag, and
   non-flat/color image stats. Status evidence must include the detailed
@@ -384,7 +384,7 @@ Expected evidence:
   expectation values, aggregate status-check context/flag values and host
   transfer rates, aggregate capture/input byte-count and source-image values,
   aggregate JPEG structure/hash values and decoder result values, aggregate
-  JPEG/input artifact path and decoder-command inventories, Vivado
+  JPEG/input artifact path/resolved-path and decoder-command inventories, Vivado
   checked/passed/failed evidence path and resolved-path lists,
   parsed HJPEG base addresses, HJPEG base-address count and consistency flag,
   plus the recomputed summary, evidence/check counts, missing evidence groups,

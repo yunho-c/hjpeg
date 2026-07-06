@@ -252,7 +252,7 @@ checks, the ordered required evidence group list, evidence/check counts, missing
 and present evidence group names, ordered recorded check names, and passing and
 failing check names for board-run transcripts; the complete-evidence flag
 requires a passing
-decoder check, a captured output JPEG path, positive parsed dimensions, hashes,
+decoder check, a captured output JPEG path and resolved path, positive parsed dimensions, hashes,
 and non-empty scan data, source PPM
 evidence with non-flat/color image stats, and positive host-observed transfer
 timing with finite positive derived input and output byte rates. Decoder
@@ -268,7 +268,7 @@ with EOI. The summary also cross-checks grouped marker counts against scalar
 APP0/JFIF APP0/DQT/SOF0/DHT/SOS/DRI/RST counts, verifies RST sequence length
 against the recorded RST count, and checks marker-count/RST expectations when
 present. Input RGB evidence must
-include a nonempty path, positive byte length, a SHA-256 hex hash, a positive expected byte length,
+include a nonempty path and resolved path, positive byte length, a SHA-256 hex hash, a positive expected byte length,
 and an actual-vs-expected length match. Capture configuration evidence must
 include a positive maximum output byte count and either no timeout or a finite
 positive timeout. AXI-Lite target evidence must include a non-empty string device path,
@@ -278,7 +278,7 @@ in range, boolean control flags, and a control word/hex string matching those
 flags. Validation expectations evidence must include the baseline shape, marker
 order, marker counts, restart marker count/sequence when applicable, table
 order, SOS spectral fields, and standard-Huffman requirement.
-Source PPM evidence must include a nonempty path, file and packed-RGB SHA-256 hex hashes,
+Source PPM evidence must include a nonempty path and resolved path, file and packed-RGB SHA-256 hex hashes,
 positive dimension-consistent RGB and packed byte lengths, a recomputed input-RGB
 length/hash match, and
 non-flat/color image stats. Status evidence must include the detailed
@@ -349,7 +349,8 @@ evidence path and resolved-path lists, and parsed HJPEG base addresses,
 aggregate frame dimensions, encoder configuration values, and validation
 expectation values, aggregate status-check context/flag values and host transfer
 rates, aggregate capture/input byte-count and source-image values, aggregate
-JPEG structure/hash values and decoder result values, plus the recomputed
+JPEG structure/hash values and decoder result values, aggregate JPEG/input
+artifact path/resolved-path inventories, plus the recomputed
 summary, evidence/check counts, missing evidence groups, and failing check names
 for each object-shaped transcript.
 The `run-stream-devices` command supports Linux board images that expose DMA
