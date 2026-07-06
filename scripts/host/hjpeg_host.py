@@ -2578,6 +2578,16 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             is_strict_int(decoder_output_capture_chars)
             and decoder_output_capture_chars > 0
         )
+        decoder_stdout_within_capture = (
+            decoder_stdout_present
+            and is_strict_int(decoder_output_capture_chars)
+            and len(decoder_stdout) <= decoder_output_capture_chars
+        )
+        decoder_stderr_within_capture = (
+            decoder_stderr_present
+            and is_strict_int(decoder_output_capture_chars)
+            and len(decoder_stderr) <= decoder_output_capture_chars
+        )
         decoder_output_not_truncated = (
             record.get("decoder_stdout_truncated") is False
             and record.get("decoder_stderr_truncated") is False
@@ -2595,6 +2605,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and decoder_stdout_length_matches
             and decoder_stderr_length_matches
             and decoder_output_capture_chars_positive
+            and decoder_stdout_within_capture
+            and decoder_stderr_within_capture
             and decoder_output_not_truncated
         )
         checks["decoder_passed"] = decoder_passed
@@ -2613,6 +2625,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         checks["decoder_output_capture_chars_positive"] = (
             decoder_output_capture_chars_positive
         )
+        checks["decoder_stdout_within_capture"] = decoder_stdout_within_capture
+        checks["decoder_stderr_within_capture"] = decoder_stderr_within_capture
         checks["decoder_output_not_truncated"] = decoder_output_not_truncated
 
     transfer_elapsed = record.get("transfer_elapsed_seconds")

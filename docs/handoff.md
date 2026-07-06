@@ -782,12 +782,12 @@ Hardware completion evidence should include:
   positive transfer timing with finite positive derived input/output byte rates,
   and passing decoder evidence required,
   decoder command, resolved decoder argv, decoder timeout, decoder elapsed
-  seconds, bounded decoder stdout/stderr, captured decoder output lengths, and
-  decoder output capture limit. Decoder summary evidence requires the command
+  seconds, decoder stdout/stderr, captured decoder output lengths, and decoder
+  output capture limit. Decoder summary evidence requires the command
   string, resolved argv, positive timeout, nonnegative elapsed time, zero return
-  code, stdout/stderr strings with matching captured lengths, a positive capture
-  limit, non-truncated decoder output metadata, and an argv list matching the
-  command and JPEG path.
+  code, stdout/stderr strings with matching captured lengths, output lengths
+  within the positive capture limit, non-truncated decoder output metadata, and
+  an argv list matching the command and JPEG path.
   The hardware-run summary cross-checks frame dimensions across
   the output JPEG, encoder configuration, validation expectations, source PPM,
   and expected RGB stream byte length, and requires a captured JPEG path and the parsed marker sequence

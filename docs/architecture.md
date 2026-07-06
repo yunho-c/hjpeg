@@ -256,9 +256,10 @@ decoder check, a captured output JPEG path plus hashes and non-empty scan data, 
 evidence with non-flat/color image stats, and positive host-observed transfer
 timing with finite positive derived input and output byte rates. Decoder
 evidence must include the command string, resolved argv, positive timeout,
-nonnegative elapsed time, zero return code, bounded stdout/stderr strings with
-matching captured lengths, a positive capture limit, non-truncated captured
-output metadata, and an argv list matching the command and JPEG path. Frame
+nonnegative elapsed time, zero return code, stdout/stderr strings with matching
+captured lengths, output lengths within the positive capture limit,
+non-truncated captured output metadata, and an argv list matching the command
+and JPEG path. Frame
 dimensions are cross-checked across the output JPEG,
 encoder configuration, validation expectations, source PPM, and expected RGB
 stream byte length, and the parsed marker sequence must begin with SOI and end
