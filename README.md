@@ -210,7 +210,8 @@ floorplan reports. Complete Vivado evidence also requires the generated
 diagnostic summary to be valid, required route-status counts to be present and
 zero, address-map hexadecimal fields to match parsed numeric addresses, passing
 required records to carry nonempty path/resolved-path file metadata with resolved
-paths matching the recorded paths plus SHA-256 hashes, and the
+paths matching the recorded paths plus SHA-256 hashes in both generated and
+saved evidence, and the
 floorplan record to include a positive placed-cell count.
 Complete Vivado evidence counts only records whose `passed` field is an actual
 JSON boolean `true`. Use

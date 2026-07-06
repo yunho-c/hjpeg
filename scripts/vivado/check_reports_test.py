@@ -1664,6 +1664,27 @@ class CheckReportsTest(unittest.TestCase):
             all(not present for present in record["required_filenames_present"].values())
         )
 
+    def test_record_hashes_require_matching_resolved_paths(self) -> None:
+        records = {}
+        for category in check_reports.REQUIRED_EVIDENCE_CATEGORIES:
+            path = Path(f"{category}.rpt")
+            records[category] = [
+                {
+                    "path": str(path),
+                    "path_resolved": str(path.resolve(strict=False)),
+                    "exists": True,
+                    "passed": True,
+                    "byte_length": 1,
+                    "sha256": "0" * 64,
+                }
+            ]
+        self.assertTrue(check_reports.record_hashes_present(records))
+
+        records["artifacts"][0]["path_resolved"] = str(
+            Path("stale/hjpeg_kv260.bit").resolve(strict=False)
+        )
+        self.assertFalse(check_reports.record_hashes_present(records))
+
     def test_required_filenames_require_strict_passed_booleans(self) -> None:
         record = check_reports.required_filename_record(
             [

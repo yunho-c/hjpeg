@@ -171,7 +171,8 @@ Pass criteria:
   requires a valid diagnostic summary, required route-status counts present and
   zero, address-map hexadecimal fields matching parsed numeric addresses, and
   nonempty path/resolved-path file metadata with resolved paths matching the
-  recorded paths plus SHA-256 hashes on passing required records.
+  recorded paths plus SHA-256 hashes on passing required records in both
+  generated and saved evidence.
   `all_required_present` requires at least one passing record in each required
   category, not just a requested input path. Complete Vivado evidence counts only
   records whose `passed` field is an actual JSON boolean `true`. Missing,

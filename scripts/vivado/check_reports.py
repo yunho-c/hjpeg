@@ -1229,6 +1229,7 @@ def record_hashes_present(
                 or not record["path"]
                 or not isinstance(record.get("path_resolved"), str)
                 or not record["path_resolved"]
+                or record["path_resolved"] != str(Path(record["path"]).resolve(strict=False))
                 or type(record.get("byte_length")) is not int
                 or record["byte_length"] <= 0
                 or not isinstance(sha256, str)

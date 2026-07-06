@@ -344,7 +344,8 @@ records, positive per-category checked counts whose sum matches the total checke
 count and match the per-category pass/fail totals, nonempty path/resolved-path
 file metadata with resolved paths matching the recorded paths, `exists: true`,
 positive byte lengths, and well-formed SHA-256
-hex hashes on passing records in every required evidence category, a floorplan record with a positive placed-cell
+hex hashes on passing records in every required evidence category in both
+generated and saved evidence, a floorplan record with a positive placed-cell
 count, and a passing route-status
 record with zero unrouted nets and zero nets with routing errors. It fails run transcripts whose
 AXI-Lite base address does not match the Vivado build evidence, or whose
