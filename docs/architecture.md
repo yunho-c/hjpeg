@@ -342,7 +342,8 @@ failures and failed paths in the Vivado summary, checked paths matching passed
 paths, aggregate counts and path lists that match the nested artifact/report
 records, positive per-category checked counts whose sum matches the total checked
 count and match the per-category pass/fail totals, nonempty path/resolved-path
-file metadata, `exists: true`, positive byte lengths, and well-formed SHA-256
+file metadata with resolved paths matching the recorded paths, `exists: true`,
+positive byte lengths, and well-formed SHA-256
 hex hashes on passing records in every required evidence category, a floorplan record with a positive placed-cell
 count, and a passing route-status
 record with zero unrouted nets and zero nets with routing errors. It fails run transcripts whose
