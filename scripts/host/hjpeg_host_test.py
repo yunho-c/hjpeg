@@ -5858,9 +5858,38 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["complete_vivado_flow_evidence_matches"])
             self.assertTrue(record["vivado_summary_counts_consistent"])
             self.assertTrue(record["vivado_diagnostic_summary_consistent"])
+            self.assertTrue(record["vivado_record_inventory_consistent"])
             self.assertTrue(record["vivado_route_status_counts_present"])
             self.assertTrue(record["vivado_arguments_match_record"])
             self.assertEqual(record["hjpeg_base_addresses"], [0])
+
+    def test_vivado_evidence_file_record_rejects_stale_nested_inventory(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "vivado.json"
+            evidence = vivado_evidence_record(0)
+            extra_floorplan = copy.deepcopy(evidence["floorplan"][0])
+            extra_floorplan["path"] = "extra_post_impl_floorplan.rpt"
+            extra_floorplan["path_resolved"] = str(
+                (root / "extra_post_impl_floorplan.rpt").resolve(strict=False)
+            )
+            evidence["floorplan"].append(extra_floorplan)
+            evidence["arguments"]["floorplan"].append(extra_floorplan["path"])
+            path.write_text(json.dumps(evidence))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertFalse(record["passed"])
+            self.assertTrue(record["vivado_summary_counts_consistent"])
+            self.assertTrue(record["vivado_diagnostic_summary_consistent"])
+            self.assertTrue(record["vivado_arguments_match_record"])
+            self.assertFalse(record["vivado_record_inventory_consistent"])
+            self.assertTrue(
+                any(
+                    "top-level inventory does not match nested records" in failure
+                    for failure in failures
+                )
+            )
 
     def test_vivado_evidence_file_record_rejects_stale_arguments(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

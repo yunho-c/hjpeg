@@ -919,7 +919,8 @@ and the top-level `clock_target_valid` flag true, and the Vivado checked path
 list must match the passed path list. Its top-level
 `complete_vivado_flow_evidence` flag and complete-evidence missing/failing lists
 must match nested evidence summaries, and its `diagnostic_summary` object must
-match the aggregate Vivado fields with `valid` true. Its per-category checked
+match the aggregate Vivado fields with `valid` true. Its aggregate counts and
+path lists must match the nested artifact/report records. Its per-category checked
 counts must be positive, sum to the total checked count, and match the
 per-category pass/fail totals. The floorplan record must include a positive
 placed-cell count. Supplying multiple Vivado evidence files is

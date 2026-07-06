@@ -523,7 +523,8 @@ the top-level `complete_vivado_flow_evidence` flag and complete-evidence
 missing/failing lists to match nested evidence summaries,
 zero diagnostic failures and failed paths in the Vivado summary, checked paths
 matching passed paths, a `diagnostic_summary` object that matches the aggregate
-Vivado fields and has `valid` true, positive per-category checked counts whose
+Vivado fields and has `valid` true, aggregate counts and path lists that match
+the nested artifact/report records, positive per-category checked counts whose
 sum matches the total checked count and match the per-category pass/fail totals,
 plus a passing route-status record with zero unrouted nets and zero nets with
 routing errors. Address-map evidence must also keep its hexadecimal address strings

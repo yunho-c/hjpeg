@@ -4023,6 +4023,48 @@ def vivado_diagnostic_summary_consistent(record: object) -> bool:
     return isinstance(diagnostic_summary, dict) and diagnostic_summary == expected
 
 
+def vivado_record_inventory_consistent(record: object) -> bool:
+    if not isinstance(record, dict):
+        return False
+    failures = record.get("failures")
+    checked_counts = record.get("checked_counts")
+    if not isinstance(failures, list) or not isinstance(checked_counts, dict):
+        return False
+
+    checked_records: list[dict[str, object]] = []
+    for category in VIVADO_REQUIRED_EVIDENCE_CATEGORIES:
+        records = record.get(category)
+        if not isinstance(records, list):
+            return False
+        if checked_counts.get(category) != len(records):
+            return False
+        for item in records:
+            if not isinstance(item, dict):
+                return False
+            checked_records.append(item)
+
+    checked_paths = [str(item.get("path")) for item in checked_records]
+    passed_paths = [
+        str(item.get("path"))
+        for item in checked_records
+        if item.get("passed") is True
+    ]
+    failed_paths = [
+        str(item.get("path"))
+        for item in checked_records
+        if item.get("passed") is not True
+    ]
+    return (
+        record.get("checked_count") == len(checked_records)
+        and record.get("passed_count") == len(passed_paths)
+        and record.get("failed_count") == len(failed_paths)
+        and record.get("failure_count") == len(failures)
+        and record.get("checked_paths") == checked_paths
+        and record.get("passed_paths") == passed_paths
+        and record.get("failed_paths") == failed_paths
+    )
+
+
 def vivado_route_status_counts_present(record: object) -> bool:
     if not isinstance(record, dict):
         return False
@@ -4208,6 +4250,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     evidence_categories_present = vivado_evidence_categories_present(parsed)
     summary_counts_consistent = vivado_summary_counts_consistent(parsed)
     diagnostic_summary_consistent = vivado_diagnostic_summary_consistent(parsed)
+    record_inventory_consistent = vivado_record_inventory_consistent(parsed)
     route_status_counts_present = vivado_route_status_counts_present(parsed)
     floorplan_evidence_present = vivado_floorplan_evidence_present(parsed)
     address_map_hex_fields_consistent = vivado_address_map_hex_fields_consistent(parsed)
@@ -4290,6 +4333,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         and evidence_categories_present
         and summary_counts_consistent
         and diagnostic_summary_consistent
+        and record_inventory_consistent
         and route_status_counts_present
         and floorplan_evidence_present
         and address_map_hex_fields_consistent
@@ -4360,6 +4404,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
             "vivado_evidence_categories_present": evidence_categories_present,
             "vivado_summary_counts_consistent": summary_counts_consistent,
             "vivado_diagnostic_summary_consistent": diagnostic_summary_consistent,
+            "vivado_record_inventory_consistent": record_inventory_consistent,
             "vivado_route_status_counts_present": route_status_counts_present,
             "vivado_floorplan_evidence_present": floorplan_evidence_present,
             "vivado_address_map_hex_fields_consistent": address_map_hex_fields_consistent,
@@ -4390,6 +4435,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
                 and evidence_categories_present
                 and summary_counts_consistent
                 and diagnostic_summary_consistent
+                and record_inventory_consistent
                 and route_status_counts_present
                 and floorplan_evidence_present
                 and address_map_hex_fields_consistent
@@ -4466,6 +4512,10 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         failures.append(
             f"{path}: Vivado evidence diagnostic_summary does not match "
             "the aggregate Vivado evidence fields"
+        )
+    if not record_inventory_consistent:
+        failures.append(
+            f"{path}: Vivado evidence top-level inventory does not match nested records"
         )
     if not route_status_counts_present:
         failures.append(
