@@ -14,7 +14,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shlex
 import shutil
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -62,6 +64,64 @@ def find_tools() -> ToolPaths:
     )
 
 
+def collect_tool_versions(tools: ToolPaths) -> dict[str, str | None]:
+    return {
+        "make": _tool_version(tools.make),
+        "sh": _tool_version(tools.sh),
+        "verilator": _tool_version(tools.verilator),
+    }
+
+
+def _tool_version(path: str | None) -> str | None:
+    if path is None:
+        return None
+    commands = [[path, "--version"]]
+    shebang_command = _shebang_version_command(path)
+    if shebang_command is not None:
+        commands.append(shebang_command)
+    for command in commands:
+        try:
+            completed = subprocess.run(
+                command,
+                capture_output=True,
+                check=False,
+                text=True,
+                timeout=5.0,
+            )
+        except (OSError, subprocess.SubprocessError, UnicodeDecodeError):
+            continue
+        output = completed.stdout.strip() or completed.stderr.strip()
+        if output:
+            return output.splitlines()[0]
+    return None
+
+
+def _shebang_version_command(path: str) -> list[str] | None:
+    try:
+        first_line = Path(path).read_text(encoding="utf-8", errors="ignore").splitlines()[0]
+    except (OSError, IndexError):
+        return None
+    if not first_line.startswith("#!"):
+        return None
+    try:
+        parts = shlex.split(first_line[2:].strip())
+    except ValueError:
+        return None
+    if not parts:
+        return None
+    interpreter = parts[0]
+    if _basename(interpreter) == "env" and len(parts) >= 2:
+        interpreter = parts[1]
+    name = _basename(interpreter)
+    if name in {"bash", "perl", "python", "python3", "sh"}:
+        return [name, path, "--version"]
+    return None
+
+
+def _basename(path: str) -> str:
+    return path.replace("\\", "/").rstrip("/").split("/")[-1]
+
+
 def _which(name: str) -> str | None:
     found = shutil.which(name)
     if found is not None:
@@ -76,7 +136,11 @@ def _which(name: str) -> str | None:
     return None
 
 
-def evaluate_environment(tools: ToolPaths, os_name: str = os.name) -> dict[str, object]:
+def evaluate_environment(
+    tools: ToolPaths,
+    os_name: str = os.name,
+    tool_versions: dict[str, str | None] | None = None,
+) -> dict[str, object]:
     problems: list[str] = []
     warnings: list[str] = []
 
@@ -111,6 +175,13 @@ def evaluate_environment(tools: ToolPaths, os_name: str = os.name) -> dict[str, 
             "sh": tools.sh,
             "verilator": tools.verilator,
         },
+        "tool_versions": tool_versions
+        if tool_versions is not None
+        else {
+            "make": None,
+            "sh": None,
+            "verilator": None,
+        },
         "checks": {
             "windows_host": windows,
             "msys_make": msys_make,
@@ -142,9 +213,13 @@ def format_text(report: dict[str, object]) -> str:
     compatible = bool(report["compatible"])
     lines.append("ChiselSim environment: compatible" if compatible else "ChiselSim environment: incompatible")
     tools = report["tools"]
+    tool_versions = report["tool_versions"]
     assert isinstance(tools, dict)
+    assert isinstance(tool_versions, dict)
     for name in ("make", "sh", "verilator"):
-        lines.append(f"  {name}: {tools.get(name) or 'not found'}")
+        version = tool_versions.get(name)
+        version_text = f" ({version})" if version else ""
+        lines.append(f"  {name}: {tools.get(name) or 'not found'}{version_text}")
     for problem in _as_strings(report["problems"]):
         lines.append(f"ERROR: {problem}")
     for warning in _as_strings(report["warnings"]):
@@ -166,7 +241,12 @@ def main(argv: list[str] | None = None, os_name: str = os.name) -> int:
     parser.add_argument("--json", action="store_true", help="print the preflight report as JSON")
     args = parser.parse_args(argv)
 
-    report = evaluate_environment(find_tools(), os_name=os_name)
+    tools = find_tools()
+    report = evaluate_environment(
+        tools,
+        os_name=os_name,
+        tool_versions=collect_tool_versions(tools),
+    )
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

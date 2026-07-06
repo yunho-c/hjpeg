@@ -76,6 +76,9 @@ running ChiselSim-backed tests:
 python3 scripts/dev/check_chiselsim_env.py
 ```
 
+Pass `--json` to save machine-readable toolchain evidence; the report includes
+detected `make`, `sh`, and `verilator` paths plus first-line `--version` output
+when available.
 The preflight detects mixed Windows/MSYS setups where svsim-generated Makefiles
 can fail before RTL simulation starts. If it reports an incompatible simulator
 environment, `sbt Test/compile` is still useful as a source-level gate, but run

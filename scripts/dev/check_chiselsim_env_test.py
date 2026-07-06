@@ -4,6 +4,7 @@ import contextlib
 import io
 import json
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -26,6 +27,10 @@ class CheckChiselSimEnvTest(unittest.TestCase):
         self.assertTrue(report["checks"]["msys_make"])
         self.assertTrue(report["checks"]["msys_sh"])
         self.assertTrue(report["checks"]["msys_verilator"])
+        self.assertEqual(
+            report["tool_versions"],
+            {"make": None, "sh": None, "verilator": None},
+        )
         self.assertTrue(any("for /f" in problem for problem in report["problems"]))
 
     def test_accepts_linux_toolchain_paths(self) -> None:
@@ -40,6 +45,47 @@ class CheckChiselSimEnvTest(unittest.TestCase):
 
         self.assertTrue(report["compatible"])
         self.assertEqual(report["problems"], [])
+
+    def test_records_provided_tool_versions(self) -> None:
+        report = check_chiselsim_env.evaluate_environment(
+            check_chiselsim_env.ToolPaths(
+                make="/usr/bin/make",
+                sh="/usr/bin/sh",
+                verilator="/usr/bin/verilator",
+            ),
+            os_name="posix",
+            tool_versions={
+                "make": "GNU Make 4.4.1",
+                "sh": "GNU bash, version 5.2.21",
+                "verilator": "Verilator 5.034",
+            },
+        )
+
+        self.assertEqual(report["tool_versions"]["make"], "GNU Make 4.4.1")
+        self.assertEqual(report["tool_versions"]["verilator"], "Verilator 5.034")
+
+    def test_collect_tool_versions_reads_first_version_line(self) -> None:
+        versions = check_chiselsim_env.collect_tool_versions(
+            check_chiselsim_env.ToolPaths(
+                make=sys.executable,
+                sh=None,
+                verilator=sys.executable,
+            )
+        )
+
+        self.assertIn("Python", versions["make"] or "")
+        self.assertIsNone(versions["sh"])
+        self.assertIn("Python", versions["verilator"] or "")
+
+    def test_shebang_version_command_handles_env_perl_script(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            script = Path(tmp) / "verilator"
+            script.write_text("#!/usr/bin/env perl\n", encoding="utf-8")
+
+            self.assertEqual(
+                check_chiselsim_env._shebang_version_command(str(script)),
+                ["perl", str(script), "--version"],
+            )
 
     def test_rejects_missing_required_tools(self) -> None:
         report = check_chiselsim_env.evaluate_environment(
@@ -80,6 +126,7 @@ class CheckChiselSimEnvTest(unittest.TestCase):
         report = json.loads(stdout.getvalue())
         self.assertFalse(report["compatible"])
         self.assertTrue(report["checks"]["windows_host"])
+        self.assertIn("tool_versions", report)
 
 
 if __name__ == "__main__":

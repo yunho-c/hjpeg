@@ -561,9 +561,10 @@ Known local limitations:
 
 - Run `python3 scripts/dev/check_chiselsim_env.py` before ChiselSim-backed
   tests on Windows or a newly provisioned machine. It reports the detected
-  `make`, `sh`, and `verilator` paths, flags the known Windows/MSYS
-  incompatibility below, and exits nonzero when simulator-backed tests are
-  expected to fail before RTL execution.
+  `make`, `sh`, and `verilator` paths and first-line `--version` output, flags
+  the known Windows/MSYS incompatibility below, and exits nonzero when
+  simulator-backed tests are expected to fail before RTL execution. Use
+  `--json` when saving this as handoff evidence.
 - Full ChiselSim tests on Windows/MSYS currently fail before simulation or
   harness compilation because svsim emits Windows-style Makefile/file-list paths
   while MSYS `make`, Verilator, and the MinGW/UCRT C++ toolchain consume parts
