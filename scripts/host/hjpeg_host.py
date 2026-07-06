@@ -2866,6 +2866,24 @@ def vivado_route_status_counts_present(record: object) -> bool:
     return False
 
 
+def vivado_record_hashes_present(record: object) -> bool:
+    if not isinstance(record, dict):
+        return False
+    for category in VIVADO_REQUIRED_EVIDENCE_CATEGORIES:
+        records = record.get(category)
+        if not isinstance(records, list):
+            return False
+        passing_records = [
+            item for item in records
+            if isinstance(item, dict) and item.get("passed") is True
+        ]
+        if not passing_records:
+            return False
+        if any(not is_sha256_hex(item.get("sha256")) for item in passing_records):
+            return False
+    return True
+
+
 def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str]]:
     result: dict[str, object] = {
         "path": str(path),
@@ -2901,6 +2919,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     summary_counts_consistent = vivado_summary_counts_consistent(parsed)
     route_status_counts_present = vivado_route_status_counts_present(parsed)
     address_map_hex_fields_consistent = vivado_address_map_hex_fields_consistent(parsed)
+    record_hashes_present = vivado_record_hashes_present(parsed)
     bases = vivado_hjpeg_base_addresses_from_record(parsed)
     result.update(
         {
@@ -2916,6 +2935,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
             "vivado_summary_counts_consistent": summary_counts_consistent,
             "vivado_route_status_counts_present": route_status_counts_present,
             "vivado_address_map_hex_fields_consistent": address_map_hex_fields_consistent,
+            "vivado_record_hashes_present": record_hashes_present,
             "hjpeg_base_addresses": list(bases),
             "hjpeg_base_addresses_hex": [f"0x{base:x}" for base in bases],
             "passed": (
@@ -2932,6 +2952,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
                 and summary_counts_consistent
                 and route_status_counts_present
                 and address_map_hex_fields_consistent
+                and record_hashes_present
             ),
         }
     )
@@ -2977,6 +2998,10 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     if not address_map_hex_fields_consistent:
         failures.append(
             f"{path}: Vivado evidence address-map hex fields do not match numeric address fields"
+        )
+    if not record_hashes_present:
+        failures.append(
+            f"{path}: Vivado evidence missing SHA-256 hashes for passing required records"
         )
     if not bases:
         failures.append(f"{path}: no passing hjpeg_0/s_axi_lite address-map evidence")

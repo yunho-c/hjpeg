@@ -1113,11 +1113,35 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
             "missing_required_filenames": [],
             "failing_required_filenames": [],
         },
+        "artifacts": [
+            {
+                "path": "hjpeg_kv260.bit",
+                "exists": True,
+                "passed": True,
+                "byte_length": 8,
+                "sha256": "0" * 64,
+            },
+            {
+                "path": "hjpeg_kv260.xsa",
+                "exists": True,
+                "passed": True,
+                "byte_length": 8,
+                "sha256": "1" * 64,
+            },
+            {
+                "path": "post_impl.dcp",
+                "exists": True,
+                "passed": True,
+                "byte_length": 8,
+                "sha256": "2" * 64,
+            },
+        ],
         "address_map": [
             {
                 "path": "hjpeg_kv260_address_map.rpt",
                 "exists": True,
                 "passed": True,
+                "sha256": "3" * 64,
                 "entries": [
                     {
                         "interface": "hjpeg_0/s_axi_lite",
@@ -1140,11 +1164,48 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
                 ],
             }
         ],
+        "timing": [
+            {
+                "path": "post_synth_timing_summary.rpt",
+                "exists": True,
+                "passed": True,
+                "sha256": "4" * 64,
+            },
+            {
+                "path": "post_impl_timing_summary.rpt",
+                "exists": True,
+                "passed": True,
+                "sha256": "5" * 64,
+            },
+        ],
+        "utilization": [
+            {
+                "path": "post_synth_utilization.rpt",
+                "exists": True,
+                "passed": True,
+                "sha256": "6" * 64,
+            },
+            {
+                "path": "post_impl_utilization.rpt",
+                "exists": True,
+                "passed": True,
+                "sha256": "7" * 64,
+            },
+        ],
+        "drc": [
+            {
+                "path": "post_impl_drc.rpt",
+                "exists": True,
+                "passed": True,
+                "sha256": "8" * 64,
+            }
+        ],
         "route_status": [
             {
                 "path": "post_impl_route_status.rpt",
                 "exists": True,
                 "passed": True,
+                "sha256": "9" * 64,
                 "required_counts": [
                     "number_of_unrouted_nets",
                     "number_of_nets_with_routing_errors",
@@ -1154,6 +1215,14 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
                     "number_of_nets_with_routing_errors": 0,
                 },
                 "missing_counts": [],
+            }
+        ],
+        "clock_utilization": [
+            {
+                "path": "post_impl_clock_utilization.rpt",
+                "exists": True,
+                "passed": True,
+                "sha256": "a" * 64,
             }
         ],
     }
@@ -3456,6 +3525,9 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(
                 record["vivado_evidence"][0]["vivado_clock_target_present"]
             )
+            self.assertTrue(
+                record["vivado_evidence"][0]["vivado_record_hashes_present"]
+            )
             self.assertEqual(record["vivado_hjpeg_base_addresses"], [0])
             self.assertEqual(record["vivado_hjpeg_base_addresses_hex"], ["0x0"])
             self.assertTrue(
@@ -3664,6 +3736,25 @@ class HjpegHostTest(unittest.TestCase):
                 any("diagnostic summary counts" in failure for failure in failures)
             )
             self.assertTrue(any("route-status" in failure for failure in failures))
+
+    def test_vivado_evidence_file_record_rejects_missing_record_hashes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["timing"][1]["sha256"] = "not-a-sha256"
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertTrue(record["vivado_passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["vivado_evidence_categories_present"])
+            self.assertTrue(record["vivado_summary_counts_consistent"])
+            self.assertFalse(record["vivado_record_hashes_present"])
+            self.assertFalse(record["passed"])
+            self.assertTrue(
+                any("SHA-256 hashes" in failure for failure in failures)
+            )
 
     def test_vivado_evidence_file_record_rejects_inconsistent_artifact_filenames(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
