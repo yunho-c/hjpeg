@@ -450,8 +450,8 @@ Vivado clock target must include finite positive `clock_period_ns` and
 `clock_frequency_mhz` values that match each other, with `clock_target.valid`
 and the top-level `clock_target_valid` flag true. It also requires the Vivado
 evidence-category summary to show every required category present and passing,
-the top-level complete-evidence missing/failing lists to match nested evidence
-summaries,
+the top-level `complete_vivado_flow_evidence` flag and complete-evidence
+missing/failing lists to match nested evidence summaries,
 zero diagnostic failures and failed paths in the Vivado summary, checked paths
 matching passed paths, positive per-category checked counts whose sum matches
 the total checked count and match the per-category pass/fail totals, plus a

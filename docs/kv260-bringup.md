@@ -327,8 +327,8 @@ Expected evidence:
   `clock_frequency_mhz` values that match each other, `clock_target.valid` and
   top-level `clock_target_valid` true, a required
   evidence-category summary showing every required category present and passing,
-  top-level complete-evidence missing/failing lists matching nested evidence
-  summaries,
+  a top-level `complete_vivado_flow_evidence` flag and complete-evidence
+  missing/failing lists matching nested evidence summaries,
   zero diagnostic failures and failed paths in the Vivado summary, checked paths
   matching passed paths, positive per-category checked counts whose sum matches
   the total checked count and match the per-category pass/fail totals, plus a

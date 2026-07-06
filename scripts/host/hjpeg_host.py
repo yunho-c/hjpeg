@@ -3200,6 +3200,20 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         if isinstance(hold_timing_filenames, dict)
         else []
     )
+    complete_vivado_flow_evidence_recomputed = (
+        vivado_artifact_suffixes_present
+        and vivado_artifact_filenames_present
+        and vivado_address_map_filenames_present
+        and vivado_report_filenames_present
+        and vivado_hold_timing_filenames_present
+        and clock_target_present
+        and evidence_categories_present
+    )
+    complete_vivado_flow_evidence_matches = (
+        isinstance(parsed, dict)
+        and parsed.get("complete_vivado_flow_evidence")
+        is complete_vivado_flow_evidence_recomputed
+    )
     complete_vivado_flow_evidence_diagnostics_match = (
         isinstance(parsed, dict)
         and parsed.get("complete_vivado_flow_evidence_missing_categories")
@@ -3231,6 +3245,9 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         {
             "vivado_passed": vivado_passed,
             "complete_vivado_flow_evidence": complete_vivado_flow_evidence,
+            "complete_vivado_flow_evidence_matches": (
+                complete_vivado_flow_evidence_matches
+            ),
             "complete_vivado_flow_evidence_required": (
                 complete_vivado_flow_evidence_required
             ),
@@ -3257,6 +3274,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
                 bool(bases)
                 and vivado_passed
                 and complete_vivado_flow_evidence
+                and complete_vivado_flow_evidence_matches
                 and complete_vivado_flow_evidence_required
                 and complete_vivado_flow_evidence_argument_required
                 and vivado_artifact_suffixes_present
@@ -3279,6 +3297,11 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         failures.append(f"{path}: Vivado evidence did not pass")
     if not complete_vivado_flow_evidence:
         failures.append(f"{path}: complete_vivado_flow_evidence is false")
+    if not complete_vivado_flow_evidence_matches:
+        failures.append(
+            f"{path}: top-level complete_vivado_flow_evidence does not match "
+            "nested Vivado evidence summaries"
+        )
     if not complete_vivado_flow_evidence_required:
         failures.append(
             f"{path}: complete_vivado_flow_evidence_required is not true"

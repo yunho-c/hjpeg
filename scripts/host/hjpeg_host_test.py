@@ -3929,6 +3929,11 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertTrue(
                 record["vivado_evidence"][0][
+                    "complete_vivado_flow_evidence_matches"
+                ]
+            )
+            self.assertTrue(
+                record["vivado_evidence"][0][
                     "complete_vivado_flow_evidence_diagnostics_match"
                 ]
             )
@@ -3949,6 +3954,7 @@ class HjpegHostTest(unittest.TestCase):
 
             self.assertFalse(record["passed"])
             self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["complete_vivado_flow_evidence_matches"])
             self.assertFalse(record["complete_vivado_flow_evidence_required"])
             self.assertTrue(
                 any(
@@ -3969,6 +3975,7 @@ class HjpegHostTest(unittest.TestCase):
 
             self.assertFalse(record["passed"])
             self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["complete_vivado_flow_evidence_matches"])
             self.assertTrue(record["complete_vivado_flow_evidence_required"])
             self.assertFalse(
                 record["complete_vivado_flow_evidence_argument_required"]
@@ -3976,6 +3983,46 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(
                 any(
                     "arguments.require_complete_evidence is not true" in failure
+                    for failure in failures
+                )
+            )
+
+    def test_vivado_evidence_file_record_rejects_missing_top_level_complete_flag(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            del vivado_record["complete_vivado_flow_evidence"]
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertFalse(record["passed"])
+            self.assertFalse(record["complete_vivado_flow_evidence"])
+            self.assertFalse(record["complete_vivado_flow_evidence_matches"])
+            self.assertTrue(
+                any(
+                    "top-level complete_vivado_flow_evidence does not match"
+                    in failure
+                    for failure in failures
+                )
+            )
+
+    def test_vivado_evidence_file_record_rejects_stale_top_level_complete_flag(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["complete_vivado_flow_evidence"] = False
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertFalse(record["passed"])
+            self.assertFalse(record["complete_vivado_flow_evidence"])
+            self.assertFalse(record["complete_vivado_flow_evidence_matches"])
+            self.assertTrue(
+                any(
+                    "top-level complete_vivado_flow_evidence does not match"
+                    in failure
                     for failure in failures
                 )
             )
@@ -3993,6 +4040,7 @@ class HjpegHostTest(unittest.TestCase):
 
             self.assertFalse(record["passed"])
             self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["complete_vivado_flow_evidence_matches"])
             self.assertTrue(record["complete_vivado_flow_evidence_required"])
             self.assertFalse(
                 record["complete_vivado_flow_evidence_diagnostics_match"]
@@ -4017,6 +4065,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["exists"])
             self.assertTrue(record["vivado_passed"])
             self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertFalse(record["complete_vivado_flow_evidence_matches"])
             self.assertTrue(record["vivado_artifact_suffixes_present"])
             self.assertTrue(record["vivado_artifact_filenames_present"])
             self.assertTrue(record["vivado_address_map_filenames_present"])

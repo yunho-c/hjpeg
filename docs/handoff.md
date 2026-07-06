@@ -179,9 +179,10 @@ without changing mapped control/status registers.
 
 ## Recent Progress
 
-Recent commits, newest first:
+Recent baseline commits before this handoff update, newest first:
 
-- current commit: `84a7e77 fix: verify complete run evidence flag`
+- `7ef93be test: assert run complete evidence flag`
+- `84a7e77 fix: verify complete run evidence flag`
 - `05e5da1 docs: refresh structured vivado evidence handoff`
 - `2f4f78f fix: require structured vivado clock evidence`
 - `bbc939e fix: gate vivado clock target evidence`
@@ -844,8 +845,9 @@ matching missing/failing filename, hold-timing, and suffix lists empty. The
 Vivado clock target must include finite positive `clock_period_ns` and
 `clock_frequency_mhz` values that match each other, with `clock_target.valid`
 and the top-level `clock_target_valid` flag true, and the Vivado checked path
-list must match the passed path list. Its top-level complete-evidence
-missing/failing lists must match nested evidence summaries. Its per-category
+list must match the passed path list. Its top-level
+`complete_vivado_flow_evidence` flag and complete-evidence missing/failing lists
+must match nested evidence summaries. Its per-category
 checked counts must be positive, sum to the total checked count, and match the per-category pass/fail
 totals. Supplying multiple Vivado evidence files is allowed only when they agree
 on the same HJPEG base address.
