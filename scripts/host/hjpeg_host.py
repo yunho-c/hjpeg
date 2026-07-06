@@ -2566,6 +2566,7 @@ def check_run_evidence_record(
     )
     complete = bool(computed_summary.get("complete_hardware_run_evidence", False))
     all_checks = bool(computed_summary.get("all_recorded_checks_passed", False))
+    complete_evidence_matches = record.get("complete_hardware_run_evidence") is complete
     complete_evidence_required = (
         record.get("complete_hardware_run_evidence_required") is True
     )
@@ -2578,6 +2579,7 @@ def check_run_evidence_record(
     result.update(
         {
             "complete_hardware_run_evidence": complete,
+            "complete_hardware_run_evidence_matches": complete_evidence_matches,
             "complete_hardware_run_evidence_required": complete_evidence_required,
             "complete_hardware_run_evidence_missing_matches": (
                 complete_evidence_missing_matches
@@ -2605,6 +2607,11 @@ def check_run_evidence_record(
     )
     if not complete:
         failures.append(f"{path}: complete_hardware_run_evidence is false")
+    if not complete_evidence_matches:
+        failures.append(
+            f"{path}: top-level complete_hardware_run_evidence does not match "
+            "recomputed summary"
+        )
     if not complete_evidence_required:
         failures.append(f"{path}: complete hardware evidence was not required")
     if not complete_evidence_missing_matches:
@@ -4331,6 +4338,7 @@ def main(argv: list[str] | None = None) -> int:
         record["complete_hardware_run_evidence_required"] = (
             args.require_complete_evidence
         )
+        record["complete_hardware_run_evidence"] = complete_evidence
         record["complete_hardware_run_evidence_missing"] = (
             missing_complete_evidence
         )

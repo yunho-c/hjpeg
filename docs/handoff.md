@@ -816,13 +816,15 @@ which is useful for commands that print decoded dimensions.
 Use `run-stream-devices --require-complete-evidence` for final board evidence
 gates; omit it for partial smoke tests that intentionally skip source PPM or
 decoder evidence. Run JSON records whether complete evidence was required and
-which evidence groups were missing, plus which complete-evidence checks failed.
+whether complete evidence was captured, which evidence groups were missing,
+plus which complete-evidence checks failed.
 Saved run JSON can be checked later with
 `check-run-evidence`, which fails on malformed JSON, missing
 `hardware_run_summary`, a stored summary that does not match recomputed
 evidence, a transcript that did not request complete-evidence gating, diagnostic
 missing-evidence or failing-check lists that do not match recomputed evidence,
-failed recorded checks, or incomplete hardware evidence. Pass
+a missing or stale top-level `complete_hardware_run_evidence` flag, failed
+recorded checks, or incomplete hardware evidence. Pass
 `--vivado-evidence` with the saved `check_reports.py --json` bitstream evidence
 to cross-check the run transcript's AXI-Lite base address against the Vivado
 `hjpeg_0/s_axi_lite` address-map entry. The Vivado transcript must have

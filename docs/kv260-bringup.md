@@ -296,15 +296,17 @@ Expected evidence:
 - Use `run-stream-devices --require-complete-evidence` for the final board
   transcript so missing source PPM, decoder, transfer timing, or status evidence
   fails the command. Omit it only for intentional partial smoke tests. Run JSON
-  records whether complete evidence was required and which evidence groups were
-  missing, plus which complete-evidence checks failed.
+  records whether complete evidence was required, whether complete evidence was
+  captured, which evidence groups were missing, plus which complete-evidence
+  checks failed.
 - Saved run JSON can be checked later with `check-run-evidence`, which fails if
   `hardware_run_summary` is missing, `all_recorded_checks_passed` is false, or
   `complete_hardware_run_evidence` is false. The checker recomputes
   `hardware_run_summary` from the saved transcript and fails if the stored
   summary does not match the recomputed evidence, if
-  `complete_hardware_run_evidence_required` is not true, or if the recorded
-  missing-evidence and failing-check diagnostic lists do not match the
+  `complete_hardware_run_evidence_required` is not true, if the top-level
+  `complete_hardware_run_evidence` flag is missing or stale, or if the
+  recorded missing-evidence and failing-check diagnostic lists do not match the
   recomputed summary. When `--vivado-evidence`
   points at the `check_reports.py --json` output saved from the bitstream build,
   it also extracts the passing `hjpeg_0/s_axi_lite` address-map base address and

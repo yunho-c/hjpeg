@@ -287,12 +287,14 @@ check names for review.
 Required boolean evidence fields must be actual JSON booleans.
 For final board transcripts, pass `run-stream-devices --require-complete-evidence`
 so missing evidence groups turn into a nonzero CLI result; omit it for partial
-smoke tests. Run JSON records whether complete evidence was required and which
-evidence groups were missing, plus which complete-evidence checks failed. Saved
+smoke tests. Run JSON records whether complete evidence was required, whether
+complete evidence was captured, which evidence groups were missing, plus which
+complete-evidence checks failed. Saved
 run JSON can be checked later with
 `check-run-evidence`, which fails on malformed JSON, missing
 `hardware_run_summary`, a stored summary that does not match recomputed
-evidence, failed recorded checks, or incomplete hardware evidence. With
+evidence, a missing or stale top-level `complete_hardware_run_evidence` flag,
+failed recorded checks, or incomplete hardware evidence. With
 `--vivado-evidence`, the saved-run checker also parses `check_reports.py --json`
 Vivado evidence, extracts passing `hjpeg_0/s_axi_lite` address-map base
 addresses, and requires the Vivado transcript to have `passed`,

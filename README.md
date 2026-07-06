@@ -417,8 +417,8 @@ Required boolean evidence fields must be actual JSON booleans.
 Pass `run-stream-devices --require-complete-evidence` for final board evidence
 gates; omit it for partial hardware smoke tests that intentionally skip source
 PPM or decoder evidence. Run JSON records whether complete evidence was
-required, which evidence groups were missing, and which complete-evidence
-checks failed.
+required, whether complete evidence was captured, which evidence groups were
+missing, and which complete-evidence checks failed.
 Saved run JSON can be checked later with:
 
 ```sh
@@ -429,9 +429,10 @@ python3 scripts/host/hjpeg_host.py check-run-evidence run.json \
 
 The saved-evidence checker recomputes `hardware_run_summary` from the transcript
 and fails if the stored summary does not match the recomputed evidence, if the
-run did not record `complete_hardware_run_evidence_required`, or if the recorded
-missing-evidence and failing-check diagnostic lists do not match the recomputed
-summary. When
+run did not record `complete_hardware_run_evidence_required`, if the top-level
+`complete_hardware_run_evidence` flag is missing or does not match the
+recomputed summary, or if the recorded missing-evidence and failing-check
+diagnostic lists do not match the recomputed summary. When
 `--vivado-evidence` points at `check_reports.py --json` output, it also extracts
 the passing `hjpeg_0/s_axi_lite` address-map base address. The Vivado transcript
 must have `passed`, `complete_vivado_flow_evidence`,
