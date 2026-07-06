@@ -1615,6 +1615,19 @@ def expected_component_records_match(
     return True
 
 
+def expected_record_fields_match(
+    actual_record: object,
+    expected_record: object,
+    required_keys: tuple[str, ...],
+) -> bool:
+    if not isinstance(actual_record, dict) or not isinstance(expected_record, dict):
+        return False
+    for key in required_keys:
+        if not is_strict_int(expected_record.get(key)):
+            return False
+    return all(actual_record.get(key) == value for key, value in expected_record.items())
+
+
 def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
     evidence_present = {
         "jpeg_output": False,
@@ -1867,6 +1880,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         expected_sos_components = validation_expectations.get(
             "expected_sos_components"
         )
+        expected_jfif = validation_expectations.get("expect_jfif")
+        expected_jfif_app0 = validation_expectations.get("expected_jfif_app0")
         expected_chroma_mode = validation_expectations.get("expected_chroma_mode")
         expected_quality = validation_expectations.get("quality")
         expected_dqt_payload_hashes = validation_expectations.get(
@@ -1917,6 +1932,35 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             record.get("scan_components"),
             expected_sos_components,
             ("component_id", "dc_table", "ac_table"),
+        )
+        validation_jfif_policy_matches = (
+            expected_jfif is None
+            or (
+                expected_jfif == "present"
+                and record.get("jfif_app0_segments") == 1
+                and isinstance(record.get("jfif_app0"), dict)
+            )
+            or (
+                expected_jfif == "absent"
+                and record.get("jfif_app0_segments") == 0
+                and record.get("jfif_app0") is None
+            )
+        )
+        validation_jfif_app0_fields_match = (
+            expected_jfif_app0 is None
+            or expected_record_fields_match(
+                record.get("jfif_app0"),
+                expected_jfif_app0,
+                (
+                    "version_major",
+                    "version_minor",
+                    "density_units",
+                    "x_density",
+                    "y_density",
+                    "thumbnail_width",
+                    "thumbnail_height",
+                ),
+            )
         )
         validation_chroma_mode_matches = (
             expected_chroma_mode is None
@@ -2026,6 +2070,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and validation_marker_counts_match
             and validation_sof0_components_match
             and validation_sos_components_match
+            and validation_jfif_policy_matches
+            and validation_jfif_app0_fields_match
             and validation_chroma_mode_matches
             and validation_dqt_payload_hashes_match
             and validation_huffman_tables_match
@@ -2049,6 +2095,10 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             validation_sof0_components_match
         )
         checks["validation_sos_components_match"] = validation_sos_components_match
+        checks["validation_jfif_policy_matches"] = validation_jfif_policy_matches
+        checks["validation_jfif_app0_fields_match"] = (
+            validation_jfif_app0_fields_match
+        )
         checks["validation_chroma_mode_matches"] = validation_chroma_mode_matches
         checks["validation_dqt_payload_hashes_match"] = (
             validation_dqt_payload_hashes_match
