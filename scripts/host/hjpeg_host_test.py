@@ -898,7 +898,7 @@ def complete_run_evidence_record(root: Path) -> dict[str, object]:
         status = hjpeg_host.status_evidence_record(mem, 0, 0)
         status["context"] = context
         status_checks.append(status)
-    return hjpeg_host.run_evidence_record(
+    record = hjpeg_host.run_evidence_record(
         jpeg,
         info,
         input_info=hjpeg_host.file_info(input_rgb, input_rgb.read_bytes()),
@@ -953,6 +953,10 @@ def complete_run_evidence_record(root: Path) -> dict[str, object]:
             hjpeg_host.DEFAULT_MAX_FRAME_HEIGHT,
         ),
     )
+    record["complete_hardware_run_evidence_required"] = True
+    record["complete_hardware_run_evidence_missing"] = []
+    record["complete_hardware_run_evidence_failing_checks"] = []
+    return record
 
 
 def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
@@ -3164,6 +3168,11 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["passed"])
             self.assertTrue(record["exists"])
             self.assertTrue(record["complete_hardware_run_evidence"])
+            self.assertTrue(record["complete_hardware_run_evidence_required"])
+            self.assertTrue(record["complete_hardware_run_evidence_missing_matches"])
+            self.assertTrue(
+                record["complete_hardware_run_evidence_failing_checks_matches"]
+            )
             self.assertTrue(record["all_recorded_checks_passed"])
             self.assertTrue(record["hardware_run_summary_matches_computed"])
             self.assertEqual(
@@ -3309,12 +3318,23 @@ class HjpegHostTest(unittest.TestCase):
             evidence["hardware_run_summary"] = hjpeg_host.hardware_run_summary_record(
                 evidence
             )
+            evidence["complete_hardware_run_evidence_missing"] = evidence[
+                "hardware_run_summary"
+            ]["missing_evidence"]
+            evidence["complete_hardware_run_evidence_failing_checks"] = evidence[
+                "hardware_run_summary"
+            ]["failing_checks"]
             path.write_text(json.dumps(evidence))
 
             record, failures = hjpeg_host.check_run_evidence_file(path)
 
             self.assertFalse(record["passed"])
             self.assertFalse(record["complete_hardware_run_evidence"])
+            self.assertTrue(record["complete_hardware_run_evidence_required"])
+            self.assertTrue(record["complete_hardware_run_evidence_missing_matches"])
+            self.assertTrue(
+                record["complete_hardware_run_evidence_failing_checks_matches"]
+            )
             self.assertTrue(record["all_recorded_checks_passed"])
             self.assertTrue(record["hardware_run_summary_matches_computed"])
             self.assertEqual(
@@ -3367,6 +3387,41 @@ class HjpegHostTest(unittest.TestCase):
                 )
             )
 
+    def test_check_run_evidence_file_rejects_tampered_complete_diagnostics(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "run.json"
+            evidence = complete_run_evidence_record(root)
+            evidence["complete_hardware_run_evidence_missing"] = ["decoder"]
+            evidence["complete_hardware_run_evidence_failing_checks"] = [
+                "decoder_passed"
+            ]
+            path.write_text(json.dumps(evidence))
+
+            record, failures = hjpeg_host.check_run_evidence_file(path)
+
+            self.assertFalse(record["passed"])
+            self.assertTrue(record["complete_hardware_run_evidence"])
+            self.assertTrue(record["complete_hardware_run_evidence_required"])
+            self.assertFalse(record["complete_hardware_run_evidence_missing_matches"])
+            self.assertFalse(
+                record["complete_hardware_run_evidence_failing_checks_matches"]
+            )
+            self.assertTrue(
+                any(
+                    "complete_hardware_run_evidence_missing does not match"
+                    in failure
+                    for failure in failures
+                )
+            )
+            self.assertTrue(
+                any(
+                    "complete_hardware_run_evidence_failing_checks does not match"
+                    in failure
+                    for failure in failures
+                )
+            )
+
     def test_check_run_evidence_file_reports_failing_checks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -3376,6 +3431,12 @@ class HjpegHostTest(unittest.TestCase):
             evidence["hardware_run_summary"] = hjpeg_host.hardware_run_summary_record(
                 evidence
             )
+            evidence["complete_hardware_run_evidence_missing"] = evidence[
+                "hardware_run_summary"
+            ]["missing_evidence"]
+            evidence["complete_hardware_run_evidence_failing_checks"] = evidence[
+                "hardware_run_summary"
+            ]["failing_checks"]
             path.write_text(json.dumps(evidence))
 
             record, failures = hjpeg_host.check_run_evidence_file(path)
@@ -3450,7 +3511,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["passed_count"], 1)
             self.assertEqual(record["failed_count"], 3)
             self.assertEqual(record["failure_count"], len(record["failures"]))
-            self.assertEqual(record["failure_count"], 8)
+            self.assertEqual(record["failure_count"], 11)
             self.assertEqual(
                 record["checked_paths"],
                 [str(complete), str(incomplete), str(malformed), str(missing)],
@@ -3500,7 +3561,33 @@ class HjpegHostTest(unittest.TestCase):
                 ],
             )
             self.assertTrue(record["records"][0]["passed"])
+            self.assertTrue(
+                record["records"][0]["complete_hardware_run_evidence_required"]
+            )
+            self.assertTrue(
+                record["records"][0][
+                    "complete_hardware_run_evidence_missing_matches"
+                ]
+            )
+            self.assertTrue(
+                record["records"][0][
+                    "complete_hardware_run_evidence_failing_checks_matches"
+                ]
+            )
             self.assertFalse(record["records"][1]["passed"])
+            self.assertFalse(
+                record["records"][1]["complete_hardware_run_evidence_required"]
+            )
+            self.assertFalse(
+                record["records"][1][
+                    "complete_hardware_run_evidence_missing_matches"
+                ]
+            )
+            self.assertFalse(
+                record["records"][1][
+                    "complete_hardware_run_evidence_failing_checks_matches"
+                ]
+            )
             self.assertIn(
                 "computed_hardware_run_summary",
                 record["records"][1],
@@ -3518,6 +3605,12 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertTrue(
                 any("file not found" in failure for failure in record["failures"])
+            )
+            self.assertTrue(
+                any(
+                    "complete hardware evidence was not required" in failure
+                    for failure in record["failures"]
+                )
             )
 
     def test_check_run_evidence_cli_cross_checks_vivado_address_map(self) -> None:

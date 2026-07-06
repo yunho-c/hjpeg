@@ -298,7 +298,10 @@ Expected evidence:
   `hardware_run_summary` is missing, `all_recorded_checks_passed` is false, or
   `complete_hardware_run_evidence` is false. The checker recomputes
   `hardware_run_summary` from the saved transcript and fails if the stored
-  summary does not match the recomputed evidence. When `--vivado-evidence`
+  summary does not match the recomputed evidence, if
+  `complete_hardware_run_evidence_required` is not true, or if the recorded
+  missing-evidence and failing-check diagnostic lists do not match the
+  recomputed summary. When `--vivado-evidence`
   points at the `check_reports.py --json` output saved from the bitstream build,
   it also extracts the passing `hjpeg_0/s_axi_lite` address-map base address and
   requires that Vivado transcript to have `passed` and

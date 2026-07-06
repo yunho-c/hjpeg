@@ -2470,9 +2470,25 @@ def check_run_evidence_record(
     )
     complete = bool(computed_summary.get("complete_hardware_run_evidence", False))
     all_checks = bool(computed_summary.get("all_recorded_checks_passed", False))
+    complete_evidence_required = (
+        record.get("complete_hardware_run_evidence_required") is True
+    )
+    complete_evidence_missing_matches = (
+        record.get("complete_hardware_run_evidence_missing") == missing_evidence
+    )
+    complete_evidence_failing_checks_matches = (
+        record.get("complete_hardware_run_evidence_failing_checks") == failing_checks
+    )
     result.update(
         {
             "complete_hardware_run_evidence": complete,
+            "complete_hardware_run_evidence_required": complete_evidence_required,
+            "complete_hardware_run_evidence_missing_matches": (
+                complete_evidence_missing_matches
+            ),
+            "complete_hardware_run_evidence_failing_checks_matches": (
+                complete_evidence_failing_checks_matches
+            ),
             "all_recorded_checks_passed": all_checks,
             "hardware_run_summary_matches_computed": summary_matches_computed,
             "required_evidence_groups": computed_summary.get(
@@ -2493,6 +2509,18 @@ def check_run_evidence_record(
     )
     if not complete:
         failures.append(f"{path}: complete_hardware_run_evidence is false")
+    if not complete_evidence_required:
+        failures.append(f"{path}: complete hardware evidence was not required")
+    if not complete_evidence_missing_matches:
+        failures.append(
+            f"{path}: complete_hardware_run_evidence_missing does not match "
+            "recomputed missing evidence"
+        )
+    if not complete_evidence_failing_checks_matches:
+        failures.append(
+            f"{path}: complete_hardware_run_evidence_failing_checks does not "
+            "match recomputed failing checks"
+        )
     if not all_checks:
         failures.append(f"{path}: all_recorded_checks_passed is false")
     if missing_evidence:
