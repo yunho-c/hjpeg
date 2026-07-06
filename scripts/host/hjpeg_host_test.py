@@ -3779,6 +3779,22 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["validation_require_standard_huffman"])
             self.assertEqual(record["validation_expected_chroma_mode"], "4:4:4")
             self.assertEqual(record["validation_expect_jfif"], "present")
+            self.assertEqual(record["status_check_count"], 3)
+            self.assertEqual(
+                record["status_check_contexts"],
+                hjpeg_host.RUN_STATUS_CHECK_CONTEXTS,
+            )
+            self.assertEqual(
+                record["expected_status_check_contexts"],
+                hjpeg_host.RUN_STATUS_CHECK_CONTEXTS,
+            )
+            self.assertTrue(record["status_check_contexts_match_expected"])
+            self.assertTrue(record["status_checks_all_idle"])
+            self.assertFalse(record["status_checks_any_protocol_error"])
+            self.assertFalse(record["status_checks_any_busy"])
+            self.assertEqual(record["transfer_elapsed_seconds"], 0.01)
+            self.assertEqual(record["host_input_rgb_bytes_per_second"], 800.0)
+            self.assertGreater(record["host_output_jpeg_bytes_per_second"], 0.0)
             self.assertEqual(record["jpeg"], str(root / "output.jpg"))
             self.assertEqual(record["input_rgb"], str(root / "input.rgb"))
             self.assertEqual(record["input_ppm"], str(root / "input.ppm"))
@@ -4845,6 +4861,51 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(
                 record["aggregate_validation_expect_jfif_values"], ["present"]
             )
+            self.assertEqual(record["aggregate_status_check_count_value_count"], 1)
+            self.assertEqual(record["aggregate_status_check_context_count"], 3)
+            self.assertEqual(record["aggregate_expected_status_check_context_count"], 3)
+            self.assertEqual(
+                record["aggregate_status_check_contexts_match_expected_count"], 1
+            )
+            self.assertEqual(record["aggregate_status_checks_all_idle_count"], 1)
+            self.assertEqual(
+                record["aggregate_status_checks_any_protocol_error_count"], 1
+            )
+            self.assertEqual(record["aggregate_status_checks_any_busy_count"], 1)
+            self.assertEqual(record["aggregate_transfer_elapsed_seconds_count"], 1)
+            self.assertEqual(
+                record["aggregate_host_input_rgb_bytes_per_second_count"], 1
+            )
+            self.assertEqual(
+                record["aggregate_host_output_jpeg_bytes_per_second_count"], 1
+            )
+            self.assertEqual(record["aggregate_status_check_counts"], [3])
+            self.assertEqual(
+                record["aggregate_status_check_contexts"],
+                hjpeg_host.RUN_STATUS_CHECK_CONTEXTS,
+            )
+            self.assertEqual(
+                record["aggregate_expected_status_check_contexts"],
+                hjpeg_host.RUN_STATUS_CHECK_CONTEXTS,
+            )
+            self.assertEqual(
+                record["aggregate_status_check_contexts_match_expected_values"],
+                [True],
+            )
+            self.assertEqual(
+                record["aggregate_status_checks_all_idle_values"], [True]
+            )
+            self.assertEqual(
+                record["aggregate_status_checks_any_protocol_error_values"], [False]
+            )
+            self.assertEqual(record["aggregate_status_checks_any_busy_values"], [False])
+            self.assertEqual(record["aggregate_transfer_elapsed_seconds"], [0.01])
+            self.assertEqual(
+                record["aggregate_host_input_rgb_bytes_per_second"], [800.0]
+            )
+            self.assertGreater(
+                record["aggregate_host_output_jpeg_bytes_per_second"][0], 0.0
+            )
             self.assertEqual(record["aggregate_jpeg_path_count"], 1)
             self.assertEqual(record["aggregate_input_rgb_path_count"], 1)
             self.assertEqual(record["aggregate_input_ppm_path_count"], 1)
@@ -4897,6 +4958,23 @@ class HjpegHostTest(unittest.TestCase):
                 record["records"][0]["validation_expected_chroma_mode"], "4:4:4"
             )
             self.assertEqual(record["records"][0]["validation_expect_jfif"], "present")
+            self.assertEqual(record["records"][0]["status_check_count"], 3)
+            self.assertEqual(
+                record["records"][0]["status_check_contexts"],
+                hjpeg_host.RUN_STATUS_CHECK_CONTEXTS,
+            )
+            self.assertTrue(
+                record["records"][0]["status_check_contexts_match_expected"]
+            )
+            self.assertTrue(record["records"][0]["status_checks_all_idle"])
+            self.assertFalse(
+                record["records"][0]["status_checks_any_protocol_error"]
+            )
+            self.assertFalse(record["records"][0]["status_checks_any_busy"])
+            self.assertEqual(record["records"][0]["transfer_elapsed_seconds"], 0.01)
+            self.assertEqual(
+                record["records"][0]["host_input_rgb_bytes_per_second"], 800.0
+            )
             self.assertEqual(record["records"][0]["jpeg"], str(root / "output.jpg"))
             self.assertEqual(
                 record["records"][0]["input_rgb"], str(root / "input.rgb")

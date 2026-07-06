@@ -2976,6 +2976,33 @@ def check_run_evidence_record(
             value = validation_expectations.get(source_key)
             if isinstance(value, str):
                 result[result_key] = value
+    status_check_count = record.get("status_check_count")
+    if is_strict_int(status_check_count):
+        result["status_check_count"] = int(status_check_count)
+    for key in ("status_check_contexts", "expected_status_check_contexts"):
+        value = record.get(key)
+        if isinstance(value, list) and all(isinstance(item, str) for item in value):
+            result[key] = list(value)
+    for key in (
+        "status_check_contexts_match_expected",
+        "status_checks_all_idle",
+        "status_checks_any_protocol_error",
+        "status_checks_any_busy",
+    ):
+        value = record.get(key)
+        if isinstance(value, bool):
+            result[key] = value
+    transfer_elapsed_seconds = record.get("transfer_elapsed_seconds")
+    if is_strict_number(transfer_elapsed_seconds):
+        result["transfer_elapsed_seconds"] = transfer_elapsed_seconds
+    host_transfer_rates = record.get("host_transfer_rates")
+    if isinstance(host_transfer_rates, dict):
+        input_rgb_rate = host_transfer_rates.get("input_rgb_bytes_per_second")
+        output_jpeg_rate = host_transfer_rates.get("output_jpeg_bytes_per_second")
+        if is_strict_number(input_rgb_rate):
+            result["host_input_rgb_bytes_per_second"] = input_rgb_rate
+        if is_strict_number(output_jpeg_rate):
+            result["host_output_jpeg_bytes_per_second"] = output_jpeg_rate
     stream_devices = record.get("stream_devices")
     if isinstance(stream_devices, dict):
         stream_tx_device = stream_devices.get("tx_device")
@@ -3956,6 +3983,22 @@ def unique_int_values(records: list[dict[str, object]], key: str) -> list[int]:
     return values
 
 
+def unique_number_values(
+    records: list[dict[str, object]], key: str
+) -> list[int | float]:
+    values: list[int | float] = []
+    seen: set[int | float] = set()
+    for record in records:
+        value = record.get(key)
+        if not is_strict_number(value):
+            continue
+        number = int(value) if isinstance(value, int) else float(value)
+        if number not in seen:
+            seen.add(number)
+            values.append(number)
+    return values
+
+
 def unique_bool_values(records: list[dict[str, object]], key: str) -> list[bool]:
     values: list[bool] = []
     seen: set[bool] = set()
@@ -4779,6 +4822,36 @@ def main(argv: list[str] | None = None) -> int:
         aggregate_validation_expect_jfif_values = unique_scalar_string_values(
             records, "validation_expect_jfif"
         )
+        aggregate_status_check_counts = unique_int_values(
+            records, "status_check_count"
+        )
+        aggregate_status_check_contexts = unique_string_values(
+            records, "status_check_contexts"
+        )
+        aggregate_expected_status_check_contexts = unique_string_values(
+            records, "expected_status_check_contexts"
+        )
+        aggregate_status_check_contexts_match_expected_values = unique_bool_values(
+            records, "status_check_contexts_match_expected"
+        )
+        aggregate_status_checks_all_idle_values = unique_bool_values(
+            records, "status_checks_all_idle"
+        )
+        aggregate_status_checks_any_protocol_error_values = unique_bool_values(
+            records, "status_checks_any_protocol_error"
+        )
+        aggregate_status_checks_any_busy_values = unique_bool_values(
+            records, "status_checks_any_busy"
+        )
+        aggregate_transfer_elapsed_seconds = unique_number_values(
+            records, "transfer_elapsed_seconds"
+        )
+        aggregate_host_input_rgb_bytes_per_second = unique_number_values(
+            records, "host_input_rgb_bytes_per_second"
+        )
+        aggregate_host_output_jpeg_bytes_per_second = unique_number_values(
+            records, "host_output_jpeg_bytes_per_second"
+        )
         aggregate_jpeg_paths = unique_scalar_string_values(records, "jpeg")
         aggregate_input_rgb_paths = unique_scalar_string_values(records, "input_rgb")
         aggregate_input_ppm_paths = unique_scalar_string_values(records, "input_ppm")
@@ -4938,6 +5011,36 @@ def main(argv: list[str] | None = None) -> int:
                         "aggregate_validation_expect_jfif_count": len(
                             aggregate_validation_expect_jfif_values
                         ),
+                        "aggregate_status_check_count_value_count": len(
+                            aggregate_status_check_counts
+                        ),
+                        "aggregate_status_check_context_count": len(
+                            aggregate_status_check_contexts
+                        ),
+                        "aggregate_expected_status_check_context_count": len(
+                            aggregate_expected_status_check_contexts
+                        ),
+                        "aggregate_status_check_contexts_match_expected_count": len(
+                            aggregate_status_check_contexts_match_expected_values
+                        ),
+                        "aggregate_status_checks_all_idle_count": len(
+                            aggregate_status_checks_all_idle_values
+                        ),
+                        "aggregate_status_checks_any_protocol_error_count": len(
+                            aggregate_status_checks_any_protocol_error_values
+                        ),
+                        "aggregate_status_checks_any_busy_count": len(
+                            aggregate_status_checks_any_busy_values
+                        ),
+                        "aggregate_transfer_elapsed_seconds_count": len(
+                            aggregate_transfer_elapsed_seconds
+                        ),
+                        "aggregate_host_input_rgb_bytes_per_second_count": len(
+                            aggregate_host_input_rgb_bytes_per_second
+                        ),
+                        "aggregate_host_output_jpeg_bytes_per_second_count": len(
+                            aggregate_host_output_jpeg_bytes_per_second
+                        ),
                         "aggregate_frame_widths": aggregate_frame_widths,
                         "aggregate_frame_heights": aggregate_frame_heights,
                         "aggregate_encoder_widths": aggregate_encoder_widths,
@@ -4990,6 +5093,34 @@ def main(argv: list[str] | None = None) -> int:
                         ),
                         "aggregate_validation_expect_jfif_values": (
                             aggregate_validation_expect_jfif_values
+                        ),
+                        "aggregate_status_check_counts": aggregate_status_check_counts,
+                        "aggregate_status_check_contexts": (
+                            aggregate_status_check_contexts
+                        ),
+                        "aggregate_expected_status_check_contexts": (
+                            aggregate_expected_status_check_contexts
+                        ),
+                        "aggregate_status_check_contexts_match_expected_values": (
+                            aggregate_status_check_contexts_match_expected_values
+                        ),
+                        "aggregate_status_checks_all_idle_values": (
+                            aggregate_status_checks_all_idle_values
+                        ),
+                        "aggregate_status_checks_any_protocol_error_values": (
+                            aggregate_status_checks_any_protocol_error_values
+                        ),
+                        "aggregate_status_checks_any_busy_values": (
+                            aggregate_status_checks_any_busy_values
+                        ),
+                        "aggregate_transfer_elapsed_seconds": (
+                            aggregate_transfer_elapsed_seconds
+                        ),
+                        "aggregate_host_input_rgb_bytes_per_second": (
+                            aggregate_host_input_rgb_bytes_per_second
+                        ),
+                        "aggregate_host_output_jpeg_bytes_per_second": (
+                            aggregate_host_output_jpeg_bytes_per_second
                         ),
                         "aggregate_jpeg_path_count": len(aggregate_jpeg_paths),
                         "aggregate_input_rgb_path_count": len(
