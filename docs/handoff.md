@@ -156,7 +156,8 @@ KV260 top-level input:
   input for AXI DMA compatibility.
 - Bits `[7:0]`, `[15:8]`, and `[23:16]` are R, G, and B.
 - Bits `[31:24]` are ignored.
-- The low three `keep` bits must be set. The fourth `keep` bit is ignored.
+- The low three `keep` bits must be set. The fourth `keep` bit is ignored, but
+  missing lower RGB `keep` bits are rejected and covered at both KV260 tops.
 
 Frame configuration:
 

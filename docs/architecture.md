@@ -70,7 +70,8 @@ quality, restart interval, chroma mode, JFIF marker emission, and status.
 The internal `HjpegAxiStreamCore` RGB stream is 24 bits wide, but the KV260
 wrappers expose a DMA-compatible 32-bit input stream. Input bytes 0, 1, and 2
 are R, G, and B; byte 3 is ignored; and the low three `keep` bits must be set
-for every pixel. Malformed input words raise the sticky protocol-error status
+for every pixel. The fourth `keep` bit may be clear, but any missing lower RGB
+byte is malformed. Malformed input words raise the sticky protocol-error status
 and are not fed into the JPEG core.
 Frames that start with unsupported dimensions are drained to input TLAST without
 feeding the JPEG core, then a clear pulse permits the next valid frame to start.

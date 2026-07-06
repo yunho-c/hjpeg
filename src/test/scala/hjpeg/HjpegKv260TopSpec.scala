@@ -125,4 +125,41 @@ class HjpegKv260TopSpec extends AnyFreeSpec with Matchers with ChiselSim {
       dut.io.protocolError.expect(false.B)
     }
   }
+
+  "HjpegKv260Top should reject missing lower RGB keep bits" in {
+    simulate(new HjpegKv260Top(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      init(dut)
+      configure(dut, width = 1, height = 1)
+
+      dut.io.sAxisRgb.valid.poke(true.B)
+      dut.io.sAxisRgb.bits.data.poke(0.U)
+      dut.io.sAxisRgb.bits.keep.poke("b1011".U)
+      dut.io.sAxisRgb.bits.last.poke(true.B)
+      dut.io.sAxisRgb.ready.expect(true.B)
+      dut.clock.step()
+      dut.io.sAxisRgb.valid.poke(false.B)
+
+      dut.io.protocolError.expect(true.B)
+      dut.io.busy.expect(false.B)
+      dut.io.mAxisJpeg.valid.expect(false.B)
+
+      dut.io.clearProtocolError.poke(true.B)
+      dut.clock.step()
+      dut.io.clearProtocolError.poke(false.B)
+      dut.io.protocolError.expect(false.B)
+
+      configure(dut, width = 8, height = 8)
+      val bytes = emitFrame(dut, width = 8, height = 8)
+      bytes.take(2) mustBe Seq(0xff, 0xd8)
+      bytes.takeRight(2) mustBe Seq(0xff, 0xd9)
+      val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
+      image must not be null
+      image.getWidth mustBe 8
+      image.getHeight mustBe 8
+      dut.io.protocolError.expect(false.B)
+    }
+  }
 }

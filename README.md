@@ -39,9 +39,10 @@ The KV260-oriented wrappers are:
 `HjpegAxiStreamCore` uses a 24-bit internal RGB stream with R, G, and B in the
 low three bytes and requires `keep = 0b111`. The KV260 wrappers expose a
 DMA-compatible 32-bit RGB input stream: bytes 0, 1, and 2 are R, G, and B, byte
-3 is ignored, and the low three `keep` bits must be set for every pixel. A
-partial input word is accepted to avoid wedging the stream, raises the sticky
-protocol-error flag, and is not fed into the JPEG core.
+3 is ignored, and the low three `keep` bits must be set for every pixel. The
+fourth `keep` bit may be clear, but any missing lower RGB byte is a malformed
+input word. A partial input word is accepted to avoid wedging the stream, raises
+the sticky protocol-error flag, and is not fed into the JPEG core.
 Frames that start with unsupported dimensions are discarded through input TLAST
 without entering the JPEG core, so clearing the error lets the next valid frame
 start cleanly. Frames with incomplete RGB words are also drained through TLAST
