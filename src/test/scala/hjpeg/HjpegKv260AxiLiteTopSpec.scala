@@ -109,15 +109,25 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
       width: Int,
       height: Int,
       subsample: Boolean,
+      quality: Int = 50,
       restartInterval: Int = 0,
       emitJfif: Boolean = true): Unit = {
     writeReg(dut, HjpegAxiLiteRegisters.XSize, width)
     writeReg(dut, HjpegAxiLiteRegisters.YSize, height)
-    writeReg(dut, HjpegAxiLiteRegisters.Quality, 50)
+    writeReg(dut, HjpegAxiLiteRegisters.Quality, quality)
     writeReg(dut, HjpegAxiLiteRegisters.RestartInterval, restartInterval)
     val control = (if (emitJfif) BigInt(1 << HjpegAxiLiteRegisters.ControlEmitJfifBit) else BigInt(0)) |
       (if (subsample) BigInt(1 << HjpegAxiLiteRegisters.ControlEnableChromaSubsampleBit) else BigInt(0))
     writeReg(dut, HjpegAxiLiteRegisters.Control, control)
+  }
+
+  private def scaledQuant(table: Seq[Int], quality: Int): Seq[Int] = {
+    val clamped = math.max(1, math.min(100, quality))
+    val scale = if (clamped < 50) 5000 / clamped else 200 - clamped * 2
+    JpegTables.ZigZagOrder.map { index =>
+      val scaled = (table(index) * scale + 50) / 100
+      math.max(1, math.min(255, scaled))
+    }
   }
 
   private def emitFrame(dut: HjpegKv260AxiLiteTop, width: Int, height: Int, inputKeep: Int = 0xf): Seq[Int] = {
@@ -594,6 +604,30 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
       image must not be null
       image.getWidth mustBe 17
       image.getHeight mustBe 13
+      readReg(dut, HjpegAxiLiteRegisters.Status) mustBe 0
+    }
+  }
+
+  "HjpegKv260AxiLiteTop should propagate AXI-Lite quality to JPEG quantization tables" in {
+    simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      init(dut)
+      configure(dut, width = 8, height = 8, subsample = false, quality = 80)
+
+      val bytes = emitFrame(dut, width = 8, height = 8)
+      val luminanceDqt = bytes.slice(
+        JpegHeaderBytes.DqtLuminanceDataStart,
+        JpegHeaderBytes.DqtLuminanceDataStart + HjpegConstants.BlockSize
+      )
+      val chrominanceDqt = bytes.slice(
+        JpegHeaderBytes.DqtChrominanceDataStart,
+        JpegHeaderBytes.DqtChrominanceDataStart + HjpegConstants.BlockSize
+      )
+
+      luminanceDqt mustBe scaledQuant(JpegTables.StandardLuminanceQuant, quality = 80)
+      chrominanceDqt mustBe scaledQuant(JpegTables.StandardChrominanceQuant, quality = 80)
       readReg(dut, HjpegAxiLiteRegisters.Status) mustBe 0
     }
   }
