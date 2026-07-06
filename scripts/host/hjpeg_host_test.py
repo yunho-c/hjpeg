@@ -126,6 +126,8 @@ EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES = [
     "stream_devices_distinct",
     "stream_tx_device_resolved_present",
     "stream_rx_device_resolved_present",
+    "stream_tx_device_resolved_matches",
+    "stream_rx_device_resolved_matches",
     "stream_devices_resolved_distinct",
     "capture_max_output_bytes_positive",
     "capture_timeout_valid",
@@ -2304,8 +2306,8 @@ class HjpegHostTest(unittest.TestCase):
             "stream_devices": {
                 "tx_device": "tx.dev",
                 "rx_device": "rx.dev",
-                "tx_device_resolved": "/dev/hjpeg-mm2s",
-                "rx_device_resolved": "/dev/hjpeg-s2mm",
+                "tx_device_resolved": str(Path("tx.dev").resolve(strict=False)),
+                "rx_device_resolved": str(Path("rx.dev").resolve(strict=False)),
             }
         }
 
@@ -2327,10 +2329,22 @@ class HjpegHostTest(unittest.TestCase):
             missing_summary["checks"]["stream_rx_device_resolved_present"]
         )
         self.assertFalse(missing_summary["checks"]["stream_devices_resolved_distinct"])
+        self.assertFalse(
+            missing_summary["checks"]["stream_tx_device_resolved_matches"]
+        )
+        self.assertFalse(
+            missing_summary["checks"]["stream_rx_device_resolved_matches"]
+        )
         self.assertFalse(duplicate_summary["evidence_present"]["stream_devices"])
         self.assertTrue(duplicate_summary["checks"]["stream_tx_device_present"])
         self.assertTrue(duplicate_summary["checks"]["stream_rx_device_present"])
         self.assertFalse(duplicate_summary["checks"]["stream_devices_distinct"])
+        self.assertFalse(
+            duplicate_summary["checks"]["stream_tx_device_resolved_matches"]
+        )
+        self.assertFalse(
+            duplicate_summary["checks"]["stream_rx_device_resolved_matches"]
+        )
         self.assertFalse(
             duplicate_summary["checks"]["stream_devices_resolved_distinct"]
         )
@@ -2339,6 +2353,16 @@ class HjpegHostTest(unittest.TestCase):
         )
         self.assertTrue(
             unresolved_duplicate_summary["checks"]["stream_devices_distinct"]
+        )
+        self.assertFalse(
+            unresolved_duplicate_summary["checks"][
+                "stream_tx_device_resolved_matches"
+            ]
+        )
+        self.assertFalse(
+            unresolved_duplicate_summary["checks"][
+                "stream_rx_device_resolved_matches"
+            ]
         )
         self.assertFalse(
             unresolved_duplicate_summary["checks"]["stream_devices_resolved_distinct"]
@@ -2352,6 +2376,12 @@ class HjpegHostTest(unittest.TestCase):
         )
         self.assertTrue(
             complete_summary["checks"]["stream_rx_device_resolved_present"]
+        )
+        self.assertTrue(
+            complete_summary["checks"]["stream_tx_device_resolved_matches"]
+        )
+        self.assertTrue(
+            complete_summary["checks"]["stream_rx_device_resolved_matches"]
         )
         self.assertTrue(complete_summary["checks"]["stream_devices_resolved_distinct"])
 
@@ -3829,8 +3859,8 @@ class HjpegHostTest(unittest.TestCase):
                 record["recorded_check_names"],
                 EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
             )
-            self.assertEqual(record["recorded_check_count"], 111)
-            self.assertEqual(record["passing_check_count"], 111)
+            self.assertEqual(record["recorded_check_count"], 113)
+            self.assertEqual(record["passing_check_count"], 113)
             self.assertEqual(
                 record["passing_checks"],
                 EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
@@ -4024,8 +4054,8 @@ class HjpegHostTest(unittest.TestCase):
                 record["recorded_check_names"],
                 EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
             )
-            self.assertEqual(record["recorded_check_count"], 111)
-            self.assertEqual(record["passing_check_count"], 111)
+            self.assertEqual(record["recorded_check_count"], 113)
+            self.assertEqual(record["passing_check_count"], 113)
             self.assertEqual(
                 record["passing_checks"],
                 EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
@@ -4117,8 +4147,8 @@ class HjpegHostTest(unittest.TestCase):
                 record["recorded_check_names"],
                 list(evidence["hardware_run_summary"]["checks"].keys()),
             )
-            self.assertEqual(record["recorded_check_count"], 82)
-            self.assertEqual(record["passing_check_count"], 82)
+            self.assertEqual(record["recorded_check_count"], 84)
+            self.assertEqual(record["passing_check_count"], 84)
             self.assertEqual(
                 record["passing_checks"],
                 list(evidence["hardware_run_summary"]["checks"].keys()),
@@ -4260,8 +4290,8 @@ class HjpegHostTest(unittest.TestCase):
                 record["recorded_check_names"],
                 EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
             )
-            self.assertEqual(record["recorded_check_count"], 111)
-            self.assertEqual(record["passing_check_count"], 110)
+            self.assertEqual(record["recorded_check_count"], 113)
+            self.assertEqual(record["passing_check_count"], 112)
             self.assertEqual(
                 record["passing_checks"],
                 [
@@ -4311,8 +4341,8 @@ class HjpegHostTest(unittest.TestCase):
                 record["missing_evidence"],
                 ["jpeg_output", "validation_expectations"],
             )
-            self.assertEqual(record["recorded_check_count"], 111)
-            self.assertEqual(record["passing_check_count"], 109)
+            self.assertEqual(record["recorded_check_count"], 113)
+            self.assertEqual(record["passing_check_count"], 111)
             self.assertEqual(record["failing_check_count"], 2)
             self.assertEqual(
                 record["failing_checks"],
@@ -4362,8 +4392,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 1)
             self.assertEqual(record["missing_evidence"], ["validation_expectations"])
-            self.assertEqual(record["recorded_check_count"], 111)
-            self.assertEqual(record["passing_check_count"], 110)
+            self.assertEqual(record["recorded_check_count"], 113)
+            self.assertEqual(record["passing_check_count"], 112)
             self.assertEqual(record["failing_check_count"], 1)
             self.assertEqual(
                 record["failing_checks"],
@@ -4404,8 +4434,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 1)
             self.assertEqual(record["missing_evidence"], ["validation_expectations"])
-            self.assertEqual(record["recorded_check_count"], 111)
-            self.assertEqual(record["passing_check_count"], 110)
+            self.assertEqual(record["recorded_check_count"], 113)
+            self.assertEqual(record["passing_check_count"], 112)
             self.assertEqual(record["failing_check_count"], 1)
             self.assertEqual(
                 record["failing_checks"],
@@ -4444,8 +4474,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 1)
             self.assertEqual(record["missing_evidence"], ["validation_expectations"])
-            self.assertEqual(record["recorded_check_count"], 111)
-            self.assertEqual(record["passing_check_count"], 110)
+            self.assertEqual(record["recorded_check_count"], 113)
+            self.assertEqual(record["passing_check_count"], 112)
             self.assertEqual(record["failing_check_count"], 1)
             self.assertEqual(
                 record["failing_checks"],
@@ -4484,8 +4514,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 1)
             self.assertEqual(record["missing_evidence"], ["validation_expectations"])
-            self.assertEqual(record["recorded_check_count"], 111)
-            self.assertEqual(record["passing_check_count"], 110)
+            self.assertEqual(record["recorded_check_count"], 113)
+            self.assertEqual(record["passing_check_count"], 112)
             self.assertEqual(record["failing_check_count"], 1)
             self.assertEqual(
                 record["failing_checks"],
@@ -4526,8 +4556,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 1)
             self.assertEqual(record["missing_evidence"], ["validation_expectations"])
-            self.assertEqual(record["recorded_check_count"], 111)
-            self.assertEqual(record["passing_check_count"], 110)
+            self.assertEqual(record["recorded_check_count"], 113)
+            self.assertEqual(record["passing_check_count"], 112)
             self.assertEqual(record["failing_check_count"], 1)
             self.assertEqual(
                 record["failing_checks"],
@@ -4566,8 +4596,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 1)
             self.assertEqual(record["missing_evidence"], ["validation_expectations"])
-            self.assertEqual(record["recorded_check_count"], 111)
-            self.assertEqual(record["passing_check_count"], 110)
+            self.assertEqual(record["recorded_check_count"], 113)
+            self.assertEqual(record["passing_check_count"], 112)
             self.assertEqual(record["failing_check_count"], 1)
             self.assertEqual(
                 record["failing_checks"],
@@ -4607,8 +4637,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 1)
             self.assertEqual(record["missing_evidence"], ["validation_expectations"])
-            self.assertEqual(record["recorded_check_count"], 111)
-            self.assertEqual(record["passing_check_count"], 110)
+            self.assertEqual(record["recorded_check_count"], 113)
+            self.assertEqual(record["passing_check_count"], 112)
             self.assertEqual(record["failing_check_count"], 1)
             self.assertEqual(
                 record["failing_checks"],
@@ -4649,8 +4679,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 1)
             self.assertEqual(record["missing_evidence"], ["validation_expectations"])
-            self.assertEqual(record["recorded_check_count"], 111)
-            self.assertEqual(record["passing_check_count"], 110)
+            self.assertEqual(record["recorded_check_count"], 113)
+            self.assertEqual(record["passing_check_count"], 112)
             self.assertEqual(record["failing_check_count"], 1)
             self.assertEqual(
                 record["failing_checks"],
@@ -4691,8 +4721,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 1)
             self.assertEqual(record["missing_evidence"], ["validation_expectations"])
-            self.assertEqual(record["recorded_check_count"], 111)
-            self.assertEqual(record["passing_check_count"], 110)
+            self.assertEqual(record["recorded_check_count"], 113)
+            self.assertEqual(record["passing_check_count"], 112)
             self.assertEqual(record["failing_check_count"], 1)
             self.assertEqual(
                 record["failing_checks"],
@@ -4733,8 +4763,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 1)
             self.assertEqual(record["missing_evidence"], ["validation_expectations"])
-            self.assertEqual(record["recorded_check_count"], 111)
-            self.assertEqual(record["passing_check_count"], 110)
+            self.assertEqual(record["recorded_check_count"], 113)
+            self.assertEqual(record["passing_check_count"], 112)
             self.assertEqual(record["failing_check_count"], 1)
             self.assertEqual(
                 record["failing_checks"],
@@ -4775,8 +4805,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 1)
             self.assertEqual(record["missing_evidence"], ["validation_expectations"])
-            self.assertEqual(record["recorded_check_count"], 111)
-            self.assertEqual(record["passing_check_count"], 110)
+            self.assertEqual(record["recorded_check_count"], 113)
+            self.assertEqual(record["passing_check_count"], 112)
             self.assertEqual(record["failing_check_count"], 1)
             self.assertEqual(
                 record["failing_checks"],
@@ -4815,8 +4845,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["evidence_present_count"], 10)
             self.assertEqual(record["evidence_missing_count"], 1)
             self.assertEqual(record["missing_evidence"], ["validation_expectations"])
-            self.assertEqual(record["recorded_check_count"], 111)
-            self.assertEqual(record["passing_check_count"], 110)
+            self.assertEqual(record["recorded_check_count"], 113)
+            self.assertEqual(record["passing_check_count"], 112)
             self.assertEqual(record["failing_check_count"], 1)
             self.assertEqual(
                 record["failing_checks"],
@@ -4873,8 +4903,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["aggregate_evidence_group_count"], 22)
             self.assertEqual(record["aggregate_evidence_present_count"], 11)
             self.assertEqual(record["aggregate_evidence_missing_count"], 11)
-            self.assertEqual(record["aggregate_recorded_check_count"], 122)
-            self.assertEqual(record["aggregate_passing_check_count"], 111)
+            self.assertEqual(record["aggregate_recorded_check_count"], 124)
+            self.assertEqual(record["aggregate_passing_check_count"], 113)
             self.assertEqual(record["aggregate_failing_check_count"], 11)
             self.assertEqual(record["summary_checked_count"], 2)
             self.assertEqual(record["summary_match_count"], 1)
@@ -8573,6 +8603,8 @@ class HjpegHostTest(unittest.TestCase):
                         "stream_devices_distinct": True,
                         "stream_tx_device_resolved_present": True,
                         "stream_rx_device_resolved_present": True,
+                        "stream_tx_device_resolved_matches": True,
+                        "stream_rx_device_resolved_matches": True,
                         "stream_devices_resolved_distinct": True,
                         "capture_max_output_bytes_positive": True,
                         "capture_timeout_valid": True,
@@ -8636,8 +8668,8 @@ class HjpegHostTest(unittest.TestCase):
                         "host_output_jpeg_rate_matches_elapsed": True,
                     },
                     "recorded_check_names": EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
-                    "recorded_check_count": 111,
-                    "passing_check_count": 111,
+                    "recorded_check_count": 113,
+                    "passing_check_count": 113,
                     "passing_checks": EXPECTED_COMPLETE_HARDWARE_CHECK_NAMES,
                     "failing_check_count": 0,
                     "failing_checks": [],

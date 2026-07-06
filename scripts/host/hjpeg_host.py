@@ -2208,9 +2208,21 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         stream_devices_distinct = (
             tx_device_present and rx_device_present and tx_device != rx_device
         )
+        tx_device_resolved_matches = (
+            tx_device_present
+            and tx_device_resolved_present
+            and tx_device_resolved == str(Path(tx_device).resolve(strict=False))
+        )
+        rx_device_resolved_matches = (
+            rx_device_present
+            and rx_device_resolved_present
+            and rx_device_resolved == str(Path(rx_device).resolve(strict=False))
+        )
         stream_devices_resolved_distinct = (
             tx_device_resolved_present
             and rx_device_resolved_present
+            and tx_device_resolved_matches
+            and rx_device_resolved_matches
             and tx_device_resolved != rx_device_resolved
         )
         evidence_present["stream_devices"] = (
@@ -2219,6 +2231,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and tx_device_resolved_present
             and rx_device_resolved_present
             and stream_devices_distinct
+            and tx_device_resolved_matches
+            and rx_device_resolved_matches
             and stream_devices_resolved_distinct
         )
         checks["stream_tx_device_present"] = tx_device_present
@@ -2226,6 +2240,8 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         checks["stream_devices_distinct"] = stream_devices_distinct
         checks["stream_tx_device_resolved_present"] = tx_device_resolved_present
         checks["stream_rx_device_resolved_present"] = rx_device_resolved_present
+        checks["stream_tx_device_resolved_matches"] = tx_device_resolved_matches
+        checks["stream_rx_device_resolved_matches"] = rx_device_resolved_matches
         checks["stream_devices_resolved_distinct"] = (
             stream_devices_resolved_distinct
         )

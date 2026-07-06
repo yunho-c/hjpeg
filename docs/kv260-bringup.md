@@ -285,8 +285,8 @@ Expected evidence:
   against the recorded RST count, and checks marker-count/RST expectations when
   present. Input RGB evidence must include a nonempty path, positive byte length,
   a SHA-256 hex hash, a positive expected byte length, and an actual-vs-expected length match.
-  Stream-device evidence must include nonempty TX/RX device paths, their
-  resolved identities, and distinct raw and resolved endpoints.
+  Stream-device evidence must include nonempty TX/RX device paths, resolved
+  identities that match the raw paths, and distinct raw and resolved endpoints.
   Capture configuration evidence must include a positive maximum output byte
   count and either no timeout or a finite positive timeout. AXI-Lite target
   evidence must include a non-empty string device path, nonnegative base address,
