@@ -181,7 +181,10 @@ without changing mapped control/status registers.
 
 Recent commits, newest first:
 
-- current commit: `5c71f34 fix: verify marker count evidence`
+- current commit: `2f4f78f fix: require structured vivado clock evidence`
+- `bbc939e fix: gate vivado clock target evidence`
+- `caa6c71 docs: align hardware evidence checks`
+- `5c71f34 fix: verify marker count evidence`
 - `a2c746f fix: verify restart evidence in run summaries`
 - `f5e669b docs: refresh continuation handoff`
 - `0520f5e test: cover host restart marker wraparound`
@@ -465,7 +468,13 @@ evidence categories or required `.bit`/`.xsa`/`.dcp` artifact suffixes, and with
 the named artifacts `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and `post_impl.dcp`
 present and passing, plus the named address-map report
 `hjpeg_kv260_address_map.rpt` and the named timing/utilization/implementation
-reports.
+reports. Complete Vivado evidence also requires a finite positive clock target:
+top-level `clock_period_ns` and `clock_frequency_mhz` must agree, the structured
+`clock_target` record must carry finite/positive/matching flags, and both
+`clock_target.valid` and top-level `clock_target_valid` must be strict JSON
+booleans set to true. The host saved-run checker rejects Vivado evidence whose
+structured clock target is missing, tampered, or inconsistent with the
+top-level clock fields.
 `all_required_present` requires at least one passing record in each required
 category, not just a requested input path. Complete Vivado evidence counts only
 records whose `passed` field is an actual JSON boolean `true`. Missing,
@@ -504,20 +513,20 @@ CHISEL_FIRTOOL_PATH='C:\Users\G14\GitHub\hjpeg\null\org.chipsalliance\llvm-firto
   sbt 'testOnly hjpeg.HjpegElaborationSpec hjpeg.VivadoScriptsSpec'
 CHISEL_FIRTOOL_PATH='C:\Users\G14\GitHub\hjpeg\null\org.chipsalliance\llvm-firtool\cache\1.149.0\bin' \
   sbt 'runMain hjpeg.ElaborateKv260AxiLiteTop'
-python3 scripts/host/hjpeg_host_test.py
-python3 scripts/vivado/check_reports_test.py
-python3 -m py_compile scripts/host/hjpeg_host.py scripts/vivado/check_reports.py
+python scripts/host/hjpeg_host_test.py
+python scripts/vivado/check_reports_test.py
+python -m py_compile scripts/host/hjpeg_host.py scripts/vivado/check_reports.py
 git diff --check
 vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl
 vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl
 vivado -mode batch -source scripts/vivado/synth_kv260_axi_lite.tcl
-python3 scripts/vivado/check_reports.py \
+python scripts/vivado/check_reports.py \
   --artifact build/vivado/hjpeg-kv260-axi-lite/post_synth.dcp \
   --timing build/vivado/hjpeg-kv260-axi-lite/post_synth_timing_summary.rpt \
   --utilization build/vivado/hjpeg-kv260-axi-lite/post_synth_utilization.rpt \
   --json
 vivado -mode batch -source scripts/vivado/build_kv260_bitstream.tcl
-python3 scripts/vivado/check_reports.py \
+python scripts/vivado/check_reports.py \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa \
   --artifact build/vivado/hjpeg-kv260-artifacts/post_impl.dcp \
@@ -532,6 +541,14 @@ python3 scripts/vivado/check_reports.py \
   --clock-utilization build/vivado/hjpeg-kv260-artifacts/post_impl_clock_utilization.rpt \
   --require-complete-evidence \
   --json
+```
+
+Most recent focused verification:
+
+```sh
+python scripts/host/hjpeg_host_test.py      # 180 tests
+python scripts/vivado/check_reports_test.py # 49 tests
+git diff --check                            # CRLF warnings only
 ```
 
 Known local limitations:
