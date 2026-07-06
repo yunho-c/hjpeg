@@ -1371,6 +1371,72 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
     }
 
 
+def write_generated_vivado_evidence(root: Path) -> Path:
+    bit = root / "hjpeg_kv260.bit"
+    xsa = root / "hjpeg_kv260.xsa"
+    dcp = root / "post_impl.dcp"
+    address_map = root / "hjpeg_kv260_address_map.rpt"
+    post_synth_timing = root / "post_synth_timing_summary.rpt"
+    post_impl_timing = root / "post_impl_timing_summary.rpt"
+    post_synth_utilization = root / "post_synth_utilization.rpt"
+    post_impl_utilization = root / "post_impl_utilization.rpt"
+    drc = root / "post_impl_drc.rpt"
+    route_status = root / "post_impl_route_status.rpt"
+    clock_utilization = root / "post_impl_clock_utilization.rpt"
+    vivado = root / "vivado.json"
+
+    bit.write_bytes(b"bitstream")
+    xsa.write_bytes(b"xsa")
+    dcp.write_bytes(b"checkpoint")
+    address_map.write_text(VIVADO_ADDRESS_MAP_REPORT)
+    post_synth_timing.write_text(VIVADO_TIMING_TABLE)
+    post_impl_timing.write_text(VIVADO_TIMING_TABLE)
+    post_synth_utilization.write_text(VIVADO_UTILIZATION_TABLE)
+    post_impl_utilization.write_text(VIVADO_UTILIZATION_TABLE)
+    drc.write_text(VIVADO_DRC_CLEAN_REPORT)
+    route_status.write_text(VIVADO_ROUTE_STATUS_CLEAN_REPORT)
+    clock_utilization.write_text("Clock Utilization\n")
+
+    stdout = io.StringIO()
+    with contextlib.redirect_stdout(stdout):
+        exit_code = check_reports.main(
+            [
+                "--artifact",
+                str(bit),
+                "--artifact",
+                str(xsa),
+                "--artifact",
+                str(dcp),
+                "--address-map",
+                str(address_map),
+                "--timing",
+                str(post_synth_timing),
+                "--timing",
+                str(post_impl_timing),
+                "--hold-timing",
+                str(post_impl_timing),
+                "--utilization",
+                str(post_synth_utilization),
+                "--utilization",
+                str(post_impl_utilization),
+                "--drc",
+                str(drc),
+                "--route-status",
+                str(route_status),
+                "--clock-utilization",
+                str(clock_utilization),
+                "--clock-period-ns",
+                "10.0",
+                "--require-complete-evidence",
+                "--json",
+            ]
+        )
+    if exit_code != 0:
+        raise AssertionError(f"check_reports failed with exit code {exit_code}")
+    vivado.write_text(stdout.getvalue())
+    return vivado
+
+
 class HjpegHostTest(unittest.TestCase):
     def test_make_test_image_writes_non_flat_ppm(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -4614,69 +4680,7 @@ class HjpegHostTest(unittest.TestCase):
     def test_vivado_evidence_file_record_accepts_check_reports_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            bit = root / "hjpeg_kv260.bit"
-            xsa = root / "hjpeg_kv260.xsa"
-            dcp = root / "post_impl.dcp"
-            address_map = root / "hjpeg_kv260_address_map.rpt"
-            post_synth_timing = root / "post_synth_timing_summary.rpt"
-            post_impl_timing = root / "post_impl_timing_summary.rpt"
-            post_synth_utilization = root / "post_synth_utilization.rpt"
-            post_impl_utilization = root / "post_impl_utilization.rpt"
-            drc = root / "post_impl_drc.rpt"
-            route_status = root / "post_impl_route_status.rpt"
-            clock_utilization = root / "post_impl_clock_utilization.rpt"
-            vivado = root / "vivado.json"
-
-            bit.write_bytes(b"bitstream")
-            xsa.write_bytes(b"xsa")
-            dcp.write_bytes(b"checkpoint")
-            address_map.write_text(VIVADO_ADDRESS_MAP_REPORT)
-            post_synth_timing.write_text(VIVADO_TIMING_TABLE)
-            post_impl_timing.write_text(VIVADO_TIMING_TABLE)
-            post_synth_utilization.write_text(VIVADO_UTILIZATION_TABLE)
-            post_impl_utilization.write_text(VIVADO_UTILIZATION_TABLE)
-            drc.write_text(VIVADO_DRC_CLEAN_REPORT)
-            route_status.write_text(VIVADO_ROUTE_STATUS_CLEAN_REPORT)
-            clock_utilization.write_text("Clock Utilization\n")
-
-            stdout = io.StringIO()
-            with contextlib.redirect_stdout(stdout):
-                self.assertEqual(
-                    check_reports.main(
-                        [
-                            "--artifact",
-                            str(bit),
-                            "--artifact",
-                            str(xsa),
-                            "--artifact",
-                            str(dcp),
-                            "--address-map",
-                            str(address_map),
-                            "--timing",
-                            str(post_synth_timing),
-                            "--timing",
-                            str(post_impl_timing),
-                            "--hold-timing",
-                            str(post_impl_timing),
-                            "--utilization",
-                            str(post_synth_utilization),
-                            "--utilization",
-                            str(post_impl_utilization),
-                            "--drc",
-                            str(drc),
-                            "--route-status",
-                            str(route_status),
-                            "--clock-utilization",
-                            str(clock_utilization),
-                            "--clock-period-ns",
-                            "10.0",
-                            "--require-complete-evidence",
-                            "--json",
-                        ]
-                    ),
-                    0,
-                )
-            vivado.write_text(stdout.getvalue())
+            vivado = write_generated_vivado_evidence(root)
 
             record, failures = hjpeg_host.vivado_evidence_file_record(vivado)
 
@@ -4689,6 +4693,41 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["vivado_diagnostic_summary_consistent"])
             self.assertTrue(record["vivado_route_status_counts_present"])
             self.assertEqual(record["hjpeg_base_addresses"], [0])
+
+    def test_check_run_evidence_cli_accepts_check_reports_json(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run = root / "run.json"
+            run.write_text(json.dumps(complete_run_evidence_record(root)))
+            vivado = write_generated_vivado_evidence(root)
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "check-run-evidence",
+                            str(run),
+                            "--vivado-evidence",
+                            str(vivado),
+                            "--json",
+                        ]
+                    ),
+                    0,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertTrue(record["passed"])
+            self.assertEqual(record["vivado_evidence_checked_count"], 1)
+            self.assertEqual(record["vivado_evidence_passed_count"], 1)
+            self.assertEqual(record["vivado_evidence_failed_count"], 0)
+            self.assertTrue(
+                record["vivado_evidence"][0]["vivado_diagnostic_summary_consistent"]
+            )
+            self.assertEqual(record["vivado_hjpeg_base_addresses"], [0])
+            self.assertTrue(
+                record["records"][0]["axi_lite_base_matches_vivado_evidence"]
+            )
 
     def test_vivado_evidence_file_record_requires_complete_gate(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
