@@ -70,9 +70,12 @@ quality, restart interval, chroma mode, JFIF marker emission, and status.
 The internal `HjpegAxiStreamCore` RGB stream is 24 bits wide, but the KV260
 wrappers expose a DMA-compatible 32-bit input stream. Input bytes 0, 1, and 2
 are R, G, and B; byte 3 is ignored; and the low three `keep` bits must be set
-for every pixel. Malformed input words raise the sticky protocol-error status.
+for every pixel. Malformed input words raise the sticky protocol-error status
+and are not fed into the JPEG core.
 Frames that start with unsupported dimensions are drained to input TLAST without
 feeding the JPEG core, then a clear pulse permits the next valid frame to start.
+Frames with incomplete RGB words are also drained through TLAST without
+completing a JPEG frame.
 Frames whose expected final pixel arrives without TLAST are allowed to complete
 the configured JPEG input frame, then the wrapper drains extra input beats until
 TLAST while holding the sticky protocol-error status.
@@ -87,8 +90,9 @@ pixel and holds it through the matching JPEG output frame, so register writes
 take effect on the next frame. Wrapper equivalence tests compare its output
 bytes against direct `HjpegCore` output for both the default 4:4:4 path and a
 configured 4:2:0/restart/no-JFIF path, and protocol tests cover draining a
-multi-beat unsupported input frame, early-TLAST recovery after clear, and a
-late-TLAST input packet through TLAST before recovery.
+multi-beat unsupported input frame, incomplete RGB word recovery after clear,
+early-TLAST recovery after clear, and a late-TLAST input packet through TLAST
+before recovery.
 
 The current tops are not full Vivado block designs. They are named RTL tops that
 can be elaborated and wrapped in platform-specific IP packaging. Board-level

@@ -61,9 +61,10 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
   val inputFrameDone = io.input.bits.last
   val expectedKeep = Fill(pixelDataBits / 8, 1.U(1.W))
   val inputKeepValid = io.input.bits.keep === expectedKeep
+  val feedCoreInput = activeInputSupported && inputKeepValid
 
-  core.io.input.valid := io.input.valid && activeInputSupported
-  io.input.ready := Mux(activeInputSupported, core.io.input.ready, true.B)
+  core.io.input.valid := io.input.valid && feedCoreInput
+  io.input.ready := Mux(feedCoreInput, core.io.input.ready, true.B)
   core.io.input.bits.x := x
   core.io.input.bits.y := y
   core.io.input.bits.r := io.input.bits.data(c.pixelBits - 1, 0)
@@ -102,6 +103,7 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
     }
     when(!inputKeepValid) {
       protocolError := true.B
+      inputFrameSupported := false.B
     }
     when(lateInputLastMissing) {
       x := 0.U

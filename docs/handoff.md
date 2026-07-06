@@ -137,8 +137,12 @@ frame-level tests.
   frame.
 - Bad `keep`, mismatched `last`, and unsupported frame dimensions set the
   sticky protocol-error flag.
+- Bad `keep` beats are accepted to avoid wedging the stream, but they are not
+  fed into the JPEG core.
 - Unsupported frames are accepted and drained through TLAST without feeding the
   JPEG core; single-beat and multi-beat discard/recovery paths are covered.
+- Frames with incomplete RGB words are drained through TLAST without completing
+  a JPEG frame; recovery after clear is covered.
 - If the expected final pixel arrives without TLAST, the wrapper completes that
   configured JPEG input frame, flags the protocol error, and drains extra input
   beats until TLAST before a clear pulse permits the next frame.
