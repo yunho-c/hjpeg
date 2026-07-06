@@ -2297,12 +2297,21 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and input_ppm_width > 0
             and input_ppm_height > 0
         )
+        input_ppm_rgb_byte_length_positive = (
+            is_strict_int(input_ppm_rgb_bytes) and input_ppm_rgb_bytes > 0
+        )
+        input_ppm_packed_rgb_byte_length_positive = (
+            is_strict_int(input_ppm_packed_rgb_byte_length)
+            and input_ppm_packed_rgb_byte_length > 0
+        )
         input_ppm_rgb_byte_length_matches_dimensions = (
             input_ppm_dimensions_positive
+            and input_ppm_rgb_byte_length_positive
             and input_ppm_rgb_bytes == input_ppm_width * input_ppm_height * 3
         )
         input_ppm_packed_rgb_length_matches_dimensions = (
             input_ppm_dimensions_positive
+            and input_ppm_packed_rgb_byte_length_positive
             and input_ppm_packed_rgb_byte_length == input_ppm_width * input_ppm_height * 4
         )
         input_ppm_packed_rgb_sha256_present = is_sha256_hex(
@@ -2330,8 +2339,14 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         checks["input_ppm_byte_length_positive"] = input_ppm_byte_length_positive
         checks["input_ppm_sha256_present"] = input_ppm_sha256_present
         checks["input_ppm_dimensions_positive"] = input_ppm_dimensions_positive
+        checks["input_ppm_rgb_byte_length_positive"] = (
+            input_ppm_rgb_byte_length_positive
+        )
         checks["input_ppm_rgb_byte_length_matches_dimensions"] = (
             input_ppm_rgb_byte_length_matches_dimensions
+        )
+        checks["input_ppm_packed_rgb_byte_length_positive"] = (
+            input_ppm_packed_rgb_byte_length_positive
         )
         checks["input_ppm_packed_rgb_length_matches_dimensions"] = (
             input_ppm_packed_rgb_length_matches_dimensions
@@ -2353,7 +2368,9 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and input_ppm_byte_length_positive
             and input_ppm_sha256_present
             and input_ppm_dimensions_positive
+            and input_ppm_rgb_byte_length_positive
             and input_ppm_rgb_byte_length_matches_dimensions
+            and input_ppm_packed_rgb_byte_length_positive
             and input_ppm_packed_rgb_length_matches_dimensions
             and input_ppm_packed_rgb_sha256_present
             and input_ppm_matches_input_flag_matches

@@ -448,7 +448,7 @@ matching DHT table hashes when
 standard-Huffman checking was requested, and standard-Huffman requirement.
 Source PPM
 evidence must include a nonempty path, file and packed-RGB SHA-256 hex hashes,
-dimension-consistent RGB and packed byte lengths, a recomputed input-RGB
+positive dimension-consistent RGB and packed byte lengths, a recomputed input-RGB
 length/hash match, and
 non-flat/color image stats. Status evidence must include the detailed checkpoint
 list, matching checkpoint count, expected ordered contexts, per-checkpoint
