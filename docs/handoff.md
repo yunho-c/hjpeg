@@ -398,6 +398,8 @@ configured 4:2:0 path with restart markers and JFIF APP0 disabled.
 An attempted decoded-color half-frame assertion was too strict for the current
 quality/color path. Use decoded-image checks for broad recognizability, but use
 stage or wrapper equivalence tests for exact protocol/lane invariants.
+`HjpegCoreSpec` now includes broad decoded-image regressions for both a
+left/right luma split and a left-red/right-blue non-flat color split.
 
 Recent host/Vivado helper work made the evidence path machine-readable. The
 host helper now supports JSON evidence for `make-test-ppm`, `pack-ppm`,
@@ -951,7 +953,8 @@ object-shaped transcript.
   not be used as exact color-lane invariants. Prefer stage-level checks or
   wrapper-vs-core byte equivalence for precise lane/protocol claims; the AXI
   wrapper now has exact byte-equivalence coverage for default 4:4:4 and
-  configured 4:2:0/restart/no-JFIF frames.
+  configured 4:2:0/restart/no-JFIF frames, and `HjpegCoreSpec` has broad luma
+  and red/blue decoded-frame recognizability checks.
 - `HjpegCoreSpec` includes a small 16x16 4:4:4 cycle-budget regression using
   the existing ChiselSim frame driver. This is a local performance drift guard,
   not proof of KV260 hardware throughput.
@@ -992,7 +995,8 @@ If the new PC has KV260 access too:
 If the new PC does not have Vivado or hardware:
 
 1. Expand simulator coverage for backpressure and longer frames.
-2. Add more non-flat/color image regressions at frame level.
+2. Add more non-flat/color image regressions at frame level if they cover a new
+   shape, chroma mode, or protocol condition.
 3. Broaden performance-oriented cycle checks beyond the current small
    `HjpegCoreSpec` regression.
 4. Keep each slice committed and avoid large rewrites unless a test exposes a
