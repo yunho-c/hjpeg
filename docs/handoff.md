@@ -802,8 +802,9 @@ to cross-check the run transcript's AXI-Lite base address against the Vivado
 matching missing/failing filename, hold-timing, and suffix lists empty. The
 Vivado clock target must include finite positive `clock_period_ns` and
 `clock_frequency_mhz` values that match each other, and the Vivado checked path
-list must match the passed path list. Its per-category checked counts must be
-positive, sum to the total checked count, and match the per-category pass/fail
+list must match the passed path list. Its top-level complete-evidence
+missing/failing lists must match nested evidence summaries. Its per-category
+checked counts must be positive, sum to the total checked count, and match the per-category pass/fail
 totals. Supplying multiple Vivado evidence files is allowed only when they agree
 on the same HJPEG base address.
 JSON output includes aggregate checked/pass/fail transcript counts, diagnostic

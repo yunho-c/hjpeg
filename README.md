@@ -442,6 +442,8 @@ matching missing/failing filename, hold-timing, and suffix lists empty. The
 Vivado clock target must include finite positive `clock_period_ns` and
 `clock_frequency_mhz` values that match each other. It also requires the Vivado
 evidence-category summary to show every required category present and passing,
+the top-level complete-evidence missing/failing lists to match nested evidence
+summaries,
 zero diagnostic failures and failed paths in the Vivado summary, checked paths
 matching passed paths, positive per-category checked counts whose sum matches
 the total checked count and match the per-category pass/fail totals, plus a

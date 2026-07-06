@@ -2759,6 +2759,40 @@ def vivado_required_hold_timing_filenames_present(record: object) -> bool:
     return True
 
 
+def vivado_missing_report_filenames(record: object) -> dict[str, list[str]]:
+    if not isinstance(record, dict):
+        return {}
+    report_filenames = record.get("report_filenames")
+    if not isinstance(report_filenames, dict):
+        return {}
+    return {
+        category: [
+            str(filename)
+            for filename in category_record.get("missing_required_filenames", [])
+        ]
+        for category, category_record in report_filenames.items()
+        if isinstance(category_record, dict)
+        and category_record.get("missing_required_filenames")
+    }
+
+
+def vivado_failing_report_filenames(record: object) -> dict[str, list[str]]:
+    if not isinstance(record, dict):
+        return {}
+    report_filenames = record.get("report_filenames")
+    if not isinstance(report_filenames, dict):
+        return {}
+    return {
+        category: [
+            str(filename)
+            for filename in category_record.get("failing_required_filenames", [])
+        ]
+        for category, category_record in report_filenames.items()
+        if isinstance(category_record, dict)
+        and category_record.get("failing_required_filenames")
+    }
+
+
 def vivado_clock_target_present(record: object) -> bool:
     if not isinstance(record, dict):
         return False
@@ -2963,6 +2997,100 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     address_map_hex_fields_consistent = vivado_address_map_hex_fields_consistent(parsed)
     record_hashes_present = vivado_record_hashes_present(parsed)
     bases = vivado_hjpeg_base_addresses_from_record(parsed)
+    evidence_categories = (
+        parsed.get("evidence_categories") if isinstance(parsed, dict) else None
+    )
+    artifact_suffixes = (
+        parsed.get("artifact_suffixes") if isinstance(parsed, dict) else None
+    )
+    artifact_filenames = (
+        parsed.get("artifact_filenames") if isinstance(parsed, dict) else None
+    )
+    address_map_filenames = (
+        parsed.get("address_map_filenames") if isinstance(parsed, dict) else None
+    )
+    hold_timing_filenames = (
+        parsed.get("hold_timing_filenames") if isinstance(parsed, dict) else None
+    )
+    expected_missing_categories = (
+        evidence_categories.get("missing_required_categories", [])
+        if isinstance(evidence_categories, dict)
+        else []
+    )
+    expected_failing_categories = (
+        evidence_categories.get("failing_categories", [])
+        if isinstance(evidence_categories, dict)
+        else []
+    )
+    expected_missing_suffixes = (
+        artifact_suffixes.get("missing_required_suffixes", [])
+        if isinstance(artifact_suffixes, dict)
+        else []
+    )
+    expected_failing_suffixes = (
+        artifact_suffixes.get("failing_required_suffixes", [])
+        if isinstance(artifact_suffixes, dict)
+        else []
+    )
+    expected_missing_filenames = (
+        artifact_filenames.get("missing_required_filenames", [])
+        if isinstance(artifact_filenames, dict)
+        else []
+    )
+    expected_failing_filenames = (
+        artifact_filenames.get("failing_required_filenames", [])
+        if isinstance(artifact_filenames, dict)
+        else []
+    )
+    expected_missing_address_map_filenames = (
+        address_map_filenames.get("missing_required_filenames", [])
+        if isinstance(address_map_filenames, dict)
+        else []
+    )
+    expected_failing_address_map_filenames = (
+        address_map_filenames.get("failing_required_filenames", [])
+        if isinstance(address_map_filenames, dict)
+        else []
+    )
+    expected_missing_report_filenames = vivado_missing_report_filenames(parsed)
+    expected_failing_report_filenames = vivado_failing_report_filenames(parsed)
+    expected_missing_hold_timing_filenames = (
+        hold_timing_filenames.get("missing_required_filenames", [])
+        if isinstance(hold_timing_filenames, dict)
+        else []
+    )
+    expected_failing_hold_timing_filenames = (
+        hold_timing_filenames.get("failing_required_filenames", [])
+        if isinstance(hold_timing_filenames, dict)
+        else []
+    )
+    complete_vivado_flow_evidence_diagnostics_match = (
+        isinstance(parsed, dict)
+        and parsed.get("complete_vivado_flow_evidence_missing_categories")
+        == expected_missing_categories
+        and parsed.get("complete_vivado_flow_evidence_failing_categories")
+        == expected_failing_categories
+        and parsed.get("complete_vivado_flow_evidence_missing_suffixes")
+        == expected_missing_suffixes
+        and parsed.get("complete_vivado_flow_evidence_failing_suffixes")
+        == expected_failing_suffixes
+        and parsed.get("complete_vivado_flow_evidence_missing_filenames")
+        == expected_missing_filenames
+        and parsed.get("complete_vivado_flow_evidence_failing_filenames")
+        == expected_failing_filenames
+        and parsed.get("complete_vivado_flow_evidence_missing_address_map_filenames")
+        == expected_missing_address_map_filenames
+        and parsed.get("complete_vivado_flow_evidence_failing_address_map_filenames")
+        == expected_failing_address_map_filenames
+        and parsed.get("complete_vivado_flow_evidence_missing_report_filenames")
+        == expected_missing_report_filenames
+        and parsed.get("complete_vivado_flow_evidence_failing_report_filenames")
+        == expected_failing_report_filenames
+        and parsed.get("complete_vivado_flow_evidence_missing_hold_timing_filenames")
+        == expected_missing_hold_timing_filenames
+        and parsed.get("complete_vivado_flow_evidence_failing_hold_timing_filenames")
+        == expected_failing_hold_timing_filenames
+    )
     result.update(
         {
             "vivado_passed": vivado_passed,
@@ -2981,6 +3109,9 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
             "vivado_route_status_counts_present": route_status_counts_present,
             "vivado_address_map_hex_fields_consistent": address_map_hex_fields_consistent,
             "vivado_record_hashes_present": record_hashes_present,
+            "complete_vivado_flow_evidence_diagnostics_match": (
+                complete_vivado_flow_evidence_diagnostics_match
+            ),
             "hjpeg_base_addresses": list(bases),
             "hjpeg_base_addresses_hex": [f"0x{base:x}" for base in bases],
             "passed": (
@@ -2999,6 +3130,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
                 and route_status_counts_present
                 and address_map_hex_fields_consistent
                 and record_hashes_present
+                and complete_vivado_flow_evidence_diagnostics_match
             ),
         }
     )
@@ -3052,6 +3184,11 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     if not record_hashes_present:
         failures.append(
             f"{path}: Vivado evidence missing file metadata for passing required records"
+        )
+    if not complete_vivado_flow_evidence_diagnostics_match:
+        failures.append(
+            f"{path}: Vivado complete-evidence diagnostic lists do not match "
+            "nested evidence summaries"
         )
     if not bases:
         failures.append(f"{path}: no passing hjpeg_0/s_axi_lite address-map evidence")

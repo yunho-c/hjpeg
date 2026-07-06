@@ -303,7 +303,9 @@ required `.bit`, `.xsa`, and `.dcp` artifact suffix evidence, and the required
 `post_impl_timing_summary.rpt` also present as passing hold-timing evidence and
 matching missing/failing filename, hold-timing, and suffix lists empty, finite
 positive `clock_period_ns` and `clock_frequency_mhz` values that match each
-other, a required evidence-category summary showing every required category present and passing, zero diagnostic
+other, a required evidence-category summary showing every required category
+present and passing, top-level complete-evidence missing/failing lists matching
+nested evidence summaries, zero diagnostic
 failures and failed paths in the Vivado summary, checked paths matching passed
 paths, positive per-category checked counts whose sum matches the total checked
 count and match the per-category pass/fail totals, `exists: true`, positive

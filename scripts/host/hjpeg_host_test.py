@@ -1007,6 +1007,18 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
         "clock_frequency_mhz": 100.0,
         "complete_vivado_flow_evidence": True,
         "complete_vivado_flow_evidence_required": True,
+        "complete_vivado_flow_evidence_missing_categories": [],
+        "complete_vivado_flow_evidence_missing_suffixes": [],
+        "complete_vivado_flow_evidence_missing_filenames": [],
+        "complete_vivado_flow_evidence_missing_address_map_filenames": [],
+        "complete_vivado_flow_evidence_missing_report_filenames": {},
+        "complete_vivado_flow_evidence_missing_hold_timing_filenames": [],
+        "complete_vivado_flow_evidence_failing_categories": [],
+        "complete_vivado_flow_evidence_failing_suffixes": [],
+        "complete_vivado_flow_evidence_failing_filenames": [],
+        "complete_vivado_flow_evidence_failing_address_map_filenames": [],
+        "complete_vivado_flow_evidence_failing_report_filenames": {},
+        "complete_vivado_flow_evidence_failing_hold_timing_filenames": [],
         "evidence_categories": {
             "all_required_present": True,
             "present": {
@@ -3665,6 +3677,11 @@ class HjpegHostTest(unittest.TestCase):
                     "complete_vivado_flow_evidence_required"
                 ]
             )
+            self.assertTrue(
+                record["vivado_evidence"][0][
+                    "complete_vivado_flow_evidence_diagnostics_match"
+                ]
+            )
             self.assertEqual(record["vivado_hjpeg_base_addresses"], [0])
             self.assertEqual(record["vivado_hjpeg_base_addresses_hex"], ["0x0"])
             self.assertTrue(
@@ -3686,6 +3703,31 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(
                 any(
                     "complete_vivado_flow_evidence_required is not true"
+                    in failure
+                    for failure in failures
+                )
+            )
+
+    def test_vivado_evidence_file_record_rejects_tampered_complete_diagnostics(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["complete_vivado_flow_evidence_missing_categories"] = [
+                "timing"
+            ]
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertFalse(record["passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["complete_vivado_flow_evidence_required"])
+            self.assertFalse(
+                record["complete_vivado_flow_evidence_diagnostics_match"]
+            )
+            self.assertTrue(
+                any(
+                    "Vivado complete-evidence diagnostic lists do not match"
                     in failure
                     for failure in failures
                 )
