@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import contextlib
 import copy
 import hashlib
@@ -6837,6 +6838,25 @@ class HjpegHostTest(unittest.TestCase):
             with self.subTest(option=option, value=value):
                 with self.assertRaises(SystemExit):
                     hjpeg_host.main([*common_args, f"{option}={value}"])
+
+    def test_cli_numeric_helpers_report_malformed_values(self) -> None:
+        integer_helpers = (
+            hjpeg_host._positive_int,
+            hjpeg_host._nonnegative_int,
+            hjpeg_host._quality_value,
+            hjpeg_host._restart_interval_value,
+        )
+        for helper in integer_helpers:
+            with self.subTest(helper=helper.__name__):
+                with self.assertRaisesRegex(
+                    argparse.ArgumentTypeError, "integer"
+                ):
+                    helper("not-a-number")
+
+        with self.assertRaisesRegex(
+            argparse.ArgumentTypeError, "finite and positive"
+        ):
+            hjpeg_host._positive_float("not-a-number")
 
     def test_validate_jpeg_cli_rejects_invalid_restart_interval(self) -> None:
         for restart_interval in ("-1", "65536"):

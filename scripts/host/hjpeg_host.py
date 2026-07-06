@@ -4669,36 +4669,46 @@ def clear_protocol_error(regs: AxiLiteWindow) -> int:
     return control
 
 
+def _integer_arg(value: str) -> int:
+    try:
+        return int(value, 0)
+    except ValueError:
+        raise argparse.ArgumentTypeError("value must be an integer") from None
+
+
 def _positive_int(value: str) -> int:
-    parsed = int(value, 0)
+    parsed = _integer_arg(value)
     if parsed <= 0:
         raise argparse.ArgumentTypeError("value must be positive")
     return parsed
 
 
 def _nonnegative_int(value: str) -> int:
-    parsed = int(value, 0)
+    parsed = _integer_arg(value)
     if parsed < 0:
         raise argparse.ArgumentTypeError("value must be nonnegative")
     return parsed
 
 
 def _positive_float(value: str) -> float:
-    parsed = float(value)
+    try:
+        parsed = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError("value must be finite and positive") from None
     if not math.isfinite(parsed) or parsed <= 0:
         raise argparse.ArgumentTypeError("value must be finite and positive")
     return parsed
 
 
 def _quality_value(value: str) -> int:
-    parsed = int(value, 0)
+    parsed = _integer_arg(value)
     if not 1 <= parsed <= 100:
         raise argparse.ArgumentTypeError("value must be in 1..100")
     return parsed
 
 
 def _restart_interval_value(value: str) -> int:
-    parsed = int(value, 0)
+    parsed = _integer_arg(value)
     if not 0 <= parsed <= 0xFFFF:
         raise argparse.ArgumentTypeError("value must be in 0..65535")
     return parsed
