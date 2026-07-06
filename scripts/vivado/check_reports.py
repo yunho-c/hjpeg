@@ -1159,7 +1159,10 @@ def route_status_counts_present(route_status_records: list[dict[str, object]]) -
             and isinstance(required_counts, list)
             and missing_counts == []
             and all(label in required_counts for label in REQUIRED_ROUTE_STATUS_COUNTS)
-            and all(counts.get(label) == 0 for label in REQUIRED_ROUTE_STATUS_COUNTS)
+            and all(
+                type(counts.get(label)) is int and counts.get(label) == 0
+                for label in REQUIRED_ROUTE_STATUS_COUNTS
+            )
         ):
             return True
     return False

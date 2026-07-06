@@ -168,7 +168,9 @@ hardware-tool entry points:
   requires the named artifacts `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and
   `post_impl.dcp` to be present and passing, plus the named address-map report
   `hjpeg_kv260_address_map.rpt` and the named timing/utilization/implementation
-  and floorplan reports. Complete Vivado evidence counts only records
+  and floorplan reports. Complete Vivado evidence also requires the required
+  route-status counts to be actual JSON integers equal to zero. Complete Vivado
+  evidence counts only records
   whose `passed` field is an actual JSON boolean `true`. Missing or unparseable
   reports are included as structured failure records. Full bitstream gates can
   pass `--require-complete-evidence` to fail unless all required categories,

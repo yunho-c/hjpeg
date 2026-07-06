@@ -207,8 +207,8 @@ requires every supplied required evidence category and required `.bit`/`.xsa`/
 artifacts `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and `post_impl.dcp` to be present
 and passing, plus the named address-map, timing/utilization/implementation, and
 floorplan reports. Complete Vivado evidence also requires the generated
-diagnostic summary to be valid, required route-status counts to be present and
-zero, address-map hexadecimal fields to match parsed numeric addresses, passing
+diagnostic summary to be valid, required route-status counts to be present as
+actual JSON integers equal to zero, address-map hexadecimal fields to match parsed numeric addresses, passing
 required records to carry nonempty path/resolved-path file metadata with resolved
 paths matching the recorded paths plus SHA-256 hashes in both generated and
 saved evidence, and the

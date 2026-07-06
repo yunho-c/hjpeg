@@ -1655,6 +1655,42 @@ class CheckReportsTest(unittest.TestCase):
             all(not present for present in record["present"].values())
         )
 
+    def test_route_status_counts_present_requires_strict_zero_counts(self) -> None:
+        self.assertTrue(
+            check_reports.route_status_counts_present(
+                [
+                    {
+                        "passed": True,
+                        "counts": {
+                            "number_of_unrouted_nets": 0,
+                            "number_of_nets_with_routing_errors": 0,
+                        },
+                        "missing_counts": [],
+                        "required_counts": list(
+                            check_reports.REQUIRED_ROUTE_STATUS_COUNTS
+                        ),
+                    }
+                ]
+            )
+        )
+        self.assertFalse(
+            check_reports.route_status_counts_present(
+                [
+                    {
+                        "passed": True,
+                        "counts": {
+                            "number_of_unrouted_nets": False,
+                            "number_of_nets_with_routing_errors": 0,
+                        },
+                        "missing_counts": [],
+                        "required_counts": list(
+                            check_reports.REQUIRED_ROUTE_STATUS_COUNTS
+                        ),
+                    }
+                ]
+            )
+        )
+
     def test_artifact_suffixes_require_strict_passed_booleans(self) -> None:
         record = check_reports.artifact_suffix_record(
             [

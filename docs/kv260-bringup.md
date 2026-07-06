@@ -168,8 +168,8 @@ Pass criteria:
   address-map report `hjpeg_kv260_address_map.rpt` and the named
   timing/utilization/implementation and floorplan reports. The floorplan record
   must include a positive placed-cell count. The complete-evidence flag also
-  requires a valid diagnostic summary, required route-status counts present and
-  zero, address-map hexadecimal fields matching parsed numeric addresses, and
+  requires a valid diagnostic summary, required route-status counts present as
+  actual JSON integers equal to zero, address-map hexadecimal fields matching parsed numeric addresses, and
   nonempty path/resolved-path file metadata with resolved paths matching the
   recorded paths plus SHA-256 hashes on passing required records in both
   generated and saved evidence.
