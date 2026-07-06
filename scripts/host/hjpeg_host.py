@@ -3942,6 +3942,7 @@ def vivado_record_hashes_present(record: object) -> bool:
 def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str]]:
     result: dict[str, object] = {
         "path": str(path),
+        "path_resolved": str(path.resolve(strict=False)),
         "exists": False,
         "passed": False,
         "hjpeg_base_addresses": [],
@@ -5300,13 +5301,26 @@ def main(argv: list[str] | None = None) -> int:
         )
         vivado_failed_count = len(vivado_records) - vivado_passed_count
         vivado_evidence_paths = [str(path) for path in args.vivado_evidence]
+        vivado_evidence_paths_resolved = [
+            str(path.resolve(strict=False)) for path in args.vivado_evidence
+        ]
         vivado_evidence_passed_paths = [
             str(record.get("path"))
             for record in vivado_records
             if record.get("passed") is True
         ]
+        vivado_evidence_passed_paths_resolved = [
+            str(record.get("path_resolved"))
+            for record in vivado_records
+            if record.get("passed") is True
+        ]
         vivado_evidence_failed_paths = [
             str(record.get("path"))
+            for record in vivado_records
+            if record.get("passed") is not True
+        ]
+        vivado_evidence_failed_paths_resolved = [
+            str(record.get("path_resolved"))
             for record in vivado_records
             if record.get("passed") is not True
         ]
@@ -5751,11 +5765,20 @@ def main(argv: list[str] | None = None) -> int:
                         "vivado_evidence_passed_count": vivado_passed_count,
                         "vivado_evidence_failed_count": vivado_failed_count,
                         "vivado_evidence_paths": vivado_evidence_paths,
+                        "vivado_evidence_paths_resolved": (
+                            vivado_evidence_paths_resolved
+                        ),
                         "vivado_evidence_passed_paths": (
                             vivado_evidence_passed_paths
                         ),
+                        "vivado_evidence_passed_paths_resolved": (
+                            vivado_evidence_passed_paths_resolved
+                        ),
                         "vivado_evidence_failed_paths": (
                             vivado_evidence_failed_paths
+                        ),
+                        "vivado_evidence_failed_paths_resolved": (
+                            vivado_evidence_failed_paths_resolved
                         ),
                         "vivado_hjpeg_base_addresses": list(
                             vivado_hjpeg_base_addresses

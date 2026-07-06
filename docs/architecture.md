@@ -344,7 +344,8 @@ aggregate checked/pass/fail transcript counts, diagnostic failure count,
 checked/passed/failed path lists, summary checked, matched, and mismatched
 counts and paths, aggregate evidence group present/missing counts, aggregate
 evidence group present/missing names, aggregate recorded/passing/failing check
-counts and names, Vivado evidence counts and parsed HJPEG base addresses,
+counts and names, Vivado evidence counts, Vivado checked/passed/failed
+evidence path and resolved-path lists, and parsed HJPEG base addresses,
 aggregate frame dimensions, encoder configuration values, and validation
 expectation values, aggregate status-check context/flag values and host transfer
 rates, aggregate capture/input byte-count and source-image values, aggregate

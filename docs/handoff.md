@@ -918,7 +918,7 @@ failure count, checked/passed/failed path lists, summary checked, matched, and
 mismatched counts and paths, aggregate evidence group present/missing counts,
 aggregate evidence group present/missing names, aggregate recorded/passing/failing
 check counts and names, Vivado evidence counts, Vivado checked/passed/failed
-evidence path lists, aggregate raw/resolved stream endpoint counts and device
+evidence path and resolved-path lists, aggregate raw/resolved stream endpoint counts and device
 lists, aggregate AXI-Lite target device/base-address counts and lists, parsed
 HJPEG base addresses, HJPEG base-address count and consistency flag, aggregate
 frame dimensions, encoder configuration values, and validation expectation

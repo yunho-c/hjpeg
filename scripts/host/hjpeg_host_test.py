@@ -5636,6 +5636,11 @@ class HjpegHostTest(unittest.TestCase):
 
             self.assertEqual(failures, [])
             self.assertTrue(record["passed"])
+            self.assertEqual(record["path"], str(vivado))
+            self.assertEqual(
+                record["path_resolved"],
+                str(vivado.resolve(strict=False)),
+            )
             self.assertTrue(record["vivado_passed_flag_present"])
             self.assertTrue(record["complete_vivado_flow_evidence"])
             self.assertTrue(record["complete_vivado_flow_evidence_flag_present"])
@@ -5752,10 +5757,23 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["vivado_evidence_passed_count"], 1)
             self.assertEqual(record["vivado_evidence_failed_count"], 0)
             self.assertEqual(record["vivado_evidence_paths"], [str(vivado)])
+            self.assertEqual(
+                record["vivado_evidence_paths_resolved"],
+                [str(vivado.resolve(strict=False))],
+            )
             self.assertEqual(record["vivado_evidence_passed_paths"], [str(vivado)])
+            self.assertEqual(
+                record["vivado_evidence_passed_paths_resolved"],
+                [str(vivado.resolve(strict=False))],
+            )
             self.assertEqual(record["vivado_evidence_failed_paths"], [])
+            self.assertEqual(record["vivado_evidence_failed_paths_resolved"], [])
             self.assertTrue(
                 record["vivado_evidence"][0]["vivado_diagnostic_summary_consistent"]
+            )
+            self.assertEqual(
+                record["vivado_evidence"][0]["path_resolved"],
+                str(vivado.resolve(strict=False)),
             )
             self.assertEqual(record["vivado_hjpeg_base_addresses"], [0])
             self.assertEqual(record["vivado_hjpeg_base_address_count"], 1)
@@ -6402,10 +6420,23 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["vivado_evidence_passed_count"], 0)
             self.assertEqual(record["vivado_evidence_failed_count"], 1)
             self.assertEqual(record["vivado_evidence_paths"], [str(vivado)])
+            self.assertEqual(
+                record["vivado_evidence_paths_resolved"],
+                [str(vivado.resolve(strict=False))],
+            )
             self.assertEqual(record["vivado_evidence_passed_paths"], [])
+            self.assertEqual(record["vivado_evidence_passed_paths_resolved"], [])
             self.assertEqual(record["vivado_evidence_failed_paths"], [str(vivado)])
+            self.assertEqual(
+                record["vivado_evidence_failed_paths_resolved"],
+                [str(vivado.resolve(strict=False))],
+            )
             self.assertEqual(record["vivado_hjpeg_base_addresses"], [])
             self.assertFalse(record["vivado_evidence"][0]["passed"])
+            self.assertEqual(
+                record["vivado_evidence"][0]["path_resolved"],
+                str(vivado.resolve(strict=False)),
+            )
             self.assertTrue(
                 any("no passing hjpeg_0/s_axi_lite" in failure for failure in record["failures"])
             )
@@ -6825,10 +6856,25 @@ class HjpegHostTest(unittest.TestCase):
                 [str(first_vivado), str(second_vivado)],
             )
             self.assertEqual(
+                record["vivado_evidence_paths_resolved"],
+                [
+                    str(first_vivado.resolve(strict=False)),
+                    str(second_vivado.resolve(strict=False)),
+                ],
+            )
+            self.assertEqual(
                 record["vivado_evidence_passed_paths"],
                 [str(first_vivado), str(second_vivado)],
             )
+            self.assertEqual(
+                record["vivado_evidence_passed_paths_resolved"],
+                [
+                    str(first_vivado.resolve(strict=False)),
+                    str(second_vivado.resolve(strict=False)),
+                ],
+            )
             self.assertEqual(record["vivado_evidence_failed_paths"], [])
+            self.assertEqual(record["vivado_evidence_failed_paths_resolved"], [])
             self.assertEqual(record["vivado_hjpeg_base_addresses"], [0, 0xA0000000])
             self.assertEqual(record["vivado_hjpeg_base_address_count"], 2)
             self.assertFalse(record["vivado_hjpeg_base_addresses_consistent"])
