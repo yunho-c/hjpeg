@@ -1529,6 +1529,10 @@ def strict_json_loads(text: str) -> object:
     return json.loads(text, parse_constant=_reject_json_constant)
 
 
+def strict_json_dumps(value: object, **kwargs: object) -> str:
+    return json.dumps(value, allow_nan=False, **kwargs)
+
+
 def file_info_record(info: FileInfo) -> dict[str, object]:
     return {
         "path": info.path,
@@ -4894,7 +4898,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.json:
             output_data = args.output.read_bytes()
             print(
-                json.dumps(
+                strict_json_dumps(
                     {
                         "input_ppm": ppm_evidence_record(args.input, image),
                         "output_rgb": file_info_record(file_info(args.output, output_data)),
@@ -4917,7 +4921,7 @@ def main(argv: list[str] | None = None) -> int:
         write_ppm(image, args.output)
         if args.json:
             print(
-                json.dumps(
+                strict_json_dumps(
                     {
                         "output_ppm": ppm_evidence_record(args.output, image),
                         "deterministic_pattern": True,
@@ -4959,7 +4963,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         if args.json:
             print(
-                json.dumps(
+                strict_json_dumps(
                     jpeg_info_record(
                         args.jpeg,
                         info,
@@ -5304,7 +5308,7 @@ def main(argv: list[str] | None = None) -> int:
         ]
         if args.json:
             print(
-                json.dumps(
+                strict_json_dumps(
                     {
                         "passed": not failures,
                         "checked_count": len(records),
@@ -5791,7 +5795,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         if args.json:
             print(
-                json.dumps(
+                strict_json_dumps(
                     {
                         "axi_lite": axi_lite_target_record(args.dev, args.base_addr),
                         "encoder_config": encoder_config_record(
@@ -5818,7 +5822,7 @@ def main(argv: list[str] | None = None) -> int:
             status = regs.read32(REG_STATUS)
         if args.json:
             print(
-                json.dumps(
+                strict_json_dumps(
                     status_evidence_record(args.dev, args.base_addr, status),
                     sort_keys=True,
                 )
@@ -5832,7 +5836,7 @@ def main(argv: list[str] | None = None) -> int:
             control = clear_protocol_error(regs)
         if args.json:
             print(
-                json.dumps(
+                strict_json_dumps(
                     clear_error_record(args.dev, args.base_addr, control),
                     sort_keys=True,
                 )
@@ -5979,7 +5983,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         if args.json:
             print(
-                json.dumps(
+                strict_json_dumps(
                     record,
                     sort_keys=True,
                 )

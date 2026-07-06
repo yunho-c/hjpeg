@@ -99,6 +99,10 @@ def nonnegative_float(value: str) -> float:
     return parsed
 
 
+def strict_json_dumps(value: object, **kwargs: object) -> str:
+    return json.dumps(value, allow_nan=False, **kwargs)
+
+
 def clock_target_record(clock_period_ns: float) -> dict[str, object]:
     clock_period_finite = math.isfinite(clock_period_ns)
     clock_period_positive = clock_period_ns > 0.0
@@ -1587,7 +1591,7 @@ def main(argv: list[str] | None = None) -> int:
             "require_complete_evidence": args.require_complete_evidence,
         }
         print(
-            json.dumps(
+            strict_json_dumps(
                 {
                     "passed": not failures,
                     "failures": failures,

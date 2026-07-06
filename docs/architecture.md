@@ -305,9 +305,10 @@ run JSON can be checked later with
 `check-run-evidence`, which fails on malformed JSON, missing
 `hardware_run_summary`, a stored summary that does not match recomputed
 evidence, missing or non-boolean top-level `complete_hardware_run_evidence`
-gates, failed recorded checks, or incomplete hardware evidence. Saved run and
-Vivado evidence files must be strict JSON; non-standard constants such as
-`NaN` and `Infinity` are rejected as malformed evidence. With
+gates, failed recorded checks, or incomplete hardware evidence. The host and
+Vivado helpers emit strict JSON for evidence output, and saved run/Vivado
+evidence files must be strict JSON; non-standard constants such as `NaN` and
+`Infinity` are rejected as malformed evidence. With
 `--vivado-evidence`, the saved-run checker also parses `check_reports.py --json`
 Vivado evidence, extracts passing `hjpeg_0/s_axi_lite` address-map base
 addresses, and requires the Vivado transcript to have JSON boolean `true` values

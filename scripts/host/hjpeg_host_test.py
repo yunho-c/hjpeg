@@ -3950,6 +3950,10 @@ class HjpegHostTest(unittest.TestCase):
                 any("invalid JSON constant: NaN" in failure for failure in failures)
             )
 
+    def test_strict_json_dumps_rejects_nonfinite_numbers(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Out of range float values"):
+            hjpeg_host.strict_json_dumps({"elapsed": float("nan")})
+
     def test_check_run_evidence_file_reports_complete_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

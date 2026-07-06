@@ -2166,6 +2166,10 @@ class CheckReportsTest(unittest.TestCase):
                 ):
                     helper("not-a-number")
 
+    def test_strict_json_dumps_rejects_nonfinite_numbers(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Out of range float values"):
+            check_reports.strict_json_dumps({"wns": float("nan")})
+
     def test_cli_rejects_invalid_utilization_thresholds(self) -> None:
         for value in ["-0.001", "nan", "inf", "-inf"]:
             with self.subTest(value=value):
