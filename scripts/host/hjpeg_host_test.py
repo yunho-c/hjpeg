@@ -1163,6 +1163,7 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
             "failure_count": 0,
             "checked_counts_sum": 12,
             "checked_counts_sum_matches": True,
+            "checked_counts_categories_match": True,
             "checked_counts_strict_numbers": True,
             "checked_counts_positive": True,
             "checked_counts_match_categories": True,

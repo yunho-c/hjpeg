@@ -3961,6 +3961,9 @@ def expected_vivado_diagnostic_summary(record: object) -> dict[str, object] | No
         checked_counts.get(category)
         for category in VIVADO_REQUIRED_EVIDENCE_CATEGORIES
     ]
+    checked_counts_categories_match = set(checked_counts.keys()) == set(
+        VIVADO_REQUIRED_EVIDENCE_CATEGORIES
+    )
     checked_counts_strict_numbers = all(
         is_strict_int(count) and count >= 0 for count in checked_count_values
     )
@@ -3996,6 +3999,7 @@ def expected_vivado_diagnostic_summary(record: object) -> dict[str, object] | No
         and failed_count == 0
         and failure_count == 0
         and checked_counts_sum_matches
+        and checked_counts_categories_match
         and checked_counts_strict_numbers
         and checked_counts_positive
         and checked_counts_match_categories
@@ -4012,6 +4016,7 @@ def expected_vivado_diagnostic_summary(record: object) -> dict[str, object] | No
         "failure_count": failure_count,
         "checked_counts_sum": checked_counts_sum,
         "checked_counts_sum_matches": checked_counts_sum_matches,
+        "checked_counts_categories_match": checked_counts_categories_match,
         "checked_counts_strict_numbers": checked_counts_strict_numbers,
         "checked_counts_positive": checked_counts_positive,
         "checked_counts_match_categories": checked_counts_match_categories,
