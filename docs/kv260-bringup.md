@@ -348,9 +348,10 @@ Expected evidence:
   lists, summary checked, matched, and mismatched counts and paths, aggregate
   evidence group present/missing counts, aggregate evidence group present/missing
   names, aggregate recorded/passing/failing check counts and names, Vivado
-  address-map evidence counts and parsed HJPEG base addresses, plus the
-  recomputed summary, evidence/check counts, missing evidence groups, and failing
-  check names for each object-shaped transcript.
+  address-map evidence counts, parsed HJPEG base addresses, HJPEG base-address
+  count and consistency flag, plus the recomputed summary, evidence/check
+  counts, missing evidence groups, and failing check names for each object-shaped
+  transcript.
 - The captured output starts with SOI and ends with EOI.
 
 The `run-stream-devices` helper checks the AXI-Lite status register after

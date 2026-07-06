@@ -4382,7 +4382,8 @@ def main(argv: list[str] | None = None) -> int:
                 if is_strict_int(base)
             )
         )
-        if len(vivado_hjpeg_base_addresses) > 1:
+        vivado_hjpeg_base_addresses_consistent = len(vivado_hjpeg_base_addresses) <= 1
+        if not vivado_hjpeg_base_addresses_consistent:
             vivado_failures.append(
                 "conflicting Vivado hjpeg_0/s_axi_lite base addresses: "
                 + ", ".join(f"0x{base:x}" for base in vivado_hjpeg_base_addresses)
@@ -4510,6 +4511,12 @@ def main(argv: list[str] | None = None) -> int:
                         ],
                         "vivado_hjpeg_base_addresses": list(
                             vivado_hjpeg_base_addresses
+                        ),
+                        "vivado_hjpeg_base_address_count": len(
+                            vivado_hjpeg_base_addresses
+                        ),
+                        "vivado_hjpeg_base_addresses_consistent": (
+                            vivado_hjpeg_base_addresses_consistent
                         ),
                         "vivado_hjpeg_base_addresses_hex": [
                             f"0x{base:x}" for base in vivado_hjpeg_base_addresses

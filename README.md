@@ -486,9 +486,10 @@ includes aggregate checked/pass/fail transcript counts, diagnostic failure count
 checked/passed/failed path lists, summary checked, matched, and
 mismatched counts and paths, aggregate evidence group present/missing counts and
 names, aggregate recorded/passing/failing check counts and names, Vivado
-address-map evidence counts and parsed HJPEG base addresses, plus the recomputed
-summary, evidence/check counts, missing evidence groups, and failing check names
-for each object-shaped transcript.
+address-map evidence counts, parsed HJPEG base addresses, HJPEG base-address
+count and consistency flag, plus the recomputed summary, evidence/check counts,
+missing evidence groups, and failing check names for each object-shaped
+transcript.
 
 Maximum output bytes must be positive, and RX timeout values must be finite and
 positive when present. It

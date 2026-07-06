@@ -4672,6 +4672,8 @@ class HjpegHostTest(unittest.TestCase):
                 ]
             )
             self.assertEqual(record["vivado_hjpeg_base_addresses"], [0])
+            self.assertEqual(record["vivado_hjpeg_base_address_count"], 1)
+            self.assertTrue(record["vivado_hjpeg_base_addresses_consistent"])
             self.assertEqual(record["vivado_hjpeg_base_addresses_hex"], ["0x0"])
             self.assertTrue(
                 record["records"][0]["axi_lite_base_matches_vivado_evidence"]
@@ -4725,6 +4727,8 @@ class HjpegHostTest(unittest.TestCase):
                 record["vivado_evidence"][0]["vivado_diagnostic_summary_consistent"]
             )
             self.assertEqual(record["vivado_hjpeg_base_addresses"], [0])
+            self.assertEqual(record["vivado_hjpeg_base_address_count"], 1)
+            self.assertTrue(record["vivado_hjpeg_base_addresses_consistent"])
             self.assertTrue(
                 record["records"][0]["axi_lite_base_matches_vivado_evidence"]
             )
@@ -5743,6 +5747,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["vivado_evidence_passed_count"], 2)
             self.assertEqual(record["vivado_evidence_failed_count"], 0)
             self.assertEqual(record["vivado_hjpeg_base_addresses"], [0, 0xA0000000])
+            self.assertEqual(record["vivado_hjpeg_base_address_count"], 2)
+            self.assertFalse(record["vivado_hjpeg_base_addresses_consistent"])
             self.assertEqual(
                 record["vivado_hjpeg_base_addresses_hex"],
                 ["0x0", "0xa0000000"],
