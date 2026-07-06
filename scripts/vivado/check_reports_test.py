@@ -1410,6 +1410,57 @@ class CheckReportsTest(unittest.TestCase):
             all(not present for present in record["required_filenames_present"].values())
         )
 
+    def test_required_filenames_require_strict_passed_booleans(self) -> None:
+        record = check_reports.required_filename_record(
+            [
+                {"path": "reports/post_route_timing_summary.rpt", "passed": "true"},
+                {"path": "reports/post_route_timing_summary.rpt", "passed": 1},
+                {"path": "reports/post_route_hold_timing_summary.rpt", "passed": True},
+            ],
+            (
+                "post_route_timing_summary.rpt",
+                "post_route_hold_timing_summary.rpt",
+            ),
+            "timing",
+        )
+
+        self.assertEqual(record["label"], "timing")
+        self.assertEqual(
+            record["filename_counts"],
+            {
+                "post_route_timing_summary.rpt": 2,
+                "post_route_hold_timing_summary.rpt": 1,
+            },
+        )
+        self.assertEqual(
+            record["passing_filename_counts"],
+            {"post_route_hold_timing_summary.rpt": 1},
+        )
+        self.assertEqual(
+            record["failing_filename_counts"],
+            {"post_route_timing_summary.rpt": 2},
+        )
+        self.assertEqual(
+            record["required_filenames_present"],
+            {
+                "post_route_timing_summary.rpt": False,
+                "post_route_hold_timing_summary.rpt": True,
+            },
+        )
+        self.assertEqual(
+            record["present_required_filenames"],
+            ["post_route_hold_timing_summary.rpt"],
+        )
+        self.assertEqual(
+            record["missing_required_filenames"],
+            ["post_route_timing_summary.rpt"],
+        )
+        self.assertEqual(
+            record["failing_required_filenames"],
+            ["post_route_timing_summary.rpt"],
+        )
+        self.assertFalse(record["all_required_filenames_present"])
+
     def test_cli_json_records_failures(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
