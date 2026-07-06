@@ -8,9 +8,9 @@ import chisel3.util._
 /** Buffers one 8-row raster stripe and emits 8x8, 4:4:4 MCUs.
   *
   * This stage is the first raster-order frame buffer. It accepts pixels in
-  * row-major order, stores level-shifted Y/Cb/Cr samples for eight rows, then
-  * emits MCUs left-to-right for that stripe. Frame dimensions must currently be
-  * multiples of eight; edge padding belongs in a later extension.
+  * row-major order, stores level-shifted Y/Cb/Cr samples for up to eight rows,
+  * then emits MCUs left-to-right for that stripe. Partial right and bottom
+  * edges are padded by repeating the final valid column or row sample.
   */
 class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, coefficientBits: Int = 16)
     extends Module {
