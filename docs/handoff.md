@@ -181,7 +181,19 @@ without changing mapped control/status registers.
 
 Recent commits, newest first:
 
-- current commit: `test: cover unsupported axi frame drain`
+- current commit: `0520f5e test: cover host restart marker wraparound`
+- `8209a72 test: cover restart marker wraparound`
+- `34d90aa fix: validate vivado evidence arguments`
+- `b30e9c6 fix: validate vivado evidence diagnostics`
+- `05bbf6c fix: require complete vivado evidence gate`
+- `e67da29 fix: validate complete run evidence diagnostics`
+- `caf9177 fix: require explicit jpeg validation evidence`
+- `940451c docs: align evidence and padding notes`
+- `74053f3 fix: require string axi lite device evidence`
+- `cd2eda4 fix: validate vivado record file metadata`
+- `0b2a936 test: require hashes in vivado evidence json`
+- `65315aa fix: require hashed vivado evidence records`
+- `267563b test: cover unsupported axi frame drain`
 - `e40bcaa feat: record expected jpeg baseline tables`
 - `fb73c32 feat: record expected jpeg marker order`
 - `b71efd1 feat: record expected jpeg component shape`
@@ -842,6 +854,9 @@ failing check names for each object-shaped transcript.
 - `HjpegCoreSpec` includes a small 16x16 4:4:4 cycle-budget regression using
   the existing ChiselSim frame driver. This is a local performance drift guard,
   not proof of KV260 hardware throughput.
+- Restart interval coverage now includes stage-level RTL and host-side JPEG
+  validation regressions for RST marker numbering wrapping from RST7 back to
+  RST0.
 
 ## Suggested Next Work
 
