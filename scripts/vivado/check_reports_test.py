@@ -1527,6 +1527,47 @@ class CheckReportsTest(unittest.TestCase):
             self.assertTrue(any("below required" in failure for failure in record["failures"]))
             self.assertTrue(any("WHS" in failure for failure in record["failures"]))
 
+    def test_cli_json_deduplicates_timing_and_hold_timing_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            timing = root / "post_impl_timing_summary.rpt"
+            timing.write_text(TIMING_TABLE)
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    check_reports.main(
+                        [
+                            "--timing",
+                            str(timing),
+                            "--hold-timing",
+                            str(timing),
+                            "--json",
+                        ]
+                    ),
+                    0,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertTrue(record["passed"])
+            self.assertEqual(record["checked_count"], 1)
+            self.assertEqual(record["passed_count"], 1)
+            self.assertEqual(record["failed_count"], 0)
+            self.assertEqual(record["failure_count"], 0)
+            self.assertEqual(record["checked_paths"], [str(timing)])
+            self.assertEqual(record["passed_paths"], [str(timing)])
+            self.assertEqual(record["failed_paths"], [])
+            self.assertEqual(record["checked_counts"]["timing"], 1)
+            self.assertEqual(len(record["timing"]), 1)
+            self.assertTrue(record["timing"][0]["check_whs"])
+            self.assertTrue(record["timing"][0]["passed"])
+            self.assertEqual(record["arguments"]["timing"], [str(timing)])
+            self.assertEqual(record["arguments"]["hold_timing"], [str(timing)])
+            self.assertEqual(
+                record["hold_timing_filenames"]["present_required_filenames"],
+                ["post_impl_timing_summary.rpt"],
+            )
+
     def test_cli_json_rejects_empty_artifacts_and_evidence_reports(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
