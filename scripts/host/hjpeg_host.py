@@ -1830,6 +1830,9 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
         expected_marker_counts = validation_expectations.get("expected_marker_counts")
         expected_chroma_mode = validation_expectations.get("expected_chroma_mode")
+        expected_dqt_payload_hashes = validation_expectations.get(
+            "expected_quantization_payload_sha256"
+        )
         validation_restart_marker_count_matches = (
             expected_restart_markers is None
             or "restart_markers" not in record
@@ -1871,6 +1874,29 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
                 and record.get("chroma_mode") == expected_chroma_mode
             )
         )
+        quantization_table_details = record.get("quantization_table_details")
+        actual_dqt_payload_hashes = {}
+        if isinstance(quantization_table_details, list):
+            for table in quantization_table_details:
+                if not isinstance(table, dict):
+                    continue
+                table_id = table.get("table_id")
+                payload_sha256 = table.get("payload_sha256")
+                if is_strict_int(table_id) and is_sha256_hex(payload_sha256):
+                    actual_dqt_payload_hashes[str(table_id)] = payload_sha256
+        validation_dqt_payload_hashes_match = (
+            expected_dqt_payload_hashes is None
+            or "quantization_table_details" not in record
+            or (
+                isinstance(expected_dqt_payload_hashes, dict)
+                and all(
+                    isinstance(expected_hash, str)
+                    and actual_dqt_payload_hashes.get(str(table_id))
+                    == expected_hash
+                    for table_id, expected_hash in expected_dqt_payload_hashes.items()
+                )
+            )
+        )
         evidence_present["validation_expectations"] = (
             validation_baseline_shape
             and validation_marker_order_present
@@ -1881,6 +1907,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and validation_restart_marker_sequence_matches
             and validation_marker_counts_match
             and validation_chroma_mode_matches
+            and validation_dqt_payload_hashes_match
         )
         checks["validation_baseline_shape"] = validation_baseline_shape
         checks["validation_marker_order_present"] = validation_marker_order_present
@@ -1897,6 +1924,9 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
         checks["validation_marker_counts_match"] = validation_marker_counts_match
         checks["validation_chroma_mode_matches"] = validation_chroma_mode_matches
+        checks["validation_dqt_payload_hashes_match"] = (
+            validation_dqt_payload_hashes_match
+        )
 
     input_rgb = record.get("input_rgb")
     if isinstance(input_rgb, dict):
