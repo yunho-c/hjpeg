@@ -425,7 +425,8 @@ parsed DHT table hashes when standard-Huffman checking was requested. Those
 expected hash records are required when the corresponding quality or
 standard-Huffman check is requested. Input RGB evidence
 must include a nonempty path, positive byte length, a SHA-256 hex hash, a positive expected byte
-length, and an actual-vs-expected length match. Capture configuration evidence
+length, and an actual-vs-expected length match. Stream-device evidence must
+include nonempty, distinct TX and RX device paths. Capture configuration evidence
 must include a positive maximum output byte count and either no timeout or a
 finite positive timeout. AXI-Lite
 target evidence must include a non-empty string device path, nonnegative base
