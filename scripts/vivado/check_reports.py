@@ -965,6 +965,82 @@ def all_required_filenames_present(
     )
 
 
+def diagnostic_summary_record(
+    checked_records: list[dict[str, object]],
+    checked_counts: dict[str, int],
+    evidence_categories: dict[str, object],
+    failures: list[str],
+) -> dict[str, object]:
+    checked_count = len(checked_records)
+    passed_count = sum(1 for record in checked_records if record.get("passed") is True)
+    failed_count = checked_count - passed_count
+    checked_paths = [str(record.get("path")) for record in checked_records]
+    passed_paths = [
+        str(record.get("path"))
+        for record in checked_records
+        if record.get("passed") is True
+    ]
+    failed_paths = [
+        str(record.get("path"))
+        for record in checked_records
+        if record.get("passed") is not True
+    ]
+    passing_counts = evidence_categories.get("passing_counts")
+    failing_counts = evidence_categories.get("failing_counts")
+    checked_counts_sum = sum(checked_counts.values())
+    checked_counts_positive = all(
+        checked_counts.get(category, 0) > 0
+        for category in REQUIRED_EVIDENCE_CATEGORIES
+    )
+    checked_counts_match_categories = bool(
+        isinstance(passing_counts, dict)
+        and isinstance(failing_counts, dict)
+        and all(
+            checked_counts.get(category)
+            == passing_counts.get(category, 0) + failing_counts.get(category, 0)
+            for category in REQUIRED_EVIDENCE_CATEGORIES
+        )
+    )
+    count_balance_valid = checked_count == passed_count + failed_count
+    path_counts_valid = (
+        len(checked_paths) == checked_count
+        and len(passed_paths) == passed_count
+        and len(failed_paths) == failed_count
+    )
+    checked_paths_match_passed_paths = checked_paths == passed_paths
+    no_failed_paths = failed_paths == []
+    no_failures = failures == []
+    valid = bool(
+        checked_count > 0
+        and passed_count == checked_count
+        and failed_count == 0
+        and count_balance_valid
+        and path_counts_valid
+        and checked_paths_match_passed_paths
+        and no_failed_paths
+        and checked_counts_sum == checked_count
+        and checked_counts_positive
+        and checked_counts_match_categories
+        and no_failures
+    )
+    return {
+        "checked_count": checked_count,
+        "passed_count": passed_count,
+        "failed_count": failed_count,
+        "failure_count": len(failures),
+        "checked_counts_sum": checked_counts_sum,
+        "checked_counts_sum_matches": checked_counts_sum == checked_count,
+        "checked_counts_positive": checked_counts_positive,
+        "checked_counts_match_categories": checked_counts_match_categories,
+        "count_balance_valid": count_balance_valid,
+        "path_counts_valid": path_counts_valid,
+        "checked_paths_match_passed_paths": checked_paths_match_passed_paths,
+        "no_failed_paths": no_failed_paths,
+        "no_failures": no_failures,
+        "valid": valid,
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="check Vivado timing and utilization reports")
     parser.add_argument(
@@ -1186,6 +1262,12 @@ def main(argv: list[str] | None = None) -> int:
     failing_hold_timing_filenames = hold_timing_filenames["failing_required_filenames"]
     clock_target = clock_target_record(args.clock_period_ns)
     clock_target_valid = clock_target["valid"] is True
+    completion_diagnostic_summary = diagnostic_summary_record(
+        checked_records,
+        checked_counts,
+        evidence_categories,
+        failures,
+    )
     complete_vivado_flow_evidence = bool(
         evidence_categories["all_required_present"]
         and artifact_suffixes["all_required_suffixes_present"]
@@ -1200,6 +1282,7 @@ def main(argv: list[str] | None = None) -> int:
         and not failing_address_map_filenames
         and not failing_report_filenames
         and not failing_hold_timing_filenames
+        and completion_diagnostic_summary["valid"]
     )
     if args.require_complete_evidence and not complete_vivado_flow_evidence:
         if missing_categories:
@@ -1266,6 +1349,12 @@ def main(argv: list[str] | None = None) -> int:
             failures.append("complete Vivado flow evidence has invalid clock target")
 
     if args.json:
+        diagnostic_summary = diagnostic_summary_record(
+            checked_records,
+            checked_counts,
+            evidence_categories,
+            failures,
+        )
         arguments = {
             "artifacts": [str(path) for path in args.artifact],
             "address_map": [str(path) for path in args.address_map],
@@ -1295,6 +1384,7 @@ def main(argv: list[str] | None = None) -> int:
                     "failed_paths": failed_paths,
                     "checked_counts": checked_counts,
                     "evidence_categories": evidence_categories,
+                    "diagnostic_summary": diagnostic_summary,
                     "artifact_suffixes": artifact_suffixes,
                     "artifact_filenames": artifact_filenames,
                     "address_map_filenames": address_map_filenames,

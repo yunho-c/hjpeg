@@ -141,9 +141,11 @@ Pass criteria:
   `post_impl_drc.rpt`, `post_impl_route_status.rpt`, and
   `post_impl_clock_utilization.rpt`, present/missing/failing filename names,
   required suffix/filename passing/failing counts, required/present/missing category,
-  suffix, artifact-filename, address-map-filename, and report-filename counts, aggregate pass/fail counts, diagnostic failure count,
-  checked/passed/failed path lists, complete-evidence required/missing/failing
-  lists, and pass/fail state.
+  suffix, artifact-filename, address-map-filename, and report-filename counts,
+  aggregate pass/fail counts, diagnostic failure count, checked/passed/failed
+  path lists, a `diagnostic_summary` that checks aggregate count/path/category
+  consistency, complete-evidence required/missing/failing lists, and pass/fail
+  state.
   Complete Vivado flow evidence has
   `all_required_present` and `all_required_suffixes_present` true, with no
   failing records in the required evidence categories or required `.bit`/`.xsa`/
@@ -329,10 +331,11 @@ Expected evidence:
   evidence-category summary showing every required category present and passing,
   a top-level `complete_vivado_flow_evidence` flag and complete-evidence
   missing/failing lists matching nested evidence summaries,
-  zero diagnostic failures and failed paths in the Vivado summary, checked paths
-  matching passed paths, positive per-category checked counts whose sum matches
-  the total checked count and match the per-category pass/fail totals, plus a
-  passing route-status record with zero unrouted nets and zero nets with routing
+  zero diagnostic failures and failed paths in the Vivado summary,
+  `diagnostic_summary.valid` true, checked paths matching passed paths,
+  positive per-category checked counts whose sum matches the total checked
+  count and match the per-category pass/fail totals, plus a passing
+  route-status record with zero unrouted nets and zero nets with routing
   errors. Vivado numeric transcript fields such as address-map base/high
   addresses, clock period/frequency, evidence-category counts, summary counts,
   and route-status counts must also be actual JSON numbers, not booleans. The

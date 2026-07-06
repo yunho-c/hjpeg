@@ -155,6 +155,58 @@ class CheckReportsTest(unittest.TestCase):
                 invalid = check_reports.clock_target_record(period)
                 self.assertFalse(invalid["valid"])
 
+    def test_diagnostic_summary_requires_consistent_complete_evidence(self) -> None:
+        checked_records = [
+            {"path": f"{category}.rpt", "passed": True}
+            for category in check_reports.REQUIRED_EVIDENCE_CATEGORIES
+        ]
+        checked_counts = {
+            category: 1
+            for category in check_reports.REQUIRED_EVIDENCE_CATEGORIES
+        }
+        evidence_categories = check_reports.evidence_category_record(
+            {
+                category: [{"passed": True}]
+                for category in check_reports.REQUIRED_EVIDENCE_CATEGORIES
+            }
+        )
+
+        record = check_reports.diagnostic_summary_record(
+            checked_records,
+            checked_counts,
+            evidence_categories,
+            [],
+        )
+
+        self.assertTrue(record["valid"])
+        self.assertEqual(record["checked_count"], len(checked_records))
+        self.assertEqual(record["passed_count"], len(checked_records))
+        self.assertEqual(record["failed_count"], 0)
+        self.assertEqual(record["failure_count"], 0)
+        self.assertEqual(record["checked_counts_sum"], len(checked_records))
+        self.assertTrue(record["checked_counts_sum_matches"])
+        self.assertTrue(record["checked_counts_positive"])
+        self.assertTrue(record["checked_counts_match_categories"])
+        self.assertTrue(record["count_balance_valid"])
+        self.assertTrue(record["path_counts_valid"])
+        self.assertTrue(record["checked_paths_match_passed_paths"])
+        self.assertTrue(record["no_failed_paths"])
+        self.assertTrue(record["no_failures"])
+
+        checked_counts["clock_utilization"] = 0
+        inconsistent = check_reports.diagnostic_summary_record(
+            checked_records,
+            checked_counts,
+            evidence_categories,
+            ["diagnostic failure"],
+        )
+
+        self.assertFalse(inconsistent["valid"])
+        self.assertFalse(inconsistent["checked_counts_sum_matches"])
+        self.assertFalse(inconsistent["checked_counts_positive"])
+        self.assertFalse(inconsistent["checked_counts_match_categories"])
+        self.assertFalse(inconsistent["no_failures"])
+
     def test_parse_wns_from_timing_table(self) -> None:
         self.assertEqual(check_reports.parse_wns(TIMING_TABLE), 0.125)
 
@@ -557,6 +609,25 @@ class CheckReportsTest(unittest.TestCase):
                     "drc": 1,
                     "route_status": 1,
                     "clock_utilization": 1,
+                },
+            )
+            self.assertEqual(
+                record["diagnostic_summary"],
+                {
+                    "checked_count": 11,
+                    "passed_count": 11,
+                    "failed_count": 0,
+                    "failure_count": 0,
+                    "checked_counts_sum": 11,
+                    "checked_counts_sum_matches": True,
+                    "checked_counts_positive": True,
+                    "checked_counts_match_categories": True,
+                    "count_balance_valid": True,
+                    "path_counts_valid": True,
+                    "checked_paths_match_passed_paths": True,
+                    "no_failed_paths": True,
+                    "no_failures": True,
+                    "valid": True,
                 },
             )
             self.assertEqual(
@@ -1107,6 +1178,25 @@ class CheckReportsTest(unittest.TestCase):
             self.assertTrue(record["evidence_categories"]["present"]["timing"])
             self.assertFalse(record["evidence_categories"]["present"]["artifacts"])
             self.assertFalse(record["artifact_suffixes"]["all_required_suffixes_present"])
+            self.assertEqual(
+                record["diagnostic_summary"],
+                {
+                    "checked_count": 1,
+                    "passed_count": 1,
+                    "failed_count": 0,
+                    "failure_count": 6,
+                    "checked_counts_sum": 1,
+                    "checked_counts_sum_matches": True,
+                    "checked_counts_positive": False,
+                    "checked_counts_match_categories": True,
+                    "count_balance_valid": True,
+                    "path_counts_valid": True,
+                    "checked_paths_match_passed_paths": True,
+                    "no_failed_paths": True,
+                    "no_failures": False,
+                    "valid": False,
+                },
+            )
             self.assertTrue(
                 any("missing required categories" in failure for failure in record["failures"])
             )

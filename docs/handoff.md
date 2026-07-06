@@ -465,7 +465,8 @@ and `post_impl.dcp`, address-map filename presence for
 required suffix/filename passing/failing counts, aggregate pass/fail counts,
 required/present/missing category, suffix, artifact-filename,
 address-map-filename, and report-filename counts, diagnostic failure count,
-checked/passed/failed path lists, complete-evidence required/missing/failing
+checked/passed/failed path lists, a `diagnostic_summary` that checks aggregate
+count/path/category consistency, complete-evidence required/missing/failing
 lists, and pass/fail state.
 Complete Vivado flow evidence should have `all_required_present` and
 `all_required_suffixes_present` true, with no failing records in the required
@@ -861,10 +862,10 @@ Vivado clock target must include finite positive `clock_period_ns` and
 and the top-level `clock_target_valid` flag true, and the Vivado checked path
 list must match the passed path list. Its top-level
 `complete_vivado_flow_evidence` flag and complete-evidence missing/failing lists
-must match nested evidence summaries. Its per-category
-checked counts must be positive, sum to the total checked count, and match the per-category pass/fail
-totals. Supplying multiple Vivado evidence files is allowed only when they agree
-on the same HJPEG base address.
+must match nested evidence summaries, and `diagnostic_summary.valid` must be
+true. Its per-category checked counts must be positive, sum to the total checked
+count, and match the per-category pass/fail totals. Supplying multiple Vivado
+evidence files is allowed only when they agree on the same HJPEG base address.
 JSON output includes aggregate checked/pass/fail transcript counts, diagnostic
 failure count, checked/passed/failed path lists, summary checked, matched, and
 mismatched counts and paths, aggregate evidence group present/missing counts,
