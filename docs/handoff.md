@@ -765,7 +765,7 @@ Hardware completion evidence should include:
   the expected baseline marker order through SOS and EOI.
 - JSON evidence records the bitstream/XSA/report SHA-256 hex hashes, PPM/RGB
   input SHA-256 hex hashes, AXI-Lite target, encoder configuration, host capture
-  limits, status
+  limits, run arguments, status
   checkpoints, captured output JPEG path and resolved path, output JPEG hash, scan payload length, SOF0/SOS marker counts,
   unstuffed scan-data SHA-256, SOF0 sample precision, SOF0/SOS component ID
   order, SOS component coverage, SOS spectral fields, DQT precision, DQT table
@@ -890,8 +890,9 @@ Saved run JSON can be checked later with
 `hardware_run_summary`, a stored summary that does not match recomputed
 evidence, a transcript that did not request complete-evidence gating, diagnostic
 missing-evidence or failing-check lists that do not match recomputed evidence,
-missing or non-boolean top-level `complete_hardware_run_evidence` gates, failed
-recorded checks, or incomplete hardware evidence. The host and Vivado helpers
+missing or non-boolean top-level `complete_hardware_run_evidence` gates, missing
+or non-true `arguments.require_complete_evidence`, failed recorded checks, or
+incomplete hardware evidence. The host and Vivado helpers
 emit strict JSON for evidence output, and saved run/Vivado evidence files must
 be strict JSON; non-standard constants such as `NaN` and `Infinity` are rejected
 as malformed evidence. Pass

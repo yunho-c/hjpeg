@@ -244,6 +244,7 @@ interval, chroma mode, JFIF setting, quality-scaled DQT payloads, and standard
 DHT payloads against the captured JPEG automatically and records those
 expectations in the run JSON evidence. Run JSON evidence also records detailed
 input RGB byte-length expectations, whether the actual byte length matched,
+the requested run arguments,
 AXI-Lite status checkpoints, the checkpoint count, the ordered checkpoint
 context list, expected context list, context-list match result, and run-level
 all-idle/any-busy/any-protocol-error summaries. It also records a
@@ -305,7 +306,8 @@ run JSON can be checked later with
 `check-run-evidence`, which fails on malformed JSON, missing
 `hardware_run_summary`, a stored summary that does not match recomputed
 evidence, missing or non-boolean top-level `complete_hardware_run_evidence`
-gates, failed recorded checks, or incomplete hardware evidence. The host and
+gates, missing or non-true `arguments.require_complete_evidence`, failed
+recorded checks, or incomplete hardware evidence. The host and
 Vivado helpers emit strict JSON for evidence output, and saved run/Vivado
 evidence files must be strict JSON; non-standard constants such as `NaN` and
 `Infinity` are rejected as malformed evidence. With

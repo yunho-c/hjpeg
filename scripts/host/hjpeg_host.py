@@ -3025,6 +3025,33 @@ def run_evidence_record(
     return record
 
 
+def run_stream_devices_arguments_record(args: argparse.Namespace) -> dict[str, object]:
+    return {
+        "dev": str(args.dev),
+        "base_addr": args.base_addr,
+        "tx_device": str(args.tx_device),
+        "rx_device": str(args.rx_device),
+        "input_rgb": str(args.input_rgb),
+        "input_ppm": None if args.input_ppm is None else str(args.input_ppm),
+        "output_jpeg": str(args.output_jpeg),
+        "width": args.width,
+        "height": args.height,
+        "max_width": args.max_width,
+        "max_height": args.max_height,
+        "quality": args.quality,
+        "restart_interval": args.restart_interval,
+        "chroma_subsample": args.chroma_subsample,
+        "emit_jfif": not args.no_jfif,
+        "clear_error": args.clear_error,
+        "max_output_bytes": args.max_output_bytes,
+        "timeout_seconds": args.timeout_seconds,
+        "decoder_command": args.decoder_command,
+        "decoder_timeout_seconds": args.decoder_timeout_seconds,
+        "require_complete_evidence": args.require_complete_evidence,
+        "json": args.json,
+    }
+
+
 def check_run_evidence_record(
     path: Path,
     record: object,
@@ -3096,6 +3123,15 @@ def check_run_evidence_record(
     complete_evidence_required = (
         record.get("complete_hardware_run_evidence_required") is True
     )
+    arguments = record.get("arguments")
+    arguments_require_complete_evidence_flag_present = (
+        isinstance(arguments, dict)
+        and isinstance(arguments.get("require_complete_evidence"), bool)
+    )
+    arguments_require_complete_evidence = (
+        isinstance(arguments, dict)
+        and arguments.get("require_complete_evidence") is True
+    )
     complete_evidence_missing_matches = (
         record.get("complete_hardware_run_evidence_missing") == missing_evidence
     )
@@ -3112,6 +3148,12 @@ def check_run_evidence_record(
             "complete_hardware_run_evidence_required": complete_evidence_required,
             "complete_hardware_run_evidence_required_flag_present": (
                 complete_evidence_required_flag_present
+            ),
+            "arguments_require_complete_evidence": (
+                arguments_require_complete_evidence
+            ),
+            "arguments_require_complete_evidence_flag_present": (
+                arguments_require_complete_evidence_flag_present
             ),
             "complete_hardware_run_evidence_missing_matches": (
                 complete_evidence_missing_matches
@@ -3401,6 +3443,12 @@ def check_run_evidence_record(
         failures.append(
             f"{path}: complete_hardware_run_evidence_required is not a JSON boolean"
         )
+    if not arguments_require_complete_evidence_flag_present:
+        failures.append(
+            f"{path}: arguments.require_complete_evidence is not a JSON boolean"
+        )
+    if not arguments_require_complete_evidence:
+        failures.append(f"{path}: arguments.require_complete_evidence is not true")
     if not complete_evidence_missing_matches:
         failures.append(
             f"{path}: complete_hardware_run_evidence_missing does not match "
@@ -6069,6 +6117,7 @@ def main(argv: list[str] | None = None) -> int:
             input_ppm=input_ppm_record,
             stream_devices=stream_devices_record(args.tx_device, args.rx_device),
         )
+        record["arguments"] = run_stream_devices_arguments_record(args)
         complete_evidence = bool(
             record["hardware_run_summary"]["complete_hardware_run_evidence"]
         )

@@ -333,7 +333,10 @@ generated files, and PPM per-channel min/max values plus non-flat/color flags.
 accepts `--input-ppm` to validate that the saved source PPM dimensions match
 the configured frame and that its packed RGB bytes exactly match `--input-rgb`;
 JSON evidence then records the PPM stats, PPM-derived packed RGB byte length
-and SHA-256 hex, and packed-RGB match result.
+and SHA-256 hex, and packed-RGB match result. Run JSON also records an
+`arguments` object with the requested AXI-Lite target, stream endpoints,
+input/output paths, frame settings, capture limits, decoder command, and
+complete-evidence flag.
 Configuration evidence
 includes the AXI-Lite target, frame settings,
 checked frame limits, quality, restart interval, chroma mode, JFIF setting, and
@@ -486,7 +489,8 @@ python3 scripts/host/hjpeg_host.py check-run-evidence run.json \
 The saved-evidence checker recomputes `hardware_run_summary` from the transcript
 and fails if the stored summary does not match the recomputed evidence, if the
 run did not record JSON boolean `true` for
-`complete_hardware_run_evidence_required`, if the top-level
+`complete_hardware_run_evidence_required` and
+`arguments.require_complete_evidence`, if the top-level
 `complete_hardware_run_evidence` flag is missing, is not a JSON boolean, or does
 not match the recomputed summary, or if the recorded missing-evidence and failing-check
 diagnostic lists do not match the recomputed summary. The host and Vivado

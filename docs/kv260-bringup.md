@@ -255,6 +255,9 @@ Expected evidence:
 - `protocol_error` is never reported for the valid frame.
 - JSON evidence records the AXI-Lite target and encoder configuration used for
   the run, including the frame limits checked by the host helper.
+- JSON evidence records an `arguments` object with the requested AXI-Lite
+  target, stream endpoints, input/output paths, frame settings, capture limits,
+  decoder command, and complete-evidence flag.
 - If `--input-ppm` is provided, JSON evidence records the source PPM dimensions,
   SHA-256 hex, non-flat/color stats, PPM-derived packed RGB byte length and
   SHA-256 hex, and that its packed RGB bytes match `--input-rgb`; mismatches fail
@@ -330,7 +333,8 @@ Expected evidence:
   `complete_hardware_run_evidence` is false. The checker recomputes
   `hardware_run_summary` from the saved transcript and fails if the stored
   summary does not match the recomputed evidence, if
-  `complete_hardware_run_evidence_required` is not JSON boolean `true`, if the
+  `complete_hardware_run_evidence_required` and
+  `arguments.require_complete_evidence` are not JSON boolean `true`, if the
   top-level `complete_hardware_run_evidence` flag is missing, not a JSON
   boolean, or stale, or if the
   recorded missing-evidence and failing-check diagnostic lists do not match the

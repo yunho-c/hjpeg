@@ -1082,6 +1082,30 @@ def complete_run_evidence_record(root: Path) -> dict[str, object]:
     record["complete_hardware_run_evidence_required"] = True
     record["complete_hardware_run_evidence_missing"] = []
     record["complete_hardware_run_evidence_failing_checks"] = []
+    record["arguments"] = {
+        "dev": str(mem),
+        "base_addr": 0,
+        "tx_device": str(tx_device),
+        "rx_device": str(rx_device),
+        "input_rgb": str(input_rgb),
+        "input_ppm": str(input_ppm),
+        "output_jpeg": str(jpeg),
+        "width": width,
+        "height": height,
+        "max_width": hjpeg_host.DEFAULT_MAX_FRAME_WIDTH,
+        "max_height": hjpeg_host.DEFAULT_MAX_FRAME_HEIGHT,
+        "quality": 50,
+        "restart_interval": 0,
+        "chroma_subsample": False,
+        "emit_jfif": True,
+        "clear_error": False,
+        "max_output_bytes": 1024,
+        "timeout_seconds": 1.0,
+        "decoder_command": "decoder {jpeg}",
+        "decoder_timeout_seconds": 1.0,
+        "require_complete_evidence": True,
+        "json": True,
+    }
     return record
 
 
@@ -4014,6 +4038,10 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(
                 record["complete_hardware_run_evidence_required_flag_present"]
             )
+            self.assertTrue(record["arguments_require_complete_evidence"])
+            self.assertTrue(
+                record["arguments_require_complete_evidence_flag_present"]
+            )
             self.assertTrue(record["complete_hardware_run_evidence_missing_matches"])
             self.assertTrue(
                 record["complete_hardware_run_evidence_failing_checks_matches"]
@@ -4437,6 +4465,57 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(
                 any(
                     "complete_hardware_run_evidence_required is not a JSON boolean"
+                    in failure
+                    for failure in failures
+                )
+            )
+
+    def test_check_run_evidence_file_requires_arguments_complete_flag(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "run.json"
+            evidence = complete_run_evidence_record(root)
+            del evidence["arguments"]
+            path.write_text(json.dumps(evidence))
+
+            record, failures = hjpeg_host.check_run_evidence_file(path)
+
+            self.assertFalse(record["passed"])
+            self.assertTrue(record["complete_hardware_run_evidence"])
+            self.assertTrue(record["complete_hardware_run_evidence_required"])
+            self.assertFalse(record["arguments_require_complete_evidence"])
+            self.assertFalse(
+                record["arguments_require_complete_evidence_flag_present"]
+            )
+            self.assertTrue(record["hardware_run_summary_matches_computed"])
+            self.assertTrue(
+                any(
+                    "arguments.require_complete_evidence is not a JSON boolean"
+                    in failure
+                    for failure in failures
+                )
+            )
+            self.assertTrue(
+                any(
+                    "arguments.require_complete_evidence is not true" in failure
+                    for failure in failures
+                )
+            )
+
+            evidence = complete_run_evidence_record(root)
+            evidence["arguments"]["require_complete_evidence"] = "true"
+            path.write_text(json.dumps(evidence))
+
+            record, failures = hjpeg_host.check_run_evidence_file(path)
+
+            self.assertFalse(record["passed"])
+            self.assertFalse(record["arguments_require_complete_evidence"])
+            self.assertFalse(
+                record["arguments_require_complete_evidence_flag_present"]
+            )
+            self.assertTrue(
+                any(
+                    "arguments.require_complete_evidence is not a JSON boolean"
                     in failure
                     for failure in failures
                 )
@@ -5105,7 +5184,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["passed_count"], 1)
             self.assertEqual(record["failed_count"], 3)
             self.assertEqual(record["failure_count"], len(record["failures"]))
-            self.assertEqual(record["failure_count"], 14)
+            self.assertEqual(record["failure_count"], 16)
             self.assertEqual(
                 record["checked_paths"],
                 [str(complete), str(incomplete), str(malformed), str(missing)],
@@ -5583,6 +5662,19 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(
                 any(
                     "complete hardware evidence was not required" in failure
+                    for failure in record["failures"]
+                )
+            )
+            self.assertTrue(
+                any(
+                    "arguments.require_complete_evidence is not a JSON boolean"
+                    in failure
+                    for failure in record["failures"]
+                )
+            )
+            self.assertTrue(
+                any(
+                    "arguments.require_complete_evidence is not true" in failure
                     for failure in record["failures"]
                 )
             )
@@ -8709,6 +8801,33 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["complete_hardware_run_evidence_missing"], [])
             self.assertEqual(
                 record["complete_hardware_run_evidence_failing_checks"], []
+            )
+            self.assertEqual(
+                record["arguments"],
+                {
+                    "dev": str(mem),
+                    "base_addr": 0,
+                    "tx_device": str(tx_device),
+                    "rx_device": str(rx_device),
+                    "input_rgb": str(input_rgb),
+                    "input_ppm": str(input_ppm),
+                    "output_jpeg": str(output_jpeg),
+                    "width": 2,
+                    "height": 1,
+                    "max_width": 1920,
+                    "max_height": 1080,
+                    "quality": 80,
+                    "restart_interval": 2,
+                    "chroma_subsample": True,
+                    "emit_jfif": True,
+                    "clear_error": False,
+                    "max_output_bytes": 16777216,
+                    "timeout_seconds": 30.0,
+                    "decoder_command": decoder_command,
+                    "decoder_timeout_seconds": 2.5,
+                    "require_complete_evidence": True,
+                    "json": True,
+                },
             )
             self.assertEqual(record["jpeg"], str(output_jpeg))
             self.assertEqual(record["width"], 2)
