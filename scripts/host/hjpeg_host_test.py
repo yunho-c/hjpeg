@@ -5490,7 +5490,17 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertTrue(
                 record["vivado_evidence"][0][
+                    "complete_vivado_flow_evidence_required_flag_present"
+                ]
+            )
+            self.assertTrue(
+                record["vivado_evidence"][0][
                     "complete_vivado_flow_evidence_argument_required"
+                ]
+            )
+            self.assertTrue(
+                record["vivado_evidence"][0][
+                    "complete_vivado_flow_evidence_argument_required_flag_present"
                 ]
             )
             self.assertTrue(
@@ -5520,13 +5530,77 @@ class HjpegHostTest(unittest.TestCase):
 
             self.assertEqual(failures, [])
             self.assertTrue(record["passed"])
+            self.assertTrue(record["vivado_passed_flag_present"])
             self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["complete_vivado_flow_evidence_flag_present"])
             self.assertTrue(record["complete_vivado_flow_evidence_required"])
+            self.assertTrue(
+                record["complete_vivado_flow_evidence_required_flag_present"]
+            )
+            self.assertTrue(
+                record[
+                    "complete_vivado_flow_evidence_argument_required_flag_present"
+                ]
+            )
             self.assertTrue(record["complete_vivado_flow_evidence_matches"])
             self.assertTrue(record["vivado_summary_counts_consistent"])
             self.assertTrue(record["vivado_diagnostic_summary_consistent"])
             self.assertTrue(record["vivado_route_status_counts_present"])
             self.assertEqual(record["hjpeg_base_addresses"], [0])
+
+    def test_vivado_evidence_file_record_rejects_nonboolean_top_level_flags(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["passed"] = 1
+            vivado_record["complete_vivado_flow_evidence"] = 1
+            vivado_record["complete_vivado_flow_evidence_required"] = 1
+            vivado_record["arguments"]["require_complete_evidence"] = "true"
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertFalse(record["passed"])
+            self.assertFalse(record["vivado_passed_flag_present"])
+            self.assertFalse(record["vivado_passed"])
+            self.assertFalse(record["complete_vivado_flow_evidence_flag_present"])
+            self.assertFalse(record["complete_vivado_flow_evidence"])
+            self.assertFalse(
+                record["complete_vivado_flow_evidence_required_flag_present"]
+            )
+            self.assertFalse(record["complete_vivado_flow_evidence_required"])
+            self.assertFalse(
+                record[
+                    "complete_vivado_flow_evidence_argument_required_flag_present"
+                ]
+            )
+            self.assertFalse(
+                record["complete_vivado_flow_evidence_argument_required"]
+            )
+            self.assertTrue(
+                any("passed is not a JSON boolean" in failure for failure in failures)
+            )
+            self.assertTrue(
+                any(
+                    "complete_vivado_flow_evidence is not a JSON boolean"
+                    in failure
+                    for failure in failures
+                )
+            )
+            self.assertTrue(
+                any(
+                    "complete_vivado_flow_evidence_required is not a JSON boolean"
+                    in failure
+                    for failure in failures
+                )
+            )
+            self.assertTrue(
+                any(
+                    "arguments.require_complete_evidence is not a JSON boolean"
+                    in failure
+                    for failure in failures
+                )
+            )
 
     def test_check_run_evidence_cli_accepts_check_reports_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

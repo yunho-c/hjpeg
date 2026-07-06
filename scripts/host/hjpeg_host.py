@@ -3910,10 +3910,21 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     except json.JSONDecodeError as exc:
         return result, [f"{path}: invalid Vivado evidence JSON: {exc}"]
 
+    vivado_passed_flag_present = (
+        isinstance(parsed, dict) and isinstance(parsed.get("passed"), bool)
+    )
     vivado_passed = isinstance(parsed, dict) and parsed.get("passed") is True
+    complete_vivado_flow_evidence_flag_present = (
+        isinstance(parsed, dict)
+        and isinstance(parsed.get("complete_vivado_flow_evidence"), bool)
+    )
     complete_vivado_flow_evidence = (
         isinstance(parsed, dict)
         and parsed.get("complete_vivado_flow_evidence") is True
+    )
+    complete_vivado_flow_evidence_required_flag_present = (
+        isinstance(parsed, dict)
+        and isinstance(parsed.get("complete_vivado_flow_evidence_required"), bool)
     )
     complete_vivado_flow_evidence_required = (
         isinstance(parsed, dict)
@@ -3923,6 +3934,10 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     complete_vivado_flow_evidence_argument_required = (
         isinstance(arguments, dict)
         and arguments.get("require_complete_evidence") is True
+    )
+    complete_vivado_flow_evidence_argument_required_flag_present = (
+        isinstance(arguments, dict)
+        and isinstance(arguments.get("require_complete_evidence"), bool)
     )
     vivado_artifact_suffixes_present = vivado_required_artifact_suffixes_present(parsed)
     vivado_artifact_filenames_present = vivado_required_artifact_filenames_present(parsed)
@@ -4059,15 +4074,25 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     result.update(
         {
             "vivado_passed": vivado_passed,
+            "vivado_passed_flag_present": vivado_passed_flag_present,
             "complete_vivado_flow_evidence": complete_vivado_flow_evidence,
+            "complete_vivado_flow_evidence_flag_present": (
+                complete_vivado_flow_evidence_flag_present
+            ),
             "complete_vivado_flow_evidence_matches": (
                 complete_vivado_flow_evidence_matches
             ),
             "complete_vivado_flow_evidence_required": (
                 complete_vivado_flow_evidence_required
             ),
+            "complete_vivado_flow_evidence_required_flag_present": (
+                complete_vivado_flow_evidence_required_flag_present
+            ),
             "complete_vivado_flow_evidence_argument_required": (
                 complete_vivado_flow_evidence_argument_required
+            ),
+            "complete_vivado_flow_evidence_argument_required_flag_present": (
+                complete_vivado_flow_evidence_argument_required_flag_present
             ),
             "vivado_artifact_suffixes_present": vivado_artifact_suffixes_present,
             "vivado_artifact_filenames_present": vivado_artifact_filenames_present,
@@ -4089,10 +4114,14 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
             "hjpeg_base_addresses_hex": [f"0x{base:x}" for base in bases],
             "passed": (
                 bool(bases)
+                and vivado_passed_flag_present
                 and vivado_passed
+                and complete_vivado_flow_evidence_flag_present
                 and complete_vivado_flow_evidence
                 and complete_vivado_flow_evidence_matches
+                and complete_vivado_flow_evidence_required_flag_present
                 and complete_vivado_flow_evidence_required
+                and complete_vivado_flow_evidence_argument_required_flag_present
                 and complete_vivado_flow_evidence_argument_required
                 and vivado_artifact_suffixes_present
                 and vivado_artifact_filenames_present
@@ -4112,8 +4141,14 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         }
     )
     failures = []
+    if not vivado_passed_flag_present:
+        failures.append(f"{path}: passed is not a JSON boolean")
     if not vivado_passed:
         failures.append(f"{path}: Vivado evidence did not pass")
+    if not complete_vivado_flow_evidence_flag_present:
+        failures.append(
+            f"{path}: complete_vivado_flow_evidence is not a JSON boolean"
+        )
     if not complete_vivado_flow_evidence:
         failures.append(f"{path}: complete_vivado_flow_evidence is false")
     if not complete_vivado_flow_evidence_matches:
@@ -4124,6 +4159,14 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     if not complete_vivado_flow_evidence_required:
         failures.append(
             f"{path}: complete_vivado_flow_evidence_required is not true"
+        )
+    if not complete_vivado_flow_evidence_required_flag_present:
+        failures.append(
+            f"{path}: complete_vivado_flow_evidence_required is not a JSON boolean"
+        )
+    if not complete_vivado_flow_evidence_argument_required_flag_present:
+        failures.append(
+            f"{path}: arguments.require_complete_evidence is not a JSON boolean"
         )
     if not complete_vivado_flow_evidence_argument_required:
         failures.append(
