@@ -130,8 +130,8 @@ Pass criteria:
   count, per-category checked counts, required evidence category presence,
   per-category passing/failing counts, present and missing category names,
   failing category names, required `.bit`/`.xsa`/`.dcp` artifact suffix presence,
-  well-formed SHA-256 hex hashes for passing records in every required evidence
-  category,
+  `exists: true`, positive byte lengths, and well-formed SHA-256 hex hashes for
+  passing records in every required evidence category,
   present and missing required suffix names, failing required suffix names,
   required artifact filename presence for `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`,
   and `post_impl.dcp`, address-map filename presence for

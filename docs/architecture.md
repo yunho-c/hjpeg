@@ -305,8 +305,9 @@ positive `clock_period_ns` and `clock_frequency_mhz` values that match each
 other, a required evidence-category summary showing every required category present and passing, zero diagnostic
 failures and failed paths in the Vivado summary, checked paths matching passed
 paths, positive per-category checked counts whose sum matches the total checked
-count and match the per-category pass/fail totals, well-formed SHA-256 hex
-hashes on passing records in every required evidence category, and a passing route-status
+count and match the per-category pass/fail totals, `exists: true`, positive
+byte lengths, and well-formed SHA-256 hex hashes on passing records in every
+required evidence category, and a passing route-status
 record with zero unrouted nets and zero nets with routing errors. It fails run transcripts whose
 AXI-Lite base address does not match the Vivado build evidence, or whose
 supplied Vivado evidence files report conflicting HJPEG base addresses. JSON output includes

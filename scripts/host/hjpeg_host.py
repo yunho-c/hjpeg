@@ -2879,7 +2879,13 @@ def vivado_record_hashes_present(record: object) -> bool:
         ]
         if not passing_records:
             return False
-        if any(not is_sha256_hex(item.get("sha256")) for item in passing_records):
+        if any(
+            item.get("exists") is not True
+            or not is_strict_int(item.get("byte_length"))
+            or item["byte_length"] <= 0
+            or not is_sha256_hex(item.get("sha256"))
+            for item in passing_records
+        ):
             return False
     return True
 
@@ -3001,7 +3007,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         )
     if not record_hashes_present:
         failures.append(
-            f"{path}: Vivado evidence missing SHA-256 hashes for passing required records"
+            f"{path}: Vivado evidence missing file metadata for passing required records"
         )
     if not bases:
         failures.append(f"{path}: no passing hjpeg_0/s_axi_lite address-map evidence")
