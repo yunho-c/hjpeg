@@ -164,6 +164,7 @@ python3 scripts/vivado/check_reports.py \
   --drc build/vivado/hjpeg-kv260-artifacts/post_impl_drc.rpt \
   --route-status build/vivado/hjpeg-kv260-artifacts/post_impl_route_status.rpt \
   --clock-utilization build/vivado/hjpeg-kv260-artifacts/post_impl_clock_utilization.rpt \
+  --floorplan build/vivado/hjpeg-kv260-artifacts/post_impl_floorplan.rpt \
   --clock-period-ns 10.0 \
   --require-complete-evidence
 ```
@@ -171,7 +172,8 @@ python3 scripts/vivado/check_reports.py \
 Add `--json` to include artifact/report paths, byte lengths, SHA-256 hex hashes,
 parsed setup WNS and hold WHS values, utilization rows, thresholds, and
 target clock period/frequency, DRC violations, route-status counts, required
-clock-utilization report hashes, parsed address-map AXI-Lite aperture base/high
+clock-utilization report hashes, floorplan pblock/placed-cell counts, parsed
+address-map AXI-Lite aperture base/high
 addresses and byte ranges for `hjpeg_0/s_axi_lite` and
 `axi_dma_0/S_AXI_LITE`, duplicate/missing/overlapping address-map interface
 checks, the requested input path lists and gate values, checked report/artifact
@@ -184,7 +186,8 @@ address-map filename presence for `hjpeg_kv260_address_map.rpt`,
 required report filename presence for `post_synth_timing_summary.rpt`,
 `post_impl_timing_summary.rpt`, `post_synth_utilization.rpt`,
 `post_impl_utilization.rpt`, `post_impl_drc.rpt`,
-`post_impl_route_status.rpt`, and `post_impl_clock_utilization.rpt`,
+`post_impl_route_status.rpt`, `post_impl_clock_utilization.rpt`, and
+`post_impl_floorplan.rpt`,
 present/missing/failing filename names, required suffix/filename passing/failing
 counts, required/present/missing category, suffix, artifact-filename,
 address-map-filename, and report-filename counts, aggregate pass/fail counts,
@@ -197,8 +200,8 @@ that category, not just a requested input path. Complete Vivado evidence also
 requires every supplied required evidence category and required `.bit`/`.xsa`/
 `.dcp` artifact suffix to have no failing records, and requires the named
 artifacts `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and `post_impl.dcp` to be present
-and passing, plus the named address-map and timing/utilization/implementation
-reports.
+and passing, plus the named address-map, timing/utilization/implementation, and
+floorplan reports.
 Complete Vivado evidence counts only records whose `passed` field is an actual
 JSON boolean `true`. Use
 `--require-complete-evidence` for full bitstream evidence gates; partial
@@ -466,13 +469,15 @@ must have `passed`, `complete_vivado_flow_evidence`,
 `post_synth_timing_summary.rpt`, `post_impl_timing_summary.rpt`,
 `post_synth_utilization.rpt`, `post_impl_utilization.rpt`,
 `post_impl_drc.rpt`, `post_impl_route_status.rpt`, and
-`post_impl_clock_utilization.rpt` filename evidence true, with
+`post_impl_clock_utilization.rpt`, and `post_impl_floorplan.rpt` filename
+evidence true, with
 `post_impl_timing_summary.rpt` also present as passing hold-timing evidence and
 matching missing/failing filename, hold-timing, and suffix lists empty. The
 Vivado clock target must include finite positive `clock_period_ns` and
 `clock_frequency_mhz` values that match each other, with `clock_target.valid`
 and the top-level `clock_target_valid` flag true. It also requires the Vivado
 evidence-category summary to show every required category present and passing,
+the floorplan record to include a positive placed-cell count,
 the top-level `complete_vivado_flow_evidence` flag and complete-evidence
 missing/failing lists to match nested evidence summaries,
 zero diagnostic failures and failed paths in the Vivado summary, checked paths

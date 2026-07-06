@@ -80,6 +80,7 @@ python3 scripts/vivado/check_reports.py \
   --drc build/vivado/hjpeg-kv260-artifacts/post_impl_drc.rpt \
   --route-status build/vivado/hjpeg-kv260-artifacts/post_impl_route_status.rpt \
   --clock-utilization build/vivado/hjpeg-kv260-artifacts/post_impl_clock_utilization.rpt \
+  --floorplan build/vivado/hjpeg-kv260-artifacts/post_impl_floorplan.rpt \
   --clock-period-ns 10.0 \
   --require-complete-evidence \
   --json
@@ -103,6 +104,7 @@ Expected evidence:
 - `post_impl_drc.rpt`
 - `post_impl_route_status.rpt`
 - `post_impl_clock_utilization.rpt`
+- `post_impl_floorplan.rpt`
 
 Pass criteria:
 
@@ -111,19 +113,19 @@ Pass criteria:
   exist and are recorded in the JSON evidence.
 - Post-implementation timing has nonnegative setup WNS and hold WHS for the
   target clock.
-- Post-implementation DRC, route status, and clock utilization reports are
+- Post-implementation DRC, route status, clock utilization, and floorplan reports are
   saved with the bitstream artifacts for implementation/floorplan review.
 - The DRC report has no Error or Critical Warning violations, and route status
   reports zero unrouted nets and zero routing errors.
 - Resource use leaves enough headroom for the intended KV260 platform shell.
 - `check_reports.py` exits successfully for the generated timing, utilization,
-  DRC, route-status, clock-utilization, and address-map reports, with hold
-  timing gated on the post-implementation timing report.
+  DRC, route-status, clock-utilization, floorplan, and address-map reports, with
+  hold timing gated on the post-implementation timing report.
 - The JSON evidence records artifact/report paths, byte lengths, SHA-256 hex
   hashes, target clock period/frequency, parsed setup WNS and hold WHS values,
   utilization rows, thresholds, DRC violations, route-status counts plus the
   required and missing route-status count names, required clock-utilization
-  report hashes, parsed address-map AXI-Lite aperture
+  report hashes, floorplan pblock/placed-cell counts, parsed address-map AXI-Lite aperture
   base/high addresses and byte ranges for `hjpeg_0/s_axi_lite` and
   `axi_dma_0/S_AXI_LITE`, duplicate/missing/overlapping address-map interface
   checks, requested input path lists and gate values, checked report/artifact
@@ -139,7 +141,8 @@ Pass criteria:
   `post_synth_timing_summary.rpt`, `post_impl_timing_summary.rpt`,
   `post_synth_utilization.rpt`, `post_impl_utilization.rpt`,
   `post_impl_drc.rpt`, `post_impl_route_status.rpt`, and
-  `post_impl_clock_utilization.rpt`, present/missing/failing filename names,
+  `post_impl_clock_utilization.rpt`, and `post_impl_floorplan.rpt`,
+  present/missing/failing filename names,
   required suffix/filename passing/failing counts, required/present/missing category,
   suffix, artifact-filename, address-map-filename, and report-filename counts,
   aggregate pass/fail counts, diagnostic failure count, checked/passed/failed
@@ -152,7 +155,8 @@ Pass criteria:
   `.dcp` artifact suffixes, and with the named artifacts `hjpeg_kv260.bit`,
   `hjpeg_kv260.xsa`, and `post_impl.dcp` present and passing, plus the named
   address-map report `hjpeg_kv260_address_map.rpt` and the named
-  timing/utilization/implementation reports.
+  timing/utilization/implementation and floorplan reports. The floorplan record
+  must include a positive placed-cell count.
   `all_required_present` requires at least one passing record in each required
   category, not just a requested input path. Complete Vivado evidence counts only
   records whose `passed` field is an actual JSON boolean `true`. Missing,
@@ -322,12 +326,14 @@ Expected evidence:
   filename evidence, plus required `post_synth_timing_summary.rpt`,
   `post_impl_timing_summary.rpt`, `post_synth_utilization.rpt`,
   `post_impl_utilization.rpt`, `post_impl_drc.rpt`,
-  `post_impl_route_status.rpt`, and `post_impl_clock_utilization.rpt` filename
-  evidence, with `post_impl_timing_summary.rpt` also present as passing
+  `post_impl_route_status.rpt`, `post_impl_clock_utilization.rpt`, and
+  `post_impl_floorplan.rpt` filename evidence, with
+  `post_impl_timing_summary.rpt` also present as passing
   hold-timing evidence and matching missing/failing filename, hold-timing, and
   suffix lists empty, finite positive `clock_period_ns` and
   `clock_frequency_mhz` values that match each other, `clock_target.valid` and
-  top-level `clock_target_valid` true, a required
+  top-level `clock_target_valid` true, a floorplan record with a positive
+  placed-cell count, a required
   evidence-category summary showing every required category present and passing,
   a top-level `complete_vivado_flow_evidence` flag and complete-evidence
   missing/failing lists matching nested evidence summaries,

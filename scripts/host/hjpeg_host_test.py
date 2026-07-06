@@ -1052,8 +1052,8 @@ def complete_run_evidence_record(root: Path) -> dict[str, object]:
 def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
     return {
         "passed": True,
-        "checked_count": 11,
-        "passed_count": 11,
+        "checked_count": 12,
+        "passed_count": 12,
         "failed_count": 0,
         "failure_count": 0,
         "failures": [],
@@ -1065,6 +1065,7 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
             "drc": 1,
             "route_status": 1,
             "clock_utilization": 1,
+            "floorplan": 1,
         },
         "checked_paths": [
             "hjpeg_kv260.bit",
@@ -1078,6 +1079,7 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
             "post_impl_drc.rpt",
             "post_impl_route_status.rpt",
             "post_impl_clock_utilization.rpt",
+            "post_impl_floorplan.rpt",
         ],
         "passed_paths": [
             "hjpeg_kv260.bit",
@@ -1091,14 +1093,15 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
             "post_impl_drc.rpt",
             "post_impl_route_status.rpt",
             "post_impl_clock_utilization.rpt",
+            "post_impl_floorplan.rpt",
         ],
         "failed_paths": [],
         "diagnostic_summary": {
-            "checked_count": 11,
-            "passed_count": 11,
+            "checked_count": 12,
+            "passed_count": 12,
             "failed_count": 0,
             "failure_count": 0,
-            "checked_counts_sum": 11,
+            "checked_counts_sum": 12,
             "checked_counts_sum_matches": True,
             "checked_counts_positive": True,
             "checked_counts_match_categories": True,
@@ -1147,6 +1150,7 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
                 "drc": True,
                 "route_status": True,
                 "clock_utilization": True,
+                "floorplan": True,
             },
             "passing_counts": {
                 "artifacts": 3,
@@ -1156,6 +1160,7 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
                 "drc": 1,
                 "route_status": 1,
                 "clock_utilization": 1,
+                "floorplan": 1,
             },
             "failing_counts": {
                 "artifacts": 0,
@@ -1165,6 +1170,7 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
                 "drc": 0,
                 "route_status": 0,
                 "clock_utilization": 0,
+                "floorplan": 0,
             },
             "missing_required_categories": [],
             "failing_categories": [],
@@ -1236,6 +1242,13 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
                 "required_filenames": ["post_impl_clock_utilization.rpt"],
                 "required_filenames_present": {
                     "post_impl_clock_utilization.rpt": True,
+                },
+            },
+            "floorplan": {
+                "all_required_filenames_present": True,
+                "required_filenames": ["post_impl_floorplan.rpt"],
+                "required_filenames_present": {
+                    "post_impl_floorplan.rpt": True,
                 },
             },
         },
@@ -1368,6 +1381,21 @@ def vivado_evidence_record(base_address: int = 0) -> dict[str, object]:
                 "sha256": "a" * 64,
             }
         ],
+        "floorplan": [
+            {
+                "path": "post_impl_floorplan.rpt",
+                "exists": True,
+                "passed": True,
+                "byte_length": 8,
+                "sha256": "b" * 64,
+                "pblock_count": 0,
+                "placed_cell_count": 12345,
+                "counts": {
+                    "pblock_count": 0,
+                    "placed_cell_count": 12345,
+                },
+            }
+        ],
     }
 
 
@@ -1383,6 +1411,7 @@ def write_generated_vivado_evidence(root: Path) -> Path:
     drc = root / "post_impl_drc.rpt"
     route_status = root / "post_impl_route_status.rpt"
     clock_utilization = root / "post_impl_clock_utilization.rpt"
+    floorplan = root / "post_impl_floorplan.rpt"
     vivado = root / "vivado.json"
 
     bit.write_bytes(b"bitstream")
@@ -1396,6 +1425,13 @@ def write_generated_vivado_evidence(root: Path) -> Path:
     drc.write_text(VIVADO_DRC_CLEAN_REPORT)
     route_status.write_text(VIVADO_ROUTE_STATUS_CLEAN_REPORT)
     clock_utilization.write_text("Clock Utilization\n")
+    floorplan.write_text(
+        "Floorplan Summary\n"
+        "Part: xck26-sfvc784-2LV-c\n"
+        "Pblock Count: 0\n"
+        "Placed Cell Count: 12345\n"
+        "Pblocks:\n"
+    )
 
     stdout = io.StringIO()
     with contextlib.redirect_stdout(stdout):
@@ -1425,6 +1461,8 @@ def write_generated_vivado_evidence(root: Path) -> Path:
                 str(route_status),
                 "--clock-utilization",
                 str(clock_utilization),
+                "--floorplan",
+                str(floorplan),
                 "--clock-period-ns",
                 "10.0",
                 "--require-complete-evidence",
@@ -5028,6 +5066,26 @@ class HjpegHostTest(unittest.TestCase):
             self.assertFalse(record["passed"])
             self.assertTrue(
                 any("route-status" in failure for failure in failures)
+            )
+
+    def test_vivado_evidence_file_record_rejects_missing_floorplan_cells(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            vivado_record = vivado_evidence_record(0)
+            vivado_record["floorplan"][0]["placed_cell_count"] = 0
+            vivado_record["floorplan"][0]["counts"]["placed_cell_count"] = 0
+            path.write_text(json.dumps(vivado_record))
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertTrue(record["vivado_passed"])
+            self.assertTrue(record["complete_vivado_flow_evidence"])
+            self.assertTrue(record["vivado_report_filenames_present"])
+            self.assertFalse(record["vivado_floorplan_evidence_present"])
+            self.assertFalse(record["complete_vivado_flow_evidence_matches"])
+            self.assertFalse(record["passed"])
+            self.assertTrue(
+                any("floorplan placed-cell" in failure for failure in failures)
             )
 
     def test_vivado_evidence_file_record_rejects_inconsistent_address_hex_fields(self) -> None:

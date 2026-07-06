@@ -137,6 +137,14 @@ Address Map
 | ps/M_AXI_HPM0_FPD | axi_dma_0/S_AXI_LITE/Reg | 0xA001_0000 | 0xA001_FFFF |
 """
 
+FLOORPLAN_REPORT = """
+Floorplan Summary
+Part: xck26-sfvc784-2LV-c
+Pblock Count: 0
+Placed Cell Count: 12345
+Pblocks:
+"""
+
 
 class CheckReportsTest(unittest.TestCase):
     def test_clock_target_record_requires_positive_finite_period(self) -> None:
@@ -431,6 +439,35 @@ class CheckReportsTest(unittest.TestCase):
                 [f"{report}: route status missing number_of_unrouted_nets count"],
             )
 
+    def test_floorplan_record_reports_placed_cell_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "post_impl_floorplan.rpt"
+            report.write_text(FLOORPLAN_REPORT)
+
+            record, failures = check_reports.floorplan_record(report)
+
+            self.assertEqual(failures, [])
+            self.assertTrue(record["passed"])
+            self.assertEqual(record["pblock_count"], 0)
+            self.assertEqual(record["placed_cell_count"], 12345)
+            self.assertEqual(
+                record["counts"],
+                {"pblock_count": 0, "placed_cell_count": 12345},
+            )
+
+    def test_floorplan_record_requires_positive_placed_cells(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "post_impl_floorplan.rpt"
+            report.write_text(
+                "Floorplan Summary\nPblock Count: 0\nPlaced Cell Count: 0\n"
+            )
+
+            record, failures = check_reports.floorplan_record(report)
+
+            self.assertFalse(record["passed"])
+            self.assertEqual(record["placed_cell_count"], 0)
+            self.assertTrue(any("expected positive" in failure for failure in failures))
+
     def test_parse_address_map_entries(self) -> None:
         entries = check_reports.parse_address_map_entries(ADDRESS_MAP_REPORT)
 
@@ -466,11 +503,13 @@ class CheckReportsTest(unittest.TestCase):
             drc = root / "post_impl_drc.rpt"
             route_status = root / "post_impl_route_status.rpt"
             clock_utilization = root / "post_impl_clock_utilization.rpt"
+            floorplan = root / "post_impl_floorplan.rpt"
             post_synth_timing.write_text(TIMING_TABLE)
             post_synth_utilization.write_text(UTILIZATION_TABLE)
             drc.write_text(DRC_CLEAN_REPORT)
             route_status.write_text(ROUTE_STATUS_CLEAN_REPORT)
             clock_utilization.write_text("Clock Utilization\n")
+            floorplan.write_text(FLOORPLAN_REPORT)
 
             self.assertEqual(
                 check_reports.main(
@@ -485,6 +524,8 @@ class CheckReportsTest(unittest.TestCase):
                         str(route_status),
                         "--clock-utilization",
                         str(clock_utilization),
+                        "--floorplan",
+                        str(floorplan),
                         "--min-wns",
                         "0",
                         "--min-whs",
@@ -510,6 +551,7 @@ class CheckReportsTest(unittest.TestCase):
             drc = root / "post_impl_drc.rpt"
             route_status = root / "post_impl_route_status.rpt"
             clock_utilization = root / "post_impl_clock_utilization.rpt"
+            floorplan = root / "post_impl_floorplan.rpt"
             artifact.write_bytes(b"bitstream")
             xsa.write_bytes(b"xsa")
             dcp.write_bytes(b"checkpoint")
@@ -521,6 +563,7 @@ class CheckReportsTest(unittest.TestCase):
             drc.write_text(DRC_CLEAN_REPORT)
             route_status.write_text(ROUTE_STATUS_CLEAN_REPORT)
             clock_utilization.write_text("Clock Utilization\n")
+            floorplan.write_text(FLOORPLAN_REPORT)
 
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
@@ -551,6 +594,8 @@ class CheckReportsTest(unittest.TestCase):
                             str(route_status),
                             "--clock-utilization",
                             str(clock_utilization),
+                            "--floorplan",
+                            str(floorplan),
                             "--clock-period-ns",
                             "8.0",
                             "--json",
@@ -563,8 +608,8 @@ class CheckReportsTest(unittest.TestCase):
             self.assertTrue(record["passed"])
             self.assertEqual(record["failures"], [])
             self.assertEqual(record["failure_count"], 0)
-            self.assertEqual(record["checked_count"], 11)
-            self.assertEqual(record["passed_count"], 11)
+            self.assertEqual(record["checked_count"], 12)
+            self.assertEqual(record["passed_count"], 12)
             self.assertEqual(record["failed_count"], 0)
             self.assertEqual(
                 record["checked_paths"],
@@ -580,6 +625,7 @@ class CheckReportsTest(unittest.TestCase):
                     str(drc),
                     str(route_status),
                     str(clock_utilization),
+                    str(floorplan),
                 ],
             )
             self.assertEqual(
@@ -596,6 +642,7 @@ class CheckReportsTest(unittest.TestCase):
                     str(drc),
                     str(route_status),
                     str(clock_utilization),
+                    str(floorplan),
                 ],
             )
             self.assertEqual(record["failed_paths"], [])
@@ -609,16 +656,17 @@ class CheckReportsTest(unittest.TestCase):
                     "drc": 1,
                     "route_status": 1,
                     "clock_utilization": 1,
+                    "floorplan": 1,
                 },
             )
             self.assertEqual(
                 record["diagnostic_summary"],
                 {
-                    "checked_count": 11,
-                    "passed_count": 11,
+                    "checked_count": 12,
+                    "passed_count": 12,
                     "failed_count": 0,
                     "failure_count": 0,
-                    "checked_counts_sum": 11,
+                    "checked_counts_sum": 12,
                     "checked_counts_sum_matches": True,
                     "checked_counts_positive": True,
                     "checked_counts_match_categories": True,
@@ -641,8 +689,9 @@ class CheckReportsTest(unittest.TestCase):
                         "drc",
                         "route_status",
                         "clock_utilization",
+                        "floorplan",
                     ],
-                    "required_category_count": 7,
+                    "required_category_count": 8,
                     "present": {
                         "artifacts": True,
                         "address_map": True,
@@ -651,8 +700,9 @@ class CheckReportsTest(unittest.TestCase):
                         "drc": True,
                         "route_status": True,
                         "clock_utilization": True,
+                        "floorplan": True,
                     },
-                    "present_category_count": 7,
+                    "present_category_count": 8,
                     "missing_category_count": 0,
                     "passing_counts": {
                         "artifacts": 3,
@@ -662,6 +712,7 @@ class CheckReportsTest(unittest.TestCase):
                         "drc": 1,
                         "route_status": 1,
                         "clock_utilization": 1,
+                        "floorplan": 1,
                     },
                     "failing_counts": {
                         "artifacts": 0,
@@ -671,6 +722,7 @@ class CheckReportsTest(unittest.TestCase):
                         "drc": 0,
                         "route_status": 0,
                         "clock_utilization": 0,
+                        "floorplan": 0,
                     },
                     "present_required_categories": [
                         "artifacts",
@@ -680,6 +732,7 @@ class CheckReportsTest(unittest.TestCase):
                         "drc",
                         "route_status",
                         "clock_utilization",
+                        "floorplan",
                     ],
                     "failing_categories": [],
                     "missing_required_categories": [],
@@ -880,6 +933,27 @@ class CheckReportsTest(unittest.TestCase):
                         "missing_required_filenames": [],
                         "all_required_filenames_present": True,
                     },
+                    "floorplan": {
+                        "label": "floorplan",
+                        "required_filenames": ["post_impl_floorplan.rpt"],
+                        "required_filename_count": 1,
+                        "filename_counts": {"post_impl_floorplan.rpt": 1},
+                        "passing_filename_counts": {
+                            "post_impl_floorplan.rpt": 1,
+                        },
+                        "failing_filename_counts": {},
+                        "required_filenames_present": {
+                            "post_impl_floorplan.rpt": True,
+                        },
+                        "present_filename_count": 1,
+                        "missing_filename_count": 0,
+                        "present_required_filenames": [
+                            "post_impl_floorplan.rpt",
+                        ],
+                        "failing_required_filenames": [],
+                        "missing_required_filenames": [],
+                        "all_required_filenames_present": True,
+                    },
                 },
             )
             self.assertEqual(
@@ -920,6 +994,7 @@ class CheckReportsTest(unittest.TestCase):
                     "drc": [str(drc)],
                     "route_status": [str(route_status)],
                     "clock_utilization": [str(clock_utilization)],
+                    "floorplan": [str(floorplan)],
                     "min_wns": 0.0,
                     "min_whs": 0.0,
                     "max_utilization": 90.0,
@@ -1086,6 +1161,15 @@ class CheckReportsTest(unittest.TestCase):
             )
             self.assertTrue(record["clock_utilization"][0]["exists"])
             self.assertTrue(record["clock_utilization"][0]["passed"])
+            self.assertEqual(record["floorplan"][0]["path"], str(floorplan))
+            self.assertEqual(
+                record["floorplan"][0]["sha256"],
+                hashlib.sha256(floorplan.read_bytes()).hexdigest(),
+            )
+            self.assertEqual(record["floorplan"][0]["pblock_count"], 0)
+            self.assertEqual(record["floorplan"][0]["placed_cell_count"], 12345)
+            self.assertTrue(record["floorplan"][0]["exists"])
+            self.assertTrue(record["floorplan"][0]["passed"])
 
     def test_cli_can_require_complete_vivado_flow_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1120,6 +1204,7 @@ class CheckReportsTest(unittest.TestCase):
                     "drc",
                     "route_status",
                     "clock_utilization",
+                    "floorplan",
                 ],
             )
             self.assertEqual(
@@ -1148,6 +1233,7 @@ class CheckReportsTest(unittest.TestCase):
                     "drc": ["post_impl_drc.rpt"],
                     "route_status": ["post_impl_route_status.rpt"],
                     "clock_utilization": ["post_impl_clock_utilization.rpt"],
+                    "floorplan": ["post_impl_floorplan.rpt"],
                 },
             )
             self.assertEqual(
@@ -1218,6 +1304,7 @@ class CheckReportsTest(unittest.TestCase):
             drc = root / "post_impl_drc.rpt"
             route_status = root / "post_impl_route_status.rpt"
             clock_utilization = root / "post_impl_clock_utilization.rpt"
+            floorplan = root / "post_impl_floorplan.rpt"
             artifact.write_bytes(b"bitstream")
             xsa.write_bytes(b"xsa")
             dcp.write_bytes(b"checkpoint")
@@ -1229,6 +1316,7 @@ class CheckReportsTest(unittest.TestCase):
             drc.write_text(DRC_CLEAN_REPORT)
             route_status.write_text(ROUTE_STATUS_CLEAN_REPORT)
             clock_utilization.write_text("Clock Utilization\n")
+            floorplan.write_text(FLOORPLAN_REPORT)
 
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
@@ -1257,6 +1345,8 @@ class CheckReportsTest(unittest.TestCase):
                             str(route_status),
                             "--clock-utilization",
                             str(clock_utilization),
+                            "--floorplan",
+                            str(floorplan),
                             "--require-complete-evidence",
                             "--json",
                         ]
@@ -1309,6 +1399,7 @@ class CheckReportsTest(unittest.TestCase):
             drc = root / "post_impl_drc.rpt"
             route_status = root / "post_impl_route_status.rpt"
             clock_utilization = root / "post_impl_clock_utilization.rpt"
+            floorplan = root / "post_impl_floorplan.rpt"
             artifact.write_bytes(b"bitstream")
             xsa.write_bytes(b"xsa")
             dcp.write_bytes(b"checkpoint")
@@ -1322,6 +1413,7 @@ class CheckReportsTest(unittest.TestCase):
             drc.write_text(DRC_CLEAN_REPORT)
             route_status.write_text(ROUTE_STATUS_CLEAN_REPORT)
             clock_utilization.write_text("Clock Utilization\n")
+            floorplan.write_text(FLOORPLAN_REPORT)
 
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
@@ -1356,6 +1448,8 @@ class CheckReportsTest(unittest.TestCase):
                             str(route_status),
                             "--clock-utilization",
                             str(clock_utilization),
+                            "--floorplan",
+                            str(floorplan),
                             "--require-complete-evidence",
                             "--json",
                         ]
@@ -1640,6 +1734,7 @@ class CheckReportsTest(unittest.TestCase):
                     "drc",
                     "route_status",
                     "clock_utilization",
+                    "floorplan",
                 ],
             )
             self.assertEqual(
@@ -1664,6 +1759,7 @@ class CheckReportsTest(unittest.TestCase):
                     "drc": 0,
                     "route_status": 0,
                     "clock_utilization": 0,
+                    "floorplan": 0,
                 },
             )
             self.assertEqual(
@@ -1676,6 +1772,7 @@ class CheckReportsTest(unittest.TestCase):
                     "drc",
                     "route_status",
                     "clock_utilization",
+                    "floorplan",
                 ],
             )
             self.assertFalse(record["evidence_categories"]["present"]["artifacts"])

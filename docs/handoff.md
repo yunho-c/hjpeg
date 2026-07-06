@@ -444,7 +444,7 @@ custom RTL elaboration with different `HjpegConfig` frame limits.
 
 The Vivado report checker supports `--json` plus repeated `--artifact`
 arguments so the bitstream, XSA, timing reports, utilization reports, DRC
-reports, route-status reports, clock-utilization reports, and address-map
+reports, route-status reports, clock-utilization reports, floorplan reports, and address-map
 reports can be recorded with byte lengths, hashes, target clock
 period/frequency, parsed setup WNS and hold WHS, utilization rows, DRC
 violations, route-status counts, thresholds, parsed address-map AXI-Lite
@@ -461,7 +461,8 @@ and `post_impl.dcp`, address-map filename presence for
 `post_synth_timing_summary.rpt`, `post_impl_timing_summary.rpt`,
 `post_synth_utilization.rpt`, `post_impl_utilization.rpt`,
 `post_impl_drc.rpt`, `post_impl_route_status.rpt`, and
-`post_impl_clock_utilization.rpt`, present/missing/failing filename names,
+`post_impl_clock_utilization.rpt`, `post_impl_floorplan.rpt`,
+present/missing/failing filename names,
 required suffix/filename passing/failing counts, aggregate pass/fail counts,
 required/present/missing category, suffix, artifact-filename,
 address-map-filename, and report-filename counts, diagnostic failure count,
@@ -474,7 +475,7 @@ evidence categories or required `.bit`/`.xsa`/`.dcp` artifact suffixes, and with
 the named artifacts `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and `post_impl.dcp`
 present and passing, plus the named address-map report
 `hjpeg_kv260_address_map.rpt` and the named timing/utilization/implementation
-reports. Complete Vivado evidence also requires a finite positive clock target:
+and floorplan reports. Complete Vivado evidence also requires a finite positive clock target:
 top-level `clock_period_ns` and `clock_frequency_mhz` must agree, the structured
 `clock_target` record must carry finite/positive/matching flags, and both
 `clock_target.valid` and top-level `clock_target_valid` must be strict JSON
@@ -490,7 +491,7 @@ address-map base/high addresses, clock period/frequency, evidence-category
 counts, summary counts, and route-status counts must be actual JSON numbers,
 not booleans. Full bitstream gates should pass
 `--require-complete-evidence`; partial post-synthesis checks can omit it.
-Requested artifacts, clock-utilization reports, and address-map reports must be
+Requested artifacts, clock-utilization reports, floorplan reports, and address-map reports must be
 non-empty. Address-map reports must include parseable base addresses for both
 the HJPEG AXI-Lite control aperture and the AXI DMA control aperture, and those
 control apertures must be unique and non-overlapping when high addresses are
@@ -500,7 +501,7 @@ be negative before implementation fixes it. The utilization parser handles Vivad
 `Prohibited` column and records hard-system rows such as `PS8` without gating
 them against the fabric utilization threshold. The DRC gate fails Error and
 Critical Warning violations, the route-status gate fails nonzero unrouted or
-routing-error counts, and clock-utilization/address-map reports are required
+routing-error counts, positive floorplan placed-cell counts, and clock-utilization/address-map/floorplan reports are required
 and recorded as review evidence. The checker rejects non-finite timing thresholds,
 non-finite clock periods, nonpositive clock periods, non-finite utilization
 thresholds, and negative utilization thresholds before JSON evidence can record
@@ -545,6 +546,7 @@ python scripts/vivado/check_reports.py \
   --drc build/vivado/hjpeg-kv260-artifacts/post_impl_drc.rpt \
   --route-status build/vivado/hjpeg-kv260-artifacts/post_impl_route_status.rpt \
   --clock-utilization build/vivado/hjpeg-kv260-artifacts/post_impl_clock_utilization.rpt \
+  --floorplan build/vivado/hjpeg-kv260-artifacts/post_impl_floorplan.rpt \
   --require-complete-evidence \
   --json
 ```
@@ -647,6 +649,7 @@ python3 scripts/vivado/check_reports.py \
   --drc build/vivado/hjpeg-kv260-artifacts/post_impl_drc.rpt \
   --route-status build/vivado/hjpeg-kv260-artifacts/post_impl_route_status.rpt \
   --clock-utilization build/vivado/hjpeg-kv260-artifacts/post_impl_clock_utilization.rpt \
+  --floorplan build/vivado/hjpeg-kv260-artifacts/post_impl_floorplan.rpt \
   --require-complete-evidence \
   --json
 ```
@@ -855,7 +858,8 @@ and `.dcp` artifact suffix evidence true, and the required `hjpeg_kv260.bit`,
 `post_synth_timing_summary.rpt`, `post_impl_timing_summary.rpt`,
 `post_synth_utilization.rpt`, `post_impl_utilization.rpt`,
 `post_impl_drc.rpt`, `post_impl_route_status.rpt`, and
-`post_impl_clock_utilization.rpt` filename evidence true, with
+`post_impl_clock_utilization.rpt`, and `post_impl_floorplan.rpt` filename
+evidence true, with
 `post_impl_timing_summary.rpt` also present as passing hold-timing evidence and
 matching missing/failing filename, hold-timing, and suffix lists empty. The
 Vivado clock target must include finite positive `clock_period_ns` and
@@ -866,7 +870,8 @@ list must match the passed path list. Its top-level
 must match nested evidence summaries, and its `diagnostic_summary` object must
 match the aggregate Vivado fields with `valid` true. Its per-category checked
 counts must be positive, sum to the total checked count, and match the
-per-category pass/fail totals. Supplying multiple Vivado evidence files is
+per-category pass/fail totals. The floorplan record must include a positive
+placed-cell count. Supplying multiple Vivado evidence files is
 allowed only when they agree on the same HJPEG base address.
 JSON output includes aggregate checked/pass/fail transcript counts, diagnostic
 failure count, checked/passed/failed path lists, summary checked, matched, and
@@ -918,7 +923,7 @@ If the new PC has Vivado:
    `build/vivado/hjpeg-kv260-bd/hjpeg_kv260_address_map.rpt`.
 5. Run bitstream/XSA generation.
 6. Run `check_reports.py` with `--artifact`, `--address-map`,
-   timing/utilization/DRC, route-status, clock-utilization report paths,
+   timing/utilization/DRC, route-status, clock-utilization, floorplan report paths,
    `--hold-timing` for post-implementation timing, `--require-complete-evidence`,
    and `--json`.
 7. Save the report/artifact JSON evidence, then move to KV260 board validation.

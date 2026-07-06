@@ -37,6 +37,10 @@ ROUTE_STATUS_RE = re.compile(
     r"\s*(?:\.{2,})?\s*[:=]\s*(?P<count>\d+)\b\s*:?",
     re.IGNORECASE,
 )
+FLOORPLAN_COUNT_RE = re.compile(
+    r"^\s*(?P<label>Pblock Count|Placed Cell Count)\s*:\s*(?P<count>\d+)\s*$",
+    re.IGNORECASE,
+)
 HEX_ADDRESS_RE = re.compile(r"0x[0-9a-fA-F_]+")
 IGNORED_UTILIZATION_ROWS = {"PS8"}
 REQUIRED_ADDRESS_MAP_INTERFACES = (
@@ -51,6 +55,7 @@ REQUIRED_EVIDENCE_CATEGORIES = (
     "drc",
     "route_status",
     "clock_utilization",
+    "floorplan",
 )
 REQUIRED_ARTIFACT_SUFFIXES = (".bit", ".xsa", ".dcp")
 REQUIRED_ARTIFACT_FILENAMES = ("hjpeg_kv260.bit", "hjpeg_kv260.xsa", "post_impl.dcp")
@@ -61,6 +66,7 @@ REQUIRED_REPORT_FILENAMES = {
     "drc": ("post_impl_drc.rpt",),
     "route_status": ("post_impl_route_status.rpt",),
     "clock_utilization": ("post_impl_clock_utilization.rpt",),
+    "floorplan": ("post_impl_floorplan.rpt",),
 }
 REQUIRED_HOLD_TIMING_FILENAMES = ("post_impl_timing_summary.rpt",)
 REQUIRED_ROUTE_STATUS_COUNTS = (
@@ -272,6 +278,17 @@ def parse_route_status_counts(report: str) -> dict[str, int]:
     return counts
 
 
+def parse_floorplan_counts(report: str) -> dict[str, int]:
+    counts = {}
+    for line in report.splitlines():
+        match = FLOORPLAN_COUNT_RE.match(line)
+        if match is None:
+            continue
+        label = "_".join(match.group("label").lower().split())
+        counts[label] = int(match.group("count"))
+    return counts
+
+
 def normalize_address_map_text(text: str) -> str:
     return text.lower().replace("\\", "/")
 
@@ -459,6 +476,11 @@ def check_route_status(path: Path) -> list[str]:
     for label, count in counts.items():
         if count != 0:
             failures.append(f"{path}: route status {label} is {count}, expected 0")
+    return failures
+
+
+def check_floorplan(path: Path) -> list[str]:
+    record, failures = floorplan_record(path)
     return failures
 
 
@@ -683,6 +705,49 @@ def route_status_record(path: Path) -> tuple[dict[str, object], list[str]]:
             "required_counts": list(REQUIRED_ROUTE_STATUS_COUNTS),
             "counts": counts,
             "missing_counts": missing_counts,
+            "passed": not failures,
+        }
+    )
+    return record, failures
+
+
+def floorplan_record(path: Path) -> tuple[dict[str, object], list[str]]:
+    missing_record = missing_report_record(path, "floorplan")
+    if missing_record is not None:
+        record, failures = missing_record
+        record.update(
+            {
+                "counts": {},
+                "pblock_count": None,
+                "placed_cell_count": None,
+            }
+        )
+        return record, failures
+
+    report_bytes = path.read_bytes()
+    report = report_bytes.decode(errors="replace")
+    counts = parse_floorplan_counts(report)
+    pblock_count = counts.get("pblock_count")
+    placed_cell_count = counts.get("placed_cell_count")
+    failures = []
+    if not report_bytes:
+        failures.append(f"{path}: floorplan report is empty")
+    if pblock_count is None:
+        failures.append(f"{path}: floorplan report missing Pblock Count")
+    if placed_cell_count is None:
+        failures.append(f"{path}: floorplan report missing Placed Cell Count")
+    elif placed_cell_count <= 0:
+        failures.append(
+            f"{path}: floorplan placed cell count is {placed_cell_count}, expected positive"
+        )
+
+    record = _file_record(path, report_bytes)
+    record.update(
+        {
+            "exists": True,
+            "counts": counts,
+            "pblock_count": pblock_count,
+            "placed_cell_count": placed_cell_count,
             "passed": not failures,
         }
     )
@@ -1086,6 +1151,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Vivado clock utilization report to require and hash in evidence; may be passed multiple times",
     )
     parser.add_argument(
+        "--floorplan",
+        type=Path,
+        action="append",
+        default=[],
+        help="Post-implementation floorplan summary report to validate and hash in evidence; may be passed multiple times",
+    )
+    parser.add_argument(
         "--artifact",
         type=Path,
         action="append",
@@ -1127,6 +1199,7 @@ def main(argv: list[str] | None = None) -> int:
     drc_records = []
     route_status_records = []
     clock_utilization_records = []
+    floorplan_records = []
 
     for artifact in args.artifact:
         record, record_failures = artifact_record(artifact)
@@ -1171,6 +1244,10 @@ def main(argv: list[str] | None = None) -> int:
         record, record_failures = evidence_file_record(clock_utilization, "clock utilization")
         clock_utilization_records.append(record)
         failures.extend(record_failures)
+    for floorplan in args.floorplan:
+        record, record_failures = floorplan_record(floorplan)
+        floorplan_records.append(record)
+        failures.extend(record_failures)
 
     checked = (
         len(args.artifact)
@@ -1180,6 +1257,7 @@ def main(argv: list[str] | None = None) -> int:
         + len(args.drc)
         + len(args.route_status)
         + len(args.clock_utilization)
+        + len(args.floorplan)
     )
     checked_counts = {
         "artifacts": len(args.artifact),
@@ -1189,6 +1267,7 @@ def main(argv: list[str] | None = None) -> int:
         "drc": len(args.drc),
         "route_status": len(args.route_status),
         "clock_utilization": len(args.clock_utilization),
+        "floorplan": len(args.floorplan),
     }
     checked_records = [
         *artifact_records,
@@ -1198,6 +1277,7 @@ def main(argv: list[str] | None = None) -> int:
         *drc_records,
         *route_status_records,
         *clock_utilization_records,
+        *floorplan_records,
     ]
     passed_count = sum(1 for record in checked_records if record.get("passed") is True)
     failed_count = len(checked_records) - passed_count
@@ -1221,6 +1301,7 @@ def main(argv: list[str] | None = None) -> int:
             "drc": drc_records,
             "route_status": route_status_records,
             "clock_utilization": clock_utilization_records,
+            "floorplan": floorplan_records,
         }
     )
     artifact_suffixes = artifact_suffix_record(artifact_records)
@@ -1237,6 +1318,7 @@ def main(argv: list[str] | None = None) -> int:
             "drc": drc_records,
             "route_status": route_status_records,
             "clock_utilization": clock_utilization_records,
+            "floorplan": floorplan_records,
         }
     )
     hold_timing_filenames = required_filename_record(
@@ -1364,6 +1446,7 @@ def main(argv: list[str] | None = None) -> int:
             "drc": [str(path) for path in args.drc],
             "route_status": [str(path) for path in args.route_status],
             "clock_utilization": [str(path) for path in args.clock_utilization],
+            "floorplan": [str(path) for path in args.floorplan],
             "min_wns": args.min_wns,
             "min_whs": args.min_whs,
             "max_utilization": args.max_utilization,
@@ -1442,6 +1525,7 @@ def main(argv: list[str] | None = None) -> int:
                     "drc": drc_records,
                     "route_status": route_status_records,
                     "clock_utilization": clock_utilization_records,
+                    "floorplan": floorplan_records,
                 },
                 sort_keys=True,
             )

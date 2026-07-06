@@ -41,6 +41,26 @@ proc require_nonempty_file {path description} {
   }
 }
 
+proc write_floorplan_report {path} {
+  set pblocks [get_pblocks -quiet]
+  set placed_cells [get_cells -hierarchical -filter {IS_PRIMITIVE && LOC != ""} -quiet]
+
+  set fp [open $path w]
+  puts $fp "Floorplan Summary"
+  puts $fp [format "Part: %s" [get_property PART [current_project]]]
+  puts $fp [format "Pblock Count: %d" [llength $pblocks]]
+  puts $fp [format "Placed Cell Count: %d" [llength $placed_cells]]
+  puts $fp "Pblocks:"
+  foreach pblock $pblocks {
+    set ranges ""
+    catch {set ranges [get_property GRID_RANGES $pblock]}
+    set cell_count 0
+    catch {set cell_count [llength [get_cells -quiet -of_objects $pblock]]}
+    puts $fp [format "| %s | Cells: %d | Ranges: %s |" $pblock $cell_count $ranges]
+  }
+  close $fp
+}
+
 set project_file [file join $project_dir hjpeg_kv260_bd.xpr]
 
 if {![file exists $project_file]} {
@@ -87,16 +107,19 @@ set post_impl_timing [file join $artifacts_dir post_impl_timing_summary.rpt]
 set post_impl_drc [file join $artifacts_dir post_impl_drc.rpt]
 set post_impl_route_status [file join $artifacts_dir post_impl_route_status.rpt]
 set post_impl_clock_utilization [file join $artifacts_dir post_impl_clock_utilization.rpt]
+set post_impl_floorplan [file join $artifacts_dir post_impl_floorplan.rpt]
 report_utilization -file $post_impl_utilization
 report_timing_summary -file $post_impl_timing
 report_drc -file $post_impl_drc
 report_route_status -file $post_impl_route_status
 report_clock_utilization -file $post_impl_clock_utilization
+write_floorplan_report $post_impl_floorplan
 require_nonempty_file $post_impl_utilization "post-implementation utilization report"
 require_nonempty_file $post_impl_timing "post-implementation timing report"
 require_nonempty_file $post_impl_drc "post-implementation DRC report"
 require_nonempty_file $post_impl_route_status "post-implementation route-status report"
 require_nonempty_file $post_impl_clock_utilization "post-implementation clock-utilization report"
+require_nonempty_file $post_impl_floorplan "post-implementation floorplan report"
 
 set bit_candidates [glob -nocomplain -directory [file join $project_dir hjpeg_kv260_bd.runs impl_1] *.bit]
 if {[llength $bit_candidates] == 0} {

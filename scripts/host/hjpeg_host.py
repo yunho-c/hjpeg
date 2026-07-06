@@ -58,6 +58,7 @@ VIVADO_REQUIRED_REPORT_FILENAMES = {
     "drc": ("post_impl_drc.rpt",),
     "route_status": ("post_impl_route_status.rpt",),
     "clock_utilization": ("post_impl_clock_utilization.rpt",),
+    "floorplan": ("post_impl_floorplan.rpt",),
 }
 VIVADO_REQUIRED_HOLD_TIMING_FILENAMES = ("post_impl_timing_summary.rpt",)
 VIVADO_REQUIRED_EVIDENCE_CATEGORIES = (
@@ -68,6 +69,7 @@ VIVADO_REQUIRED_EVIDENCE_CATEGORIES = (
     "drc",
     "route_status",
     "clock_utilization",
+    "floorplan",
 )
 VIVADO_REQUIRED_ROUTE_STATUS_COUNTS = (
     "number_of_unrouted_nets",
@@ -3413,6 +3415,27 @@ def vivado_route_status_counts_present(record: object) -> bool:
     return False
 
 
+def vivado_floorplan_evidence_present(record: object) -> bool:
+    if not isinstance(record, dict):
+        return False
+    floorplan_records = record.get("floorplan")
+    if not isinstance(floorplan_records, list):
+        return False
+    for floorplan_record in floorplan_records:
+        if (
+            isinstance(floorplan_record, dict)
+            and floorplan_record.get("passed") is True
+            and floorplan_record.get("exists") is True
+            and is_strict_int(floorplan_record.get("pblock_count"))
+            and floorplan_record["pblock_count"] >= 0
+            and is_strict_int(floorplan_record.get("placed_cell_count"))
+            and floorplan_record["placed_cell_count"] > 0
+            and is_sha256_hex(floorplan_record.get("sha256"))
+        ):
+            return True
+    return False
+
+
 def vivado_record_hashes_present(record: object) -> bool:
     if not isinstance(record, dict):
         return False
@@ -3481,6 +3504,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     summary_counts_consistent = vivado_summary_counts_consistent(parsed)
     diagnostic_summary_consistent = vivado_diagnostic_summary_consistent(parsed)
     route_status_counts_present = vivado_route_status_counts_present(parsed)
+    floorplan_evidence_present = vivado_floorplan_evidence_present(parsed)
     address_map_hex_fields_consistent = vivado_address_map_hex_fields_consistent(parsed)
     record_hashes_present = vivado_record_hashes_present(parsed)
     bases = vivado_hjpeg_base_addresses_from_record(parsed)
@@ -3561,6 +3585,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         and evidence_categories_present
         and summary_counts_consistent
         and diagnostic_summary_consistent
+        and floorplan_evidence_present
     )
     complete_vivado_flow_evidence_matches = (
         isinstance(parsed, dict)
@@ -3617,6 +3642,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
             "vivado_summary_counts_consistent": summary_counts_consistent,
             "vivado_diagnostic_summary_consistent": diagnostic_summary_consistent,
             "vivado_route_status_counts_present": route_status_counts_present,
+            "vivado_floorplan_evidence_present": floorplan_evidence_present,
             "vivado_address_map_hex_fields_consistent": address_map_hex_fields_consistent,
             "vivado_record_hashes_present": record_hashes_present,
             "complete_vivado_flow_evidence_diagnostics_match": (
@@ -3641,6 +3667,7 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
                 and summary_counts_consistent
                 and diagnostic_summary_consistent
                 and route_status_counts_present
+                and floorplan_evidence_present
                 and address_map_hex_fields_consistent
                 and record_hashes_present
                 and complete_vivado_flow_evidence_diagnostics_match
@@ -3703,6 +3730,10 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
     if not route_status_counts_present:
         failures.append(
             f"{path}: Vivado evidence missing required route-status unrouted/routing-error count records"
+        )
+    if not floorplan_evidence_present:
+        failures.append(
+            f"{path}: Vivado evidence missing post-implementation floorplan placed-cell evidence"
         )
     if not address_map_hex_fields_consistent:
         failures.append(

@@ -120,13 +120,14 @@ hardware-tool entry points:
   bitstream included, and writes `post_impl.dcp` for implementation and
   floorplan review.
 - `check_reports.py` hashes generated artifacts, parses Vivado
-  timing/utilization/DRC/route-status reports, requires requested
+  timing/utilization/DRC/route-status/floorplan reports, requires requested
   clock-utilization reports, parses requested address-map reports, and fails
   when a requested artifact is missing or empty,
   setup WNS is below the requested threshold, hold WHS is below the requested
   threshold for reports passed with `--hold-timing`, any utilization row
   exceeds the configured percentage, DRC reports Error or Critical Warning
-  violations, route status reports unrouted nets or routing errors, or a
+  violations, route status reports unrouted nets or routing errors, a floorplan
+  report is missing, empty, or has no placed cells, or a
   required clock-utilization report is missing or empty, or an address-map
   report is missing, empty, lacks `hjpeg_0/s_axi_lite` or
   `axi_dma_0/S_AXI_LITE` base addresses, duplicates one of those control
@@ -134,8 +135,8 @@ hardware-tool entry points:
   its base address. Its `--json` mode emits
   artifact/report SHA-256 hex hashes, byte lengths, target clock
   period/frequency, parsed WNS/WHS values, utilization rows, thresholds, DRC
-  violations, route-status counts, clock-utilization report hashes, parsed
-  address-map AXI-Lite aperture base/high addresses and byte ranges, missing,
+  violations, route-status counts, clock-utilization report hashes, floorplan
+  pblock/placed-cell counts, parsed address-map AXI-Lite aperture base/high addresses and byte ranges, missing,
   duplicate, invalid-range, and overlap summaries, requested input path lists
   and gate values, checked report/artifact count, per-category checked counts,
   required evidence category presence, per-category passing/failing counts,
@@ -147,7 +148,8 @@ hardware-tool entry points:
   required report filename presence for `post_synth_timing_summary.rpt`,
   `post_impl_timing_summary.rpt`, `post_synth_utilization.rpt`,
   `post_impl_utilization.rpt`, `post_impl_drc.rpt`,
-  `post_impl_route_status.rpt`, and `post_impl_clock_utilization.rpt`,
+  `post_impl_route_status.rpt`, `post_impl_clock_utilization.rpt`, and
+  `post_impl_floorplan.rpt`,
   present/missing/failing filename names, suffix and filename passing/failing
   counts, aggregate pass/fail counts, required/present/missing category, suffix,
   artifact-filename, address-map-filename, and report-filename counts,
@@ -161,7 +163,7 @@ hardware-tool entry points:
   requires the named artifacts `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and
   `post_impl.dcp` to be present and passing, plus the named address-map report
   `hjpeg_kv260_address_map.rpt` and the named timing/utilization/implementation
-  reports. Complete Vivado evidence counts only records
+  and floorplan reports. Complete Vivado evidence counts only records
   whose `passed` field is an actual JSON boolean `true`. Missing or unparseable
   reports are included as structured failure records. Full bitstream gates can
   pass `--require-complete-evidence` to fail unless all required categories,
@@ -306,7 +308,8 @@ and `.dcp` artifact suffix evidence, and the required
 `post_synth_timing_summary.rpt`, `post_impl_timing_summary.rpt`,
 `post_synth_utilization.rpt`, `post_impl_utilization.rpt`,
 `post_impl_drc.rpt`, `post_impl_route_status.rpt`, and
-`post_impl_clock_utilization.rpt` filename evidence true, with
+`post_impl_clock_utilization.rpt`, and `post_impl_floorplan.rpt` filename
+evidence true, with
 `post_impl_timing_summary.rpt` also present as passing hold-timing evidence and
 matching missing/failing filename, hold-timing, and suffix lists empty, finite
 positive `clock_period_ns` and `clock_frequency_mhz` values that match each
@@ -319,7 +322,8 @@ failures and failed paths in the Vivado summary, checked paths matching passed
 paths, positive per-category checked counts whose sum matches the total checked
 count and match the per-category pass/fail totals, `exists: true`, positive
 byte lengths, and well-formed SHA-256 hex hashes on passing records in every
-required evidence category, and a passing route-status
+required evidence category, a floorplan record with a positive placed-cell
+count, and a passing route-status
 record with zero unrouted nets and zero nets with routing errors. It fails run transcripts whose
 AXI-Lite base address does not match the Vivado build evidence, or whose
 supplied Vivado evidence files report conflicting HJPEG base addresses. JSON output includes
