@@ -1829,6 +1829,14 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             )
             and validation_expectations.get("expected_scan_data_min_bytes") == 1
         )
+        validation_scan_data_length_matches = (
+            is_strict_int(scan_data_bytes)
+            and is_strict_int(
+                validation_expectations.get("expected_scan_data_min_bytes")
+            )
+            and scan_data_bytes
+            >= validation_expectations.get("expected_scan_data_min_bytes")
+        )
         validation_marker_order_present = (
             isinstance(expected_marker_order, dict)
             and isinstance(expected_through_sos, list)
@@ -2078,6 +2086,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         )
         evidence_present["validation_expectations"] = (
             validation_baseline_shape
+            and validation_scan_data_length_matches
             and validation_marker_order_present
             and validation_marker_order_matches
             and validation_table_order_present
@@ -2097,6 +2106,9 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
             and validation_huffman_tables_match
         )
         checks["validation_baseline_shape"] = validation_baseline_shape
+        checks["validation_scan_data_length_matches"] = (
+            validation_scan_data_length_matches
+        )
         checks["validation_marker_order_present"] = validation_marker_order_present
         checks["validation_marker_order_matches"] = validation_marker_order_matches
         checks["validation_table_order_present"] = validation_table_order_present

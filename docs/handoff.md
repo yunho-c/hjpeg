@@ -799,8 +799,9 @@ captured JPEG. It fails if the encoder reports `busy` or `protocol_error` at
 any of those points, or if the captured JPEG metadata contradicts the configured
 restart interval, chroma mode, or JFIF setting. Saved-run evidence checking also
 cross-checks expected marker order through SOS and terminal EOI against the
-parsed JPEG marker sequence, expected DQT/DHT table order and SOS spectral
-fields against the parsed JPEG, expected SOF0/SOS component records against the
+parsed JPEG marker sequence, expected minimum scan-data length against the
+parsed entropy scan length, expected DQT/DHT table order and SOS spectral fields
+against the parsed JPEG, expected SOF0/SOS component records against the
 parsed JPEG, expected JFIF APP0 presence and fixed APP0 fields against the
 parsed JPEG, the expected chroma mode against the parsed JPEG chroma mode when
 chroma checking was requested and expected DQT payload hashes against the parsed

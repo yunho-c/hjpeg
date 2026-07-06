@@ -452,12 +452,14 @@ Expected evidence:
   validation expectations enforced from the configured dimensions, restart
   interval, expected marker counts, derived expected RST marker count, chroma
   mode, JFIF setting, quality, standard Huffman contract, expected marker
-  order, expected table order, expected SOS spectral fields, expected SOF0/SOS
-  component records, expected JFIF APP0 fields, and expected DQT/DHT payload
-  hashes. `check-run-evidence` cross-checks the expected marker order through
-  SOS and terminal EOI against the parsed JPEG marker sequence, expected DQT/DHT
-  table order and SOS spectral fields against the parsed JPEG, the expected
-  SOF0/SOS component records against the parsed JPEG, expected JFIF APP0
+  order, expected minimum scan-data length, expected table order, expected SOS
+  spectral fields, expected SOF0/SOS component records, expected JFIF APP0
+  fields, and expected DQT/DHT payload hashes. `check-run-evidence` cross-checks
+  the expected marker order through SOS and terminal EOI against the parsed JPEG
+  marker sequence, expected minimum scan-data length against the parsed entropy
+  scan length, expected DQT/DHT table order and SOS spectral fields against the
+  parsed JPEG, the expected SOF0/SOS component records against the parsed JPEG,
+  expected JFIF APP0
   presence and fixed APP0 fields against the parsed JPEG, the expected chroma
   mode against the parsed JPEG chroma mode when chroma checking was requested,
   expected DQT payload hashes against parsed DQT table hashes when quality

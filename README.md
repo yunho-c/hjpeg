@@ -391,6 +391,7 @@ APP0/DQT/SOF0/DHT/SOS/DRI/RST counts, the RST sequence length against the
 recorded RST count, and the recorded marker counts/RST sequence against
 validation expectations when those expectations are present, expected marker
 order through SOS and terminal EOI against the parsed JPEG marker sequence,
+expected minimum scan-data length against the parsed entropy scan length,
 expected DQT/DHT table order and SOS spectral fields against the parsed JPEG,
 expected SOF0 component records and SOS component selectors against the parsed
 JPEG, expected JFIF APP0 presence and fixed APP0 fields against the parsed JPEG,
@@ -410,10 +411,11 @@ evidence must include supported dimensions, quality/restart values in range,
 boolean control flags, and a control word/hex string matching those flags. Validation
 expectations evidence must include the baseline shape, marker order, table
 order, marker counts, restart marker count/sequence when applicable, SOS
-spectral fields, matching marker order, matching table order, matching SOS
-spectral fields, matching SOF0/SOS component records, matching JFIF APP0 policy
-and fields, matching chroma mode when requested, matching DQT payload hashes
-when quality checking was requested, matching DHT table hashes when
+spectral fields, matching marker order, matching minimum scan-data length,
+matching table order, matching SOS spectral fields, matching SOF0/SOS component
+records, matching JFIF APP0 policy and fields, matching chroma mode when
+requested, matching DQT payload hashes when quality checking was requested,
+matching DHT table hashes when
 standard-Huffman checking was requested, and standard-Huffman requirement.
 Source PPM
 evidence must include file and packed-RGB SHA-256 hex hashes,
