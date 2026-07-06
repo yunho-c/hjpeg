@@ -5733,6 +5733,35 @@ class HjpegHostTest(unittest.TestCase):
         self.assertEqual(info.restart_marker_sequence, (0, 1))
         self.assertEqual(info.marker_sequence[-4:], ("SOS", "RST0", "RST1", "EOI"))
 
+    def test_validate_jpeg_accepts_wrapped_restart_marker_sequence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "wrapped-restart.jpg"
+            restart_markers = [index % 8 for index in range(14)]
+            path.write_bytes(
+                with_dri_segment(
+                    with_scan_restart_markers(
+                        minimal_jpeg(width=33, height=17),
+                        restart_markers,
+                    ),
+                    restart_interval=1,
+                )
+            )
+
+            info = hjpeg_host.validate_jpeg(
+                path,
+                expected_width=33,
+                expected_height=17,
+                expected_restart_interval=1,
+            )
+
+            self.assertEqual(info.mcu_count, 15)
+            self.assertEqual(info.restart_markers, 14)
+            self.assertEqual(info.restart_marker_sequence, tuple(restart_markers))
+            self.assertEqual(
+                hjpeg_host.expected_restart_marker_sequence(info, 1),
+                [f"RST{index % 8}" for index in range(14)],
+            )
+
     def test_validate_jpeg_rejects_bad_restart_marker_sequence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             jpeg = Path(tmp) / "bad-rst-sequence.jpg"
