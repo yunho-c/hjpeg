@@ -706,8 +706,9 @@ Hardware completion evidence should include:
   present and missing evidence group names, passing and failing check names,
   consolidated run-check booleans,
   `all_recorded_checks_passed`, `complete_hardware_run_evidence` with
-  hashed output JPEG, source PPM, positive transfer timing with finite positive
-  derived input/output byte rates, and passing decoder evidence required,
+  an explicit `jpeg_validation_passed` flag, hashed output JPEG, source PPM,
+  positive transfer timing with finite positive derived input/output byte rates,
+  and passing decoder evidence required,
   decoder command, resolved decoder argv, decoder timeout, decoder elapsed
   seconds, bounded decoder stdout/stderr, captured decoder output lengths, and
   decoder output capture limit. Decoder summary evidence requires the command

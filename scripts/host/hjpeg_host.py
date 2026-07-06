@@ -1382,6 +1382,7 @@ def jpeg_info_record(
 ) -> dict[str, object]:
     record: dict[str, object] = {
         "jpeg": str(jpeg),
+        "jpeg_validation_passed": True,
         "width": info.width,
         "height": info.height,
         "mcu_count": info.mcu_count,
@@ -1604,7 +1605,7 @@ def hardware_run_summary_record(record: dict[str, object]) -> dict[str, object]:
         "transfer_timing": False,
         "decoder": False,
     }
-    checks = {"jpeg_validation_passed": True}
+    checks = {"jpeg_validation_passed": record.get("jpeg_validation_passed") is True}
 
     jpeg_byte_length = record.get("byte_length")
     scan_data_bytes = record.get("scan_data_bytes")

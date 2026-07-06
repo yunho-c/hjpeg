@@ -248,7 +248,8 @@ Expected evidence:
   names, present evidence group names, passing check names, failing check names,
   and `complete_hardware_run_evidence`. A valid final board transcript should have
   `all_recorded_checks_passed` and `complete_hardware_run_evidence` true,
-  which requires hashed output JPEG evidence with non-empty scan data,
+  which requires an explicit `jpeg_validation_passed` flag, hashed output JPEG
+  evidence with non-empty scan data,
   `--input-ppm` source evidence with non-flat/color stats, a passing
   `--decoder-command` check, and positive transfer timing with finite positive
   derived input and output byte rates. Decoder evidence must include the command

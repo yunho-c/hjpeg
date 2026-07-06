@@ -1875,6 +1875,7 @@ class HjpegHostTest(unittest.TestCase):
                 record["sha256"],
                 hashlib.sha256(minimal_jpeg(width=17, height=13)).hexdigest(),
             )
+            self.assertTrue(record["jpeg_validation_passed"])
             self.assertNotIn("decoder_passed", record)
             self.assertNotIn("decoder_command", record)
             self.assertNotIn("decoder_timeout_seconds", record)
@@ -3065,22 +3066,26 @@ class HjpegHostTest(unittest.TestCase):
                 "jpeg_marker_sequence_ends_with_eoi",
             ],
         )
-        self.assertEqual(summary["passing_check_count"], 5)
+        self.assertEqual(summary["passing_check_count"], 4)
         self.assertEqual(
             summary["passing_checks"],
             [
-                "jpeg_validation_passed",
                 "jpeg_byte_length_positive",
                 "jpeg_scan_data_bytes_positive",
                 "jpeg_marker_sequence_starts_with_soi",
                 "jpeg_marker_sequence_ends_with_eoi",
             ],
         )
-        self.assertEqual(summary["failing_check_count"], 2)
+        self.assertEqual(summary["failing_check_count"], 3)
         self.assertEqual(
             summary["failing_checks"],
-            ["jpeg_sha256_present", "jpeg_scan_data_sha256_present"],
+            [
+                "jpeg_validation_passed",
+                "jpeg_sha256_present",
+                "jpeg_scan_data_sha256_present",
+            ],
         )
+        self.assertFalse(summary["checks"]["jpeg_validation_passed"])
         self.assertTrue(summary["checks"]["jpeg_byte_length_positive"])
         self.assertTrue(summary["checks"]["jpeg_scan_data_bytes_positive"])
         self.assertFalse(summary["checks"]["jpeg_sha256_present"])
@@ -3459,8 +3464,8 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(record["aggregate_evidence_present_count"], 10)
             self.assertEqual(record["aggregate_evidence_missing_count"], 10)
             self.assertEqual(record["aggregate_recorded_check_count"], 85)
-            self.assertEqual(record["aggregate_passing_check_count"], 79)
-            self.assertEqual(record["aggregate_failing_check_count"], 6)
+            self.assertEqual(record["aggregate_passing_check_count"], 78)
+            self.assertEqual(record["aggregate_failing_check_count"], 7)
             self.assertEqual(record["summary_checked_count"], 2)
             self.assertEqual(record["summary_match_count"], 1)
             self.assertEqual(record["summary_mismatch_count"], 1)
@@ -3485,6 +3490,7 @@ class HjpegHostTest(unittest.TestCase):
             self.assertEqual(
                 record["aggregate_failing_checks"],
                 [
+                    "jpeg_validation_passed",
                     "jpeg_byte_length_positive",
                     "jpeg_scan_data_bytes_positive",
                     "jpeg_sha256_present",
