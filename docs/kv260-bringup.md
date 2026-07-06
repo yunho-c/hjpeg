@@ -91,6 +91,17 @@ Vivado job-count arguments after `-tclargs`; use a positive integer for the job
 count. Vivado scripts reject extra positional `-tclargs` so build automation
 does not silently ignore misspelled or misplaced arguments.
 
+For an already implemented block-design project that predates
+`post_impl_floorplan.rpt`, regenerate only the floorplan evidence with:
+
+```sh
+vivado -mode batch -source scripts/vivado/write_kv260_floorplan_report.tcl
+```
+
+The floorplan script accepts optional project and artifact directories after
+`-tclargs`, reopens the completed `impl_1` run, and writes
+`build/vivado/hjpeg-kv260-artifacts/post_impl_floorplan.rpt`.
+
 Expected evidence:
 
 - `build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit`

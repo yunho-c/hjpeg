@@ -213,6 +213,18 @@ nonnegative. Use
 `--hold-timing` for post-implementation reports where hold timing is expected
 to be closed.
 
+If an already implemented KV260 block-design project is missing only the
+floorplan evidence report, regenerate that report without rerunning the full
+bitstream flow:
+
+```sh
+vivado -mode batch -source scripts/vivado/write_kv260_floorplan_report.tcl
+```
+
+The script accepts optional project and artifact directories after `-tclargs`
+and writes `build/vivado/hjpeg-kv260-artifacts/post_impl_floorplan.rpt` from the
+completed `impl_1` run.
+
 These Vivado scripts consume `generated-kv260-axi-lite-top/filelist.f`. Generate
 the AXI-Lite top first. The IP packaging script maps the generated clock, reset,
 AXI-Lite, and AXI-stream ports onto Vivado bus interfaces and exposes a 4 KiB

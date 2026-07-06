@@ -554,8 +554,8 @@ python scripts/vivado/check_reports.py \
 Most recent focused verification:
 
 ```sh
-python scripts/host/hjpeg_host_test.py      # 180 tests
-python scripts/vivado/check_reports_test.py # 49 tests
+python scripts/host/hjpeg_host_test.py      # 203 tests
+python scripts/vivado/check_reports_test.py # 52 tests
 git diff --check                            # CRLF warnings only
 ```
 
@@ -586,7 +586,10 @@ Known local limitations:
   `+0.807 ns` and post-implementation setup WNS `+0.131 ns`;
   post-implementation hold WHS is `+0.010 ns`. Post-implementation utilization is approximately
   50,662 CLB LUTs (43.26%), 25,619 LUTRAMs (44.48%), 2 BRAM tiles (1.39%), and
-  17 DSPs (1.36%).
+  17 DSPs (1.36%). `write_kv260_floorplan_report.tcl` regenerated
+  `post_impl_floorplan.rpt` from the existing implemented project with 107,114
+  placed primitive cells, and the complete Vivado evidence checker passed with
+  12 checked records including the floorplan report.
 
 On a new machine, run these first:
 
@@ -636,6 +639,7 @@ sbt 'runMain hjpeg.ElaborateKv260AxiLiteTop'
 vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl
 vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl
 vivado -mode batch -source scripts/vivado/build_kv260_bitstream.tcl
+vivado -mode batch -source scripts/vivado/write_kv260_floorplan_report.tcl # only needed for older implemented builds missing post_impl_floorplan.rpt
 python3 scripts/vivado/check_reports.py \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit \
   --artifact build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.xsa \
