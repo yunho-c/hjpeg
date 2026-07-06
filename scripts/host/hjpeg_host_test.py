@@ -3926,39 +3926,29 @@ class HjpegHostTest(unittest.TestCase):
             evidence["capture_config"]["timeout_seconds"] = float("inf")
             evidence["decoder_timeout_seconds"] = float("inf")
             evidence["decoder_elapsed_seconds"] = float("nan")
-            path.write_text(json.dumps(evidence))
+            record, failures = hjpeg_host.check_run_evidence_record(path, evidence)
 
-            stdout = io.StringIO()
-            with contextlib.redirect_stdout(stdout):
-                self.assertEqual(
-                    hjpeg_host.main(["check-run-evidence", str(path), "--json"]),
-                    1,
-                )
+            self.assertFalse(record["passed"])
+            self.assertTrue(failures)
+            self.assertNotIn("transfer_elapsed_seconds", record)
+            self.assertNotIn("host_input_rgb_bytes_per_second", record)
+            self.assertNotIn("host_output_jpeg_bytes_per_second", record)
+            self.assertNotIn("capture_timeout_seconds", record)
+            self.assertNotIn("decoder_timeout_seconds", record)
+            self.assertNotIn("decoder_elapsed_seconds", record)
 
-            output = stdout.getvalue()
-            self.assertNotIn("NaN", output)
-            self.assertNotIn("Infinity", output)
-            record = json.loads(output)
-            self.assertEqual(record["aggregate_transfer_elapsed_seconds_count"], 0)
-            self.assertEqual(
-                record["aggregate_host_input_rgb_bytes_per_second_count"], 0
+    def test_check_run_evidence_file_rejects_nonstandard_json_constants(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "run.json"
+            path.write_text('{"hardware_run_summary": {}, "elapsed": NaN}')
+
+            record, failures = hjpeg_host.check_run_evidence_file(path)
+
+            self.assertFalse(record["passed"])
+            self.assertIn("invalid JSON", record["error"])
+            self.assertTrue(
+                any("invalid JSON constant: NaN" in failure for failure in failures)
             )
-            self.assertEqual(
-                record["aggregate_host_output_jpeg_bytes_per_second_count"], 0
-            )
-            self.assertEqual(record["aggregate_capture_timeout_second_count"], 0)
-            self.assertEqual(record["aggregate_decoder_timeout_second_count"], 0)
-            self.assertEqual(record["aggregate_decoder_elapsed_second_count"], 0)
-            self.assertNotIn("transfer_elapsed_seconds", record["records"][0])
-            self.assertNotIn(
-                "host_input_rgb_bytes_per_second", record["records"][0]
-            )
-            self.assertNotIn(
-                "host_output_jpeg_bytes_per_second", record["records"][0]
-            )
-            self.assertNotIn("capture_timeout_seconds", record["records"][0])
-            self.assertNotIn("decoder_timeout_seconds", record["records"][0])
-            self.assertNotIn("decoder_elapsed_seconds", record["records"][0])
 
     def test_check_run_evidence_file_reports_complete_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -5655,6 +5645,22 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["vivado_diagnostic_summary_consistent"])
             self.assertTrue(record["vivado_route_status_counts_present"])
             self.assertEqual(record["hjpeg_base_addresses"], [0])
+
+    def test_vivado_evidence_file_record_rejects_nonstandard_json_constants(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "vivado.json"
+            path.write_text('{"passed": true, "clock_period_ns": Infinity}')
+
+            record, failures = hjpeg_host.vivado_evidence_file_record(path)
+
+            self.assertFalse(record["passed"])
+            self.assertTrue(record["exists"])
+            self.assertTrue(
+                any(
+                    "invalid JSON constant: Infinity" in failure
+                    for failure in failures
+                )
+            )
 
     def test_vivado_evidence_file_record_rejects_nonboolean_top_level_flags(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

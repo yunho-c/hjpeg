@@ -486,7 +486,9 @@ run did not record JSON boolean `true` for
 `complete_hardware_run_evidence_required`, if the top-level
 `complete_hardware_run_evidence` flag is missing, is not a JSON boolean, or does
 not match the recomputed summary, or if the recorded missing-evidence and failing-check
-diagnostic lists do not match the recomputed summary. When
+diagnostic lists do not match the recomputed summary. Saved run and Vivado
+evidence files must be strict JSON; non-standard constants such as `NaN` and
+`Infinity` are rejected as malformed evidence. When
 `--vivado-evidence` points at `check_reports.py --json` output, it also extracts
 the passing `hjpeg_0/s_axi_lite` address-map base address. The Vivado transcript
 must have JSON boolean `true` values for `passed`,

@@ -1521,6 +1521,14 @@ def is_finite_strict_number(value: object) -> bool:
     return is_strict_number(value) and math.isfinite(value)
 
 
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"invalid JSON constant: {value}")
+
+
+def strict_json_loads(text: str) -> object:
+    return json.loads(text, parse_constant=_reject_json_constant)
+
+
 def file_info_record(info: FileInfo) -> dict[str, object]:
     return {
         "path": info.path,
@@ -3402,15 +3410,15 @@ def check_run_evidence_file(
         }
         return record, [f"{path}: run evidence path is not a file"]
     try:
-        parsed = json.loads(path.read_text())
-    except json.JSONDecodeError as exc:
+        parsed = strict_json_loads(path.read_text())
+    except (json.JSONDecodeError, ValueError) as exc:
         record = {
             "path": str(path),
             "exists": True,
             "passed": False,
-            "error": f"invalid JSON: {exc.msg}",
+            "error": f"invalid JSON: {exc}",
         }
-        return record, [f"{path}: invalid JSON: {exc.msg}"]
+        return record, [f"{path}: invalid JSON: {exc}"]
     return check_run_evidence_record(path, parsed, vivado_hjpeg_base_addresses)
 
 
@@ -3935,8 +3943,8 @@ def vivado_evidence_file_record(path: Path) -> tuple[dict[str, object], list[str
         return result, [f"{path}: Vivado evidence file not found"]
     result["exists"] = True
     try:
-        parsed = json.loads(path.read_text())
-    except json.JSONDecodeError as exc:
+        parsed = strict_json_loads(path.read_text())
+    except (json.JSONDecodeError, ValueError) as exc:
         return result, [f"{path}: invalid Vivado evidence JSON: {exc}"]
 
     vivado_passed_flag_present = (

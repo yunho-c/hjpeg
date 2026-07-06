@@ -883,7 +883,9 @@ Saved run JSON can be checked later with
 evidence, a transcript that did not request complete-evidence gating, diagnostic
 missing-evidence or failing-check lists that do not match recomputed evidence,
 missing or non-boolean top-level `complete_hardware_run_evidence` gates, failed
-recorded checks, or incomplete hardware evidence. Pass
+recorded checks, or incomplete hardware evidence. Saved run and Vivado evidence
+files must be strict JSON; non-standard constants such as `NaN` and `Infinity`
+are rejected as malformed evidence. Pass
 `--vivado-evidence` with the saved `check_reports.py --json` bitstream evidence
 to cross-check the run transcript's AXI-Lite base address against the Vivado
 `hjpeg_0/s_axi_lite` address-map entry. The Vivado transcript must have JSON
