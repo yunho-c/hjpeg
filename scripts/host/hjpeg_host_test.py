@@ -3742,6 +3742,16 @@ class HjpegHostTest(unittest.TestCase):
             )
             self.assertEqual(record["failing_check_count"], 0)
             self.assertEqual(record["failing_checks"], [])
+            self.assertEqual(record["stream_tx_device"], str(root / "tx.dev"))
+            self.assertEqual(record["stream_rx_device"], str(root / "rx.dev"))
+            self.assertEqual(
+                record["stream_tx_device_resolved"],
+                str((root / "tx.dev").resolve(strict=False)),
+            )
+            self.assertEqual(
+                record["stream_rx_device_resolved"],
+                str((root / "rx.dev").resolve(strict=False)),
+            )
 
     def test_check_run_evidence_file_matches_vivado_address_map(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -4707,9 +4717,35 @@ class HjpegHostTest(unittest.TestCase):
                     "marker_counts_match_segment_counts",
                 ],
             )
+            self.assertEqual(record["aggregate_stream_tx_device_count"], 1)
+            self.assertEqual(record["aggregate_stream_rx_device_count"], 1)
+            self.assertEqual(record["aggregate_stream_tx_device_resolved_count"], 1)
+            self.assertEqual(record["aggregate_stream_rx_device_resolved_count"], 1)
+            self.assertEqual(
+                record["aggregate_stream_tx_devices"],
+                [str(root / "tx.dev")],
+            )
+            self.assertEqual(
+                record["aggregate_stream_rx_devices"],
+                [str(root / "rx.dev")],
+            )
+            self.assertEqual(
+                record["aggregate_stream_tx_device_resolved"],
+                [str((root / "tx.dev").resolve(strict=False))],
+            )
+            self.assertEqual(
+                record["aggregate_stream_rx_device_resolved"],
+                [str((root / "rx.dev").resolve(strict=False))],
+            )
             self.assertTrue(record["records"][0]["passed"])
             self.assertTrue(
                 record["records"][0]["complete_hardware_run_evidence_required"]
+            )
+            self.assertEqual(
+                record["records"][0]["stream_tx_device"], str(root / "tx.dev")
+            )
+            self.assertEqual(
+                record["records"][0]["stream_rx_device"], str(root / "rx.dev")
             )
             self.assertTrue(
                 record["records"][0][

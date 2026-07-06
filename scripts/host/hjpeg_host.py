@@ -2918,6 +2918,20 @@ def check_run_evidence_record(
             "failing_checks": failing_checks,
         }
     )
+    stream_devices = record.get("stream_devices")
+    if isinstance(stream_devices, dict):
+        stream_tx_device = stream_devices.get("tx_device")
+        stream_rx_device = stream_devices.get("rx_device")
+        stream_tx_device_resolved = stream_devices.get("tx_device_resolved")
+        stream_rx_device_resolved = stream_devices.get("rx_device_resolved")
+        if isinstance(stream_tx_device, str):
+            result["stream_tx_device"] = stream_tx_device
+        if isinstance(stream_rx_device, str):
+            result["stream_rx_device"] = stream_rx_device
+        if isinstance(stream_tx_device_resolved, str):
+            result["stream_tx_device_resolved"] = stream_tx_device_resolved
+        if isinstance(stream_rx_device_resolved, str):
+            result["stream_rx_device_resolved"] = stream_rx_device_resolved
     if not complete:
         failures.append(f"{path}: complete_hardware_run_evidence is false")
     if not complete_evidence_matches:
@@ -3830,6 +3844,19 @@ def unique_string_values(records: list[dict[str, object]], key: str) -> list[str
     return values
 
 
+def unique_scalar_string_values(records: list[dict[str, object]], key: str) -> list[str]:
+    values: list[str] = []
+    seen: set[str] = set()
+    for record in records:
+        value = record.get(key)
+        if not isinstance(value, str):
+            continue
+        if value not in seen:
+            seen.add(value)
+            values.append(value)
+    return values
+
+
 def require_capture_config(max_output_bytes: int, timeout_seconds: float | None) -> None:
     if max_output_bytes <= 0:
         raise ValueError("max output bytes must be positive")
@@ -4568,6 +4595,18 @@ def main(argv: list[str] | None = None) -> int:
         aggregate_missing_evidence = unique_string_values(records, "missing_evidence")
         aggregate_passing_checks = unique_string_values(records, "passing_checks")
         aggregate_failing_checks = unique_string_values(records, "failing_checks")
+        aggregate_stream_tx_devices = unique_scalar_string_values(
+            records, "stream_tx_device"
+        )
+        aggregate_stream_rx_devices = unique_scalar_string_values(
+            records, "stream_rx_device"
+        )
+        aggregate_stream_tx_device_resolved = unique_scalar_string_values(
+            records, "stream_tx_device_resolved"
+        )
+        aggregate_stream_rx_device_resolved = unique_scalar_string_values(
+            records, "stream_rx_device_resolved"
+        )
         vivado_passed_count = sum(
             1 for record in vivado_records if record.get("passed") is True
         )
@@ -4623,6 +4662,26 @@ def main(argv: list[str] | None = None) -> int:
                         "aggregate_missing_evidence": aggregate_missing_evidence,
                         "aggregate_passing_checks": aggregate_passing_checks,
                         "aggregate_failing_checks": aggregate_failing_checks,
+                        "aggregate_stream_tx_device_count": len(
+                            aggregate_stream_tx_devices
+                        ),
+                        "aggregate_stream_rx_device_count": len(
+                            aggregate_stream_rx_devices
+                        ),
+                        "aggregate_stream_tx_device_resolved_count": len(
+                            aggregate_stream_tx_device_resolved
+                        ),
+                        "aggregate_stream_rx_device_resolved_count": len(
+                            aggregate_stream_rx_device_resolved
+                        ),
+                        "aggregate_stream_tx_devices": aggregate_stream_tx_devices,
+                        "aggregate_stream_rx_devices": aggregate_stream_rx_devices,
+                        "aggregate_stream_tx_device_resolved": (
+                            aggregate_stream_tx_device_resolved
+                        ),
+                        "aggregate_stream_rx_device_resolved": (
+                            aggregate_stream_rx_device_resolved
+                        ),
                         "vivado_evidence_checked_count": len(vivado_records),
                         "vivado_evidence_passed_count": vivado_passed_count,
                         "vivado_evidence_failed_count": vivado_failed_count,

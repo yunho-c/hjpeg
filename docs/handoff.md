@@ -907,9 +907,10 @@ failure count, checked/passed/failed path lists, summary checked, matched, and
 mismatched counts and paths, aggregate evidence group present/missing counts,
 aggregate evidence group present/missing names, aggregate recorded/passing/failing
 check counts and names, Vivado evidence counts, Vivado checked/passed/failed
-evidence path lists, parsed HJPEG base addresses, HJPEG base-address count and
-consistency flag, plus the recomputed summary, evidence/check counts, missing
-evidence groups, and failing check names for each object-shaped transcript.
+evidence path lists, aggregate raw/resolved stream endpoint counts and device
+lists, parsed HJPEG base addresses, HJPEG base-address count and consistency
+flag, plus the recomputed summary, evidence/check counts, missing evidence
+groups, and failing check names for each object-shaped transcript.
 
 ## Known Blockers And Bottlenecks
 
