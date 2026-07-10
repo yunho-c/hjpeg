@@ -1,381 +1,192 @@
 # hjpeg Architecture
 
-`hjpeg` is intended to become a complete hardware JPEG encoder. The current RTL
-implements a baseline JPEG datapath and keeps the hardware boundaries stable for
-KV260 integration.
+`hjpeg` is a baseline JPEG encoder implemented as a streaming Chisel datapath.
+The current RTL accepts raster RGB pixels and emits complete JPEG byte streams
+while keeping stable AXI-facing boundaries for KV260 integration.
+
+This document describes the major components, data flow, and integration
+boundaries. See [`kv260-bringup.md`](kv260-bringup.md) for commands, generated
+artifacts, and the detailed evidence required to validate a hardware build.
 
 ## Top-Level Flow
 
 ```text
 RGB AXI stream
-  -> raster coordinate wrapper
-  -> RGB ingress
-  -> color conversion
-  -> MCU/block buffering
-  -> DCT
-  -> quantization
-  -> entropy coding
-  -> JPEG marker/scan assembler
+  -> raster coordinates and protocol checks
+  -> RGB to YCbCr conversion
+  -> MCU raster buffering and edge padding
+  -> 8x8 DCT
+  -> quantization and zig-zag ordering
+  -> DC/AC tokenization and Huffman coding
+  -> entropy packing and byte stuffing
+  -> JPEG marker/scan assembly
   -> byte AXI stream
 ```
 
-The main core now emits valid baseline JPEG byte streams that decode with
-standard Java ImageIO tests. The datapath supports 4:4:4 and 4:2:0 component
-sampling, frame dimensions that are not multiples of 8/16 through edge
-replication, standard quantization/Huffman tables, optional JFIF APP0 emission,
-byte stuffing, and marker assembly. Nonzero restart intervals emit DRI/RST
-markers and reset DC predictors at MCU boundaries.
+`HjpegCore` supports 4:4:4 and 4:2:0 sampling, arbitrary nonzero dimensions
+within `HjpegConfig`, standard quality-scaled quantization and Huffman tables,
+optional JFIF APP0 emission, and restart intervals. Dimensions that do not end
+on an MCU boundary are padded by replicating the final valid row or column.
 
-The raster-to-MCU stages buffer one 8-row 4:4:4 stripe or one 16-row 4:2:0 band
-at a time. They then load one MCU into small block registers over multiple
-cycles before presenting it to the DCT/quantization path. Each raster stage
-reuses one block transform across the MCU's component blocks, capturing the
-transformed coefficients before emitting the MCU packet. This keeps the stripe
-memories to one read and one write port per component and avoids instantiating
-three or six parallel DCT/quantization paths per MCU.
+The encoder produces SOI, DQT, SOF0, DHT, SOS, and EOI markers, with optional
+APP0 and DRI/RST markers. Entropy bytes equal to `0xff` are followed by stuffed
+zero bytes, and restart boundaries reset the component DC predictors.
 
-`Dct8x8Stage` is also multi-cycle. It captures one 8x8 sample block, computes
-the row transform one product term per cycle, computes the column transform one
-product term per cycle, then holds the completed coefficient block on its
-decoupled output. This intentionally trades latency for a much smaller synthesis
-problem than a fully combinational 8x8 two-dimensional DCT or a one-cycle
-eight-term accumulation chain.
+## Datapath Organization
 
-`QuantizeBlockStage` follows the same area-first direction. It captures the DCT
-block, quantizes one coefficient at a time, and uses a small iterative divider
-for the rounded coefficient/table division. This removes the previous
-64-coefficient combinational divider fanout at the cost of additional cycles per
-block.
+The color stages convert one RGB pixel at a time to fixed-point YCbCr and level
+shift the samples into the signed DCT domain. The raster stages then reorder
+pixels into component blocks:
 
-`JpegHeaderStage` also avoids driving AXI output bytes directly from the
-quality-scaled quantization table arithmetic. It emits ordinary marker bytes
-through a small output FSM and prepares DQT payload bytes over multiple cycles
-before presenting them on the decoupled byte stream.
+- 4:4:4 buffers one 8-row stripe and forms one Y, Cb, and Cr block per MCU.
+- 4:2:0 buffers one 16-row band and forms four Y blocks plus one subsampled Cb
+  and one subsampled Cr block per MCU.
+
+Each raster stage loads one MCU into small block registers over multiple cycles.
+It reuses one transform path across the component blocks and captures the
+resulting coefficients before emitting the MCU packet. This keeps the stripe
+memories to one read and one write port per component and avoids parallel DCT
+and quantization units for every block in an MCU.
+
+`Dct8x8Stage` is a multi-cycle separable transform. It captures one block,
+computes row and column products iteratively, and holds the completed
+coefficient block until its consumer accepts it. `QuantizeBlockStage` similarly
+processes one coefficient at a time with a small iterative divider. Both stages
+favor a smaller synthesis problem over single-cycle block latency.
+
+After quantization, coefficients are reordered into JPEG zig-zag order. The
+entropy stages difference DC coefficients per component, encode AC zero runs
+with EOB and ZRL handling, select the baseline Huffman codes, pack variable
+length codes into bytes, and apply `0xff` byte stuffing.
+
+`JpegHeaderStage` emits marker bytes through a small output state machine. It
+prepares quality-scaled DQT payload bytes over multiple cycles rather than
+placing table arithmetic directly on the output-byte path. The stream encoder
+arbitrates header, entropy, restart-marker, and EOI output while preserving
+ready/valid backpressure.
+
+## Streaming and Frame Boundaries
+
+Internal streaming boundaries use `Decoupled` ready/valid interfaces. A stage
+must hold its output stable while `valid` is asserted and `ready` is low.
+
+`HjpegCore` receives explicit pixel coordinates. `HjpegAxiStreamCore` generates
+those coordinates from the raster stream, checks the input `last` position, and
+reports malformed input through a sticky `protocolError` flag. A
+`clearProtocolError` pulse clears the fault and resets buffered pipeline state.
+
+The AXI-stream wrapper snapshots `FrameConfig` on the first accepted pixel and
+holds it until the matching JPEG output frame completes. Configuration writes
+during an active frame therefore apply to a later frame.
+
+Unsupported dimensions and incomplete RGB input words are drained through
+input TLAST without entering or completing a JPEG frame. If the expected final
+pixel arrives without TLAST, the configured frame may complete, but the wrapper
+drains subsequent beats through TLAST and keeps the protocol fault asserted
+until it is cleared.
 
 ## Source Layout
 
-- `HjpegConfig.scala`: static widths and JPEG/KV260-facing constants
-- `HjpegBundles.scala`: frame, pixel, byte, and AXI stream bundles
-- `HjpegCore.scala`: raster RGB to JPEG byte-stream core
-- `HjpegAxiStreamCore.scala`: raster RGB AXI stream wrapper
-- `HjpegKv260Top.scala`: KV260-oriented elaboration wrapper
-- `HjpegKv260AxiLiteTop.scala`: KV260-oriented AXI-Lite control/status wrapper
-- `Elaborate.scala`: SystemVerilog generation entry points
+The main RTL groups are:
 
-## KV260 Integration Direction
+- `HjpegConfig.scala` and `HjpegBundles.scala`: static limits, frame settings,
+  pixel/block data, and AXI-shaped interfaces.
+- `RgbToYCbCrStage.scala` and `YCbCrLevelShiftStage.scala`: color conversion and
+  signed sample preparation.
+- `JpegRasterToMcuStage.scala` and `JpegRasterToSubsampledMcuStage.scala`:
+  raster buffering, edge padding, and 4:4:4/4:2:0 MCU construction.
+- `Dct8x8Stage.scala`, `QuantizeBlockStage.scala`, and
+  `ZigZagBlockStage.scala`: coefficient transform and preparation.
+- `JpegDcEncodeStage.scala`, `JpegAcBlockRunLengthStage.scala`,
+  `JpegAcEncodeStage.scala`, and `JpegBlockEntropyStage.scala`: JPEG coefficient
+  tokenization.
+- `JpegBitstreamStages.scala`, `JpegHeaderStage.scala`, and
+  `JpegMcuStreamEncoderStage.scala`: Huffman packing, marker generation, and
+  complete JPEG stream assembly.
+- `HjpegCore.scala`: raster RGB to JPEG byte-stream core.
+- `HjpegAxiStreamCore.scala`: raster-coordinate and AXI-stream protocol shell.
+- `HjpegKv260Top.scala` and `HjpegKv260AxiLiteTop.scala`: KV260-facing wrappers.
+- `Elaborate.scala`: SystemVerilog generation entry points.
 
-The hardware-facing boundary is an AXI4-Stream-shaped RGB input and byte output.
-`HjpegKv260AxiLiteTop` adds a small AXI-Lite register map for frame dimensions,
-quality, restart interval, chroma mode, JFIF marker emission, and status.
-The internal `HjpegAxiStreamCore` RGB stream is 24 bits wide, but the KV260
-wrappers expose a DMA-compatible 32-bit input stream. Input bytes 0, 1, and 2
-are R, G, and B; byte 3 is ignored; and the low three `keep` bits must be set
-for every pixel. The fourth `keep` bit may be clear, but any missing lower RGB
-byte is malformed. Malformed input words raise the sticky protocol-error status
-and are not fed into the JPEG core.
-Frames that start with unsupported dimensions are drained to input TLAST without
-feeding the JPEG core, then a clear pulse permits the next valid frame to start.
-Frames with incomplete RGB words are also drained through TLAST without
-completing a JPEG frame.
-Frames whose expected final pixel arrives without TLAST are allowed to complete
-the configured JPEG input frame, then the wrapper drains extra input beats until
-TLAST while holding the sticky protocol-error status.
-The clear pulse resets the sticky flag, wrapper coordinates, and buffered core
-pipeline state so partial frames such as early-TLAST packets cannot contaminate
-the next valid frame.
-The AXI-Lite control wrapper captures write address and data independently,
-applies byte write strobes for host register updates, and holds read/write
-responses stable under host backpressure.
-The AXI stream wrapper snapshots the full frame configuration on the first input
-pixel and holds it through the matching JPEG output frame, so register writes
-take effect on the next frame. Wrapper equivalence tests compare its output
-bytes against direct `HjpegCore` output for both the default 4:4:4 path and a
-configured 4:2:0/restart/no-JFIF path, and protocol tests cover draining a
-multi-beat unsupported input frame, incomplete RGB word recovery after clear,
-early-TLAST recovery after clear, and a late-TLAST input packet through TLAST
-before recovery.
+Focused ChiselSim tests for these stages live under `src/test/scala/hjpeg`.
 
-The current tops are not full Vivado block designs. They are named RTL tops that
-can be elaborated and wrapped in platform-specific IP packaging. Board-level
-clocking, reset synchronization, DMA connection, interrupts, and bitstream
-validation still need Vivado/KV260 work.
+## KV260 Integration
+
+The internal `HjpegAxiStreamCore` input is 24 bits wide: R occupies bits
+`[7:0]`, G bits `[15:8]`, and B bits `[23:16]`, with `keep = 0b111`. The KV260
+wrappers expose a DMA-compatible 32-bit input. Its low three bytes retain the
+same RGB order, the high byte is ignored, and all three low `keep` bits must be
+set.
+
+`HjpegKv260AxiLiteTop` adds control registers for dimensions, quality, restart
+interval, chroma mode, and JFIF emission, plus busy and sticky protocol-error
+status. AXI-Lite write-address and write-data channels are accepted
+independently, writable registers honor byte strobes, and responses remain
+stable under host backpressure.
+
+The RTL tops are integration boundaries, not complete board designs. Platform
+clocking, reset synchronization, PS configuration, DMA, address assignment,
+interrupts, constraints, and software access are supplied by the Vivado and
+host layers.
 
 ## Vivado Collateral
 
-Tracked scripts under `scripts/vivado/` provide the first reproducible
-hardware-tool entry points:
+Tracked scripts under `scripts/vivado/` provide a reproducible path from
+elaborated RTL to a KV260 bitstream:
 
-- `synth_kv260_axi_lite.tcl` creates a Vivado project for
-  `HjpegKv260AxiLiteTop`, reads `generated-kv260-axi-lite-top/filelist.f`, runs
-  synthesis for `xck26-sfvc784-2LV-c`, and writes utilization/timing reports
-  plus `post_synth.dcp`.
-- `package_kv260_axi_lite_ip.tcl` packages the same RTL as reusable Vivado IP
-  with explicit clock, reset, AXI-Lite, and AXI-stream bus-interface port maps.
-  The packaged AXI-Lite interface exposes a 4 KiB register aperture for the
-  control/status map.
-- `create_kv260_block_design.tcl` creates a first Vivado block design that
-  instantiates the Zynq UltraScale+ PS, AXI DMA, SmartConnect, reset logic, and
-  packaged `hjpeg_kv260_axi_lite` IP. DMA MM2S drives the RGB input stream and
-  DMA S2MM receives the JPEG byte stream. The script assigns addresses,
-  writes an address-map report, validates and saves the block design, generates
-  the HDL wrapper, and refreshes compile order.
-- `build_kv260_bitstream.tcl` opens that block-design project, runs synthesis
-  and implementation through `write_bitstream`, emits timing/utilization
-  reports, copies `hjpeg_kv260.bit`, exports `hjpeg_kv260.xsa` with the
-  bitstream included, and writes `post_impl.dcp` for implementation and
-  floorplan review.
-- `check_reports.py` hashes generated artifacts, parses Vivado
-  timing/utilization/DRC/route-status/floorplan reports, requires requested
-  clock-utilization reports, parses requested address-map reports, and fails
-  when a requested artifact is missing or empty,
-  setup WNS is below the requested threshold, hold WHS is below the requested
-  threshold for reports passed with `--hold-timing`, any utilization row
-  exceeds the configured percentage, DRC reports Error or Critical Warning
-  violations, route status reports unrouted nets or routing errors, a floorplan
-  report is missing, empty, or has no placed cells, or a
-  required clock-utilization report is missing or empty, or an address-map
-  report is missing, empty, lacks `hjpeg_0/s_axi_lite` or
-  `axi_dma_0/S_AXI_LITE` base addresses, duplicates one of those control
-  interfaces, overlaps their address ranges, or reports a high address below
-  its base address. Its `--json` mode emits
-  artifact/report paths, resolved paths, SHA-256 hex hashes, byte lengths, target clock
-  period/frequency, parsed WNS/WHS values, utilization rows, thresholds, DRC
-  violations, route-status counts, clock-utilization report hashes, floorplan
-  pblock/placed-cell counts, parsed address-map AXI-Lite aperture base/high addresses and byte ranges, missing,
-  duplicate, invalid-range, and overlap summaries, requested input path lists
-  and gate values, checked report/artifact count, per-category checked counts,
-  required evidence category presence, per-category passing/failing counts,
-  present and missing category names, failing category names, required
-  `.bit`/`.xsa`/`.dcp` artifact suffix presence, present and missing required suffix
-  names, failing required suffix names, required artifact filename presence for
-  `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and `post_impl.dcp`,
-  address-map filename presence for `hjpeg_kv260_address_map.rpt`,
-  required report filename presence for `post_synth_timing_summary.rpt`,
-  `post_impl_timing_summary.rpt`, `post_synth_utilization.rpt`,
-  `post_impl_utilization.rpt`, `post_impl_drc.rpt`,
-  `post_impl_route_status.rpt`, `post_impl_clock_utilization.rpt`, and
-  `post_impl_floorplan.rpt`,
-  present/missing/failing filename names, suffix and filename passing/failing
-  counts, aggregate pass/fail counts, required/present/missing category, suffix,
-  artifact-filename, address-map-filename, and report-filename counts,
-  diagnostic failure count,
-  strict JSON integer checked/passed/failed inventory counts,
-  checked/passed/failed path lists, strict JSON integer checked, passing, and
-  failing category counts in the diagnostic summary,
-  complete-evidence required/missing/failing lists, and pass/fail state for
-  build evidence logs.
-  Required evidence category presence is based on at least
-  one passing record in that category, not just a requested input path. Complete
-  Vivado evidence also requires every supplied required evidence category and
-  required `.bit`/`.xsa`/`.dcp` artifact suffix to have no failing records, and
-  requires the named artifacts `hjpeg_kv260.bit`, `hjpeg_kv260.xsa`, and
-  `post_impl.dcp` to be present and passing, plus the named address-map report
-  `hjpeg_kv260_address_map.rpt` and the named timing/utilization/implementation
-  and floorplan reports. Complete Vivado evidence also requires the required
-  route-status counts to be actual JSON integers equal to zero. Complete Vivado
-  evidence counts only records
-  whose `passed` field is an actual JSON boolean `true`. Missing or unparseable
-  reports are included as structured failure records. Full bitstream gates can
-  pass `--require-complete-evidence` to fail unless all required categories,
-  address-map evidence, required artifact suffixes, required artifact filenames,
-  the required address-map filename, and required report filenames are present
-  and passing.
+- `synth_kv260_axi_lite.tcl` creates the project and runs synthesis.
+- `package_kv260_axi_lite_ip.tcl` packages explicit clock, reset, AXI-Lite, and
+  AXI-stream interfaces as reusable IP.
+- `create_kv260_block_design.tcl` connects the encoder to the Zynq UltraScale+
+  PS, AXI DMA, SmartConnect, reset, and interrupt infrastructure.
+- `build_kv260_bitstream.tcl` runs implementation, writes the bitstream and
+  reports, and exports an XSA.
+- `write_kv260_floorplan_report.tcl` regenerates floorplan evidence from an
+  existing implementation run.
+- `check_reports.py` validates artifacts, address assignment, timing,
+  utilization, DRC, routing, clocking, and floorplan reports.
 
-These scripts are intended to be run after:
+The flow consumes `generated-kv260-axi-lite-top/filelist.f`, produced by
+`hjpeg.ElaborateKv260AxiLiteTop`. `check_reports.py` can gate a partial
+post-synthesis run or require the complete bitstream evidence set, and its
+strict JSON output makes the build checks reproducible.
 
-```sh
-sbt 'runMain hjpeg.ElaborateKv260AxiLiteTop'
-```
-
-They are not a replacement for board constraints, software drivers, boot-image
-packaging, or on-board validation.
+See [`kv260-bringup.md`](kv260-bringup.md) for exact commands, expected
+filenames, and pass criteria. A successful Vivado build does not by itself prove
+DMA operation or JPEG encoding on a physical board.
 
 ## Host-Side Flow
 
-`scripts/host/hjpeg_host.py` provides the first userspace helpers around the
-KV260 design. It can generate deterministic non-flat P6 PPM fixtures, packs
-binary P6 PPM files into 32-bit-per-pixel RGB stream beats for the AXI DMA MM2S
-channel, optionally validates during `run-stream-devices` that the dimensions
-of a saved source PPM match the configured frame and that its packed bytes match
-the RGB stream sent to the TX device, writes the encoder AXI-Lite
-configuration/status registers via
-`/dev/mem`, and validates returned JPEG files by checking SOI/EOI markers, SOF0
-dimensions, 8-bit sample precision, three-component frame shape, DQT/DHT table
-markers, optional JFIF APP0 signature and fixed fields, optional DRI restart
-interval, exactly one SOF0 and SOS, non-empty entropy-coded scan data, stuffed
-entropy `0xff` byte count, unstuffed scan-data SHA-256, rejection of unsupported
-header markers, rejection of malformed, non-JFIF, or duplicate APP0 markers,
-rejection of unexpected
-non-RST/non-EOI markers after SOS, and rejection of trailing bytes after EOI. It
-also records SOF0 component sampling factors, APP0 and JFIF APP0 counts, grouped
-marker counts, DQT/DHT table IDs, DQT and DHT table order, table payload byte
-counts and SHA-256 hashes, SOS component table selectors, and parsed JFIF APP0
-version/density/thumbnail fields, requires SOF0
-and SOS component IDs to be `[1, 2, 3]`, requires the SOS component list to match
-SOF0 exactly, requires SOF0 quantization table selectors to be Y `0` and Cb/Cr
-`1`, requires SOS table selectors to be Y `0/0` and Cb/Cr `1/1`, requires
-nonzero SOF0 dimensions, requires baseline SOS spectral fields `0/63/0`,
-requires DQT IDs `{0, 1}` in table order `[0, 1]`, DHT table order DC0, DC1,
-AC0, AC1, 8-bit DQT precision, and exact DQT/DHT segment counts,
-rejects nonstandard DHT table sets and duplicate DQT/DHT table definitions,
-rejects zero-valued DQT entries, rejects empty, oversized,
-oversubscribed, or invalid baseline DHT tables and dangling table references,
-rejects unsupported header markers, rejects malformed, non-JFIF, or duplicate
-APP0 markers, requires the encoder's baseline marker order of optional
-APP0/JFIF, DQT, SOF0, DHT, optional DRI, SOS, entropy, and EOI, records the
-parsed marker sequence, RST marker sequence, and MCU count in JSON evidence,
-rejects RST markers without DRI or out-of-sequence RST markers, and requires the
-SOF0 sampling factors to be nonzero and match the supported 4:4:4 or 4:2:0
-modes. The JSON validation expectations also record the expected marker counts,
-expected marker order through SOS and the terminal EOI marker,
-SOF0 sample precision, component count, component quantization selectors,
-optional SOF0 sampling factors, SOS component table selectors, baseline SOS
-spectral fields, minimum scan-data length, DQT/DHT table order, expected chroma
-mode when checked, expected JFIF APP0 baseline fields when JFIF is required,
-expected restart marker count and RST sequence, and expected DQT/DHT payload
-hashes when table checks are enabled. The helper
-can also run an external JPEG decoder command with a configurable timeout and
-bounded stdout/stderr capture and records the resolved argv so decoder-open
-evidence, elapsed seconds, captured output lengths, and capture limit are
-captured in the same transcript without risking a hung or oversized validation
-run. Standalone
-validation can require an expected restart interval, exact RST marker count for
-the parsed MCU count, chroma/JFIF mode, quality-matched standard DQT payloads,
-and standard DHT payloads; standalone JSON evidence records the expectations
-that were enforced, including expected marker counts, the derived expected RST
-marker count, and expected DQT/DHT payload hashes when table checks are enabled.
-`run-stream-devices` checks the configured restart
-interval, chroma mode, JFIF setting, quality-scaled DQT payloads, and standard
-DHT payloads against the captured JPEG automatically and records those
-expectations in the run JSON evidence. Run JSON evidence also records detailed
-input RGB byte-length expectations, whether the actual byte length matched,
-the requested run arguments,
-AXI-Lite status checkpoints, the checkpoint count, the ordered checkpoint
-context list, expected context list, context-list match result, and run-level
-all-idle/any-busy/any-protocol-error summaries. It also records a
-`hardware_run_summary` with evidence-presence bits and consolidated pass/fail
-checks, the ordered required evidence group list, evidence/check counts, missing
-and present evidence group names, ordered recorded check names, and passing and
-failing check names for board-run transcripts; the complete-evidence flag
-requires a passing
-decoder check, a captured output JPEG path and resolved path, positive parsed dimensions, hashes,
-and non-empty scan data, source PPM
-evidence with non-flat/color image stats, and positive host-observed transfer
-timing with finite positive derived input and output byte rates. Decoder
-evidence must include the command string, resolved argv, positive timeout,
-nonnegative elapsed time, zero return code, stdout/stderr strings with matching
-captured lengths, output lengths within the positive capture limit,
-non-truncated captured output metadata, and an argv list matching the command
-and JPEG path. Frame
-dimensions are cross-checked across the output JPEG,
-encoder configuration, validation expectations, source PPM, and expected RGB
-stream byte length, and the parsed marker sequence must begin with SOI and end
-with EOI. The summary also cross-checks grouped marker counts against scalar
-APP0/JFIF APP0/DQT/SOF0/DHT/SOS/DRI/RST counts, verifies RST sequence length
-against the recorded RST count, and checks marker-count/RST expectations when
-present. Input RGB evidence must
-include a nonempty path and resolved path, positive byte length, a SHA-256 hex hash, a positive expected byte length,
-and an actual-vs-expected length match. Capture configuration evidence must
-include a positive maximum output byte count and either no timeout or a finite
-positive timeout. AXI-Lite target evidence must include a non-empty string device path,
-nonnegative base address, and matching hexadecimal base-address text. Encoder
-configuration evidence must include strict JSON integer dimensions matching the
-JPEG dimensions and supported by the frame limits, quality/restart values in
-range, boolean control flags, and a control word/hex string matching those
-flags. Validation expectations evidence must include strict JSON integer
-dimensions matching the JPEG dimensions, the baseline shape, marker order,
-marker counts, restart marker count/sequence when applicable, table order, SOS
-spectral fields, standard-Huffman requirement, and a validation quality value
-that is either absent or an actual JSON integer in `1..100`,
-plus a validation restart interval that is either absent or an actual JSON
-integer in `0..65535`.
-Source PPM evidence must include strict JSON integer dimensions matching the
-JPEG dimensions, a nonempty path and resolved path, file and packed-RGB SHA-256 hex hashes,
-positive dimension-consistent RGB and packed byte lengths, a recomputed input-RGB
-length/hash match, and
-non-flat/color image stats. Status evidence must include the detailed
-checkpoint list, matching checkpoint count, expected ordered contexts,
-per-checkpoint AXI-Lite targets matching the run target, zero raw status words,
-and all checkpoints idle with no protocol error or busy state. Summary checks
-recompute checkpoint order, checkpoint target matches, decoded status
-text/flags, and aggregate idle/error/busy flags from the detailed status
-records. They also recompute
-RGB byte-count matches,
-PPM-to-input-RGB consistency, and transfer byte rates from the saved lengths,
-hashes, and elapsed time.
-The summary records the required evidence group names, total, present, and
-missing evidence-group counts, recorded check names, total, passing, and failing
-check counts, present and missing evidence group names, and passing and failing
-check names for review.
-Required boolean evidence fields must be actual JSON booleans.
-For final board transcripts, pass `run-stream-devices --require-complete-evidence`
-so missing evidence groups turn into a nonzero CLI result; omit it for partial
-smoke tests. Run JSON records whether complete evidence was required, whether
-complete evidence was captured, which evidence groups were missing, plus which
-complete-evidence checks failed. Saved
-run JSON can be checked later with
-`check-run-evidence`, which fails on malformed JSON, missing
-`hardware_run_summary`, a stored summary that does not match recomputed
-evidence, missing or non-boolean top-level `complete_hardware_run_evidence`
-gates, missing or non-true `arguments.require_complete_evidence`, stale
-argument snapshots, failed recorded checks, or incomplete hardware evidence. The host and
-Vivado helpers emit strict JSON for evidence output, and saved run/Vivado
-evidence files must be strict JSON; non-standard constants such as `NaN` and
-`Infinity` are rejected as malformed evidence. With
-`--vivado-evidence`, the saved-run checker also parses `check_reports.py --json`
-Vivado evidence, extracts passing `hjpeg_0/s_axi_lite` address-map base
-addresses, and requires the Vivado transcript to have JSON boolean `true` values
-for `passed`, `complete_vivado_flow_evidence`,
-`complete_vivado_flow_evidence_required`, and
-`arguments.require_complete_evidence`, the required `.bit`, `.xsa`,
-and `.dcp` artifact suffix evidence, and the required
-`hjpeg_kv260.bit`, `hjpeg_kv260.xsa`,
-`post_impl.dcp`, `hjpeg_kv260_address_map.rpt`,
-`post_synth_timing_summary.rpt`, `post_impl_timing_summary.rpt`,
-`post_synth_utilization.rpt`, `post_impl_utilization.rpt`,
-`post_impl_drc.rpt`, `post_impl_route_status.rpt`, and
-`post_impl_clock_utilization.rpt`, and `post_impl_floorplan.rpt` filename
-evidence true, with
-`post_impl_timing_summary.rpt` also present as passing hold-timing evidence and
-matching missing/failing filename, hold-timing, and suffix lists empty, a Vivado
-`arguments` object that matches the recorded artifact, address-map, report,
-hold-timing, floorplan, clock-period, timing-threshold, and
-utilization-threshold evidence, with timing records matched against the
-deduplicated union of setup and hold timing arguments, finite positive
-`clock_period_ns` and
-`clock_frequency_mhz` values that match each
-other, `clock_target.valid` and top-level `clock_target_valid` true, a required
-evidence-category summary showing every required category
-present and passing, a top-level `complete_vivado_flow_evidence` flag and
-complete-evidence missing/failing lists matching nested evidence summaries,
-zero diagnostic
-failures and failed paths in the Vivado summary, checked paths matching passed
-paths, aggregate counts and path lists that match the nested artifact/report
-records, positive per-category checked counts whose sum matches the total checked
-count and match the per-category pass/fail totals, nonempty path/resolved-path
-file metadata with resolved paths matching the recorded paths, `exists: true`,
-positive byte lengths, and well-formed SHA-256
-hex hashes on passing records in every required evidence category in both
-generated and saved evidence, a floorplan record with a positive placed-cell
-count, and a passing route-status
-record with zero unrouted nets and zero nets with routing errors. It fails run transcripts whose
-AXI-Lite base address does not match the Vivado build evidence, or whose
-supplied Vivado evidence files report conflicting HJPEG base addresses. JSON output includes
-aggregate checked/pass/fail transcript counts, diagnostic failure count,
-checked/passed/failed path lists, summary checked, matched, and mismatched
-counts and paths, summary-all-checked and summary-all-matched flags,
-aggregate evidence group present/missing counts, aggregate evidence group
-present/missing names, aggregate recorded/passing/failing check
-counts and names, Vivado evidence counts, Vivado checked/passed/failed
-evidence path and resolved-path lists, and parsed HJPEG base addresses,
-aggregate frame dimensions, encoder configuration values, and validation
-expectation values, aggregate status-check context/flag values and host transfer
-rates, aggregate capture/input byte-count and source-image values, aggregate
-JPEG structure/hash values and decoder result values, aggregate JPEG/input
-artifact path/resolved-path inventories, plus the recomputed
-summary, evidence/check counts, missing evidence groups, and failing check names
-for each object-shaped transcript.
-The `run-stream-devices` command supports Linux board images that expose DMA
-MM2S/S2MM endpoints as byte-stream device files by writing padded RGB bytes to
-the TX device and reading JPEG bytes from the RX device until EOI, while
-rejecting trailing bytes already returned after that EOI.
+`scripts/host/hjpeg_host.py` provides the userspace boundary around the KV260
+design. It can:
+
+- generate deterministic P6 PPM fixtures and pack them into the DMA RGB layout;
+- configure and inspect the AXI-Lite registers through `/dev/mem`;
+- drive byte-stream DMA endpoints and capture the JPEG output;
+- validate JPEG structure, configured frame properties, standard tables,
+  restart behavior, and external-decoder compatibility; and
+- emit and recheck strict JSON transcripts for hardware evidence.
+
+`run-stream-devices` is the initial DMA backend. It targets Linux board images
+that expose MM2S and S2MM as byte-stream device files. Drivers based on ioctls
+or descriptor queues should add a separate transport backend while reusing the
+packing, register, JPEG validation, and evidence helpers.
+
+Hardware evidence connects four boundaries: the source PPM and packed RGB
+stream, the requested encoder configuration, AXI-Lite status observations, and
+the captured JPEG plus external-decoder result. The checker hashes artifacts,
+recomputes summary fields from their underlying records, and can cross-check a
+run against the Vivado address map and build evidence. Partial smoke tests may
+omit the complete-evidence gate; final board validation must require it.
+
+See [`kv260-bringup.md`](kv260-bringup.md) for the board procedure and evidence
+criteria. CLI help and `scripts/host/hjpeg_host_test.py` are the source of truth
+for individual options and validation behavior.
+
+## Completion Boundary
+
+Simulation establishes stage behavior and complete JPEG generation in the RTL
+model. Vivado establishes that the design can be packaged, placed, routed, and
+timed for the target part. Completion additionally requires a physical KV260
+run that transfers a known image through DMA, captures the encoder's bytes, and
+opens the result with an ordinary JPEG decoder.
