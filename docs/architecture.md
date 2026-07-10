@@ -6,7 +6,9 @@ while keeping stable AXI-facing boundaries for KV260 integration.
 
 This document describes the major components, data flow, and integration
 boundaries. See [`kv260-bringup.md`](kv260-bringup.md) for commands, generated
-artifacts, and the detailed evidence required to validate a hardware build.
+artifacts, and the detailed evidence required to validate a hardware build. See
+[`design-decisions.md`](design-decisions.md) for the rationale and consequences
+behind the major architectural choices.
 
 ## Top-Level Flow
 

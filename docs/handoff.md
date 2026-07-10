@@ -70,6 +70,8 @@ Start with these files:
 - `README.md`: user-facing project summary, build commands, Vivado flow, and
   host helper examples.
 - `docs/architecture.md`: architecture overview and integration direction.
+- `docs/design-decisions.md`: rationale, consequences, and revisit triggers for
+  major accepted and provisional architectural choices.
 - `docs/kv260-bringup.md`: evidence checklist for calling the KV260 path
   complete.
 - `src/main/scala/hjpeg/HjpegCore.scala`: top of the simulated JPEG datapath.
