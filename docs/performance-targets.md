@@ -117,22 +117,27 @@ Run the integrated simulation profiler with:
 ./scripts/dev/generate-performance-trace
 ```
 
-The default 32x16 fixtures provide repeated MCUs in both sampling modes and a
-controlled 4:4:4 output-stall comparison. Generated artifacts live under
-`build/performance-traces/`:
+The default `quick` 32x16 fixtures provide repeated MCUs in both sampling modes
+and a controlled 4:4:4 output-stall comparison. The optional
+`--profile steady-state` matrix uses 64x64 flat, smooth-gradient,
+checkerboard, and seeded pseudo-random frames at qualities 10, 50, and 90 in
+both sampling modes. Generated artifacts live under `build/performance-traces/`:
 
 - `trace.json` is a portable Chrome Trace file for Perfetto. Each ready/valid
   boundary has transfer, downstream-blocked, upstream-starved, and idle spans;
   DCT, quantizer, zig-zag, and complete-transform transactions have separate
-  latency lanes.
+  latency lanes. Simulation-only raster and encoder FSM values have explicit
+  phase lanes.
+- `phases.csv` records one raster and encoder phase value per simulated cycle.
 - `metrics.json` and `metrics.csv` contain frame rate extrapolation at 100 MHz,
   transfer and stall counts, latency and initiation distributions, and target
   comparisons.
 - `pipeline-*.mmd`, `.dot`, and, when Graphviz is installed, `.svg` summarize
   each scenario against the cycles/pixel, cycles/block, and cycles/MCU budgets
   above.
-- `scenarios.csv` and `samples.csv` are the raw deterministic capture and can
-  be passed back with `--capture-dir` to reproduce the rendered artifacts.
+- `scenarios.csv`, `samples.csv`, and `phases.csv` are the raw deterministic
+  capture and can be passed back with `--capture-dir` to reproduce the rendered
+  artifacts.
 
 The transform target uses sustained intervals between component blocks within
 an MCU. Longer gaps between MCUs remain visible in the trace and the unfiltered
@@ -141,6 +146,18 @@ transform's own acceptance capacity. A `valid && !ready` span means that the
 boundary is blocked by its consumer; `!valid && ready` means it is starved by
 its producer. Comparisons across boundaries must account for token type:
 pixels, coefficient blocks, MCUs, entropy runs, and bytes are not interchangeable.
+
+Phase metrics distinguish:
+
+- raster startup from the first input pixel through the first MCU handoff;
+- encoder startup through the first emitted JPEG byte and first entropy block;
+- transform-input intervals within one MCU and between consecutive MCUs;
+- MCU intervals within a stripe/band and across stripe/band transitions; and
+- steady-state MCU intervals after the first stripe/band, excluding transition
+  intervals.
+
+This classification keeps one-time header/startup behavior and raster refill
+gaps out of content-dependent steady-state entropy conclusions.
 
 The small-frame FPS value is useful for comparing revisions, not as a direct
 1080p prediction. The simulation assumes a 100 MHz clock, while only Vivado can

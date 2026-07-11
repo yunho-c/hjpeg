@@ -197,17 +197,35 @@ frames:
 ./scripts/dev/generate-performance-trace
 ```
 
-The helper runs 32x16 4:4:4, 4:2:0, and controlled output-backpressure
-scenarios by default. It writes a Perfetto-compatible `trace.json`, raw
-ready/valid samples, JSON/CSV metrics, and budget-annotated Mermaid, DOT, and
-SVG pipeline graphs under `build/performance-traces/`. Open `trace.json` in
+The default `quick` profile runs 32x16 4:4:4, 4:2:0, and controlled
+output-backpressure scenarios. It writes a Perfetto-compatible `trace.json`,
+raw ready/valid and raster/encoder phase samples, JSON/CSV metrics, and
+budget-annotated Mermaid, DOT, and SVG pipeline graphs under
+`build/performance-traces/`. Open `trace.json` in
 [Perfetto](https://ui.perfetto.dev/) to inspect transfers, downstream
-backpressure, upstream starvation, and per-transaction stage latency.
+backpressure, upstream starvation, FSM phases, and per-transaction stage
+latency.
+
+Run the optional 64x64 steady-state matrix with:
+
+```sh
+./scripts/dev/generate-performance-trace --profile steady-state
+```
+
+That profile covers 4:4:4 and 4:2:0, flat/smooth-gradient/checkerboard/seeded
+pseudo-random pixels, and qualities 10/50/90 (24 scenarios, each
+decoder-validated during capture).
+It is intentionally much slower than the quick profile. Select one matrix case
+with, for example, `--scenario steady-444-seeded-random-q90`.
 
 Repeat `--scenario 444`, `--scenario 420`, or
 `--scenario 444-output-stalls` to select scenarios. Use `--capture-dir DIR` to
-re-render an existing directory containing `scenarios.csv` and `samples.csv`
-without rerunning simulation, or pass `--no-svg` when Graphviz is unavailable.
+re-render an existing directory containing `scenarios.csv`, `samples.csv`, and
+`phases.csv` without rerunning simulation, or pass `--no-svg` when Graphviz is
+unavailable. On Windows, live capture automatically uses
+`scripts/dev/test.ps1` and the pinned Docker simulator image; invoke the helper
+as `python scripts/dev/generate_performance_trace.py` when no POSIX shell is
+installed.
 Run the isolated renderer tests with:
 
 ```sh

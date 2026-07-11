@@ -6,6 +6,7 @@ import io
 import json
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import generate_performance_trace as performance
@@ -18,9 +19,12 @@ class GeneratePerformanceTraceTest(unittest.TestCase):
             writer.writerow(
                 (
                     "scenario",
+                    "profile",
                     "width",
                     "height",
                     "sampling",
+                    "content",
+                    "quality",
                     "ready_pattern",
                     "clock_hz",
                     "first_input_cycle",
@@ -32,7 +36,7 @@ class GeneratePerformanceTraceTest(unittest.TestCase):
                     "blocks",
                 )
             )
-            writer.writerow(("444", 2, 1, "4:4:4", "always", 100_000_000, 0, 5, 6, 2, 2, 2, 2))
+            writer.writerow(("444", "quick", 2, 1, "4:4:4", "deterministic-gradient", 50, "always", 100_000_000, 0, 5, 6, 2, 2, 2, 2))
 
         transfers = {
             "rgb_input": {0, 1},
@@ -56,16 +60,25 @@ class GeneratePerformanceTraceTest(unittest.TestCase):
             for cycle in range(6):
                 for boundary in performance.BOUNDARY_ORDER:
                     writer.writerow(("444", cycle, boundary, int(cycle in transfers[boundary]), 1))
+        with (directory / "phases.csv").open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(("scenario", "cycle", "raster_phase", "encoder_phase"))
+            raster = (0, 0, 1, 2, 3, 0)
+            encoder = (0, 1, 1, 3, 4, 10)
+            for cycle in range(6):
+                writer.writerow(("444", cycle, raster[cycle], encoder[cycle]))
 
     def test_reads_and_validates_capture(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
             self.write_fixture(directory)
-            scenarios, samples = performance.read_capture(directory)
+            scenarios, samples, phases = performance.read_capture(directory)
 
             self.assertEqual(scenarios[0].frame_cycles, 6)
             self.assertEqual(len(samples), 6 * len(performance.BOUNDARY_ORDER))
             self.assertEqual(samples[0].boundary, "rgb_input")
+            self.assertEqual(len(phases), 6)
+            self.assertEqual(phases[2].raster_phase, 1)
 
     def test_rejects_inconsistent_scenario_bounds(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -94,8 +107,8 @@ class GeneratePerformanceTraceTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
             self.write_fixture(directory)
-            scenarios, samples = performance.read_capture(directory)
-            metrics = performance.calculate_metrics(scenarios, samples)
+            scenarios, samples, phases = performance.read_capture(directory)
+            metrics = performance.calculate_metrics(scenarios, samples, phases)
             scenario = metrics["scenarios"][0]
 
             self.assertEqual(scenario["frame_cycles"], 6)
@@ -105,6 +118,9 @@ class GeneratePerformanceTraceTest(unittest.TestCase):
             self.assertEqual(transform["initiation_interval_cycles"]["maximum"], 2)
             target = next(item for item in scenario["targets"] if item["name"] == "input_cycles_per_pixel")
             self.assertEqual(target["status"], "within")
+            self.assertEqual(scenario["phase_metrics"]["raster_startup_to_first_mcu_cycles"], 2)
+            self.assertEqual(scenario["phase_metrics"]["encoder_startup_to_first_entropy_block_cycles"], 2)
+            self.assertEqual(scenario["phase_metrics"]["raster_phase_cycles"]["collect"], 3)
 
     def test_renders_deterministic_perfetto_and_graph_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -114,15 +130,16 @@ class GeneratePerformanceTraceTest(unittest.TestCase):
             second = root / "second"
             capture.mkdir()
             self.write_fixture(capture)
-            scenarios, samples = performance.read_capture(capture)
+            scenarios, samples, phases = performance.read_capture(capture)
 
-            performance.generate_artifacts(first, scenarios, samples, dot_command=None)
-            performance.generate_artifacts(second, scenarios, samples, dot_command=None)
+            performance.generate_artifacts(first, scenarios, samples, phases, dot_command=None)
+            performance.generate_artifacts(second, scenarios, samples, phases, dot_command=None)
 
             self.assertEqual((first / "trace.json").read_bytes(), (second / "trace.json").read_bytes())
             self.assertEqual((first / "metrics.json").read_bytes(), (second / "metrics.json").read_bytes())
             trace = json.loads((first / "trace.json").read_text(encoding="utf-8"))
             self.assertTrue(any(event.get("cat") == "transaction_latency" for event in trace["traceEvents"]))
+            self.assertTrue(any(event.get("cat") == "fsm_phase" for event in trace["traceEvents"]))
             mermaid = (first / "pipeline-444.mmd").read_text(encoding="utf-8")
             self.assertIn("Block transform", mermaid)
             self.assertIn("cycles/pixel", mermaid)
@@ -175,6 +192,32 @@ class GeneratePerformanceTraceTest(unittest.TestCase):
             self.assertIsNone(report["graphs"]["444"]["svg"])
             self.assertIn("Graphviz executable", stderr.getvalue())
             self.assertTrue((output / "index.md").is_file())
+
+    def test_steady_state_profile_covers_content_quality_and_sampling_matrix(self) -> None:
+        self.assertEqual(len(performance.STEADY_STATE_SCENARIOS), 24)
+        self.assertIn("steady-444-flat-q10", performance.STEADY_STATE_SCENARIOS)
+        self.assertIn("steady-420-seeded-random-q90", performance.STEADY_STATE_SCENARIOS)
+        args = performance.build_parser().parse_args(("--profile", "steady-state"))
+        self.assertEqual(args.profile, "steady-state")
+
+    def test_windows_simulation_uses_docker_launcher_and_container_capture_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repo_root = Path(temporary)
+            capture = repo_root / "build" / "capture"
+            capture.mkdir(parents=True)
+            completed = mock.Mock(returncode=0)
+            with (
+                mock.patch.object(performance.os, "name", "nt"),
+                mock.patch.object(performance.shutil, "which", return_value="powershell.exe"),
+                mock.patch.object(performance.subprocess, "run", return_value=completed) as run,
+            ):
+                performance._run_simulation(repo_root, capture, ("444",))
+
+            command = run.call_args.args[0]
+            environment = run.call_args.kwargs["env"]
+            self.assertIn("test.ps1", " ".join(str(part) for part in command))
+            self.assertEqual(environment["HJPEG_PERFORMANCE_CAPTURE_DIR"], "/workspace/build/capture")
+            self.assertEqual(environment["HJPEG_PERFORMANCE_SCENARIOS"], "444")
 
 
 if __name__ == "__main__":

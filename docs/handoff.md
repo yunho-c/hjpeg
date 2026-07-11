@@ -133,31 +133,41 @@ coefficient per cycle, and `QuantizeBlockStage` processes one coefficient per
 cycle, so accelerating only the DCT will merely expose quantization as the next
 bottleneck.
 
+The profiler extension is now implemented. The quick profile remains the
+default; `--profile steady-state` selects a 24-case, 64x64 matrix spanning both
+sampling modes, four deterministic content classes, and qualities 10/50/90.
+The raw capture includes explicit raster/encoder FSM phases, and the metrics
+separate startup, within-MCU block, between-MCU block, stripe/band-transition,
+and post-first-band steady-state intervals. Production RTL IO is unchanged.
+On the Windows/Docker development PC, final-code representative capture covered
+all four content generators, both sampling modes, and qualities 10/50/90 across
+five 64x64 scenarios; every JPEG decoded at the expected dimensions. In those
+samples, each `mcu_output` blocked-cycle total was one contiguous startup run,
+with no later steady-state blockage. This is useful evidence but is not a
+substitute for running all 24 cases before making a broad entropy-capacity
+claim. The packed simulation snapshot produced byte-identical raw CSV captures
+to the original per-signal probe and reduced the same two-scenario run from
+about 34 minutes to about 8 minutes on this machine.
+
 Recommended next sprint, in order:
 
-1. Extend profiling with an optional steady-state 64x64 matrix covering flat,
-   smooth-gradient, checkerboard, and seeded pseudo-random content at qualities
-   10, 50, and 90. Add explicit raster/encoder phase lanes and separate startup,
-   within-MCU, stripe/band-transition, and steady-state MCU metrics. This is
-   needed to classify content-dependent entropy capacity; it is not needed to
-   confirm the transform-rate gap.
-2. Prototype a factorized, separable, pipelined 1D DCT with banked transpose
+1. Prototype a factorized, separable, pipelined 1D DCT with banked transpose
    storage rather than starting with a generic full 2D systolic array. Pipeline
    depth alone is insufficient: throughput must increase beyond one coefficient
    per cycle. Two lanes give a theoretical 32-cycle block rate with little
    margin; aim for roughly four coefficients/cycle or a 16-cycle block
    initiation interval if resources permit.
-3. Pair the faster DCT with a matching multi-lane streaming quantizer and
+2. Pair the faster DCT with a matching multi-lane streaming quantizer and
    banked zig-zag reorder path. Preserve the current external block-level
    `Decoupled` interface initially, and keep exact coefficient, fixed-point,
    ready/valid, and decoded-JPEG regressions. Do not merge a factorized
    arithmetic change without documenting widths, scaling, rounding, and any
    deliberate coefficient-reference change.
-4. Decouple raster collection, transform processing, and MCU emission with
+3. Decouple raster collection, transform processing, and MCU emission with
    BRAM-friendly ping-pong stripe/band storage and a measured MCU queue. A tiny
    FIFO can absorb startup temporarily but cannot fix a sustained downstream
    rate mismatch.
-5. Optimize entropy only if larger high-entropy traces show repeated
+4. Optimize entropy only if larger high-entropy traces show repeated
    steady-state `mcu_output` blockage after excluding the once-per-frame header.
    After every material transform/buffering change, regenerate performance
    traces; regenerate Vivado timing/utilization evidence when Vivado is
@@ -699,12 +709,12 @@ python3 -m py_compile \
   scripts/dev/generate_performance_trace.py
 ```
 
-Current results are 122/122 Scala tests through sbt and `138/138, SUCCESS`
-through Mill. All three core/KV260 SystemVerilog elaboration entry points pass.
+Current results are 123/123 Scala tests through the pinned Docker sbt/Verilator
+toolchain. All three core/KV260 SystemVerilog elaboration entry points pass.
 The generated-design-graph smoke run finds 27 reachable module types and 38
 instances with no missing focus modules. The most recent maintained Python
 suite results remain 234 host tests, 59 Vivado-report tests, 10
-ChiselSim-environment tests, 11 design-graph helper tests, and 7
+ChiselSim-environment tests, 11 design-graph helper tests, and 9
 performance-trace renderer tests. The default performance helper completed all
 three scenarios, produced strict JSON/CSV plus Mermaid/DOT/SVG artifacts, and
 decoder-validated the scenario outputs. The normal local
@@ -1140,10 +1150,9 @@ object-shaped transcript.
   frame cycle contracts are simulation drift guards, not proof of timing
   closure or KV260 hardware throughput. The current transform initiation
   interval remains far above the 34.3-cycle average 4:4:4 block budget.
-- The 32x16 profiler fixture is intentionally quick but exaggerates the
-  once-per-frame header and does not establish steady-state 4:2:0 or
-  high-entropy throughput. Use a larger multi-band content/quality matrix before
-  declaring entropy safe or bottlenecked.
+- The default 32x16 profiler fixture is intentionally quick and exaggerates the
+  once-per-frame header. Use `--profile steady-state`, or selected 64x64 matrix
+  scenarios, before declaring entropy safe or bottlenecked.
 - The transform-rate deficit is already conclusive: both the one-coefficient-
   per-cycle DCT and one-coefficient-per-cycle quantizer must be widened,
   interleaved, or otherwise re-architected for 4:4:4 1080p30 at 100 MHz.
@@ -1183,19 +1192,16 @@ If the new PC has KV260 access too:
 
 If the new PC does not have Vivado or hardware:
 
-1. Implement the steady-state/content/quality profiler extension described in
-   the immediate continuation brief, keeping the current quick scenarios as the
-   default or an explicitly quick profile.
-2. Develop a focused factorized/pipelined DCT prototype and matching multi-lane
+1. Develop a focused factorized/pipelined DCT prototype and matching multi-lane
    quantizer against the explicit 34.3-cycle 4:4:4 block budget. Preserve the
    current implementation until the alternative passes exact stage and decoded
    frame tests.
-3. Investigate BRAM-friendly synchronous ping-pong stripe/band storage and MCU
+2. Investigate BRAM-friendly synchronous ping-pong stripe/band storage and MCU
    queueing so pixel collection overlaps processing without hiding a sustained
    rate mismatch behind an arbitrarily deep FIFO.
-4. Use larger high-entropy traces to decide whether entropy/output work needs
+3. Use larger high-entropy traces to decide whether entropy/output work needs
    architectural optimization after startup is excluded.
-5. Keep each validated slice committed; avoid combining profiler, arithmetic,
+4. Keep each validated slice committed; avoid combining profiler, arithmetic,
    buffering, and entropy rewrites into one change.
 
 ## Development Rules For Future Agents

@@ -20,7 +20,14 @@ from typing import Iterable, Sequence
 
 
 DEFAULT_OUTPUT_DIR = Path("build/performance-traces")
-SUPPORTED_SCENARIOS = ("444", "420", "444-output-stalls")
+QUICK_SCENARIOS = ("444", "420", "444-output-stalls")
+STEADY_STATE_SCENARIOS = tuple(
+    f"steady-{sampling}-{content}-q{quality}"
+    for sampling in ("444", "420")
+    for content in ("flat", "smooth-gradient", "checkerboard", "seeded-random")
+    for quality in (10, 50, 90)
+)
+SUPPORTED_SCENARIOS = QUICK_SCENARIOS + STEADY_STATE_SCENARIOS
 BOUNDARY_ORDER = (
     "rgb_input",
     "transform_input",
@@ -43,6 +50,20 @@ STAGE_BOUNDARIES = {
     "zigzag": ("zigzag_input", "zigzag_output"),
     "block_transform": ("transform_input", "transform_output"),
 }
+RASTER_PHASES = {0: "collect", 1: "load", 2: "transform", 3: "emit"}
+ENCODER_PHASES = {
+    0: "idle",
+    1: "header",
+    2: "wait_mcu",
+    3: "start_block",
+    4: "block",
+    5: "restart_flush",
+    6: "restart_high",
+    7: "restart_low",
+    8: "flush",
+    9: "eoi_high",
+    10: "eoi_low",
+}
 
 
 class PerformanceTraceError(RuntimeError):
@@ -52,9 +73,12 @@ class PerformanceTraceError(RuntimeError):
 @dataclass(frozen=True)
 class Scenario:
     name: str
+    profile: str
     width: int
     height: int
     sampling: str
+    content: str
+    quality: int
     ready_pattern: str
     clock_hz: int
     first_input_cycle: int
@@ -73,6 +97,14 @@ class Sample:
     boundary: str
     valid: bool
     ready: bool
+
+
+@dataclass(frozen=True)
+class PhaseSample:
+    scenario: str
+    cycle: int
+    raster_phase: int
+    encoder_phase: int
 
 
 @dataclass(frozen=True)
@@ -103,11 +135,13 @@ def _read_rows(path: Path) -> list[dict[str, str]]:
         raise PerformanceTraceError(f"could not read {path}: {error}") from error
 
 
-def read_capture(directory: Path) -> tuple[list[Scenario], list[Sample]]:
+def read_capture(directory: Path) -> tuple[list[Scenario], list[Sample], list[PhaseSample]]:
     scenario_path = directory / "scenarios.csv"
     sample_path = directory / "samples.csv"
+    phase_path = directory / "phases.csv"
     scenario_rows = _read_rows(scenario_path)
     sample_rows = _read_rows(sample_path)
+    phase_rows = _read_rows(phase_path)
     if not scenario_rows:
         raise PerformanceTraceError(f"capture contains no scenarios: {scenario_path}")
 
@@ -119,9 +153,12 @@ def read_capture(directory: Path) -> tuple[list[Scenario], list[Sample]]:
             raise PerformanceTraceError(f"scenario names must be nonempty and unique: {name!r}")
         scenario = Scenario(
             name=name,
+            profile=row.get("profile", ""),
             width=_parse_int(row, "width", minimum=1),
             height=_parse_int(row, "height", minimum=1),
             sampling=row.get("sampling", ""),
+            content=row.get("content", ""),
+            quality=_parse_int(row, "quality", minimum=1),
             ready_pattern=row.get("ready_pattern", ""),
             clock_hz=_parse_int(row, "clock_hz", minimum=1),
             first_input_cycle=_parse_int(row, "first_input_cycle"),
@@ -164,7 +201,38 @@ def read_capture(directory: Path) -> tuple[list[Scenario], list[Sample]]:
         missing = set(BOUNDARY_ORDER) - grouped[scenario.name]
         if missing:
             raise PerformanceTraceError(f"scenario {scenario.name!r} is missing boundaries: {', '.join(sorted(missing))}")
-    return scenarios, sorted(samples, key=lambda item: (item.scenario, item.cycle, BOUNDARY_ORDER.index(item.boundary)))
+
+    phases: list[PhaseSample] = []
+    phase_seen: set[tuple[str, int]] = set()
+    for row in phase_rows:
+        name = row.get("scenario", "")
+        if name not in names:
+            raise PerformanceTraceError(f"phase sample references unknown scenario {name!r}")
+        phase = PhaseSample(
+            name,
+            _parse_int(row, "cycle"),
+            _parse_int(row, "raster_phase"),
+            _parse_int(row, "encoder_phase"),
+        )
+        if phase.raster_phase not in RASTER_PHASES:
+            raise PerformanceTraceError(f"unknown raster phase {phase.raster_phase} in scenario {name!r}")
+        if phase.encoder_phase not in ENCODER_PHASES:
+            raise PerformanceTraceError(f"unknown encoder phase {phase.encoder_phase} in scenario {name!r}")
+        key = (phase.scenario, phase.cycle)
+        if key in phase_seen:
+            raise PerformanceTraceError(f"duplicate phase sample for {key}")
+        phase_seen.add(key)
+        phases.append(phase)
+    for scenario in scenarios:
+        expected_cycles = set(range(scenario.first_input_cycle, scenario.last_output_cycle + 1))
+        actual_cycles = {phase.cycle for phase in phases if phase.scenario == scenario.name}
+        if actual_cycles != expected_cycles:
+            raise PerformanceTraceError(f"scenario {scenario.name!r} does not have one phase sample per frame cycle")
+    return (
+        scenarios,
+        sorted(samples, key=lambda item: (item.scenario, item.cycle, BOUNDARY_ORDER.index(item.boundary))),
+        sorted(phases, key=lambda item: (item.scenario, item.cycle)),
+    )
 
 
 def sample_state(sample: Sample) -> str:
@@ -196,6 +264,25 @@ def coalesce_states(samples: Sequence[Sample]) -> list[tuple[int, int, str]]:
     return result
 
 
+def coalesce_phases(samples: Sequence[PhaseSample], field: str) -> list[tuple[int, int, int]]:
+    if not samples:
+        return []
+    ordered = sorted(samples, key=lambda item: item.cycle)
+    result: list[tuple[int, int, int]] = []
+    start = ordered[0].cycle
+    previous = start
+    value = int(getattr(ordered[0], field))
+    for item in ordered[1:]:
+        next_value = int(getattr(item, field))
+        if item.cycle != previous + 1 or next_value != value:
+            result.append((start, previous - start + 1, value))
+            start = item.cycle
+            value = next_value
+        previous = item.cycle
+    result.append((start, previous - start + 1, value))
+    return result
+
+
 def distribution(values: Sequence[int]) -> Distribution:
     if not values:
         return Distribution(0, None, None, None, None, None)
@@ -222,10 +309,15 @@ def _longest_state_run(samples: Sequence[Sample], state: str) -> int:
     return max((duration for _, duration, item_state in coalesce_states(samples) if item_state == state), default=0)
 
 
-def calculate_metrics(scenarios: Sequence[Scenario], samples: Sequence[Sample]) -> dict[str, object]:
+def calculate_metrics(
+    scenarios: Sequence[Scenario], samples: Sequence[Sample], phases: Sequence[PhaseSample]
+) -> dict[str, object]:
     by_scenario_boundary: dict[tuple[str, str], list[Sample]] = defaultdict(list)
     for sample in samples:
         by_scenario_boundary[(sample.scenario, sample.boundary)].append(sample)
+    by_scenario_phase: dict[str, list[PhaseSample]] = defaultdict(list)
+    for phase in phases:
+        by_scenario_phase[phase.scenario].append(phase)
 
     scenario_metrics: list[dict[str, object]] = []
     for scenario in scenarios:
@@ -269,7 +361,9 @@ def calculate_metrics(scenarios: Sequence[Scenario], samples: Sequence[Sample]) 
             )
 
         input_fires = fires["rgb_input"]
+        jpeg_fires = fires["jpeg_output"]
         mcu_fires = fires["mcu_output"]
+        entropy_block_fires = fires["entropy_block_input"]
         input_span = input_fires[-1] - input_fires[0] + 1
         input_cycles_per_pixel = input_span / scenario.pixels
         mcu_intervals = [right - left for left, right in zip(mcu_fires, mcu_fires[1:])]
@@ -283,6 +377,45 @@ def calculate_metrics(scenarios: Sequence[Scenario], samples: Sequence[Sample]) 
             for index in range(1, len(transform_inputs))
             if index % blocks_per_mcu != 0
         ]
+        between_mcu_transform_intervals = [
+            transform_inputs[index] - transform_inputs[index - 1]
+            for index in range(1, len(transform_inputs))
+            if index % blocks_per_mcu == 0
+        ]
+        mcus_per_row = math.ceil(scenario.width / (8 if scenario.sampling == "4:4:4" else 16))
+        transition_intervals = [
+            mcu_fires[index] - mcu_fires[index - 1]
+            for index in range(1, len(mcu_fires))
+            if index % mcus_per_row == 0
+        ]
+        within_row_intervals = [
+            mcu_fires[index] - mcu_fires[index - 1]
+            for index in range(1, len(mcu_fires))
+            if index % mcus_per_row != 0
+        ]
+        steady_state_intervals = [
+            mcu_fires[index] - mcu_fires[index - 1]
+            for index in range(1, len(mcu_fires))
+            if index // mcus_per_row > 0 and index % mcus_per_row != 0
+        ]
+        phase_metrics = {
+            "raster_startup_to_first_mcu_cycles": mcu_fires[0] - input_fires[0],
+            "encoder_startup_to_first_jpeg_byte_cycles": jpeg_fires[0] - input_fires[0],
+            "encoder_startup_to_first_entropy_block_cycles": entropy_block_fires[0] - input_fires[0],
+            "within_mcu_block_interval_cycles": asdict(distribution(transform_intervals)),
+            "between_mcu_block_interval_cycles": asdict(distribution(between_mcu_transform_intervals)),
+            "within_stripe_or_band_mcu_interval_cycles": asdict(distribution(within_row_intervals)),
+            "stripe_or_band_transition_mcu_interval_cycles": asdict(distribution(transition_intervals)),
+            "steady_state_mcu_interval_cycles": asdict(distribution(steady_state_intervals)),
+            "raster_phase_cycles": {
+                name: sum(1 for phase in by_scenario_phase[scenario.name] if phase.raster_phase == value)
+                for value, name in RASTER_PHASES.items()
+            },
+            "encoder_phase_cycles": {
+                name: sum(1 for phase in by_scenario_phase[scenario.name] if phase.encoder_phase == value)
+                for value, name in ENCODER_PHASES.items()
+            },
+        }
         block_budget = 34.3 if scenario.sampling == "4:4:4" else 68.1
         mcu_budget = 102.9 if scenario.sampling == "4:4:4" else 408.5
 
@@ -300,6 +433,9 @@ def calculate_metrics(scenarios: Sequence[Scenario], samples: Sequence[Sample]) 
             {
                 "name": scenario.name,
                 "sampling": scenario.sampling,
+                "profile": scenario.profile,
+                "content": scenario.content,
+                "quality": scenario.quality,
                 "width": scenario.width,
                 "height": scenario.height,
                 "ready_pattern": scenario.ready_pattern,
@@ -316,10 +452,11 @@ def calculate_metrics(scenarios: Sequence[Scenario], samples: Sequence[Sample]) 
                 "input_acceptance_cycles_per_pixel": input_cycles_per_pixel,
                 "boundaries": boundaries,
                 "stages": stages,
+                "phase_metrics": phase_metrics,
                 "targets": targets,
             }
         )
-    return {"schema_version": 1, "scenarios": scenario_metrics}
+    return {"schema_version": 2, "scenarios": scenario_metrics}
 
 
 def _scenario_metric(metrics: dict[str, object], name: str) -> dict[str, object]:
@@ -332,10 +469,18 @@ def _scenario_metric(metrics: dict[str, object], name: str) -> dict[str, object]
     raise PerformanceTraceError(f"missing calculated metrics for scenario {name!r}")
 
 
-def render_perfetto(scenarios: Sequence[Scenario], samples: Sequence[Sample], metrics: dict[str, object]) -> dict[str, object]:
+def render_perfetto(
+    scenarios: Sequence[Scenario],
+    samples: Sequence[Sample],
+    phases: Sequence[PhaseSample],
+    metrics: dict[str, object],
+) -> dict[str, object]:
     by_scenario_boundary: dict[tuple[str, str], list[Sample]] = defaultdict(list)
     for sample in samples:
         by_scenario_boundary[(sample.scenario, sample.boundary)].append(sample)
+    by_scenario_phase: dict[str, list[PhaseSample]] = defaultdict(list)
+    for phase in phases:
+        by_scenario_phase[phase.scenario].append(phase)
     colors = {"transfer": "good", "blocked": "bad", "starved": "thread_state_uninterruptible", "idle": "grey"}
     events: list[dict[str, object]] = []
     for process_id, scenario in enumerate(scenarios, start=1):
@@ -357,6 +502,26 @@ def render_perfetto(scenarios: Sequence[Scenario], samples: Sequence[Sample], me
                     }
                 )
 
+        for phase_offset, (field, label, names) in enumerate(
+            (("raster_phase", "phase/raster", RASTER_PHASES), ("encoder_phase", "phase/encoder", ENCODER_PHASES))
+        ):
+            thread_id = len(BOUNDARY_ORDER) + phase_offset + 1
+            events.append({"ph": "M", "pid": process_id, "tid": thread_id, "name": "thread_name", "args": {"name": label}})
+            for start, duration, value in coalesce_phases(by_scenario_phase[scenario.name], field):
+                events.append(
+                    {
+                        "ph": "X",
+                        "pid": process_id,
+                        "tid": thread_id,
+                        "name": names[value],
+                        "cat": "fsm_phase",
+                        "cname": "rail_load",
+                        "ts": start * 0.01,
+                        "dur": duration * 0.01,
+                        "args": {"start_cycle": start, "duration_cycles": duration, "phase_code": value},
+                    }
+                )
+
         scenario_metrics = _scenario_metric(metrics, scenario.name)
         stages = scenario_metrics["stages"]
         assert isinstance(stages, list)
@@ -366,7 +531,7 @@ def render_perfetto(scenarios: Sequence[Scenario], samples: Sequence[Sample], me
             input_boundary, output_boundary = STAGE_BOUNDARIES[stage_name]
             inputs = _fire_cycles(by_scenario_boundary[(scenario.name, input_boundary)])
             outputs = _fire_cycles(by_scenario_boundary[(scenario.name, output_boundary)])
-            thread_id = len(BOUNDARY_ORDER) + stage_offset + 1
+            thread_id = len(BOUNDARY_ORDER) + 2 + stage_offset + 1
             events.append({"ph": "M", "pid": process_id, "tid": thread_id, "name": "thread_name", "args": {"name": f"latency/{stage_name}"}})
             for transaction_id, (start, end) in enumerate(zip(inputs, outputs)):
                 events.append(
@@ -491,7 +656,9 @@ def render_graph_dot(scenario_metrics: dict[str, object]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_capture(directory: Path, scenarios: Sequence[Scenario], samples: Sequence[Sample]) -> None:
+def write_capture(
+    directory: Path, scenarios: Sequence[Scenario], samples: Sequence[Sample], phases: Sequence[PhaseSample]
+) -> None:
     with (directory / "scenarios.csv").open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(asdict(scenarios[0]).keys()))
         writer.writeheader()
@@ -500,6 +667,10 @@ def write_capture(directory: Path, scenarios: Sequence[Scenario], samples: Seque
         writer = csv.DictWriter(handle, fieldnames=list(asdict(samples[0]).keys()))
         writer.writeheader()
         writer.writerows({**asdict(sample), "valid": int(sample.valid), "ready": int(sample.ready)} for sample in samples)
+    with (directory / "phases.csv").open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(asdict(phases[0]).keys()))
+        writer.writeheader()
+        writer.writerows(asdict(phase) for phase in phases)
 
 
 def write_metrics_csv(path: Path, metrics: dict[str, object]) -> None:
@@ -529,6 +700,30 @@ def write_metrics_csv(path: Path, metrics: dict[str, object]) -> None:
                 assert isinstance(values, dict)
                 for statistic, value in values.items():
                     rows.append({"scenario": name, "category": "stage", "name": stage["name"], "metric": f"{distribution_name}.{statistic}", "value": value, "unit": "cycles"})
+        phase_metrics = scenario["phase_metrics"]
+        assert isinstance(phase_metrics, dict)
+        for metric_name in (
+            "raster_startup_to_first_mcu_cycles",
+            "encoder_startup_to_first_jpeg_byte_cycles",
+            "encoder_startup_to_first_entropy_block_cycles",
+        ):
+            rows.append({"scenario": name, "category": "phase", "name": "startup", "metric": metric_name, "value": phase_metrics[metric_name], "unit": "cycles"})
+        for distribution_name in (
+            "within_mcu_block_interval_cycles",
+            "between_mcu_block_interval_cycles",
+            "within_stripe_or_band_mcu_interval_cycles",
+            "stripe_or_band_transition_mcu_interval_cycles",
+            "steady_state_mcu_interval_cycles",
+        ):
+            values = phase_metrics[distribution_name]
+            assert isinstance(values, dict)
+            for statistic, value in values.items():
+                rows.append({"scenario": name, "category": "phase", "name": distribution_name, "metric": statistic, "value": value, "unit": "cycles"})
+        for residency_name in ("raster_phase_cycles", "encoder_phase_cycles"):
+            values = phase_metrics[residency_name]
+            assert isinstance(values, dict)
+            for phase_name, value in values.items():
+                rows.append({"scenario": name, "category": "phase", "name": residency_name, "metric": phase_name, "value": value, "unit": "cycles"})
         for target in scenario["targets"]:
             assert isinstance(target, dict)
             for metric_name in ("actual", "budget", "ratio", "status"):
@@ -565,18 +760,37 @@ def clean_previous_artifacts(output_dir: Path) -> None:
 
 
 def _run_simulation(repo_root: Path, capture_dir: Path, scenarios: Sequence[str]) -> None:
-    sbt = shutil.which("sbt")
-    if sbt is None:
-        raise PerformanceTraceError("sbt is required to capture performance scenarios")
     environment = os.environ.copy()
-    environment["HJPEG_PERFORMANCE_CAPTURE_DIR"] = str(capture_dir)
     environment["HJPEG_PERFORMANCE_SCENARIOS"] = ",".join(scenarios)
-    command = [sbt, "testOnly hjpeg.performance.HjpegPerformanceTraceSpec"]
+    if os.name == "nt":
+        powershell = shutil.which("powershell.exe") or shutil.which("powershell")
+        if powershell is None:
+            raise PerformanceTraceError("PowerShell is required to launch the Docker performance simulation on Windows")
+        try:
+            relative_capture = capture_dir.resolve().relative_to(repo_root.resolve())
+        except ValueError as error:
+            raise PerformanceTraceError("Windows Docker capture directory must be inside the repository") from error
+        environment["HJPEG_PERFORMANCE_CAPTURE_DIR"] = f"/workspace/{relative_capture.as_posix()}"
+        command = [
+            powershell,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(repo_root / "scripts" / "dev" / "test.ps1"),
+            "testOnly hjpeg.performance.HjpegPerformanceTraceSpec",
+        ]
+    else:
+        sbt = shutil.which("sbt")
+        if sbt is None:
+            raise PerformanceTraceError("sbt is required to capture performance scenarios")
+        environment["HJPEG_PERFORMANCE_CAPTURE_DIR"] = str(capture_dir)
+        command = [sbt, "testOnly hjpeg.performance.HjpegPerformanceTraceSpec"]
     print(f"Performance simulation: {' '.join(command)}", file=sys.stderr)
     try:
         completed = subprocess.run(command, cwd=repo_root, env=environment, stdout=sys.stderr, stderr=sys.stderr, check=False)
     except OSError as error:
-        raise PerformanceTraceError(f"could not run sbt: {error}") from error
+        raise PerformanceTraceError(f"could not run performance simulation: {error}") from error
     if completed.returncode != 0:
         raise PerformanceTraceError(f"performance simulation failed with exit code {completed.returncode}")
 
@@ -597,6 +811,7 @@ def _write_index(output_dir: Path, scenarios: Sequence[Scenario], graph_files: d
         "- [Metrics CSV](metrics.csv)",
         "- [Scenario capture](scenarios.csv)",
         "- [Ready/valid samples](samples.csv)",
+        "- [Raster/encoder phase samples](phases.csv)",
         "",
         "## Scenario graphs",
         "",
@@ -617,18 +832,19 @@ def generate_artifacts(
     output_dir: Path,
     scenarios: Sequence[Scenario],
     samples: Sequence[Sample],
+    phases: Sequence[PhaseSample],
     *,
     dot_command: str | None,
 ) -> dict[str, object]:
     output_dir.mkdir(parents=True, exist_ok=True)
     clean_previous_artifacts(output_dir)
-    write_capture(output_dir, scenarios, samples)
-    metrics = calculate_metrics(scenarios, samples)
+    write_capture(output_dir, scenarios, samples, phases)
+    metrics = calculate_metrics(scenarios, samples, phases)
     metrics_path = output_dir / "metrics.json"
     metrics_path.write_text(json.dumps(metrics, allow_nan=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     write_metrics_csv(output_dir / "metrics.csv", metrics)
     trace_path = output_dir / "trace.json"
-    trace_path.write_text(json.dumps(render_perfetto(scenarios, samples, metrics), allow_nan=False, separators=(",", ":")) + "\n", encoding="utf-8")
+    trace_path.write_text(json.dumps(render_perfetto(scenarios, samples, phases, metrics), allow_nan=False, separators=(",", ":")) + "\n", encoding="utf-8")
 
     graph_files: dict[str, dict[str, str | None]] = {}
     for scenario in scenarios:
@@ -649,6 +865,7 @@ def generate_artifacts(
     files = [
         output_dir / "scenarios.csv",
         output_dir / "samples.csv",
+        output_dir / "phases.csv",
         metrics_path,
         output_dir / "metrics.csv",
         trace_path,
@@ -657,7 +874,7 @@ def generate_artifacts(
     for graph in graph_files.values():
         files.extend(output_dir / value for value in graph.values() if value is not None)
     report: dict[str, object] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "output_dir": str(output_dir.resolve()),
         "index": str(index_path.resolve()),
         "trace": str(trace_path.resolve()),
@@ -675,8 +892,14 @@ def generate_artifacts(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Generate Perfetto traces and performance graphs from HJPEG simulation.")
     parser.add_argument("--scenario", action="append", choices=SUPPORTED_SCENARIOS, help="scenario to include; repeat to select several")
+    parser.add_argument(
+        "--profile",
+        choices=("quick", "steady-state"),
+        default="quick",
+        help="default scenario set when --scenario is omitted (default: quick)",
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR, help="generated artifact directory")
-    parser.add_argument("--capture-dir", type=Path, help="reuse scenarios.csv and samples.csv instead of running simulation")
+    parser.add_argument("--capture-dir", type=Path, help="reuse scenarios.csv, samples.csv, and phases.csv instead of running simulation")
     parser.add_argument("--dot", default="dot", help="Graphviz dot executable")
     parser.add_argument("--no-svg", action="store_true", help="emit Mermaid and DOT graphs without SVG rendering")
     parser.add_argument("--json", action="store_true", help="print the generation report as strict JSON")
@@ -688,16 +911,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     repo_root = Path(__file__).resolve().parents[2]
     output_dir = args.output_dir if args.output_dir.is_absolute() else repo_root / args.output_dir
-    requested = tuple(dict.fromkeys(args.scenario or SUPPORTED_SCENARIOS))
+    profile_scenarios = QUICK_SCENARIOS if args.profile == "quick" else STEADY_STATE_SCENARIOS
+    requested = tuple(dict.fromkeys(args.scenario or profile_scenarios))
     try:
         if args.capture_dir is not None:
             capture_dir = args.capture_dir if args.capture_dir.is_absolute() else Path.cwd() / args.capture_dir
-            all_scenarios, all_samples = read_capture(capture_dir)
+            all_scenarios, all_samples, all_phases = read_capture(capture_dir)
         else:
-            with tempfile.TemporaryDirectory(prefix="hjpeg-performance-capture-") as temporary:
+            temporary_root = repo_root / "build"
+            temporary_root.mkdir(parents=True, exist_ok=True)
+            with tempfile.TemporaryDirectory(prefix="hjpeg-performance-capture-", dir=temporary_root) as temporary:
                 capture_dir = Path(temporary)
                 _run_simulation(repo_root, capture_dir, requested)
-                all_scenarios, all_samples = read_capture(capture_dir)
+                all_scenarios, all_samples, all_phases = read_capture(capture_dir)
 
         by_name = {scenario.name: scenario for scenario in all_scenarios}
         missing = [name for name in requested if name not in by_name]
@@ -705,13 +931,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise PerformanceTraceError(f"capture is missing requested scenarios: {', '.join(missing)}")
         scenarios = [by_name[name] for name in requested]
         samples = [sample for sample in all_samples if sample.scenario in requested]
+        phases = [phase for phase in all_phases if phase.scenario in requested]
 
         dot_command: str | None = None
         if not args.no_svg:
             dot_command = shutil.which(args.dot)
             if dot_command is None:
                 print(f"WARNING: Graphviz executable {args.dot!r} not found; emitting Mermaid and DOT only", file=sys.stderr)
-        report = generate_artifacts(output_dir, scenarios, samples, dot_command=dot_command)
+        report = generate_artifacts(output_dir, scenarios, samples, phases, dot_command=dot_command)
         if args.json:
             print(json.dumps(report, allow_nan=False, indent=2, sort_keys=True))
         else:

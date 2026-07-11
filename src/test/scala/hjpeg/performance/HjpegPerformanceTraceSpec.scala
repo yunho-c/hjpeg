@@ -22,6 +22,9 @@ private class PerformanceBoundaryProbe extends Bundle {
 }
 
 private class HjpegPerformanceProbe extends Bundle {
+  val rasterPhase = UInt(2.W)
+  val encoderPhase = UInt(4.W)
+  val snapshot = UInt(34.W)
   val transformInput = new PerformanceBoundaryProbe
   val dctInput = new PerformanceBoundaryProbe
   val dctOutput = new PerformanceBoundaryProbe
@@ -79,6 +82,12 @@ private class HjpegPerformanceHarness(c: HjpegConfig = HjpegConfig()) extends Mo
   private val normalTransform = core.rasterToMcu.transform
   private val subsampledTransform = core.rasterToSubsampledMcu.transform
 
+  io.performance.rasterPhase := Mux(
+    io.config.enableChromaSubsample,
+    BoringUtils.bore(core.rasterToSubsampledMcu.state),
+    BoringUtils.bore(core.rasterToMcu.state))
+  io.performance.encoderPhase := BoringUtils.bore(core.encoder.state)
+
   io.performance.transformInput := selectBoundary(
     normalTransform.io.input.valid,
     normalTransform.io.input.ready,
@@ -133,15 +142,74 @@ private class HjpegPerformanceHarness(c: HjpegConfig = HjpegConfig()) extends Mo
   io.performance.packerOutput := boreBoundary(
     core.encoder.packer.io.output.valid,
     core.encoder.packer.io.output.ready)
+
+  // A single packed peek keeps large matrix captures practical on simulators
+  // where each individual signal peek crosses a process/API boundary.
+  io.performance.snapshot := Cat(
+    Seq(
+      Cat(io.input.valid, io.input.ready),
+      Cat(io.performance.transformInput.valid, io.performance.transformInput.ready),
+      Cat(io.performance.dctInput.valid, io.performance.dctInput.ready),
+      Cat(io.performance.dctOutput.valid, io.performance.dctOutput.ready),
+      Cat(io.performance.quantizeInput.valid, io.performance.quantizeInput.ready),
+      Cat(io.performance.quantizeOutput.valid, io.performance.quantizeOutput.ready),
+      Cat(io.performance.zigZagInput.valid, io.performance.zigZagInput.ready),
+      Cat(io.performance.zigZagOutput.valid, io.performance.zigZagOutput.ready),
+      Cat(io.performance.transformOutput.valid, io.performance.transformOutput.ready),
+      Cat(io.performance.mcuOutput.valid, io.performance.mcuOutput.ready),
+      Cat(io.performance.entropyBlockInput.valid, io.performance.entropyBlockInput.ready),
+      Cat(io.performance.entropyRunOutput.valid, io.performance.entropyRunOutput.ready),
+      Cat(io.performance.packerOutput.valid, io.performance.packerOutput.ready),
+      Cat(io.output.valid, io.output.ready),
+      io.performance.rasterPhase,
+      io.performance.encoderPhase))
 }
 
 class HjpegPerformanceTraceSpec extends AnyFreeSpec with Matchers with ChiselSim {
-  private val Width = 32
-  private val Height = 16
   private val ClockHz = 100_000_000L
   private val CaptureDirectoryEnvironment = "HJPEG_PERFORMANCE_CAPTURE_DIR"
   private val ScenarioEnvironment = "HJPEG_PERFORMANCE_SCENARIOS"
-  private val SupportedScenarios = Seq("444", "420", "444-output-stalls")
+
+  private case class ScenarioDefinition(
+      name: String,
+      profile: String,
+      width: Int,
+      height: Int,
+      sampling: String,
+      content: String,
+      quality: Int,
+      stalls: Boolean = false) {
+    val subsample: Boolean = sampling == "4:2:0"
+  }
+
+  private val QuickScenarios = Seq(
+    ScenarioDefinition("444", "quick", 32, 16, "4:4:4", "deterministic-gradient", 50),
+    ScenarioDefinition("420", "quick", 32, 16, "4:2:0", "deterministic-gradient", 50),
+    ScenarioDefinition("444-output-stalls", "quick", 32, 16, "4:4:4", "deterministic-gradient", 50, stalls = true))
+  private val SteadyStateScenarios = for {
+    sampling <- Seq("4:4:4", "4:2:0")
+    content <- Seq("flat", "smooth-gradient", "checkerboard", "seeded-random")
+    quality <- Seq(10, 50, 90)
+  } yield {
+    val samplingName = if (sampling == "4:4:4") "444" else "420"
+    ScenarioDefinition(s"steady-$samplingName-$content-q$quality", "steady-state", 64, 64, sampling, content, quality)
+  }
+  private val SupportedScenarios = (QuickScenarios ++ SteadyStateScenarios).map(item => item.name -> item).toMap
+  private val BoundaryNames = Seq(
+    "rgb_input",
+    "transform_input",
+    "dct_input",
+    "dct_output",
+    "quantize_input",
+    "quantize_output",
+    "zigzag_input",
+    "zigzag_output",
+    "transform_output",
+    "mcu_output",
+    "entropy_block_input",
+    "entropy_run_output",
+    "packer_output",
+    "jpeg_output")
 
   private case class BoundarySample(
       scenario: String,
@@ -150,9 +218,14 @@ class HjpegPerformanceTraceSpec extends AnyFreeSpec with Matchers with ChiselSim
       valid: Boolean,
       ready: Boolean)
 
+  private case class PhaseSample(
+      scenario: String,
+      cycle: Int,
+      rasterPhase: Int,
+      encoderPhase: Int)
+
   private case class ScenarioResult(
-      name: String,
-      sampling: String,
+      definition: ScenarioDefinition,
       readyPattern: String,
       firstInputCycle: Int,
       lastOutputCycle: Int,
@@ -160,23 +233,42 @@ class HjpegPerformanceTraceSpec extends AnyFreeSpec with Matchers with ChiselSim
       bytes: Seq[Int],
       mcus: Int,
       blocks: Int,
-      samples: Seq[BoundarySample]) {
+      samples: Seq[BoundarySample],
+      phases: Seq[PhaseSample]) {
+    val name: String = definition.name
     val frameCycles: Int = lastOutputCycle - firstInputCycle + 1
   }
 
-  private def pixelAt(index: Int): (Int, Int, Int) = {
-    val x = index % Width
-    val y = index / Width
-    val value = (x * 13 + y * 17) & 0xff
-    (value, 255 - value, (value / 2 + 64) & 0xff)
+  private def pixelAt(definition: ScenarioDefinition, index: Int): (Int, Int, Int) = {
+    val x = index % definition.width
+    val y = index / definition.width
+    definition.content match {
+      case "flat" => (96, 144, 192)
+      case "smooth-gradient" =>
+        val r = x * 255 / (definition.width - 1)
+        val g = y * 255 / (definition.height - 1)
+        val b = (x + y) * 255 / (definition.width + definition.height - 2)
+        (r, g, b)
+      case "checkerboard" =>
+        if (((x / 4) + (y / 4)) % 2 == 0) (240, 32, 208) else (16, 224, 48)
+      case "seeded-random" =>
+        var value = index ^ 0x5eed1234
+        value ^= value << 13
+        value ^= value >>> 17
+        value ^= value << 5
+        (value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff)
+      case "deterministic-gradient" =>
+        val value = (x * 13 + y * 17) & 0xff
+        (value, 255 - value, (value / 2 + 64) & 0xff)
+    }
   }
 
-  private def pokeConfig(dut: HjpegPerformanceHarness, subsample: Boolean): Unit = {
-    dut.io.config.xsize.poke(Width.U)
-    dut.io.config.ysize.poke(Height.U)
-    dut.io.config.quality.poke(50.U)
+  private def pokeConfig(dut: HjpegPerformanceHarness, definition: ScenarioDefinition): Unit = {
+    dut.io.config.xsize.poke(definition.width.U)
+    dut.io.config.ysize.poke(definition.height.U)
+    dut.io.config.quality.poke(definition.quality.U)
     dut.io.config.restartInterval.poke(0.U)
-    dut.io.config.enableChromaSubsample.poke(subsample.B)
+    dut.io.config.enableChromaSubsample.poke(definition.subsample.B)
     dut.io.config.emitJfif.poke(true.B)
   }
 
@@ -185,31 +277,25 @@ class HjpegPerformanceTraceSpec extends AnyFreeSpec with Matchers with ChiselSim
       scenario: String,
       cycle: Int,
       boundary: String,
-      valid: Bool,
-      ready: Bool): Unit = {
-    samples += BoundarySample(
-      scenario,
-      cycle,
-      boundary,
-      valid.peek().litToBoolean,
-      ready.peek().litToBoolean)
+      state: Int): Unit = {
+    samples += BoundarySample(scenario, cycle, boundary, (state & 2) != 0, (state & 1) != 0)
   }
 
-  private def runScenario(name: String, retainSamples: Boolean = true): ScenarioResult = {
-    val subsample = name == "420"
-    val stalls = name == "444-output-stalls"
-    var result: ScenarioResult = null
-
-    simulate(new HjpegPerformanceHarness()) { dut =>
+  private def runScenario(
+      dut: HjpegPerformanceHarness,
+      definition: ScenarioDefinition,
+      retainSamples: Boolean = true): ScenarioResult = {
+      val name = definition.name
       dut.reset.poke(true.B)
       dut.clock.step()
       dut.reset.poke(false.B)
-      pokeConfig(dut, subsample)
+      pokeConfig(dut, definition)
       dut.io.clearProtocolError.poke(false.B)
 
       val samples = ArrayBuffer.empty[BoundarySample]
+      val phases = ArrayBuffer.empty[PhaseSample]
       val bytes = ArrayBuffer.empty[Int]
-      val pixels = Width * Height
+      val pixels = definition.width * definition.height
       var nextPixel = 0
       var firstInputCycle = -1
       var lastOutputCycle = -1
@@ -221,14 +307,14 @@ class HjpegPerformanceTraceSpec extends AnyFreeSpec with Matchers with ChiselSim
       while (!done) {
         assert(cycle < pixels * 4096 + JpegHeaderBytes.MaxHeaderLength + 4096, s"timeout tracing $name")
 
-        val outputReady = !stalls || ((cycle % 4) != 1 && (cycle % 9) != 5)
+        val outputReady = !definition.stalls || ((cycle % 4) != 1 && (cycle % 9) != 5)
         dut.io.output.ready.poke(outputReady.B)
 
         if (nextPixel < pixels) {
-          val (r, g, b) = pixelAt(nextPixel)
+          val (r, g, b) = pixelAt(definition, nextPixel)
           dut.io.input.valid.poke(true.B)
-          dut.io.input.bits.x.poke((nextPixel % Width).U)
-          dut.io.input.bits.y.poke((nextPixel / Width).U)
+          dut.io.input.bits.x.poke((nextPixel % definition.width).U)
+          dut.io.input.bits.y.poke((nextPixel / definition.width).U)
           dut.io.input.bits.r.poke(r.U)
           dut.io.input.bits.g.poke(g.U)
           dut.io.input.bits.b.poke(b.U)
@@ -236,33 +322,31 @@ class HjpegPerformanceTraceSpec extends AnyFreeSpec with Matchers with ChiselSim
           dut.io.input.valid.poke(false.B)
         }
 
-        sample(samples, name, cycle, "rgb_input", dut.io.input.valid, dut.io.input.ready)
-        sample(samples, name, cycle, "transform_input", dut.io.performance.transformInput.valid, dut.io.performance.transformInput.ready)
-        sample(samples, name, cycle, "dct_input", dut.io.performance.dctInput.valid, dut.io.performance.dctInput.ready)
-        sample(samples, name, cycle, "dct_output", dut.io.performance.dctOutput.valid, dut.io.performance.dctOutput.ready)
-        sample(samples, name, cycle, "quantize_input", dut.io.performance.quantizeInput.valid, dut.io.performance.quantizeInput.ready)
-        sample(samples, name, cycle, "quantize_output", dut.io.performance.quantizeOutput.valid, dut.io.performance.quantizeOutput.ready)
-        sample(samples, name, cycle, "zigzag_input", dut.io.performance.zigZagInput.valid, dut.io.performance.zigZagInput.ready)
-        sample(samples, name, cycle, "zigzag_output", dut.io.performance.zigZagOutput.valid, dut.io.performance.zigZagOutput.ready)
-        sample(samples, name, cycle, "transform_output", dut.io.performance.transformOutput.valid, dut.io.performance.transformOutput.ready)
-        sample(samples, name, cycle, "mcu_output", dut.io.performance.mcuOutput.valid, dut.io.performance.mcuOutput.ready)
-        sample(samples, name, cycle, "entropy_block_input", dut.io.performance.entropyBlockInput.valid, dut.io.performance.entropyBlockInput.ready)
-        sample(samples, name, cycle, "entropy_run_output", dut.io.performance.entropyRunOutput.valid, dut.io.performance.entropyRunOutput.ready)
-        sample(samples, name, cycle, "packer_output", dut.io.performance.packerOutput.valid, dut.io.performance.packerOutput.ready)
-        sample(samples, name, cycle, "jpeg_output", dut.io.output.valid, dut.io.output.ready)
+        val snapshot = dut.io.performance.snapshot.peek().litValue
+        val boundaryStates = BoundaryNames.indices.map { index =>
+          ((snapshot >> (6 + (BoundaryNames.length - index - 1) * 2)) & 3).toInt
+        }
+        BoundaryNames.zip(boundaryStates).foreach { case (boundary, state) =>
+          sample(samples, name, cycle, boundary, state)
+        }
+        phases += PhaseSample(
+          name,
+          cycle,
+          ((snapshot >> 4) & 3).toInt,
+          (snapshot & 15).toInt)
 
-        val inputFire = dut.io.input.valid.peek().litToBoolean && dut.io.input.ready.peek().litToBoolean
+        val inputFire = boundaryStates.head == 3
         if (inputFire) {
           if (firstInputCycle < 0) firstInputCycle = cycle
           nextPixel += 1
         }
-        if (dut.io.performance.transformInput.valid.peek().litToBoolean && dut.io.performance.transformInput.ready.peek().litToBoolean) {
+        if (boundaryStates(1) == 3) {
           blockCount += 1
         }
-        if (dut.io.performance.mcuOutput.valid.peek().litToBoolean && dut.io.performance.mcuOutput.ready.peek().litToBoolean) {
+        if (boundaryStates(9) == 3) {
           mcuCount += 1
         }
-        if (dut.io.output.valid.peek().litToBoolean && outputReady) {
+        if (boundaryStates(13) == 3) {
           bytes += dut.io.output.bits.byte.peek().litValue.toInt
           if (dut.io.output.bits.last.peek().litToBoolean) {
             lastOutputCycle = cycle
@@ -281,23 +365,35 @@ class HjpegPerformanceTraceSpec extends AnyFreeSpec with Matchers with ChiselSim
 
       val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
       image must not be null
-      image.getWidth mustBe Width
-      image.getHeight mustBe Height
+      image.getWidth mustBe definition.width
+      image.getHeight mustBe definition.height
 
-      result = ScenarioResult(
-        name,
-        if (subsample) "4:2:0" else "4:4:4",
-        if (stalls) "cycle%4!=1 && cycle%9!=5" else "always",
+      ScenarioResult(
+        definition,
+        if (definition.stalls) "cycle%4!=1 && cycle%9!=5" else "always",
         firstInputCycle,
         lastOutputCycle,
         pixels,
         bytes.toSeq,
         mcuCount,
         blockCount,
-        if (retainSamples) samples.toSeq else Seq.empty)
-    }
+        if (retainSamples) samples.toSeq else Seq.empty,
+        if (retainSamples) phases.toSeq else Seq.empty)
+  }
 
-    result
+  private def runScenarios(definitions: Seq[ScenarioDefinition]): Seq[ScenarioResult] = {
+    var results = Seq.empty[ScenarioResult]
+    simulate(new HjpegPerformanceHarness()) { dut =>
+      val needsBaseline = definitions.exists(_.name == "444-output-stalls") && !definitions.exists(_.name == "444")
+      val simulationDefinitions = if (needsBaseline) definitions :+ SupportedScenarios("444") else definitions
+      val allResults = simulationDefinitions.map(definition =>
+        runScenario(dut, definition, retainSamples = definitions.contains(definition)))
+      if (definitions.exists(_.name == "444-output-stalls")) {
+        allResults.find(_.name == "444-output-stalls").get.bytes mustBe allResults.find(_.name == "444").get.bytes
+      }
+      results = allResults.filter(result => definitions.contains(result.definition))
+    }
+    results
   }
 
   private def writeCapture(directory: Path, results: Seq[ScenarioResult]): Unit = {
@@ -306,14 +402,17 @@ class HjpegPerformanceTraceSpec extends AnyFreeSpec with Matchers with ChiselSim
     val scenarioWriter = new PrintWriter(Files.newBufferedWriter(directory.resolve("scenarios.csv")))
     try {
       scenarioWriter.println(
-        "scenario,width,height,sampling,ready_pattern,clock_hz,first_input_cycle,last_output_cycle,frame_cycles,pixels,bytes,mcus,blocks")
+        "scenario,profile,width,height,sampling,content,quality,ready_pattern,clock_hz,first_input_cycle,last_output_cycle,frame_cycles,pixels,bytes,mcus,blocks")
       results.foreach { result =>
         scenarioWriter.println(
           Seq(
             result.name,
-            Width,
-            Height,
-            result.sampling,
+            result.definition.profile,
+            result.definition.width,
+            result.definition.height,
+            result.definition.sampling,
+            result.definition.content,
+            result.definition.quality,
             result.readyPattern,
             ClockHz,
             result.firstInputCycle,
@@ -339,6 +438,15 @@ class HjpegPerformanceTraceSpec extends AnyFreeSpec with Matchers with ChiselSim
             if (boundarySample.ready) 1 else 0).mkString(","))
       }
     } finally sampleWriter.close()
+
+    val phaseWriter = new PrintWriter(Files.newBufferedWriter(directory.resolve("phases.csv")))
+    try {
+      phaseWriter.println("scenario,cycle,raster_phase,encoder_phase")
+      results.iterator.flatMap(_.phases).foreach { phaseSample =>
+        phaseWriter.println(
+          Seq(phaseSample.scenario, phaseSample.cycle, phaseSample.rasterPhase, phaseSample.encoderPhase).mkString(","))
+      }
+    } finally phaseWriter.close()
   }
 
   sys.env.get(CaptureDirectoryEnvironment).foreach { captureDirectory =>
@@ -346,19 +454,15 @@ class HjpegPerformanceTraceSpec extends AnyFreeSpec with Matchers with ChiselSim
       val selected = sys.env
         .get(ScenarioEnvironment)
         .map(_.split(",").iterator.map(_.trim).filter(_.nonEmpty).toSeq)
-        .getOrElse(SupportedScenarios)
+        .getOrElse(QuickScenarios.map(_.name))
       selected must not be empty
       selected.foreach { scenario =>
         withClue(s"unsupported performance scenario $scenario") {
-          SupportedScenarios must contain(scenario)
+          SupportedScenarios.keySet must contain(scenario)
         }
       }
 
-      val results = selected.distinct.map(runScenario(_))
-      if (selected.contains("444-output-stalls")) {
-        val baseline = results.find(_.name == "444").getOrElse(runScenario("444", retainSamples = false))
-        results.find(_.name == "444-output-stalls").get.bytes mustBe baseline.bytes
-      }
+      val results = runScenarios(selected.distinct.map(SupportedScenarios))
       writeCapture(Paths.get(captureDirectory), results)
     }
   }

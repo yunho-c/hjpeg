@@ -45,7 +45,16 @@ $runArguments = @(
     "--env", "COURSIER_CACHE=/cache/coursier",
     "--env", "SBT_OPTS=-Dsbt.global.base=/cache/sbt -Dsbt.ivy.home=/cache/ivy -XX:ActiveProcessorCount=$SbtCpus",
     $Image
-) + $SbtArguments
+)
+
+foreach ($variable in @("HJPEG_PERFORMANCE_CAPTURE_DIR", "HJPEG_PERFORMANCE_SCENARIOS")) {
+    $value = [Environment]::GetEnvironmentVariable($variable)
+    if (-not [string]::IsNullOrEmpty($value)) {
+        $runArguments = $runArguments[0..($runArguments.Count - 2)] + @("--env", "$variable=$value") + $runArguments[($runArguments.Count - 1)]
+    }
+}
+
+$runArguments += $SbtArguments
 
 & docker @runArguments
 exit $LASTEXITCODE
