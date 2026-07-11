@@ -104,4 +104,35 @@ class JpegBlockTransformStageSpec extends AnyFreeSpec with Matchers with ChiselS
       dut.io.output.bits.coefficients(0).expect(8.S)
     }
   }
+
+  "JpegBlockTransformStage should preserve metadata across overlapped blocks" in {
+    simulate(new JpegBlockTransformStage()) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      dut.io.output.ready.poke(true.B)
+      dut.io.quality.poke(50.U)
+      dut.io.isLuminance.poke(true.B)
+      pushConstantBlock(dut, 32)
+
+      dut.io.input.valid.poke(true.B)
+      dut.io.isLuminance.poke(false.B)
+      pokeConstantBlock(dut, 34)
+      var cycles = 0
+      while (!dut.io.input.ready.peek().litToBoolean) {
+        assert(cycles < 1200, "timeout waiting to overlap the chrominance block")
+        dut.clock.step()
+        cycles += 1
+      }
+      dut.clock.step()
+      dut.io.input.valid.poke(false.B)
+
+      waitForOutput(dut)
+      dut.io.output.bits.coefficients(0).expect(16.S)
+      dut.clock.step()
+      waitForOutput(dut)
+      dut.io.output.bits.coefficients(0).expect(16.S)
+    }
+  }
 }

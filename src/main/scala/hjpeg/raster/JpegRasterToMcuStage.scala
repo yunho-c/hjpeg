@@ -24,13 +24,14 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
   private val StripeSamples = StripeRows * c.maxFrameWidth
   private val sampleIndexBits = log2Ceil(StripeSamples).max(1)
 
-  val sCollect :: sLoad :: sStartTransform :: sWaitTransform :: sEmit :: Nil = Enum(5)
+  val sCollect :: sLoad :: sTransform :: sEmit :: Nil = Enum(4)
   val state = RegInit(sCollect)
   val blockX = RegInit(0.U(c.coordBits.W))
   val currentStripeLast = RegInit(false.B)
   val lastRowInStripe = RegInit(0.U(3.W))
   val loadSample = RegInit(0.U(6.W))
-  val transformBlock = RegInit(0.U(2.W))
+  val issueBlock = RegInit(0.U(2.W))
+  val captureBlock = RegInit(0.U(2.W))
 
   val ySamples = Mem(StripeSamples, SInt(sampleBits.W))
   val cbSamples = Mem(StripeSamples, SInt(sampleBits.W))
@@ -63,7 +64,8 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
       currentStripeLast := io.input.bits.y + 1.U >= io.config.ysize
       lastRowInStripe := rowInStripe
       loadSample := 0.U
-      transformBlock := 0.U
+      issueBlock := 0.U
+      captureBlock := 0.U
     }
   }
 
@@ -82,8 +84,9 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
     cbBlock(loadSample) := cbLoadSample
     crBlock(loadSample) := crLoadSample
     when(loadSample === (HjpegConstants.BlockSize - 1).U) {
-      state := sStartTransform
-      transformBlock := 0.U
+      state := sTransform
+      issueBlock := 0.U
+      captureBlock := 0.U
     }.otherwise {
       loadSample := loadSample + 1.U
     }
@@ -92,32 +95,30 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
   val transform = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
 
   transform.io.quality := io.config.quality
-  transform.io.isLuminance := transformBlock === 0.U
-  transform.io.input.valid := state === sStartTransform
+  transform.io.isLuminance := issueBlock === 0.U
+  transform.io.input.valid := state === sTransform && issueBlock < HjpegConstants.Components.U
 
   for (row <- 0 until HjpegConstants.BlockDim) {
     for (col <- 0 until HjpegConstants.BlockDim) {
       val blockSample = row * HjpegConstants.BlockDim + col
       transform.io.input.bits.samples(blockSample) :=
-        Mux(transformBlock === 0.U, yBlock(blockSample), Mux(transformBlock === 1.U, cbBlock(blockSample), crBlock(blockSample)))
+        Mux(issueBlock === 0.U, yBlock(blockSample), Mux(issueBlock === 1.U, cbBlock(blockSample), crBlock(blockSample)))
     }
   }
 
-  transform.io.output.ready := state === sWaitTransform
+  transform.io.output.ready := state === sTransform
 
   when(transform.io.input.fire) {
-    state := sWaitTransform
+    issueBlock := issueBlock + 1.U
   }
 
   when(transform.io.output.fire) {
-    when(transformBlock === 0.U) {
+    when(captureBlock === 0.U) {
       yCoefficients := transform.io.output.bits
-      transformBlock := 1.U
-      state := sStartTransform
-    }.elsewhen(transformBlock === 1.U) {
+      captureBlock := 1.U
+    }.elsewhen(captureBlock === 1.U) {
       cbCoefficients := transform.io.output.bits
-      transformBlock := 2.U
-      state := sStartTransform
+      captureBlock := 2.U
     }.otherwise {
       crCoefficients := transform.io.output.bits
       state := sEmit
@@ -143,7 +144,8 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
     }.otherwise {
       blockX := blockX + HjpegConstants.BlockDim.U
       loadSample := 0.U
-      transformBlock := 0.U
+      issueBlock := 0.U
+      captureBlock := 0.U
       state := sLoad
     }
   }

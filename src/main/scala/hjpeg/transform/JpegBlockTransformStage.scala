@@ -17,10 +17,17 @@ class JpegBlockTransformStage(sampleBits: Int = 9, coefficientBits: Int = 16) ex
   val dct = Module(new Dct8x8Stage(sampleBits, coefficientBits))
   val quantize = Module(new QuantizeBlockStage(coefficientBits))
   val zigZag = Module(new ZigZagBlockStage(coefficientBits))
+  val dctQuality = Reg(UInt(7.W))
+  val dctIsLuminance = Reg(Bool())
 
   dct.io.input <> io.input
-  quantize.io.quality := io.quality
-  quantize.io.isLuminance := io.isLuminance
+  when(io.input.fire) {
+    dctQuality := io.quality
+    dctIsLuminance := io.isLuminance
+  }
+
+  quantize.io.quality := dctQuality
+  quantize.io.isLuminance := dctIsLuminance
   quantize.io.input <> dct.io.output
   zigZag.io.input <> quantize.io.output
   io.output <> zigZag.io.output

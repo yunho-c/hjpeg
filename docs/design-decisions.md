@@ -265,8 +265,10 @@ smaller and its intermediate values easier to test.
 
 **Consequences:**
 
-- The 4:4:4 path processes three blocks sequentially per MCU.
-- The 4:2:0 path processes six blocks sequentially per MCU.
+- The 4:4:4 path issues three ordered blocks per MCU through one transform.
+- The 4:2:0 path issues six ordered blocks per MCU through one transform.
+- DCT processing for a later component may overlap quantization of an earlier
+  component while results remain in issue order.
 - Transform latency dominates frame time; no real-time frame-rate target is
   currently demonstrated.
 - Resource savings and timing closure must be judged together with measured

@@ -57,16 +57,21 @@ accepted boundary to output validity:
 | 8x8 DCT block | 1,024 | 1,024 |
 | 64-coefficient quantization | 1,280 | 1,280 |
 | Complete DCT/quantize/zig-zag block | 2,305 | 2,305 |
-| First 4:4:4 MCU after stripe collection | 6,985 | 7,000 |
-| First 4:2:0 MCU after band collection | 14,354 | 14,500 |
-| Complete 16x16 4:4:4 test frame | 28,296 | 40,000 |
+| First 4:4:4 MCU after stripe collection | 4,935 | 5,000 |
+| First 4:2:0 MCU after band collection | 9,229 | 9,300 |
+| Complete 16x16 4:4:4 test frame | 20,096 | 21,000 |
 
 The block and MCU measurements use quality 50 and deterministic fixtures. The
 transform latency is fixed by the current state machines; entropy and complete
 frame time can also depend on coefficient content and emitted byte count.
 
+The raster stages issue the next component block when the DCT becomes ready
+while the previous block is still being quantized. This ordered overlap keeps
+one transform instance but reduced the measured 4:4:4 MCU latency by about 29%,
+the 4:2:0 MCU latency by about 36%, and the 16x16 frame latency by about 29%.
+
 Using only the MCU regression ceilings gives optimistic 1080p throughput
-ceilings of roughly 0.44 fps for 4:4:4 and 0.85 fps for 4:2:0 at 100 MHz.
+ceilings of roughly 0.62 fps for 4:4:4 and 1.32 fps for 4:2:0 at 100 MHz.
 Actual frame throughput will be lower because those estimates omit some raster,
 entropy, marker, and flow-control work. They are architectural gap indicators,
 not board measurements.

@@ -50,7 +50,11 @@ Each raster stage loads one MCU into small block registers over multiple cycles.
 It reuses one transform path across the component blocks and captures the
 resulting coefficients before emitting the MCU packet. This keeps the stripe
 memories to one read and one write port per component and avoids parallel DCT
-and quantization units for every block in an MCU.
+and quantization units for every block in an MCU. Component blocks are issued
+in order whenever the DCT input is ready, so DCT work for a later component can
+overlap quantization of an earlier component. Results are captured in the same
+order and retain the quality and luminance/chrominance metadata sampled with
+their input block.
 
 `Dct8x8Stage` is a multi-cycle separable transform. It captures one block,
 computes row and column products iteratively, and holds the completed
