@@ -257,7 +257,7 @@ contract. Change the target explicitly rather than silently redefining success.
 
 **Decision:** Reuse one `JpegBlockTransformStage` across all component blocks in
 an MCU. Compute the DCT one product term per cycle and quantize one coefficient
-at a time with an iterative divider.
+at a time with an exact two-bit-per-cycle restoring divider.
 
 **Context:** Earlier parallel and combinational structures created excessive
 memory-port, synthesis, and timing pressure. Serialization made the transform

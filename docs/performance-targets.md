@@ -55,11 +55,11 @@ accepted boundary to output validity:
 | Boundary | Observed cycles | Regression ceiling |
 | --- | ---: | ---: |
 | 8x8 DCT block | 1,024 | 1,024 |
-| 64-coefficient quantization | 1,280 | 1,280 |
-| Complete DCT/quantize/zig-zag block | 2,305 | 2,305 |
-| First 4:4:4 MCU after stripe collection | 4,935 | 5,000 |
-| First 4:2:0 MCU after band collection | 9,229 | 9,300 |
-| Complete 16x16 4:4:4 test frame | 20,096 | 21,000 |
+| 64-coefficient quantization | 704 | 704 |
+| Complete DCT/quantize/zig-zag block | 1,729 | 1,729 |
+| First 4:4:4 MCU after stripe collection | 3,847 | 3,900 |
+| First 4:2:0 MCU after band collection | 7,373 | 7,400 |
+| Complete 16x16 4:4:4 test frame | 15,744 | 16,000 |
 
 The block and MCU measurements use quality 50 and deterministic fixtures. The
 transform latency is fixed by the current state machines; entropy and complete
@@ -70,8 +70,15 @@ while the previous block is still being quantized. This ordered overlap keeps
 one transform instance but reduced the measured 4:4:4 MCU latency by about 29%,
 the 4:2:0 MCU latency by about 36%, and the 16x16 frame latency by about 29%.
 
+The quantizer performs two exact restoring-division quotient bits per cycle.
+Compared with the earlier one-bit divider, this reduced quantizer latency by
+45%, complete block-transform latency by 25%, current 4:4:4/4:2:0 MCU latency
+by about 22%/20%, and current 16x16 frame latency by about 22%. Exact rounded
+division is checked across luminance and chrominance tables at multiple quality
+settings.
+
 Using only the MCU regression ceilings gives optimistic 1080p throughput
-ceilings of roughly 0.62 fps for 4:4:4 and 1.32 fps for 4:2:0 at 100 MHz.
+ceilings of roughly 0.79 fps for 4:4:4 and 1.66 fps for 4:2:0 at 100 MHz.
 Actual frame throughput will be lower because those estimates omit some raster,
 entropy, marker, and flow-control work. They are architectural gap indicators,
 not board measurements.

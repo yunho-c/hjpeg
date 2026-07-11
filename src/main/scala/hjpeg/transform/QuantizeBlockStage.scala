@@ -80,14 +80,26 @@ class QuantizeBlockStage(coefficientBits: Int = 16) extends Module {
   val quotientBit = shiftedRemainder >= wideDivisor
   val nextRemainder = Mux(quotientBit, shiftedRemainder - wideDivisor, shiftedRemainder)
   val quotientMask = 1.U(divideBits.W) << divideBit
+  val quotientAfterFirst = Mux(quotientBit, quotient | quotientMask, quotient)
+
+  val hasSecondBit = divideBit =/= 0.U
+  val secondDivideBit = Mux(hasSecondBit, divideBit - 1.U, 0.U)
+  val secondShiftedRemainder =
+    Cat(nextRemainder(divideBits - 1, 0), dividend(secondDivideBit)).asUInt
+  val secondQuotientBit = secondShiftedRemainder >= wideDivisor
+  val remainderAfterSecond =
+    Mux(secondQuotientBit, secondShiftedRemainder - wideDivisor, secondShiftedRemainder)
+  val secondQuotientMask = 1.U(divideBits.W) << secondDivideBit
+  val quotientAfterSecond =
+    Mux(secondQuotientBit, quotientAfterFirst | secondQuotientMask, quotientAfterFirst)
 
   when(state === sDivide) {
-    remainder := nextRemainder
-    quotient := Mux(quotientBit, quotient | quotientMask, quotient)
-    when(divideBit === 0.U) {
+    remainder := Mux(hasSecondBit, remainderAfterSecond, nextRemainder)
+    quotient := Mux(hasSecondBit, quotientAfterSecond, quotientAfterFirst)
+    when(divideBit <= 1.U) {
       state := sWriteCoefficient
     }.otherwise {
-      divideBit := divideBit - 1.U
+      divideBit := divideBit - 2.U
     }
   }
 
