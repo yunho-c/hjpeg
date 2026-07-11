@@ -60,9 +60,9 @@ from an accepted boundary to output validity:
 | Four-lane 64-coefficient quantization | 21 | 22 |
 | Complete DCT/quantize/zig-zag block latency | 55 | 57 |
 | Four-block transform initiation intervals | 16/16/16 | 17 maximum |
-| First 4:4:4 MCU after stripe collection | 153 | 160 |
-| First 4:2:0 MCU after band collection | 649 | 660 |
-| Complete 16x16 4:4:4 test frame | 2,362 | 2,400 |
+| First 4:4:4 MCU after stripe collection | 154 | 160 |
+| First 4:2:0 MCU after band collection | 650 | 660 |
+| Complete 16x16 4:4:4 test frame | 2,364 | 2,400 |
 
 The block and MCU measurements use quality 50 and deterministic fixtures. The
 transform latency is fixed by the current state machines; entropy and complete
@@ -92,23 +92,26 @@ metadata queue. Across varied luminance/chrominance blocks it sustains a
 previous production path, DCT latency fell from 129 to 35 cycles, quantization
 from 66 to 21, and complete transform latency from 196 to 55. First-MCU
 processing fell from 398 to 153 cycles for 4:4:4 and from 1,050 to 649 for
-4:2:0; the 16x16 frame fixture fell from 3,096 to 2,362 cycles.
+4:2:0. Synchronous raster reads intentionally add one cycle to those paths,
+making the current measurements 154 and 650 cycles; the previously measured
+16x16 frame fixture moves from 2,362 to 2,364 cycles.
 
-The quick 32x16 trace now completes in 3,275 cycles for 4:4:4 and 3,106 for
-4:2:0. Within-MCU block intervals are 16 cycles; steady same-stripe 4:4:4 MCU
-spacing is 152 cycles and a stripe transition is 408 cycles. Header/entropy
-startup dominates these small frames, while serial MCU loading and raster
-collection dominate the remaining steady-state gap.
+The last pre-BRAM quick 32x16 trace completed in 3,275 cycles for 4:4:4 and
+3,106 for 4:2:0. Within-MCU block intervals are 16 cycles; steady same-stripe
+4:4:4 MCU spacing is 152 cycles and a stripe transition is 408 cycles.
+Header/entropy startup dominates these small frames, while serial MCU loading
+and raster collection dominate the remaining steady-state gap.
 
-A current-code 64x64 seeded-random quality-90 capture adds the missing
-high-entropy evidence. The 4:4:4 frame completes in 19,563 cycles and has
-post-first-stripe MCU intervals of 222--230 cycles. Its `mcu_output` boundary
-has one 1,574-cycle startup stall followed by 55 repeated 64--76-cycle stalls,
-so entropy consumption is a sustained 4:4:4 bottleneck for this content. The
-4:2:0 frame completes in 16,277 cycles, has a stable 650-cycle post-first-band
-MCU interval, and has only one contiguous 1,318-cycle startup stall; serialized
-MCU loading remains its dominant steady-state limit. Both scenarios retain a
-16-cycle transform initiation interval and decode at the expected dimensions.
+A current-code, block-RAM-backed 64x64 seeded-random quality-90 capture adds
+the missing high-entropy evidence. The 4:4:4 frame completes in 19,571 cycles
+and has post-first-stripe MCU intervals of 218--230 cycles. Its `mcu_output`
+boundary has one 1,573-cycle startup stall followed by 55 repeated 63--75-cycle
+stalls, so entropy consumption is a sustained 4:4:4 bottleneck for this
+content. The 4:2:0 frame completes in 16,292 cycles, has a stable 651-cycle
+post-first-band MCU interval, and has only one contiguous 1,317-cycle startup
+stall; serialized MCU loading remains its dominant steady-state limit. Both
+scenarios retain a 16-cycle transform initiation interval and decode at the
+expected dimensions.
 
 Using only the new MCU regression ceilings gives optimistic 1080p throughput
 ceilings of roughly 19.3 fps for 4:4:4 and 18.6 fps for 4:2:0 at 100 MHz.
@@ -196,7 +199,8 @@ throughput architecture should prioritize:
 
 1. at least two-coefficient-per-cycle AC scanning plus enough run buffering or
    packer overlap to remove repeated high-entropy 4:4:4 MCU stalls;
-2. BRAM-friendly banked synchronous stripe/band storage with widened MCU reads;
+2. banked synchronous stripe/band storage with widened MCU reads, building on
+   the now-verified single-port block-RAM inference;
 3. ping-pong buffering so raster collection overlaps MCU processing without
    hiding a sustained downstream mismatch behind arbitrary FIFO depth;
 4. a measured MCU queue sized from the resulting producer/consumer rates; and

@@ -40,9 +40,11 @@ quantizer shares quality scaling across four reciprocal/correction lanes with
 two banks. The earlier single-lane stages remain independently tested but are
 not in the active encoder datapath. Serialized raster collection and MCU loading
 plus high-entropy 4:4:4 entropy consumption are now the primary simulated
-throughput limits. Current Vivado implementation closes 100 MHz timing at setup
-WNS `+0.245 ns` and hold WHS `+0.010 ns`, but consumes 90.51% of CLBs, so it
-fails the provisional resource target and requires BRAM-oriented storage work.
+throughput limits. The raster stores use synchronous block-RAM-friendly reads.
+Current Vivado implementation closes 100 MHz timing at setup WNS `+0.446 ns`
+and hold WHS `+0.011 ns`, uses 52.63% of CLBs and 27.78% of BRAM tiles, and
+passes the provisional resource target. Banked/widened loading remains future
+performance work.
 
 `HjpegAxiStreamCore` is the current hardware-facing shell. It accepts raster RGB
 AXI4-Stream-shaped words, generates pixel coordinates, forwards bytes from

@@ -57,13 +57,12 @@ current transform optimizations:
 
 Current four-lane construction evidence includes IP packaging, block-design
 validation, implementation, bitstream/XSA export, and all twelve required
-evidence records. Timing closes at setup WNS `+0.245 ns` and hold WHS
-`+0.010 ns`; DRC and route-status reports pass with zero routing errors. The
-build uses 55.14% CLB LUTs, 44.51% LUTRAM, 23.34% registers, 2.78% BRAM, and
-10.18% DSPs. It consumes 90.51% of CLBs, however, so the default 90% checker
-and the provisional 70% project ceiling both fail. The same complete evidence
-set passes only when the checker ceiling is relaxed to 100%, which is diagnostic
-evidence rather than project acceptance.
+evidence records. Raster stripe/band storage now uses synchronous reads and
+infers block RAM. Timing closes at setup WNS `+0.446 ns` and hold WHS
+`+0.011 ns`; DRC and route-status reports pass with zero routing errors. The
+build uses 28.22% CLB LUTs, 1.17% LUTRAM, 23.24% registers, 27.78% BRAM, and
+10.18% DSPs. Physical CLB occupancy is 52.63%, so the complete evidence set
+passes both the default checker and the provisional 70% project ceiling.
 
 Not yet proven:
 
@@ -95,8 +94,8 @@ budget-annotated summaries. `--capture-dir` re-renders a capture without
 simulation. The test-only harness bores internal signals to simulation ports;
 production `HjpegCore` IO and generated RTL are unchanged.
 
-The current capture contains one complete frame per scenario, not one MCU and
-not back-to-back frames:
+This quick capture predates the synchronous raster-memory change and contains
+one complete frame per scenario, not one MCU and not back-to-back frames:
 
 | Scenario | Pixels | MCUs | Blocks | JPEG bytes | Frame cycles |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -162,27 +161,28 @@ run from about 34 minutes to about 8 minutes, which validates the capture
 mechanism but not current steady-state performance. Run current-code 64x64
 high-entropy scenarios before making a broad entropy-capacity claim.
 
-Current-code 64x64 seeded-random quality-90 captures now cover both sampling
-modes. The 4:4:4 frame completes in 19,563 cycles and has 222--230-cycle
-post-first-stripe MCU intervals. Its MCU output has one 1,574-cycle startup
-stall plus 55 repeated 64--76-cycle stalls, proving a sustained high-entropy
-consumer mismatch. The 4:2:0 frame completes in 16,277 cycles, has a stable
-650-cycle post-first-band MCU interval, and has only one contiguous startup
-stall. Both decode and retain a 16-cycle transform interval.
+Current block-RAM-backed 64x64 seeded-random quality-90 captures cover both
+sampling modes. The 4:4:4 frame completes in 19,571 cycles and has
+218--230-cycle post-first-stripe MCU intervals. Its MCU output has one
+1,573-cycle startup stall plus 55 repeated 63--75-cycle stalls, proving a
+sustained high-entropy consumer mismatch. The 4:2:0 frame completes in 16,292
+cycles, has a stable 651-cycle post-first-band MCU interval, and has only one
+contiguous 1,317-cycle startup stall. Both decode and retain a 16-cycle
+transform interval.
 
 Recommended next sprint, in order:
 
 1. Widen AC scanning to at least two coefficients per cycle and decouple run
    production from byte packing enough to remove the repeated high-entropy
    4:4:4 stalls. A tiny FIFO alone cannot fix this sustained mismatch.
-2. Add BRAM-friendly banked/widened MCU loading together with ping-pong
+2. Bank and widen the now-synchronous BRAM-backed MCU stores, then add ping-pong
    stripe/band storage. Ping-pong collection alone still leaves the current
-   153-cycle 4:4:4 and 649-cycle 4:2:0 processing times above their MCU budgets.
+   154-cycle 4:4:4 and 650-cycle 4:2:0 processing times above their MCU budgets.
 3. Regenerate traces after each material entropy/buffering change and size any
    MCU queue from measured producer/consumer rates.
-4. Preserve the current timing-clean implementation as a comparison point, but
-   treat BRAM conversion as required: the routed design uses 90.51% of CLBs and
-   fails the project resource gate despite positive setup/hold timing.
+4. Preserve the current timing/resource-clean BRAM implementation as the
+   comparison point: routed CLB occupancy is 52.63% with positive setup/hold
+   timing and the complete evidence gate passes.
 
 The preferred DCT direction is deeply throughput-pipelined but not necessarily
 systolic. A fixed 8x8 JPEG DCT can exploit separability and butterfly symmetry
@@ -539,7 +539,7 @@ meets its average 4:4:4 block-rate budget, but serialized raster/MCU work still
 implies optimistic ceilings of only about 19.3 fps for 4:4:4 and 18.6 fps for
 4:2:0 at 1080p and 100 MHz. See
 `docs/performance-targets.md`. Current Vivado evidence closes 100 MHz timing but
-fails the resource target at 90.51% CLB utilization.
+also passes the resource target at 52.63% CLB occupancy.
 
 `JpegHeaderStage` was also changed from a one-byte-per-cycle combinational
 header mux into a small byte-generation FSM. Static marker bytes still emit in
@@ -699,8 +699,8 @@ meaningless gate values.
 
 The current checkout has fresh full Vivado construction evidence for the
 four-lane RTL. It proves that the design packages, routes, closes 100 MHz timing,
-and emits a bitstream/XSA, but it fails the resource gate because routed CLB
-utilization is 90.51%. It does not prove board behavior.
+emits a bitstream/XSA, and passes the resource gate at 52.63% routed CLB
+occupancy. It does not prove board behavior.
 
 The 2026-07-11 software baseline is green. Current RTL validation used the
 pinned Docker JDK 21/sbt/Verilator toolchain on Windows:
@@ -800,14 +800,14 @@ Known local limitations:
 - The native Windows/MSYS simulator path remains incompatible, but the pinned
   Docker flow runs the complete suite against the same checkout; the current
   126-test result includes all AXI-stream and AXI-Lite recovery regressions.
-- Current four-lane full Vivado construction emits the bitstream, XSA, and
-  post-implementation checkpoint. Post-synthesis setup WNS is `+1.895 ns`;
-  post-implementation setup WNS is `+0.245 ns` and hold WHS is `+0.010 ns`.
-  Post-implementation utilization is 64,579 CLB LUTs (55.14%), 25,635 LUTRAMs
-  (44.51%), 54,681 registers (23.34%), 4 BRAM tiles (2.78%), 127 DSPs (10.18%),
-  and 13,251 CLBs (90.51%). The floorplan report records 142,345 placed
-  primitive cells. The complete twelve-record checker fails at its default 90%
-  ceiling only on CLB utilization; it passes with a diagnostic 100% ceiling.
+- Current block-RAM-backed four-lane Vivado construction emits the bitstream,
+  XSA, and post-implementation checkpoint. Post-synthesis setup WNS is
+  `+1.707 ns`; post-implementation setup WNS is `+0.446 ns` and hold WHS is
+  `+0.011 ns`. Post-implementation utilization is 33,053 CLB LUTs (28.22%),
+  675 LUTRAMs (1.17%), 54,439 registers (23.24%), 40 BRAM tiles (27.78%),
+  127 DSPs (10.18%), and 7,705 CLBs (52.63%). The floorplan report records
+  103,273 placed primitive cells. The complete twelve-record checker passes at
+  its default ceiling.
 
 On a new machine, run these first:
 
@@ -1161,10 +1161,10 @@ object-shaped transcript.
   once-per-frame header. Use `--profile steady-state`, or selected 64x64 matrix
   scenarios, before declaring entropy safe or bottlenecked.
 - The transform-rate deficit is resolved in simulation. A 4:4:4 MCU still takes
-  about 153 cycles after collection against a 102.9-cycle average budget, and
+  154 cycles after collection against a 102.9-cycle average budget, and
   the 4:2:0 loader alone serializes 512 source-sample cycles against a
   408.5-cycle whole-MCU budget. Ping-pong collection must therefore be paired
-  with BRAM-friendly banked/widened MCU loading rather than added by itself.
+  with banked/widened synchronous MCU loading rather than added by itself.
 - Restart interval coverage now includes stage-level RTL and host-side JPEG
   validation regressions for RST marker numbering wrapping from RST7 back to
   RST0.
@@ -1201,9 +1201,9 @@ If the new PC has KV260 access too:
 
 If the new PC does not have Vivado or hardware:
 
-1. Investigate BRAM-friendly synchronous ping-pong stripe/band storage and MCU
-   queueing so pixel collection overlaps processing without hiding a sustained
-   rate mismatch behind an arbitrarily deep FIFO.
+1. Bank the now-BRAM-backed synchronous stripe/band storage and widen MCU reads,
+   then add ping-pong collection so input overlaps processing without hiding a
+   sustained rate mismatch behind an arbitrarily deep FIFO.
 2. Use larger high-entropy traces to decide whether entropy/output work needs
    architectural optimization after startup is excluded.
 3. Keep each validated slice committed; avoid combining profiler, arithmetic,

@@ -33,15 +33,19 @@ class JpegRasterToSubsampledMcuStage(
   val lastRowInBand = RegInit(0.U(4.W))
   val loadPhase = RegInit(0.U(3.W))
   val loadSample = RegInit(0.U(6.W))
+  val loadReadPhase = RegInit(0.U(3.W))
+  val loadReadSample = RegInit(0.U(6.W))
+  val loadReadChromaSubSample = RegInit(0.U(2.W))
+  val loadAllIssued = RegInit(false.B)
   val issueBlock = RegInit(0.U(3.W))
   val captureBlock = RegInit(0.U(3.W))
   val chromaSubSample = RegInit(0.U(2.W))
   val cbAccumulator = RegInit(0.S((sampleBits + 2).W))
   val crAccumulator = RegInit(0.S((sampleBits + 2).W))
 
-  val ySamples = Mem(BandSamples, SInt(sampleBits.W))
-  val cbSamples = Mem(BandSamples, SInt(sampleBits.W))
-  val crSamples = Mem(BandSamples, SInt(sampleBits.W))
+  val ySamples = SyncReadMem(BandSamples, SInt(sampleBits.W))
+  val cbSamples = SyncReadMem(BandSamples, SInt(sampleBits.W))
+  val crSamples = SyncReadMem(BandSamples, SInt(sampleBits.W))
   val y0Block = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
   val y1Block = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
   val y2Block = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
@@ -67,9 +71,9 @@ class JpegRasterToSubsampledMcuStage(
   io.input.ready := state === sCollect
 
   when(io.input.fire) {
-    ySamples(writeIndex) := (yComponent.zext - 128.S)(sampleBits - 1, 0).asSInt
-    cbSamples(writeIndex) := (cbComponent.zext - 128.S)(sampleBits - 1, 0).asSInt
-    crSamples(writeIndex) := (crComponent.zext - 128.S)(sampleBits - 1, 0).asSInt
+    ySamples.write(writeIndex, (yComponent.zext - 128.S)(sampleBits - 1, 0).asSInt)
+    cbSamples.write(writeIndex, (cbComponent.zext - 128.S)(sampleBits - 1, 0).asSInt)
+    crSamples.write(writeIndex, (crComponent.zext - 128.S)(sampleBits - 1, 0).asSInt)
     when(lastPixelInBand) {
       state := sLoad
       blockX := 0.U
@@ -77,6 +81,7 @@ class JpegRasterToSubsampledMcuStage(
       lastRowInBand := rowInBand
       loadPhase := 0.U
       loadSample := 0.U
+      loadAllIssued := false.B
       issueBlock := 0.U
       captureBlock := 0.U
       chromaSubSample := 0.U
@@ -100,18 +105,17 @@ class JpegRasterToSubsampledMcuStage(
 
   val yReadIndex = clampedIndex(yReadRow, yReadCol)
   val chromaReadIndex = clampedIndex(chromaReadRow, chromaReadCol)
-  val yLoadSample = ySamples(yReadIndex)
-  val cbLoadSample = cbSamples(chromaReadIndex)
-  val crLoadSample = crSamples(chromaReadIndex)
+  val loadReadEnable = state === sLoad && !loadAllIssued
+  val yLoadSample = ySamples.read(yReadIndex, loadReadEnable)
+  val cbLoadSample = cbSamples.read(chromaReadIndex, loadReadEnable)
+  val crLoadSample = crSamples.read(chromaReadIndex, loadReadEnable)
+  val loadReadValid = RegNext(loadReadEnable, false.B)
 
-  when(state === sLoad) {
+  when(loadReadEnable) {
+    loadReadPhase := loadPhase
+    loadReadSample := loadSample
+    loadReadChromaSubSample := chromaSubSample
     when(loadPhase < 4.U) {
-      switch(loadPhase) {
-        is(0.U) { y0Block(loadSample) := yLoadSample }
-        is(1.U) { y1Block(loadSample) := yLoadSample }
-        is(2.U) { y2Block(loadSample) := yLoadSample }
-        is(3.U) { y3Block(loadSample) := yLoadSample }
-      }
       when(loadSample === (HjpegConstants.BlockSize - 1).U) {
         loadSample := 0.U
         loadPhase := loadPhase + 1.U
@@ -119,25 +123,42 @@ class JpegRasterToSubsampledMcuStage(
         loadSample := loadSample + 1.U
       }
     }.otherwise {
-      val cbNextSum = Mux(chromaSubSample === 0.U, 0.S, cbAccumulator) + cbLoadSample
-      val crNextSum = Mux(chromaSubSample === 0.U, 0.S, crAccumulator) + crLoadSample
-      cbAccumulator := cbNextSum
-      crAccumulator := crNextSum
       when(chromaSubSample === 3.U) {
-        cbBlock(loadSample) := (cbNextSum >> 2).asSInt
-        crBlock(loadSample) := (crNextSum >> 2).asSInt
         chromaSubSample := 0.U
-        cbAccumulator := 0.S
-        crAccumulator := 0.S
         when(loadSample === (HjpegConstants.BlockSize - 1).U) {
-          state := sTransform
-          issueBlock := 0.U
-          captureBlock := 0.U
+          loadAllIssued := true.B
         }.otherwise {
           loadSample := loadSample + 1.U
         }
       }.otherwise {
         chromaSubSample := chromaSubSample + 1.U
+      }
+    }
+  }
+
+  when(state === sLoad && loadReadValid) {
+    when(loadReadPhase < 4.U) {
+      switch(loadReadPhase) {
+        is(0.U) { y0Block(loadReadSample) := yLoadSample }
+        is(1.U) { y1Block(loadReadSample) := yLoadSample }
+        is(2.U) { y2Block(loadReadSample) := yLoadSample }
+        is(3.U) { y3Block(loadReadSample) := yLoadSample }
+      }
+    }.otherwise {
+      val cbNextSum = Mux(loadReadChromaSubSample === 0.U, 0.S, cbAccumulator) + cbLoadSample
+      val crNextSum = Mux(loadReadChromaSubSample === 0.U, 0.S, crAccumulator) + crLoadSample
+      cbAccumulator := cbNextSum
+      crAccumulator := crNextSum
+      when(loadReadChromaSubSample === 3.U) {
+        cbBlock(loadReadSample) := (cbNextSum >> 2).asSInt
+        crBlock(loadReadSample) := (crNextSum >> 2).asSInt
+        cbAccumulator := 0.S
+        crAccumulator := 0.S
+        when(loadReadSample === (HjpegConstants.BlockSize - 1).U) {
+          state := sTransform
+          issueBlock := 0.U
+          captureBlock := 0.U
+        }
       }
     }
   }
@@ -219,6 +240,7 @@ class JpegRasterToSubsampledMcuStage(
       blockX := blockX + McuDim.U
       loadPhase := 0.U
       loadSample := 0.U
+      loadAllIssued := false.B
       issueBlock := 0.U
       captureBlock := 0.U
       chromaSubSample := 0.U

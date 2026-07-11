@@ -190,14 +190,13 @@ Latest local Vivado 2026.1 evidence:
   `hjpeg_kv260.xsa`, and `post_impl.dcp`.
 - `check_reports.py` passed on post-synthesis and post-implementation timing
   and utilization reports.
-- Current four-lane post-implementation timing is setup WNS `+0.245 ns` and
-  hold WHS `+0.010 ns` at the 100 MHz target clock.
-- Current post-implementation utilization is 64,579 CLB LUTs (55.14%), 25,635
-  LUTRAMs (44.51%), 54,681 registers (23.34%), 4 BRAM tiles (2.78%), 127 DSPs
-  (10.18%), and 13,251 CLBs (90.51%). The last value fails both the report
-  checker's default 90% ceiling and the project's provisional 70% ceiling, so
-  this build is timing-clean construction evidence, not an accepted resource
-  result.
+- Current block-RAM-backed four-lane post-implementation timing is setup WNS
+  `+0.446 ns` and hold WHS `+0.011 ns` at the 100 MHz target clock.
+- Current post-implementation utilization is 33,053 CLB LUTs (28.22%), 675
+  LUTRAMs (1.17%), 54,439 registers (23.24%), 40 BRAM tiles (27.78%), 127 DSPs
+  (10.18%), and 7,705 CLBs (52.63%). The complete twelve-record report set
+  passes the default checker and the project's provisional 70% resource
+  ceiling.
 
 ## 6. Prepare Host Input
 

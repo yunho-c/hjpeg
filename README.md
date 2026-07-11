@@ -19,7 +19,8 @@ both 4:4:4 and 4:2:0 modes at a 100 MHz PL clock. The four-lane DCT/quantizer
 now meets the average 4:4:4 block-rate budget in simulation, but serialized
 raster collection/MCU loading and high-entropy 4:4:4 entropy consumption keep
 complete-frame estimates below target. Current implementation closes 100 MHz
-timing but uses 90.51% of CLBs, above the provisional resource ceiling; see
+timing and uses 52.63% of CLBs after moving raster storage into synchronous
+block RAM; see
 [`docs/performance-targets.md`](docs/performance-targets.md) for cycle budgets,
 evidence levels, and the optimization direction.
 

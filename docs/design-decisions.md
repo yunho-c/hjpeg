@@ -281,24 +281,24 @@ smaller and its intermediate values easier to test.
   in-flight DCT blocks.
 - DCT, quantizer, and complete-transform input/output intervals are 16 cycles in
   deterministic RTL simulation, below the 34.3-cycle 4:4:4 block budget.
-- Current implementation closes 100 MHz timing at setup WNS `+0.245 ns` and
-  hold WHS `+0.010 ns`, with 127 DSPs, but consumes 90.51% of CLBs. The timing
-  result is acceptable; the resource result fails the provisional ceiling.
+- Current block-RAM-backed implementation closes 100 MHz timing at setup WNS
+  `+0.446 ns` and hold WHS `+0.011 ns`, with 127 DSPs and 52.63% CLB
+  occupancy. Both timing and the provisional resource ceiling pass.
 - Serial raster collection and MCU loading, rather than block-transform issue
   rate, now dominate simulated frame throughput.
 - Resource savings and timing closure must be judged together with measured
   frame throughput.
 
-**Revisit when:** BRAM-oriented storage work materially changes routing or
-resource pressure, or if raster overlap changes the required transform
-buffering/issue contract.
+**Revisit when:** Raster banking/overlap changes the required transform
+buffering/issue contract or materially changes routing pressure.
 
 ## Serialize stripe-memory reads
 
-**Status:** Provisional
+**Status:** Accepted
 
-**Decision:** Load MCU samples from stripe or band storage over multiple cycles
-before starting the shared transform.
+**Decision:** Store stripe and band samples in `SyncReadMem`, pipeline the
+one-cycle read response with its sample/phase metadata, and load MCU samples
+over multiple cycles before starting the shared transform.
 
 **Context:** Reading every block sample in parallel creates a memory with too
 many read ports for practical FPGA inference. Serial loading gives each
@@ -306,15 +306,18 @@ component store a bounded access pattern.
 
 **Consequences:**
 
-- MCU construction adds load latency before transform latency.
-- The current memories consume substantial LUTRAM in the documented Vivado
-  implementation despite low BRAM use.
-- The access pattern is compatible with a future synchronous-memory design, but
-  the current implementation should not be assumed optimal.
+- MCU construction adds load latency before transform latency. Synchronous
+  reads add exactly one cycle to each measured first-MCU path: 4:4:4 moves from
+  153 to 154 cycles and 4:2:0 from 649 to 650 cycles.
+- Vivado maps the raster stores into block RAM. Relative to the preceding
+  four-lane implementation, routed LUTRAM falls from 25,635 to 675 and CLB
+  occupancy from 90.51% to 52.63%, while BRAM tile use rises from 4 to 40.
+- The stores remain single-read-port and the load schedules remain serialized;
+  this decision recovers physical resources but does not close the frame-rate
+  gap by itself.
 
-**Revisit when:** Optimizing resource use or continuous input throughput.
-Investigate BRAM-friendly `SyncReadMem`, explicit read latency, banking, and
-ping-pong stripe or band buffers.
+**Revisit when:** Adding banking, widened reads, or ping-pong stripe/band
+buffers. Preserve synchronous inference and re-run routed resource evidence.
 
 ## Generate header bytes with a multi-cycle state machine
 
