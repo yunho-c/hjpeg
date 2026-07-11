@@ -42,11 +42,12 @@ Implemented and tested in simulation:
 - Vivado TCL entry points for synthesis, IP packaging, block design creation,
   bitstream/XSA export, and report checking.
 
-Proven locally with Vivado 2026.1:
+Historical construction evidence recorded with Vivado 2026.1, before the
+current transform optimizations:
 
 - KV260 AXI-Lite top SystemVerilog elaboration.
 - KV260 AXI-Lite top synthesis through post-synthesis report generation, with
-  the current post-synthesis setup timing/utilization report gate passing at
+  the recorded post-synthesis setup timing/utilization report gate passing at
   the default 100 MHz threshold.
 - Vivado IP packaging.
 - Vivado block design creation and validation, with remaining non-fatal
@@ -59,7 +60,7 @@ Not yet proven:
 - Programming a real KV260 and moving pixels through AXI DMA.
 - A hardware-produced JPEG captured from the board and validated with standard
   software.
-- Throughput/resource performance against a target frame size and clock.
+- Meeting the provisional 1080p30 performance/resource target at 100 MHz.
 
 ## Important Entry Points
 
@@ -180,6 +181,14 @@ without changing mapped control/status registers.
 Recent baseline commits before this handoff update, newest first. Use
 `git log --oneline` as the source of truth if this list drifts again:
 
+- `d48af0c perf: pipeline exact reciprocal quantization`
+- `77946f2 perf: process two DCT terms per cycle`
+- `efc7596 perf: process two quantizer bits per cycle`
+- `4bb1277 perf: overlap MCU block transforms`
+- `5a4a532 test: establish KV260 performance contracts`
+- `440bd8e fix: restore multi-MCU JPEG correctness`
+- `b8cc6f9 refactor: organize Chisel sources by role`
+- `8f8c7f4 feat: add design graph generator`
 - `7d73e68 fix: preflight duplicate stream endpoints`
 - `34895c9 test: cover duplicate stream endpoint cli`
 - `2746cf9 fix: reject duplicate stream endpoints`
@@ -366,14 +375,23 @@ read ports. A later source edit reuses one `JpegBlockTransformStage` per raster
 stage across the MCU's component blocks, reducing the 4:4:4 path from three
 parallel block transforms to one and the 4:2:0 path from six to one.
 
-The latest local source edits change `Dct8x8Stage` from a fully combinational
-two-dimensional DCT into a multi-cycle row/column engine and change
-`QuantizeBlockStage` into a one-coefficient-at-a-time quantizer with an
-iterative unsigned divider. The DCT accepts one block, serializes each 8-term
-row and column accumulation one product term per cycle, then presents the
-completed coefficient block. The quantizer captures a DCT block and serializes
-the rounded coefficient/table division so the 64 output coefficients are not all
-driven through parallel divider logic.
+The current `Dct8x8Stage` is a multi-cycle separable row/column engine that
+evaluates two exact Q14 product terms per cycle. `QuantizeBlockStage` accepts
+one coefficient per cycle through registered table-lookup,
+floor-reciprocal-estimate, and exact multiply-back-correction steps. The raster
+stages issue the next component DCT while the previous component is being
+quantized, retaining ordered results and block metadata. Exhaustive arithmetic
+checks cover every supported reciprocal numerator/divisor pair, and focused RTL
+tests cover signed extremes and exact quality-scaled table results.
+
+The current simulation contracts are 512 cycles per DCT block, 66 per
+quantized block, 579 per complete block transform, at most 1,700/3,700 cycles
+for the measured 4:4:4/4:2:0 MCU boundaries, and fewer than 7,100 cycles for the
+16x16 4:4:4 frame fixture. These changes materially improve the serialized
+prototype but still imply optimistic ceilings of only about 1.82 fps for 4:4:4
+and 3.31 fps for 4:2:0 at 1080p and 100 MHz. See
+`docs/performance-targets.md`; no current Vivado timing/resource claim is made
+for this changed RTL.
 
 `JpegHeaderStage` was also changed from a one-byte-per-cycle combinational
 header mux into a small byte-generation FSM. Static marker bytes still emit in
@@ -537,10 +555,11 @@ construction evidence, but they do not prove timing, utilization, or bitstream
 behavior for the current RTL. Regenerate them before making a current hardware
 readiness claim.
 
-The 2026-07-10 software baseline is green:
+The 2026-07-10 software baseline is green. Current RTL validation used the
+default Homebrew JDK 26 installation:
 
 ```sh
-env JAVA_HOME=/Library/Java/JavaVirtualMachines/amazon-corretto-21.jdk/Contents/Home sbt test
+sbt test
 ./mill --no-server _.test
 python3 scripts/host/hjpeg_host_test.py
 python3 scripts/vivado/check_reports_test.py
@@ -552,11 +571,14 @@ python3 -m py_compile \
   scripts/dev/check_chiselsim_env.py
 ```
 
-Observed results were 115/115 Scala tests through sbt, a passing Mill test
-target, 234 host tests, 59 Vivado-report tests, 10 ChiselSim-environment tests,
-and 11 design-graph helper tests. The normal local Mill daemon did not launch
-inside the restricted execution environment; `--no-server` ran the same test
-target successfully.
+Current results are 120/120 Scala tests through sbt and `138/138, SUCCESS`
+through Mill. All three core/KV260 SystemVerilog elaboration entry points pass.
+The generated-design-graph smoke run finds 25 reachable module types and 34
+instances with no missing focus modules. The most recent maintained Python
+suite results remain 234 host tests, 59 Vivado-report tests, 10
+ChiselSim-environment tests, and 11 design-graph helper tests. The normal local
+Mill daemon did not launch inside the restricted execution environment;
+`--no-server` ran the same test target successfully.
 
 Previously recorded Vivado/Windows checks:
 
@@ -983,9 +1005,10 @@ object-shaped transcript.
   wrapper now has exact byte-equivalence coverage for default 4:4:4 and
   configured 4:2:0/restart/no-JFIF frames, and `HjpegCoreSpec` has broad luma
   and red/blue decoded-frame recognizability checks.
-- `HjpegCoreSpec` includes a small 16x16 4:4:4 cycle-budget regression using
-  the existing ChiselSim frame driver. This is a local performance drift guard,
-  not proof of KV260 hardware throughput.
+- Deterministic DCT, quantizer, block-transform, 4:4:4/4:2:0 MCU, and 16x16
+  frame cycle contracts are simulation drift guards, not proof of timing
+  closure or KV260 hardware throughput. The current transform initiation
+  interval remains far above the 34.3-cycle average 4:4:4 block budget.
 - Restart interval coverage now includes stage-level RTL and host-side JPEG
   validation regressions for RST marker numbering wrapping from RST7 back to
   RST0.
@@ -1022,12 +1045,15 @@ If the new PC has KV260 access too:
 
 If the new PC does not have Vivado or hardware:
 
-1. Expand simulator coverage for backpressure and longer frames.
-2. Add more non-flat/color image regressions at frame level if they cover a new
+1. Continue reducing the transform initiation interval against the explicit
+   budgets in `docs/performance-targets.md`, preserving exact stage and decoded
+   frame regressions.
+2. Investigate BRAM-friendly synchronous stripe/band storage and ping-pong
+   buffering after transform throughput is no longer overwhelmingly dominant.
+3. Expand simulator coverage for randomized stalls and longer frames.
+4. Add more non-flat/color image regressions at frame level if they cover a new
    shape, chroma mode, or protocol condition.
-3. Broaden performance-oriented cycle checks beyond the current small
-   `HjpegCoreSpec` regression.
-4. Keep each slice committed and avoid large rewrites unless a test exposes a
+5. Keep each slice committed and avoid large rewrites unless a test exposes a
    structural issue.
 
 ## Development Rules For Future Agents

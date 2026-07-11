@@ -31,7 +31,7 @@ physical KV260 operation has not been demonstrated.
 
 The overall rating and findings below remain the historical assessment of
 commit `29a9cfe`. The primary correctness and test-gate findings have since
-been resolved in the current change set:
+been resolved by subsequent commits:
 
 - The shared raster transforms now issue exactly one input handshake for each
   component block before waiting for its result. This fixes stale/duplicated
@@ -46,15 +46,20 @@ been resolved in the current change set:
 - Additional regressions cover distinct horizontal 4:2:0 MCUs, consecutive
   standalone reference blocks, 4:4:4 chroma selection, and legal transform
   pipeline overlap under output backpressure.
+- Explicit 1080p30/100 MHz performance and resource targets now define cycle
+  budgets and evidence levels. Ordered transform overlap, a two-term-per-cycle
+  DCT, and registered exact reciprocal quantization reduce the measured 16x16
+  fixture from the earlier 15,744-cycle baseline to 7,048 cycles. The remaining
+  gap is still large and no updated Vivado timing/resource evidence is claimed.
 
 Current verification after those changes:
 
 ```text
-sbt test under Amazon Corretto JDK 21:
-  115 tests run, 115 passed
+sbt test under Homebrew JDK 26:
+  120 tests run, 120 passed
 
 ./mill --no-server _.test:
-  passed
+  138/138, SUCCESS
 
 python3 scripts/host/hjpeg_host_test.py:
   234 tests passed
@@ -73,11 +78,11 @@ The Python suites and syntax checks are now part of GitHub Actions. The
 ChiselSim environment test that previously inherited the caller's `SHELL` now
 passes an explicit empty environment for the simulated Windows/MSYS case.
 
-The remaining assessment priorities are performance targets and cycle
-contracts, stronger randomized/formal verification, buffering and transform
-throughput work, host-tool modularization, fresh Vivado closure for the changed
-RTL, and physical KV260 validation. No new Vivado or board evidence is claimed
-by this follow-up.
+The remaining assessment priorities are a much smaller transform initiation
+interval, stronger randomized/formal verification, BRAM-friendly buffering and
+collection/processing overlap, host-tool modularization, fresh Vivado closure
+for the changed RTL, and physical KV260 validation. No new Vivado or board
+evidence is claimed by this follow-up.
 
 ## Assessment Basis
 
