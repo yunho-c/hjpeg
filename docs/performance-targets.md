@@ -109,6 +109,44 @@ Actual frame throughput will be lower because those estimates omit some raster,
 entropy, marker, and flow-control work. They are architectural gap indicators,
 not board measurements.
 
+## Performance Trace Workflow
+
+Run the integrated simulation profiler with:
+
+```sh
+./scripts/dev/generate-performance-trace
+```
+
+The default 32x16 fixtures provide repeated MCUs in both sampling modes and a
+controlled 4:4:4 output-stall comparison. Generated artifacts live under
+`build/performance-traces/`:
+
+- `trace.json` is a portable Chrome Trace file for Perfetto. Each ready/valid
+  boundary has transfer, downstream-blocked, upstream-starved, and idle spans;
+  DCT, quantizer, zig-zag, and complete-transform transactions have separate
+  latency lanes.
+- `metrics.json` and `metrics.csv` contain frame rate extrapolation at 100 MHz,
+  transfer and stall counts, latency and initiation distributions, and target
+  comparisons.
+- `pipeline-*.mmd`, `.dot`, and, when Graphviz is installed, `.svg` summarize
+  each scenario against the cycles/pixel, cycles/block, and cycles/MCU budgets
+  above.
+- `scenarios.csv` and `samples.csv` are the raw deterministic capture and can
+  be passed back with `--capture-dir` to reproduce the rendered artifacts.
+
+The transform target uses sustained intervals between component blocks within
+an MCU. Longer gaps between MCUs remain visible in the trace and the unfiltered
+stage initiation distribution, but belong to raster/MCU supply rather than the
+transform's own acceptance capacity. A `valid && !ready` span means that the
+boundary is blocked by its consumer; `!valid && ready` means it is starved by
+its producer. Comparisons across boundaries must account for token type:
+pixels, coefficient blocks, MCUs, entropy runs, and bytes are not interchangeable.
+
+The small-frame FPS value is useful for comparing revisions, not as a direct
+1080p prediction. The simulation assumes a 100 MHz clock, while only Vivado can
+establish that the elaborated design closes timing and only KV260 execution can
+establish DMA-inclusive hardware throughput.
+
 ## Evidence Levels
 
 Performance claims must identify their evidence level:

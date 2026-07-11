@@ -154,6 +154,35 @@ These graphs show module ownership and instantiation. They do not replace
 waveforms for cycle-by-cycle behavior or Vivado schematics for synthesized and
 implemented connectivity.
 
+Generate transaction-level performance traces from deterministic ChiselSim
+frames:
+
+```sh
+./scripts/dev/generate-performance-trace
+```
+
+The helper runs 32x16 4:4:4, 4:2:0, and controlled output-backpressure
+scenarios by default. It writes a Perfetto-compatible `trace.json`, raw
+ready/valid samples, JSON/CSV metrics, and budget-annotated Mermaid, DOT, and
+SVG pipeline graphs under `build/performance-traces/`. Open `trace.json` in
+[Perfetto](https://ui.perfetto.dev/) to inspect transfers, downstream
+backpressure, upstream starvation, and per-transaction stage latency.
+
+Repeat `--scenario 444`, `--scenario 420`, or
+`--scenario 444-output-stalls` to select scenarios. Use `--capture-dir DIR` to
+re-render an existing directory containing `scenarios.csv` and `samples.csv`
+without rerunning simulation, or pass `--no-svg` when Graphviz is unavailable.
+Run the isolated renderer tests with:
+
+```sh
+python3 scripts/dev/generate_performance_trace_test.py
+```
+
+These traces measure cycle-level simulated behavior at an assumed 100 MHz.
+They locate architectural stalls and throughput gaps, but do not replace
+Vivado timing analysis for the physical critical path or KV260 measurements
+for DMA and board-level throughput.
+
 Run a Vivado synthesis project for the AXI-Lite top, when Vivado is installed:
 
 ```sh
