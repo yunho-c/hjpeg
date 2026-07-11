@@ -59,10 +59,11 @@ their input block.
 `Dct8x8Stage` is a multi-cycle separable transform. It captures one block,
 computes two exact Q14 row or column product terms per cycle, and holds the
 completed coefficient block until its consumer accepts it.
-`QuantizeBlockStage` similarly processes one coefficient at a time with an
-exact iterative divider that emits
-two quotient bits per cycle. Both stages favor a bounded synthesis problem over
-single-cycle block latency.
+`QuantizeBlockStage` accepts one coefficient per cycle through registered
+table-lookup, floor-reciprocal-multiply, and multiply-back-correction steps. The
+reciprocal estimate is never high and can be at most one low over the supported
+coefficient range, so the correction preserves exact rounded division. Both
+stages favor a bounded synthesis problem over single-cycle block latency.
 
 After quantization, coefficients are reordered into JPEG zig-zag order. The
 entropy stages difference DC coefficients per component, encode AC zero runs

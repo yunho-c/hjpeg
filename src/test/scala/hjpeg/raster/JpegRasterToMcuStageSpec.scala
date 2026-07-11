@@ -80,7 +80,7 @@ class JpegRasterToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
 
       val firstMcuCycles = waitForOutput(dut)
       info(s"4:4:4 first-MCU processing latency after stripe collection: $firstMcuCycles cycles")
-      firstMcuCycles must be <= 2700
+      firstMcuCycles must be <= 1700
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.last.expect(false.B)
       for (index <- 0 until HjpegConstants.BlockSize) {
@@ -91,7 +91,7 @@ class JpegRasterToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
       dut.clock.step()
 
       val secondMcuCycles = waitForOutput(dut)
-      secondMcuCycles must be <= 2700
+      secondMcuCycles must be <= 1700
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.last.expect(true.B)
       dut.io.output.bits.mcu.y.coefficients(0).expect(16.S)

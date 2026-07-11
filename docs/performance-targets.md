@@ -55,11 +55,11 @@ accepted boundary to output validity:
 | Boundary | Observed cycles | Regression ceiling |
 | --- | ---: | ---: |
 | 8x8 DCT block | 512 | 512 |
-| 64-coefficient quantization | 704 | 704 |
-| Complete DCT/quantize/zig-zag block | 1,217 | 1,217 |
-| First 4:4:4 MCU after stripe collection | 2,695 | 2,700 |
-| First 4:2:0 MCU after band collection | 5,261 | 5,300 |
-| Complete 16x16 4:4:4 test frame | 11,136 | 11,200 |
+| 64-coefficient quantization | 66 | 66 |
+| Complete DCT/quantize/zig-zag block | 579 | 579 |
+| First 4:4:4 MCU after stripe collection | 1,673 | 1,700 |
+| First 4:2:0 MCU after band collection | 3,663 | 3,700 |
+| Complete 16x16 4:4:4 test frame | 7,048 | 7,100 |
 
 The block and MCU measurements use quality 50 and deterministic fixtures. The
 transform latency is fixed by the current state machines; entropy and complete
@@ -70,12 +70,16 @@ while the previous block is still being quantized. This ordered overlap keeps
 one transform instance but reduced the measured 4:4:4 MCU latency by about 29%,
 the 4:2:0 MCU latency by about 36%, and the 16x16 frame latency by about 29%.
 
-The quantizer performs two exact restoring-division quotient bits per cycle.
-Compared with the earlier one-bit divider, this reduced quantizer latency by
-45%, complete block-transform latency by 25%, current 4:4:4/4:2:0 MCU latency
-by about 22%/20%, and current 16x16 frame latency by about 22%. Exact rounded
-division is checked across luminance and chrominance tables at multiple quality
-settings.
+The quantizer accepts one coefficient per cycle through registered table-lookup,
+reciprocal-estimate, and multiply-back-correction steps. It uses a
+17-fraction-bit floor reciprocal whose estimate is never high and is at most
+one low for every supported rounded numerator and nonzero 8-bit divisor.
+Exhaustive software-side checks cover all 8,388,480 such pairs, while RTL tests
+cover signed extremes, luminance/chrominance tables, multiple quality settings,
+and exact rounded results. Compared with the preceding two-bit restoring
+divider, this reduced quantizer latency by about 91%, complete
+block-transform latency by about 53%, 4:4:4/4:2:0 MCU latency by about 38%/30%,
+and 16x16 frame latency by about 37%.
 
 The DCT evaluates two exact Q14 product terms per cycle. This halves DCT
 latency and, relative to the immediately preceding baseline, reduced complete
@@ -84,7 +88,7 @@ and 16x16 frame latency by about 29%. Varied deterministic blocks are checked
 coefficient-for-coefficient against the fixed-point software calculation.
 
 Using only the MCU regression ceilings gives optimistic 1080p throughput
-ceilings of roughly 1.14 fps for 4:4:4 and 2.31 fps for 4:2:0 at 100 MHz.
+ceilings of roughly 1.82 fps for 4:4:4 and 3.31 fps for 4:2:0 at 100 MHz.
 Actual frame throughput will be lower because those estimates omit some raster,
 entropy, marker, and flow-control work. They are architectural gap indicators,
 not board measurements.

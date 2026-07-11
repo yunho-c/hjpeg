@@ -5,6 +5,24 @@ package hjpeg
 import chisel3._
 import chisel3.util._
 
+private[hjpeg] object QuantizeReciprocal {
+  def fractionBits(coefficientBits: Int): Int = {
+    require(coefficientBits >= 8 && coefficientBits <= 28)
+    coefficientBits + 1
+  }
+
+  def value(divisor: Int, coefficientBits: Int): Int = {
+    require(divisor > 0)
+    (1 << fractionBits(coefficientBits)) / divisor
+  }
+
+  def divide(numerator: Int, divisor: Int, coefficientBits: Int): Int = {
+    val estimate =
+      ((numerator.toLong * value(divisor, coefficientBits)) >> fractionBits(coefficientBits)).toInt
+    if (numerator - estimate * divisor >= divisor) estimate + 1 else estimate
+  }
+}
+
 /** Quantizes one natural-order 8x8 DCT coefficient block.
   *
   * Input and output coefficients use natural raster order. Zig-zag reordering is
@@ -13,6 +31,11 @@ import chisel3.util._
   * Rounding is nearest with halves away from zero:
   *
   *   quantized = sign(coefficient) * ((abs(coefficient) + table / 2) / table)
+  *
+  * Division uses a floor reciprocal with `coefficientBits + 1` fractional
+  * bits. The initial quotient cannot exceed the exact quotient and is at most
+  * one low across the supported numerator range; a multiply-back remainder
+  * check supplies that possible final quotient bit exactly.
   */
 class QuantizeBlockStage(coefficientBits: Int = 16) extends Module {
   val io = IO(new Bundle {
@@ -22,21 +45,28 @@ class QuantizeBlockStage(coefficientBits: Int = 16) extends Module {
     val output = Decoupled(new QuantizedCoefficientBlock(coefficientBits))
   })
 
-  private val divideBits = coefficientBits + 2
+  private val numeratorBits = coefficientBits + 2
+  private val reciprocalFractionBits = QuantizeReciprocal.fractionBits(coefficientBits)
+  private val reciprocalBits = reciprocalFractionBits + 1
 
-  val sIdle :: sStartCoefficient :: sDivide :: sWriteCoefficient :: sOutput :: Nil = Enum(5)
+  val sIdle :: sQuantize :: sDrain :: sOutput :: Nil = Enum(4)
   val state = RegInit(sIdle)
   val index = RegInit(0.U(6.W))
   val quality = Reg(UInt(7.W))
   val isLuminance = Reg(Bool())
   val inputCoefficients = Reg(Vec(HjpegConstants.BlockSize, SInt(coefficientBits.W)))
   val outputCoefficients = Reg(Vec(HjpegConstants.BlockSize, SInt(coefficientBits.W)))
-  val dividend = Reg(UInt(divideBits.W))
-  val divisorReg = Reg(UInt(8.W))
-  val quotient = Reg(UInt(divideBits.W))
-  val remainder = Reg(UInt((divideBits + 1).W))
-  val divideBit = Reg(UInt(log2Ceil(divideBits).W))
-  val coefficientNegative = Reg(Bool())
+  val lookupValid = RegInit(false.B)
+  val lookupIndex = Reg(UInt(6.W))
+  val lookupNumerator = Reg(UInt(numeratorBits.W))
+  val lookupDivisor = Reg(UInt(8.W))
+  val lookupNegative = Reg(Bool())
+  val estimateValid = RegInit(false.B)
+  val estimateIndex = Reg(UInt(6.W))
+  val estimateNumerator = Reg(UInt(numeratorBits.W))
+  val estimateDivisor = Reg(UInt(8.W))
+  val estimateNegative = Reg(Bool())
+  val estimateQuotient = Reg(UInt(numeratorBits.W))
 
   io.input.ready := state === sIdle
   io.output.valid := state === sOutput
@@ -51,7 +81,7 @@ class QuantizeBlockStage(coefficientBits: Int = 16) extends Module {
       inputCoefficients(coefficientIndex) := io.input.bits.coefficients(coefficientIndex)
     }
     index := 0.U
-    state := sStartCoefficient
+    state := sQuantize
   }
 
   val tableValue = Module(new JpegQuantTableValue())
@@ -63,55 +93,44 @@ class QuantizeBlockStage(coefficientBits: Int = 16) extends Module {
   val negative = coefficient < 0.S
   val magnitude = Mux(negative, -coefficient, coefficient).asUInt
   val coefficientDivisor = tableValue.io.value
-  val roundedNumerator = magnitude.pad(divideBits) + (coefficientDivisor >> 1).pad(divideBits)
+  val roundedNumerator = magnitude.pad(numeratorBits) + (coefficientDivisor >> 1).pad(numeratorBits)
+  val reciprocals = VecInit((0 to 255).map { divisor =>
+    (if (divisor == 0) 0 else QuantizeReciprocal.value(divisor, coefficientBits)).U(reciprocalBits.W)
+  })
+  val reciprocalProduct = lookupNumerator * reciprocals(lookupDivisor)
+  val nextEstimatedQuotient =
+    reciprocalProduct(reciprocalFractionBits + numeratorBits - 1, reciprocalFractionBits)
+  val estimatedProduct = estimateQuotient * estimateDivisor
+  val remainder = estimateNumerator.pad(estimatedProduct.getWidth) - estimatedProduct
+  val correctedQuotient = estimateQuotient + (remainder >= estimateDivisor).asUInt
+  val signedRounded = correctedQuotient.asSInt
 
-  when(state === sStartCoefficient) {
-    dividend := roundedNumerator(divideBits - 1, 0)
-    divisorReg := tableValue.io.value
-    quotient := 0.U
-    remainder := 0.U
-    divideBit := (divideBits - 1).U
-    coefficientNegative := negative
-    state := sDivide
-  }
-
-  val shiftedRemainder = Cat(remainder(divideBits - 1, 0), dividend(divideBit)).asUInt
-  val wideDivisor = divisorReg.pad(divideBits + 1)
-  val quotientBit = shiftedRemainder >= wideDivisor
-  val nextRemainder = Mux(quotientBit, shiftedRemainder - wideDivisor, shiftedRemainder)
-  val quotientMask = 1.U(divideBits.W) << divideBit
-  val quotientAfterFirst = Mux(quotientBit, quotient | quotientMask, quotient)
-
-  val hasSecondBit = divideBit =/= 0.U
-  val secondDivideBit = Mux(hasSecondBit, divideBit - 1.U, 0.U)
-  val secondShiftedRemainder =
-    Cat(nextRemainder(divideBits - 1, 0), dividend(secondDivideBit)).asUInt
-  val secondQuotientBit = secondShiftedRemainder >= wideDivisor
-  val remainderAfterSecond =
-    Mux(secondQuotientBit, secondShiftedRemainder - wideDivisor, secondShiftedRemainder)
-  val secondQuotientMask = 1.U(divideBits.W) << secondDivideBit
-  val quotientAfterSecond =
-    Mux(secondQuotientBit, quotientAfterFirst | secondQuotientMask, quotientAfterFirst)
-
-  when(state === sDivide) {
-    remainder := Mux(hasSecondBit, remainderAfterSecond, nextRemainder)
-    quotient := Mux(hasSecondBit, quotientAfterSecond, quotientAfterFirst)
-    when(divideBit <= 1.U) {
-      state := sWriteCoefficient
+  lookupValid := state === sQuantize
+  when(state === sQuantize) {
+    lookupIndex := index
+    lookupNumerator := roundedNumerator
+    lookupDivisor := coefficientDivisor
+    lookupNegative := negative
+    when(index === (HjpegConstants.BlockSize - 1).U) {
+      state := sDrain
     }.otherwise {
-      divideBit := divideBit - 2.U
+      index := index + 1.U
     }
   }
 
-  val signedRounded = quotient.asSInt
+  estimateValid := lookupValid
+  when(lookupValid) {
+    estimateIndex := lookupIndex
+    estimateNumerator := lookupNumerator
+    estimateDivisor := lookupDivisor
+    estimateNegative := lookupNegative
+    estimateQuotient := nextEstimatedQuotient
+  }
 
-  when(state === sWriteCoefficient) {
-    outputCoefficients(index) := Mux(coefficientNegative, -signedRounded, signedRounded)
-    when(index === (HjpegConstants.BlockSize - 1).U) {
+  when(estimateValid) {
+    outputCoefficients(estimateIndex) := Mux(estimateNegative, -signedRounded, signedRounded)
+    when(estimateIndex === (HjpegConstants.BlockSize - 1).U) {
       state := sOutput
-    }.otherwise {
-      index := index + 1.U
-      state := sStartCoefficient
     }
   }
 

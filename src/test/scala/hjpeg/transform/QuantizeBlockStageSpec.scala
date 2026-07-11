@@ -8,6 +8,22 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
 class QuantizeBlockStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
+  "the reciprocal divider should be exact for every supported numerator and divisor" in {
+    val maximumRoundedNumerator = (1 << 15) + 127
+    var divisor = 1
+    while (divisor <= 255) {
+      var numerator = 0
+      while (numerator <= maximumRoundedNumerator) {
+        val actual = QuantizeReciprocal.divide(numerator, divisor, coefficientBits = 16)
+        if (actual != numerator / divisor) {
+          fail(s"numerator=$numerator divisor=$divisor actual=$actual expected=${numerator / divisor}")
+        }
+        numerator += 1
+      }
+      divisor += 1
+    }
+  }
+
   private def tableValue(index: Int, quality: Int, isLuminance: Boolean): Int = {
     val table = if (isLuminance) JpegTables.StandardLuminanceQuant else JpegTables.StandardChrominanceQuant
     val clampedQuality = quality.max(1).min(100)
@@ -64,7 +80,7 @@ class QuantizeBlockStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
       pushBlock(dut)
       val cycles = waitForOutput(dut)
       info(s"64-coefficient quantizer latency: $cycles cycles")
-      cycles must be <= 704
+      cycles must be <= 66
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.coefficients(0).expect(1.S)
       dut.io.output.bits.coefficients(1).expect((-1).S)
@@ -106,6 +122,26 @@ class QuantizeBlockStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
       pushBlock(dut)
       waitForOutput(dut)
       dut.io.output.bits.coefficients(0).expect(2.S)
+    }
+  }
+
+  "QuantizeBlockStage should preserve signed coefficient extremes with a unit divisor" in {
+    simulate(new QuantizeBlockStage()) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      dut.io.quality.poke(100.U)
+      dut.io.isLuminance.poke(true.B)
+      dut.io.output.ready.poke(true.B)
+      clearBlock(dut)
+      dut.io.input.bits.coefficients(0).poke((-32768).S)
+      dut.io.input.bits.coefficients(1).poke(32767.S)
+
+      pushBlock(dut)
+      waitForOutput(dut)
+      dut.io.output.bits.coefficients(0).expect((-32768).S)
+      dut.io.output.bits.coefficients(1).expect(32767.S)
     }
   }
 
