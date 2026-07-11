@@ -89,6 +89,7 @@ class JpegHeaderStage extends Module {
   val sIdle :: sLoadByte :: sQuantMultiply :: sQuantDivide :: sOutput :: Nil = Enum(5)
   val state = RegInit(sIdle)
   val index = RegInit(0.U(log2Ceil(JpegHeaderBytes.MaxHeaderLength).W))
+  val quantScanIndex = RegInit(0.U(6.W))
   val outputValid = RegInit(false.B)
   val outputByte = Reg(UInt(8.W))
   val outputLast = Reg(Bool())
@@ -106,9 +107,6 @@ class JpegHeaderStage extends Module {
   val inChrominanceDqt =
     index >= JpegHeaderBytes.DqtChrominanceDataStart.U &&
       index < (JpegHeaderBytes.DqtChrominanceDataStart + HjpegConstants.BlockSize).U
-  val luminanceQuantIndex = index - JpegHeaderBytes.DqtLuminanceDataStart.U
-  val chrominanceQuantIndex = index - JpegHeaderBytes.DqtChrominanceDataStart.U
-  val quantScanIndex = Mux(inLuminanceDqt, luminanceQuantIndex(5, 0), chrominanceQuantIndex(5, 0))
   val quantIndex = zigZag(quantScanIndex)
 
   val clampedQuality = Mux(io.config.quality === 0.U, 1.U, Mux(io.config.quality > 100.U, 100.U, io.config.quality))
@@ -136,6 +134,7 @@ class JpegHeaderStage extends Module {
   when(io.start && state === sIdle) {
     state := sLoadByte
     index := 0.U
+    quantScanIndex := 0.U
   }
 
   io.output.valid := outputValid
@@ -185,6 +184,12 @@ class JpegHeaderStage extends Module {
 
   when(state === sOutput && io.output.fire) {
     outputValid := false.B
+    when(currentIsDqt) {
+      // Advance from accepted DQT bytes rather than deriving the scan position
+      // from low absolute-header-index bits, which wrap partway through the
+      // luminance table. Six-bit wrap resets the counter for chrominance.
+      quantScanIndex := quantScanIndex + 1.U
+    }
     when(currentLast) {
       state := sIdle
       index := 0.U

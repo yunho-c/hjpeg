@@ -15,7 +15,8 @@ class JpegHeaderStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
       quality: Int,
       subsample: Boolean = false,
       restartInterval: Int = 0,
-      emitJfif: Boolean = true): Seq[Int] = {
+      emitJfif: Boolean = true,
+      backpressure: Boolean = false): Seq[Int] = {
     dut.reset.poke(true.B)
     dut.clock.step()
     dut.reset.poke(false.B)
@@ -38,7 +39,9 @@ class JpegHeaderStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
 
     while (!sawLast) {
       assert(cycles <= JpegHeaderBytes.MaxHeaderLength * 4, "timeout waiting for JPEG header")
-      if (dut.io.output.valid.peek().litToBoolean) {
+      val ready = !backpressure || cycles % 3 != 1
+      dut.io.output.ready.poke(ready.B)
+      if (ready && dut.io.output.valid.peek().litToBoolean) {
         bytes += dut.io.output.bits.byte.peek().litValue.toInt
         sawLast = dut.io.output.bits.last.peek().litToBoolean
       }
@@ -47,6 +50,29 @@ class JpegHeaderStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
     }
 
     bytes.toSeq
+  }
+
+  private def scaledQuant(table: Seq[Int], quality: Int): Seq[Int] = {
+    val clampedQuality = quality.max(1).min(100)
+    val scale = if (clampedQuality < 50) 5000 / clampedQuality else 200 - 2 * clampedQuality
+    table.map(value => ((value * scale + 50) / 100).max(1).min(255))
+  }
+
+  private def dqtPayloads(bytes: Seq[Int]): Map[Int, Seq[Int]] = {
+    val payloads = scala.collection.mutable.Map.empty[Int, Seq[Int]]
+    var offset = 2
+
+    while (offset + 3 < bytes.length && bytes(offset) == 0xff && bytes(offset + 1) != 0xda) {
+      val marker = bytes(offset + 1)
+      val length = (bytes(offset + 2) << 8) | bytes(offset + 3)
+      if (marker == 0xdb) {
+        val tableId = bytes(offset + 4) & 0x0f
+        payloads(tableId) = bytes.slice(offset + 5, offset + 2 + length)
+      }
+      offset += 2 + length
+    }
+
+    payloads.toMap
   }
 
   "JpegHeaderStage should emit baseline JPEG markers through SOS" in {
@@ -93,19 +119,31 @@ class JpegHeaderStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
 
   "JpegHeaderStage should emit quality-scaled DQT payloads in zig-zag order" in {
     simulate(new JpegHeaderStage()) { dut =>
-      val bytes = emitHeader(dut, width = 8, height = 8, quality = 50)
+      for (quality <- Seq(0, 1, 25, 50, 75, 100, 127)) {
+        val payloads = dqtPayloads(emitHeader(dut, width = 8, height = 8, quality = quality))
 
-      val luminanceDqt = bytes.slice(
-        JpegHeaderBytes.DqtLuminanceDataStart,
-        JpegHeaderBytes.DqtLuminanceDataStart + HjpegConstants.BlockSize
-      )
-      val chrominanceDqt = bytes.slice(
-        JpegHeaderBytes.DqtChrominanceDataStart,
-        JpegHeaderBytes.DqtChrominanceDataStart + HjpegConstants.BlockSize
-      )
+        payloads(0) mustBe JpegTables.ZigZagOrder.map(scaledQuant(JpegTables.StandardLuminanceQuant, quality))
+        payloads(1) mustBe JpegTables.ZigZagOrder.map(scaledQuant(JpegTables.StandardChrominanceQuant, quality))
+      }
+    }
+  }
 
-      luminanceDqt mustBe JpegTables.ZigZagOrder.map(JpegTables.StandardLuminanceQuant)
-      chrominanceDqt mustBe JpegTables.ZigZagOrder.map(JpegTables.StandardChrominanceQuant)
+  "JpegHeaderStage should preserve DQT payloads across optional segments and backpressure" in {
+    simulate(new JpegHeaderStage()) { dut =>
+      val quality = 75
+      val bytes = emitHeader(
+        dut,
+        width = 16,
+        height = 8,
+        quality = quality,
+        restartInterval = 2,
+        emitJfif = false,
+        backpressure = true
+      )
+      val payloads = dqtPayloads(bytes)
+
+      payloads(0) mustBe JpegTables.ZigZagOrder.map(scaledQuant(JpegTables.StandardLuminanceQuant, quality))
+      payloads(1) mustBe JpegTables.ZigZagOrder.map(scaledQuant(JpegTables.StandardChrominanceQuant, quality))
     }
   }
 
