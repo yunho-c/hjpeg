@@ -10,6 +10,8 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
 class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim {
+  private val OutputDrainTimeoutCycles = JpegHeaderBytes.MaxHeaderLength + 32768
+
   private def init(dut: HjpegKv260AxiLiteTop): Unit = {
     dut.io.sAxiLite.awaddr.poke(0.U)
     dut.io.sAxiLite.awvalid.poke(false.B)
@@ -556,7 +558,7 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
       var sawLast = false
       var cycles = 0
       while (!sawLast) {
-        assert(cycles < JpegHeaderBytes.HeaderLength + 4096, "timeout waiting for late-TLAST JPEG output")
+        assert(cycles < OutputDrainTimeoutCycles, "timeout waiting for late-TLAST JPEG output")
         if (dut.io.mAxisJpeg.valid.peek().litToBoolean) {
           firstBytes += dut.io.mAxisJpeg.bits.data.peek().litValue.toInt
           sawLast = dut.io.mAxisJpeg.bits.last.peek().litToBoolean
@@ -668,7 +670,7 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
       var sawLast = false
       var cycles = 0
       while (!sawLast) {
-        assert(cycles < JpegHeaderBytes.HeaderLength + 4096, "timeout waiting for active-frame AXI-Lite snapshot output")
+        assert(cycles < OutputDrainTimeoutCycles, "timeout waiting for active-frame AXI-Lite snapshot output")
         if (dut.io.mAxisJpeg.valid.peek().litToBoolean) {
           dut.io.mAxisJpeg.bits.keep.expect(1.U)
           bytes += dut.io.mAxisJpeg.bits.data.peek().litValue.toInt

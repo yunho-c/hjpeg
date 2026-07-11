@@ -18,7 +18,7 @@ class JpegRgb8x8ToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
     val output = Decoupled(new ZigZagMinimumCodedUnit(coefficientBits))
   })
 
-  val sCollect :: sTransform :: Nil = Enum(2)
+  val sCollect :: sStartTransforms :: sWaitTransforms :: Nil = Enum(3)
   val state = RegInit(sCollect)
   val writeIndex = RegInit(0.U(6.W))
   val ySamples = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
@@ -35,7 +35,7 @@ class JpegRgb8x8ToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
     cbSamples(writeIndex) := (cbComponent.zext - 128.S)(sampleBits - 1, 0).asSInt
     crSamples(writeIndex) := (crComponent.zext - 128.S)(sampleBits - 1, 0).asSInt
     when(writeIndex === (HjpegConstants.BlockSize - 1).U) {
-      state := sTransform
+      state := sStartTransforms
     }.otherwise {
       writeIndex := writeIndex + 1.U
     }
@@ -52,9 +52,12 @@ class JpegRgb8x8ToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
   crTransform.io.quality := io.quality
   crTransform.io.isLuminance := false.B
 
-  yTransform.io.input.valid := state === sTransform
-  cbTransform.io.input.valid := state === sTransform
-  crTransform.io.input.valid := state === sTransform
+  val allTransformsInputReady =
+    yTransform.io.input.ready && cbTransform.io.input.ready && crTransform.io.input.ready
+  val startTransforms = state === sStartTransforms && allTransformsInputReady
+  yTransform.io.input.valid := startTransforms
+  cbTransform.io.input.valid := startTransforms
+  crTransform.io.input.valid := startTransforms
   for (index <- 0 until HjpegConstants.BlockSize) {
     yTransform.io.input.bits.samples(index) := ySamples(index)
     cbTransform.io.input.bits.samples(index) := cbSamples(index)
@@ -64,13 +67,17 @@ class JpegRgb8x8ToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
   val allTransformsValid =
     yTransform.io.output.valid && cbTransform.io.output.valid && crTransform.io.output.valid
   val allTransformsReady =
-    io.output.ready && allTransformsValid
+    state === sWaitTransforms && io.output.ready && allTransformsValid
+
+  when(startTransforms) {
+    state := sWaitTransforms
+  }
 
   yTransform.io.output.ready := allTransformsReady
   cbTransform.io.output.ready := allTransformsReady
   crTransform.io.output.ready := allTransformsReady
 
-  io.output.valid := state === sTransform && allTransformsValid
+  io.output.valid := state === sWaitTransforms && allTransformsValid
   io.output.bits.yBlockCount := 1.U
   io.output.bits.y := yTransform.io.output.bits
   io.output.bits.y1 := yTransform.io.output.bits

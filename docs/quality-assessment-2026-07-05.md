@@ -27,6 +27,58 @@ physical KV260 operation has not been demonstrated.
 | Host and Vivado tooling | 6/10 | Extremely thorough, but overly monolithic and partly duplicated |
 | Hardware readiness | 4.5/10 | Bitstream and timing evidence exists, but physical encoding and useful throughput are unproven |
 
+## Follow-up Status — 2026-07-10
+
+The overall rating and findings below remain the historical assessment of
+commit `29a9cfe`. The primary correctness and test-gate findings have since
+been resolved in the current change set:
+
+- The shared raster transforms now issue exactly one input handshake for each
+  component block before waiting for its result. This fixes stale/duplicated
+  transform results across horizontal MCUs in both 4:4:4 and 4:2:0 paths.
+- The multi-MCU luminance regression now passes, including the decoded
+  dark/bright image contrast check.
+- The 4:4:4 stream encoder now prioritizes the Cb and Cr component selectors
+  over the `y1`/`y2` storage aliases used only by 4:2:0. The decoded red/blue
+  recognizability regression now passes.
+- Latency-sensitive tests now wait for ready/valid handshakes with separately
+  named hang bounds instead of assuming one header byte per cycle.
+- Additional regressions cover distinct horizontal 4:2:0 MCUs, consecutive
+  standalone reference blocks, 4:4:4 chroma selection, and legal transform
+  pipeline overlap under output backpressure.
+
+Current verification after those changes:
+
+```text
+sbt test under Amazon Corretto JDK 21:
+  115 tests run, 115 passed
+
+./mill --no-server _.test:
+  passed
+
+python3 scripts/host/hjpeg_host_test.py:
+  234 tests passed
+
+python3 scripts/vivado/check_reports_test.py:
+  59 tests passed
+
+python3 scripts/dev/check_chiselsim_env_test.py:
+  10 tests passed
+
+python3 scripts/dev/generate_design_graphs_test.py:
+  11 tests passed
+```
+
+The Python suites and syntax checks are now part of GitHub Actions. The
+ChiselSim environment test that previously inherited the caller's `SHELL` now
+passes an explicit empty environment for the simulated Windows/MSYS case.
+
+The remaining assessment priorities are performance targets and cycle
+contracts, stronger randomized/formal verification, buffering and transform
+throughput work, host-tool modularization, fresh Vivado closure for the changed
+RTL, and physical KV260 validation. No new Vivado or board evidence is claimed
+by this follow-up.
+
 ## Assessment Basis
 
 The assessment included:

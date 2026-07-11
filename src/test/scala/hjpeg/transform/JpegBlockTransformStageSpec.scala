@@ -71,7 +71,7 @@ class JpegBlockTransformStageSpec extends AnyFreeSpec with Matchers with ChiselS
     }
   }
 
-  "JpegBlockTransformStage should propagate ready backpressure" in {
+  "JpegBlockTransformStage should hold output while using available pipeline capacity" in {
     simulate(new JpegBlockTransformStage()) { dut =>
       dut.reset.poke(true.B)
       dut.clock.step()
@@ -79,16 +79,26 @@ class JpegBlockTransformStageSpec extends AnyFreeSpec with Matchers with ChiselS
 
       dut.io.quality.poke(50.U)
       dut.io.isLuminance.poke(true.B)
+      dut.io.output.ready.poke(false.B)
       pushConstantBlock(dut, 0)
       waitForOutput(dut)
 
-      dut.io.output.ready.poke(false.B)
-      dut.io.input.ready.expect(false.B)
       dut.io.output.valid.expect(true.B)
+      dut.io.output.bits.coefficients(0).expect(0.S)
+
+      // The DCT can accept one more block while the first result is held at
+      // the downstream quantize/zig-zag boundary.
+      pushConstantBlock(dut, 16)
+      dut.io.output.valid.expect(true.B)
+      dut.io.output.bits.coefficients(0).expect(0.S)
+      dut.clock.step(3)
+      dut.io.output.valid.expect(true.B)
+      dut.io.output.bits.coefficients(0).expect(0.S)
 
       dut.io.output.ready.poke(true.B)
       dut.clock.step()
-      dut.io.input.ready.expect(true.B)
+      waitForOutput(dut)
+      dut.io.output.bits.coefficients(0).expect(8.S)
     }
   }
 }

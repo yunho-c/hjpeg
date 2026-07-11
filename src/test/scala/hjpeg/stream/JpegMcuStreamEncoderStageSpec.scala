@@ -2,12 +2,17 @@
 
 package hjpeg
 
+import java.io.ByteArrayInputStream
+import javax.imageio.ImageIO
+
 import chisel3._
 import chisel3.simulator.scalatest.ChiselSim
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
 class JpegMcuStreamEncoderStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
+  private val StreamTimeoutCycles = JpegHeaderBytes.MaxHeaderLength + 20000
+
   private def pokeConfig(
       dut: JpegMcuStreamEncoderStage,
       width: Int = 16,
@@ -21,7 +26,12 @@ class JpegMcuStreamEncoderStageSpec extends AnyFreeSpec with Matchers with Chise
     dut.io.config.emitJfif.poke(true.B)
   }
 
-  private def pokeMcu(dut: JpegMcuStreamEncoderStage, yDc: Int, last: Boolean): Unit = {
+  private def pokeMcu(
+      dut: JpegMcuStreamEncoderStage,
+      yDc: Int,
+      last: Boolean,
+      cbDc: Int = 0,
+      crDc: Int = 0): Unit = {
     dut.io.input.bits.last.poke(last.B)
     dut.io.input.bits.mcu.yBlockCount.poke(1.U)
     for (index <- 0 until HjpegConstants.BlockSize) {
@@ -33,14 +43,21 @@ class JpegMcuStreamEncoderStageSpec extends AnyFreeSpec with Matchers with Chise
       dut.io.input.bits.mcu.cr.coefficients(index).poke(0.S)
     }
     dut.io.input.bits.mcu.y.coefficients(0).poke(yDc.S)
+    dut.io.input.bits.mcu.cb.coefficients(0).poke(cbDc.S)
+    dut.io.input.bits.mcu.cr.coefficients(0).poke(crDc.S)
   }
 
-  private def emitMcus(dut: JpegMcuStreamEncoderStage, yDcs: Seq[Int], restartInterval: Int = 0): Seq[Int] = {
+  private def emitMcus(
+      dut: JpegMcuStreamEncoderStage,
+      yDcs: Seq[Int],
+      restartInterval: Int = 0,
+      width: Int = 16,
+      chromaDcs: Seq[(Int, Int)] = Seq.empty): Seq[Int] = {
     dut.reset.poke(true.B)
     dut.clock.step()
     dut.reset.poke(false.B)
 
-    pokeConfig(dut, restartInterval = restartInterval)
+    pokeConfig(dut, width = width, restartInterval = restartInterval)
     dut.io.output.ready.poke(true.B)
     dut.io.input.valid.poke(false.B)
 
@@ -50,7 +67,7 @@ class JpegMcuStreamEncoderStageSpec extends AnyFreeSpec with Matchers with Chise
     var cycles = 0
 
     while (!sawLast) {
-      assert(cycles < JpegHeaderBytes.MaxHeaderLength + 384, "timeout waiting for MCU stream JPEG output")
+      assert(cycles < StreamTimeoutCycles, "timeout waiting for MCU stream JPEG output")
 
       if (dut.io.output.valid.peek().litToBoolean) {
         bytes += dut.io.output.bits.byte.peek().litValue.toInt
@@ -58,7 +75,8 @@ class JpegMcuStreamEncoderStageSpec extends AnyFreeSpec with Matchers with Chise
       }
 
       if (nextMcu < yDcs.length && dut.io.input.ready.peek().litToBoolean) {
-        pokeMcu(dut, yDcs(nextMcu), last = nextMcu == yDcs.length - 1)
+        val (cbDc, crDc) = chromaDcs.lift(nextMcu).getOrElse((0, 0))
+        pokeMcu(dut, yDcs(nextMcu), last = nextMcu == yDcs.length - 1, cbDc = cbDc, crDc = crDc)
         dut.io.input.valid.poke(true.B)
         nextMcu += 1
       } else {
@@ -93,6 +111,23 @@ class JpegMcuStreamEncoderStageSpec extends AnyFreeSpec with Matchers with Chise
       repeatedDcBytes.slice(JpegHeaderBytes.HeaderLength, JpegHeaderBytes.HeaderLength + 4) mustBe
         Seq(0x92, 0x80, 0x0a, 0x00)
       repeatedDcBytes.takeRight(2) mustBe Seq(0xff, 0xd9)
+    }
+  }
+
+  "JpegMcuStreamEncoderStage should select 4:4:4 chroma blocks" in {
+    simulate(new JpegMcuStreamEncoderStage()) { dut =>
+      val bytes = emitMcus(
+        dut,
+        yDcs = Seq(-20),
+        width = 8,
+        chromaDcs = Seq((-16, 45)))
+
+      val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
+      image must not be null
+      val rgb = image.getRGB(0, 0)
+      val red = (rgb >> 16) & 0xff
+      val blue = rgb & 0xff
+      red - blue must be > 60
     }
   }
 
@@ -142,6 +177,12 @@ class JpegMcuStreamEncoderStageSpec extends AnyFreeSpec with Matchers with Chise
       dut.clock.step()
       dut.io.input.valid.poke(false.B)
 
+      var cycles = 0
+      while (!dut.io.output.valid.peek().litToBoolean) {
+        assert(cycles < StreamTimeoutCycles, "timeout waiting for first header byte")
+        dut.clock.step()
+        cycles += 1
+      }
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.byte.expect(0xff.U)
       dut.clock.step()

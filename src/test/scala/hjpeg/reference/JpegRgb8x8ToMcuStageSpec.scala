@@ -101,4 +101,24 @@ class JpegRgb8x8ToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
       }
     }
   }
+
+  "JpegRgb8x8ToMcuStage should not reuse a previous block result" in {
+    simulate(new JpegRgb8x8ToMcuStage()) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      dut.io.quality.poke(50.U)
+      dut.io.output.ready.poke(true.B)
+
+      pushFlatBlock(dut, 128, 128, 128)
+      waitForOutput(dut)
+      dut.io.output.bits.y.coefficients(0).expect(0.S)
+      dut.clock.step()
+
+      pushFlatBlock(dut, 160, 160, 160)
+      waitForOutput(dut)
+      dut.io.output.bits.y.coefficients(0).expect(16.S)
+    }
+  }
 }

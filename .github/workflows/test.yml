@@ -27,6 +27,18 @@ jobs:
           verilator --version
       - name: Design Graph Helper Tests
         run: python3 scripts/dev/generate_design_graphs_test.py
+      - name: Host Helper Tests
+        run: python3 scripts/host/hjpeg_host_test.py
+      - name: Vivado Report Helper Tests
+        run: python3 scripts/vivado/check_reports_test.py
+      - name: ChiselSim Environment Helper Tests
+        run: python3 scripts/dev/check_chiselsim_env_test.py
+      - name: Python Compile Checks
+        run: |
+          python3 -m py_compile \
+            scripts/host/hjpeg_host.py \
+            scripts/vivado/check_reports.py \
+            scripts/dev/check_chiselsim_env.py
       - name: SBT Test
         run: sbt test
       - name: mill Test

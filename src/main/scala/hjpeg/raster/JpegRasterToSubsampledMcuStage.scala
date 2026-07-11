@@ -26,7 +26,7 @@ class JpegRasterToSubsampledMcuStage(
   private val BandSamples = McuDim * c.maxFrameWidth
   private val sampleIndexBits = log2Ceil(BandSamples).max(1)
 
-  val sCollect :: sLoad :: sTransform :: sEmit :: Nil = Enum(4)
+  val sCollect :: sLoad :: sStartTransform :: sWaitTransform :: sEmit :: Nil = Enum(5)
   val state = RegInit(sCollect)
   val blockX = RegInit(0.U(c.coordBits.W))
   val currentBandLast = RegInit(false.B)
@@ -128,7 +128,7 @@ class JpegRasterToSubsampledMcuStage(
         cbAccumulator := 0.S
         crAccumulator := 0.S
         when(loadSample === (HjpegConstants.BlockSize - 1).U) {
-          state := sTransform
+          state := sStartTransform
           transformBlock := 0.U
         }.otherwise {
           loadSample := loadSample + 1.U
@@ -142,7 +142,7 @@ class JpegRasterToSubsampledMcuStage(
   val transform = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
   transform.io.quality := io.config.quality
   transform.io.isLuminance := transformBlock < 4.U
-  transform.io.input.valid := state === sTransform
+  transform.io.input.valid := state === sStartTransform
 
   private def clampedIndex(row: UInt, col: UInt): UInt = {
     val readRow = Mux(row > lastRowInBand, lastRowInBand, row(3, 0))
@@ -161,29 +161,38 @@ class JpegRasterToSubsampledMcuStage(
     }
   }
 
-  transform.io.output.ready := state === sTransform
+  transform.io.output.ready := state === sWaitTransform
+
+  when(transform.io.input.fire) {
+    state := sWaitTransform
+  }
 
   when(transform.io.output.fire) {
     switch(transformBlock) {
       is(0.U) {
         y0Coefficients := transform.io.output.bits
         transformBlock := 1.U
+        state := sStartTransform
       }
       is(1.U) {
         y1Coefficients := transform.io.output.bits
         transformBlock := 2.U
+        state := sStartTransform
       }
       is(2.U) {
         y2Coefficients := transform.io.output.bits
         transformBlock := 3.U
+        state := sStartTransform
       }
       is(3.U) {
         y3Coefficients := transform.io.output.bits
         transformBlock := 4.U
+        state := sStartTransform
       }
       is(4.U) {
         cbCoefficients := transform.io.output.bits
         transformBlock := 5.U
+        state := sStartTransform
       }
       is(5.U) {
         crCoefficients := transform.io.output.bits

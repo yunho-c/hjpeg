@@ -65,11 +65,11 @@ class JpegMcuStreamEncoderStage(coefficientBits: Int = 16) extends Module {
   blockEncoder.io.input.bits := MuxCase(
     currentMcu.y,
     Seq(
+      (component === cbComponent) -> currentMcu.cb,
+      (component === crComponent) -> currentMcu.cr,
       (component === 1.U) -> currentMcu.y1,
       (component === 2.U) -> currentMcu.y2,
-      (component === 3.U) -> currentMcu.y3,
-      (component === cbComponent) -> currentMcu.cb,
-      (component === crComponent) -> currentMcu.cr
+      (component === 3.U) -> currentMcu.y3
     )
   )
 

@@ -21,6 +21,7 @@ class CheckChiselSimEnvTest(unittest.TestCase):
                 verilator=r"C:\msys64\ucrt64\bin\verilator",
             ),
             os_name="nt",
+            environment={},
         )
 
         self.assertFalse(report["compatible"])

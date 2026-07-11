@@ -30,15 +30,16 @@ class JpegRasterToSubsampledMcuStageSpec extends AnyFreeSpec with Matchers with 
     dut.clock.step()
   }
 
-  private def expectFlatMcu(dut: JpegRasterToSubsampledMcuStage, last: Boolean): Unit = {
+  private def expectFlatMcu(dut: JpegRasterToSubsampledMcuStage, last: Boolean, yDc: Int = 0): Unit = {
     dut.io.output.valid.expect(true.B)
     dut.io.output.bits.last.expect(last.B)
     dut.io.output.bits.mcu.yBlockCount.expect(4.U)
     for (index <- 0 until HjpegConstants.BlockSize) {
-      dut.io.output.bits.mcu.y.coefficients(index).expect(0.S)
-      dut.io.output.bits.mcu.y1.coefficients(index).expect(0.S)
-      dut.io.output.bits.mcu.y2.coefficients(index).expect(0.S)
-      dut.io.output.bits.mcu.y3.coefficients(index).expect(0.S)
+      val expectedY = if (index == 0) yDc else 0
+      dut.io.output.bits.mcu.y.coefficients(index).expect(expectedY.S)
+      dut.io.output.bits.mcu.y1.coefficients(index).expect(expectedY.S)
+      dut.io.output.bits.mcu.y2.coefficients(index).expect(expectedY.S)
+      dut.io.output.bits.mcu.y3.coefficients(index).expect(expectedY.S)
       dut.io.output.bits.mcu.cb.coefficients(index).expect(0.S)
       dut.io.output.bits.mcu.cr.coefficients(index).expect(0.S)
     }
@@ -72,6 +73,29 @@ class JpegRasterToSubsampledMcuStageSpec extends AnyFreeSpec with Matchers with 
       dut.clock.step()
       waitForOutput(dut)
       expectFlatMcu(dut, last = true)
+    }
+  }
+
+  "JpegRasterToSubsampledMcuStage should preserve distinct horizontal MCUs" in {
+    simulate(new JpegRasterToSubsampledMcuStage(testConfig)) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      pokeConfig(dut, width = 20, height = 16)
+      dut.io.output.ready.poke(true.B)
+
+      for (index <- 0 until 20 * 16) {
+        val gray = if (index % 20 < 16) 128 else 160
+        pushPixel(dut, index, width = 20, gray = gray)
+      }
+      dut.io.input.valid.poke(false.B)
+
+      waitForOutput(dut)
+      expectFlatMcu(dut, last = false)
+      dut.clock.step()
+      waitForOutput(dut)
+      expectFlatMcu(dut, last = true, yDc = 16)
     }
   }
 }

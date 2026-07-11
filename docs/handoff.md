@@ -531,11 +531,34 @@ meaningless gate values.
 
 ## Last Known Local Verification
 
-The current clean checkout has recent host/Vivado evidence-helper updates on top
-of the last full Vivado bitstream validation. Local source changes since that
-Vivado run have been limited to Python helpers and documentation, not RTL.
+The current checkout includes RTL correctness changes after the last full
+Vivado bitstream validation. The saved Vivado reports remain useful historical
+construction evidence, but they do not prove timing, utilization, or bitstream
+behavior for the current RTL. Regenerate them before making a current hardware
+readiness claim.
 
-Known passing checks:
+The 2026-07-10 software baseline is green:
+
+```sh
+env JAVA_HOME=/Library/Java/JavaVirtualMachines/amazon-corretto-21.jdk/Contents/Home sbt test
+./mill --no-server _.test
+python3 scripts/host/hjpeg_host_test.py
+python3 scripts/vivado/check_reports_test.py
+python3 scripts/dev/check_chiselsim_env_test.py
+python3 scripts/dev/generate_design_graphs_test.py
+python3 -m py_compile \
+  scripts/host/hjpeg_host.py \
+  scripts/vivado/check_reports.py \
+  scripts/dev/check_chiselsim_env.py
+```
+
+Observed results were 115/115 Scala tests through sbt, a passing Mill test
+target, 234 host tests, 59 Vivado-report tests, 10 ChiselSim-environment tests,
+and 11 design-graph helper tests. The normal local Mill daemon did not launch
+inside the restricted execution environment; `--no-server` ran the same test
+target successfully.
+
+Previously recorded Vivado/Windows checks:
 
 ```sh
 CHISEL_FIRTOOL_PATH='C:\Users\G14\GitHub\hjpeg\null\org.chipsalliance\llvm-firtool\cache\1.149.0\bin' \
@@ -573,11 +596,11 @@ python scripts/vivado/check_reports.py \
   --json
 ```
 
-Most recent focused verification:
+Earlier focused verification recorded before the current baseline:
 
 ```sh
-python scripts/host/hjpeg_host_test.py      # 204 tests
-python scripts/vivado/check_reports_test.py # 52 tests
+python scripts/host/hjpeg_host_test.py      # historical count
+python scripts/vivado/check_reports_test.py # historical count
 git diff --check                            # CRLF warnings only
 ```
 

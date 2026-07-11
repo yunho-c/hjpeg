@@ -8,6 +8,8 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
 class JpegSingleMcuEncoderStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
+  private val OutputTimeoutCycles = JpegHeaderBytes.MaxHeaderLength + 20000
+
   private def pokeConfig(dut: JpegSingleMcuEncoderStage, width: Int = 8, height: Int = 8): Unit = {
     dut.io.config.xsize.poke(width.U)
     dut.io.config.ysize.poke(height.U)
@@ -46,7 +48,7 @@ class JpegSingleMcuEncoderStageSpec extends AnyFreeSpec with Matchers with Chise
     var sawLast = false
     var cycles = 0
     while (!sawLast) {
-      assert(cycles < JpegHeaderBytes.HeaderLength + 20000, "timeout waiting for single-MCU JPEG output")
+      assert(cycles < OutputTimeoutCycles, "timeout waiting for single-MCU JPEG output")
       if (dut.io.output.valid.peek().litToBoolean) {
         bytes += dut.io.output.bits.byte.peek().litValue.toInt
         sawLast = dut.io.output.bits.last.peek().litToBoolean
@@ -84,6 +86,12 @@ class JpegSingleMcuEncoderStageSpec extends AnyFreeSpec with Matchers with Chise
       dut.clock.step()
       dut.io.input.valid.poke(false.B)
 
+      var cycles = 0
+      while (!dut.io.output.valid.peek().litToBoolean) {
+        assert(cycles < OutputTimeoutCycles, "timeout waiting for first header byte")
+        dut.clock.step()
+        cycles += 1
+      }
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.byte.expect(0xff.U)
       dut.clock.step()
@@ -92,6 +100,12 @@ class JpegSingleMcuEncoderStageSpec extends AnyFreeSpec with Matchers with Chise
 
       dut.io.output.ready.poke(true.B)
       dut.clock.step()
+      cycles = 0
+      while (!dut.io.output.valid.peek().litToBoolean) {
+        assert(cycles < OutputTimeoutCycles, "timeout waiting for second header byte")
+        dut.clock.step()
+        cycles += 1
+      }
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.byte.expect(0xd8.U)
     }

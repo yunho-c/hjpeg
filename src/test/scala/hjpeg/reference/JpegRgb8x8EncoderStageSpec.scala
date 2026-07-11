@@ -10,6 +10,8 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
 class JpegRgb8x8EncoderStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
+  private val OutputTimeoutCycles = JpegHeaderBytes.MaxHeaderLength + 20000
+
   private def pokeConfig(dut: JpegRgb8x8EncoderStage, width: Int = 8, height: Int = 8): Unit = {
     dut.io.config.xsize.poke(width.U)
     dut.io.config.ysize.poke(height.U)
@@ -46,7 +48,7 @@ class JpegRgb8x8EncoderStageSpec extends AnyFreeSpec with Matchers with ChiselSi
     var sawLast = false
     var cycles = 0
     while (!sawLast) {
-      assert(cycles < JpegHeaderBytes.HeaderLength + 20000, "timeout waiting for RGB 8x8 JPEG output")
+      assert(cycles < OutputTimeoutCycles, "timeout waiting for RGB 8x8 JPEG output")
       if (dut.io.output.valid.peek().litToBoolean) {
         bytes += dut.io.output.bits.byte.peek().litValue.toInt
         sawLast = dut.io.output.bits.last.peek().litToBoolean
@@ -88,7 +90,12 @@ class JpegRgb8x8EncoderStageSpec extends AnyFreeSpec with Matchers with ChiselSi
       dut.io.input.valid.poke(false.B)
 
       dut.io.busy.expect(true.B)
-      dut.clock.step()
+      var cycles = 0
+      while (!dut.io.output.valid.peek().litToBoolean) {
+        assert(cycles < OutputTimeoutCycles, "timeout waiting for first output byte")
+        dut.clock.step()
+        cycles += 1
+      }
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.byte.expect(0xff.U)
       dut.clock.step()
