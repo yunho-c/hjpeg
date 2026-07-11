@@ -89,28 +89,21 @@ until it is cleared.
 
 ## Source Layout
 
-The main RTL groups are:
+The main RTL groups under `src/main/scala/hjpeg` are:
 
-- `HjpegConfig.scala` and `HjpegBundles.scala`: static limits, frame settings,
-  pixel/block data, and AXI-shaped interfaces.
-- `RgbToYCbCrStage.scala` and `YCbCrLevelShiftStage.scala`: color conversion and
-  signed sample preparation.
-- `JpegRasterToMcuStage.scala` and `JpegRasterToSubsampledMcuStage.scala`:
-  raster buffering, edge padding, and 4:4:4/4:2:0 MCU construction.
-- `Dct8x8Stage.scala`, `QuantizeBlockStage.scala`, and
-  `ZigZagBlockStage.scala`: coefficient transform and preparation.
-- `JpegDcEncodeStage.scala`, `JpegAcBlockRunLengthStage.scala`,
-  `JpegAcEncodeStage.scala`, and `JpegBlockEntropyStage.scala`: JPEG coefficient
-  tokenization.
-- `JpegBitstreamStages.scala`, `JpegHeaderStage.scala`, and
-  `JpegMcuStreamEncoderStage.scala`: Huffman packing, marker generation, and
-  complete JPEG stream assembly.
-- `HjpegCore.scala`: raster RGB to JPEG byte-stream core.
-- `HjpegAxiStreamCore.scala`: raster-coordinate and AXI-stream protocol shell.
-- `HjpegKv260Top.scala` and `HjpegKv260AxiLiteTop.scala`: KV260-facing wrappers.
-- `Elaborate.scala`: SystemVerilog generation entry points.
+- the package root: shared configuration/bundles/tables and `HjpegCore`;
+- `color/`: RGB conversion and level shifting;
+- `raster/`: 4:4:4 and 4:2:0 raster buffering, padding, and MCU construction;
+- `transform/`: DCT, quantization, zig-zag ordering, and their composition;
+- `entropy/`: DC/AC tokenization, Huffman lookup, packing, and byte stuffing;
+- `stream/`: JPEG header and complete multi-MCU stream assembly;
+- `integration/`: AXI-stream, AXI-Lite, KV260, and elaboration entry points; and
+- `reference/`: single-MCU and fixed 8x8 reference paths outside the active
+  `HjpegCore` datapath.
 
-Focused ChiselSim tests for these stages live under `src/test/scala/hjpeg`.
+The directories organize the source by hardware role; every file remains in
+Scala package `hjpeg`. Focused ChiselSim tests mirror the same directories under
+`src/test/scala/hjpeg`.
 
 ## Generated Design Views
 

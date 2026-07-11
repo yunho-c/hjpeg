@@ -184,8 +184,8 @@ second MCU's luminance DC coefficient is `0` instead of the expected `16`.
 
 Relevant locations:
 
-- [`JpegRasterToMcuStage.scala`](../src/main/scala/hjpeg/JpegRasterToMcuStage.scala)
-- [`JpegRasterToMcuStageSpec.scala`](../src/test/scala/hjpeg/JpegRasterToMcuStageSpec.scala)
+- [`JpegRasterToMcuStage.scala`](../src/main/scala/hjpeg/raster/JpegRasterToMcuStage.scala)
+- [`JpegRasterToMcuStageSpec.scala`](../src/test/scala/hjpeg/raster/JpegRasterToMcuStageSpec.scala)
 
 ### Decodable output with damaged image content
 

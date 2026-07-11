@@ -75,45 +75,36 @@ Start with these files:
 - `docs/kv260-bringup.md`: evidence checklist for calling the KV260 path
   complete.
 - `src/main/scala/hjpeg/HjpegCore.scala`: top of the simulated JPEG datapath.
-- `src/main/scala/hjpeg/HjpegAxiStreamCore.scala`: RGB AXI-stream wrapper.
-- `src/main/scala/hjpeg/HjpegKv260AxiLiteTop.scala`: KV260 AXI-Lite control
-  and stream top.
+- `src/main/scala/hjpeg/integration/HjpegAxiStreamCore.scala`: RGB AXI-stream
+  wrapper.
+- `src/main/scala/hjpeg/integration/HjpegKv260AxiLiteTop.scala`: KV260 AXI-Lite
+  control and stream top.
 - `scripts/vivado/*.tcl`: Vivado build and packaging flow.
 - `scripts/host/hjpeg_host.py`: host-side packing, register, DMA-device, and
   JPEG validation helper.
 
 ## Source Layout
 
-Core Chisel modules live in `src/main/scala/hjpeg`:
+Core Chisel modules live under `src/main/scala/hjpeg`:
 
-- `HjpegConfig.scala`: static widths, frame limits, output width, and
-  platform-facing constants.
-- `HjpegBundles.scala`: frame config, RGB pixel, YCbCr pixel, encoded byte,
-  AXI-Lite, and AXI-stream bundles.
-- `RgbToYCbCrStage.scala`: fixed-point color conversion.
-- `YCbCrLevelShiftStage.scala`: unsigned YCbCr to signed DCT-domain samples.
-- `JpegRasterToMcuStage.scala`: 4:4:4 raster buffering and edge padding.
-- `JpegRasterToSubsampledMcuStage.scala`: 4:2:0 raster buffering,
-  subsampling, and edge padding.
-- `Dct8x8Stage.scala`: 8x8 DCT.
-- `QuantizeBlockStage.scala`: quality-scaled quantization.
-- `ZigZagBlockStage.scala`: JPEG zig-zag ordering.
-- `JpegDcEncodeStage.scala`: DC magnitude/category encoding.
-- `JpegAcBlockRunLengthStage.scala`: AC run-length, EOB, and ZRL tokens.
-- `JpegAcEncodeStage.scala`: AC magnitude/category encoding.
-- `JpegBlockEntropyStage.scala`: block-level entropy tokenization.
-- `JpegBitstreamStages.scala`: Huffman bit packing and byte stuffing.
-- `JpegHeaderStage.scala`: JPEG marker/header stream.
-- `JpegSingleMcuEncoderStage.scala`: legacy/small one-MCU encoder stage.
-- `JpegMcuStreamEncoderStage.scala`: multi-MCU JPEG stream encoder.
-- `HjpegCore.scala`: public raster RGB to encoded JPEG byte stream.
-- `HjpegAxiStreamCore.scala`: AXI-stream-shaped RGB/JPEG shell.
-- `HjpegKv260Top.scala`: direct-config KV260-oriented top.
-- `HjpegKv260AxiLiteTop.scala`: AXI-Lite plus AXI-stream KV260 top.
-- `Elaborate.scala`: SystemVerilog generation entry points.
+- package root: `HjpegConfig.scala`, `HjpegBundles.scala`, `JpegTables.scala`,
+  and the public raster-to-JPEG `HjpegCore.scala`;
+- `color/`: fixed-point RGB conversion and level shifting;
+- `raster/`: 4:4:4 and 4:2:0 buffering, subsampling, and edge padding;
+- `transform/`: DCT, quality-scaled quantization, zig-zag ordering, and the
+  shared block-transform composition;
+- `entropy/`: DC/AC encoding, run-length events, Huffman bit runs, packing, and
+  byte stuffing;
+- `stream/`: marker/header generation and multi-MCU JPEG stream assembly;
+- `integration/`: AXI-stream/AXI-Lite wrappers, KV260 tops, and SystemVerilog
+  elaboration entry points; and
+- `reference/`: the fixed 8x8 and single-MCU pipeline retained for focused
+  reference tests but not instantiated by `HjpegCore`.
 
-Tests live in `src/test/scala/hjpeg`. Prefer adding focused stage tests before
-frame-level tests.
+All files remain in Scala package `hjpeg`; the subdirectories express hardware
+roles without changing public class names. Tests mirror this organization under
+`src/test/scala/hjpeg`. Prefer adding focused stage tests before frame-level
+tests.
 
 ## Current Protocol Contracts
 
