@@ -105,12 +105,16 @@ PowerShell:
 .\scripts\dev\test.ps1
 ```
 
-The first invocation builds the pinned JDK 21/sbt/Verilator image and creates a
-named `hjpeg-sbt-cache` volume for dependency caches. Later invocations reuse
-both. The source checkout is bind-mounted at `/workspace`; `.dockerignore`
-keeps Vivado and simulator products out of the image build context. Generated
-simulator files remain ignored local build output. Rebuild the tool image after
-changing `scripts/dev/Dockerfile`:
+The first invocation builds the pinned JDK 21, sbt 1.12.13, and Verilator 5.050
+image and creates a named `hjpeg-sbt-cache` volume for dependency caches. Later
+invocations reuse both. The source checkout is bind-mounted at `/workspace`;
+`.dockerignore` keeps Vivado and simulator products out of the image build
+context. Generated simulator files remain ignored local build output. The
+launcher limits sbt to four active processors by default, which bounds nested
+suite/Verilator parallelism while retaining useful concurrency. Override the
+limit with `-SbtCpus` when appropriate for the Docker Desktop CPU allocation.
+
+Rebuild the tool image after changing `scripts/dev/Dockerfile`:
 
 ```powershell
 .\scripts\dev\test.ps1 -RebuildImage
@@ -120,6 +124,12 @@ Pass a focused sbt command after the options when debugging:
 
 ```powershell
 .\scripts\dev\test.ps1 'testOnly hjpeg.HjpegAxiStreamCoreSpec'
+```
+
+For example, use two sbt workers on a smaller Docker allocation:
+
+```powershell
+.\scripts\dev\test.ps1 -SbtCpus 2 'testOnly hjpeg.HjpegCoreSpec'
 ```
 
 Run the test suite with sbt:

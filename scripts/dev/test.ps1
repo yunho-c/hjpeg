@@ -2,6 +2,8 @@
 param(
     [switch]$RebuildImage,
     [string]$Image = "hjpeg-test:local",
+    [ValidateRange(1, 64)]
+    [int]$SbtCpus = 4,
     [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
     [string[]]$SbtArguments
 )
@@ -41,7 +43,7 @@ $runArguments = @(
     "--mount", "type=volume,source=hjpeg-sbt-cache,target=/cache",
     "--env", "HOME=/cache/home",
     "--env", "COURSIER_CACHE=/cache/coursier",
-    "--env", "SBT_OPTS=-Dsbt.global.base=/cache/sbt -Dsbt.ivy.home=/cache/ivy",
+    "--env", "SBT_OPTS=-Dsbt.global.base=/cache/sbt -Dsbt.ivy.home=/cache/ivy -XX:ActiveProcessorCount=$SbtCpus",
     $Image
 ) + $SbtArguments
 
