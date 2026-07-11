@@ -256,7 +256,7 @@ contract. Change the target explicitly rather than silently redefining success.
 **Status:** Provisional
 
 **Decision:** Reuse one `JpegBlockTransformStage` across all component blocks in
-an MCU. Compute the DCT one product term per cycle and quantize one coefficient
+an MCU. Compute the DCT two product terms per cycle and quantize one coefficient
 at a time with an exact two-bit-per-cycle restoring divider.
 
 **Context:** Earlier parallel and combinational structures created excessive

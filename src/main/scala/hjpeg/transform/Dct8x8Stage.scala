@@ -70,10 +70,12 @@ class Dct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module
   val rowX = rowIndex(5, 3)
   val rowV = rowIndex(2, 0)
   val rowProduct = (cosine(rowV)(termIndex) * samples(Cat(rowX, termIndex))).asSInt
-  val rowAccumulated = accumulator +& rowProduct
+  val rowNextTerm = termIndex + 1.U
+  val rowNextProduct = (cosine(rowV)(rowNextTerm) * samples(Cat(rowX, rowNextTerm))).asSInt
+  val rowAccumulated = accumulator +& rowProduct +& rowNextProduct
 
   when(state === sRows) {
-    when(termIndex === (HjpegConstants.BlockDim - 1).U) {
+    when(termIndex === (HjpegConstants.BlockDim - 2).U) {
       rowTransformed(rowIndex) := rowAccumulated(31, 0).asSInt
       termIndex := 0.U
       accumulator := 0.S
@@ -85,18 +87,21 @@ class Dct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module
       }
     }.otherwise {
       accumulator := rowAccumulated
-      termIndex := termIndex + 1.U
+      termIndex := termIndex + 2.U
     }
   }
 
   val columnU = columnIndex(5, 3)
   val columnV = columnIndex(2, 0)
   val columnProduct = (cosine(columnU)(termIndex) * rowTransformed(Cat(termIndex, columnV))).asSInt
-  val columnAccumulated = accumulator +& columnProduct
+  val columnNextTerm = termIndex + 1.U
+  val columnNextProduct =
+    (cosine(columnU)(columnNextTerm) * rowTransformed(Cat(columnNextTerm, columnV))).asSInt
+  val columnAccumulated = accumulator +& columnProduct +& columnNextProduct
   val rounded = roundShiftSigned(columnAccumulated, Dct8x8Constants.FractionBits * 2)
 
   when(state === sColumns) {
-    when(termIndex === (HjpegConstants.BlockDim - 1).U) {
+    when(termIndex === (HjpegConstants.BlockDim - 2).U) {
       coefficients(columnIndex) := rounded(coefficientBits - 1, 0).asSInt
       termIndex := 0.U
       accumulator := 0.S
@@ -107,7 +112,7 @@ class Dct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module
       }
     }.otherwise {
       accumulator := columnAccumulated
-      termIndex := termIndex + 1.U
+      termIndex := termIndex + 2.U
     }
   }
 

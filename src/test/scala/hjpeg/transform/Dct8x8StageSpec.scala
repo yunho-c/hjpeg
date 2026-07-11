@@ -8,6 +8,32 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
 class Dct8x8StageSpec extends AnyFreeSpec with Matchers with ChiselSim {
+  private def roundShiftSigned(value: Long, shift: Int): Int = {
+    val magnitude = math.abs(value)
+    val rounded = (magnitude + (1L << (shift - 1))) >> shift
+    (if (value < 0) -rounded else rounded).toInt
+  }
+
+  private def fixedPointReference(samples: Seq[Int]): Seq[Int] = {
+    val cosine = Dct8x8Constants.CosineQ14
+    val rowTransformed = for {
+      row <- 0 until HjpegConstants.BlockDim
+      frequency <- 0 until HjpegConstants.BlockDim
+    } yield (0 until HjpegConstants.BlockDim)
+      .map(term => cosine(frequency)(term).toLong * samples(row * HjpegConstants.BlockDim + term))
+      .sum
+
+    for {
+      rowFrequency <- 0 until HjpegConstants.BlockDim
+      columnFrequency <- 0 until HjpegConstants.BlockDim
+    } yield {
+      val accumulated = (0 until HjpegConstants.BlockDim)
+        .map(term => cosine(rowFrequency)(term).toLong * rowTransformed(term * HjpegConstants.BlockDim + columnFrequency))
+        .sum
+      roundShiftSigned(accumulated, Dct8x8Constants.FractionBits * 2)
+    }
+  }
+
   private def pokeBlock(dut: Dct8x8Stage, samples: Seq[Int]): Unit = {
     for (index <- 0 until HjpegConstants.BlockSize) {
       dut.io.input.bits.samples(index).poke(samples(index).S)
@@ -49,7 +75,7 @@ class Dct8x8StageSpec extends AnyFreeSpec with Matchers with ChiselSim {
 
       val cycles = waitForOutput(dut)
       info(s"constant-block DCT latency: $cycles cycles")
-      cycles must be <= 1024
+      cycles must be <= 512
       dut.io.output.valid.expect(true.B)
       expectBlock(dut, Seq(40) ++ Seq.fill(HjpegConstants.BlockSize - 1)(0))
     }
@@ -112,6 +138,28 @@ class Dct8x8StageSpec extends AnyFreeSpec with Matchers with ChiselSim {
           0, 0, 0, 0, 0, 0, 0, 0
         )
       )
+    }
+  }
+
+  "Dct8x8Stage should match the fixed-point reference for varied blocks" in {
+    simulate(new Dct8x8Stage()) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      dut.io.output.ready.poke(true.B)
+
+      val blocks = Seq(
+        (0 until HjpegConstants.BlockSize).map(index => ((index * 73 + 19) & 0xff) - 128),
+        (0 until HjpegConstants.BlockSize).map(index => if (((index / 8) + (index % 8)) % 2 == 0) 127 else -128),
+        (0 until HjpegConstants.BlockSize).map(index => if (index == 27) 127 else 0)
+      )
+
+      for (samples <- blocks) {
+        pushBlock(dut, samples)
+        waitForOutput(dut)
+        expectBlock(dut, fixedPointReference(samples))
+        dut.clock.step()
+      }
     }
   }
 

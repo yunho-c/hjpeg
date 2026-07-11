@@ -54,12 +54,12 @@ accepted boundary to output validity:
 
 | Boundary | Observed cycles | Regression ceiling |
 | --- | ---: | ---: |
-| 8x8 DCT block | 1,024 | 1,024 |
+| 8x8 DCT block | 512 | 512 |
 | 64-coefficient quantization | 704 | 704 |
-| Complete DCT/quantize/zig-zag block | 1,729 | 1,729 |
-| First 4:4:4 MCU after stripe collection | 3,847 | 3,900 |
-| First 4:2:0 MCU after band collection | 7,373 | 7,400 |
-| Complete 16x16 4:4:4 test frame | 15,744 | 16,000 |
+| Complete DCT/quantize/zig-zag block | 1,217 | 1,217 |
+| First 4:4:4 MCU after stripe collection | 2,695 | 2,700 |
+| First 4:2:0 MCU after band collection | 5,261 | 5,300 |
+| Complete 16x16 4:4:4 test frame | 11,136 | 11,200 |
 
 The block and MCU measurements use quality 50 and deterministic fixtures. The
 transform latency is fixed by the current state machines; entropy and complete
@@ -77,8 +77,14 @@ by about 22%/20%, and current 16x16 frame latency by about 22%. Exact rounded
 division is checked across luminance and chrominance tables at multiple quality
 settings.
 
+The DCT evaluates two exact Q14 product terms per cycle. This halves DCT
+latency and, relative to the immediately preceding baseline, reduced complete
+block-transform latency by about 30%, 4:4:4/4:2:0 MCU latency by about 30%/29%,
+and 16x16 frame latency by about 29%. Varied deterministic blocks are checked
+coefficient-for-coefficient against the fixed-point software calculation.
+
 Using only the MCU regression ceilings gives optimistic 1080p throughput
-ceilings of roughly 0.79 fps for 4:4:4 and 1.66 fps for 4:2:0 at 100 MHz.
+ceilings of roughly 1.14 fps for 4:4:4 and 2.31 fps for 4:2:0 at 100 MHz.
 Actual frame throughput will be lower because those estimates omit some raster,
 entropy, marker, and flow-control work. They are architectural gap indicators,
 not board measurements.

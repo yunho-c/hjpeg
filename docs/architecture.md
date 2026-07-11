@@ -57,9 +57,10 @@ order and retain the quality and luminance/chrominance metadata sampled with
 their input block.
 
 `Dct8x8Stage` is a multi-cycle separable transform. It captures one block,
-computes row and column products iteratively, and holds the completed
-coefficient block until its consumer accepts it. `QuantizeBlockStage` similarly
-processes one coefficient at a time with an exact iterative divider that emits
+computes two exact Q14 row or column product terms per cycle, and holds the
+completed coefficient block until its consumer accepts it.
+`QuantizeBlockStage` similarly processes one coefficient at a time with an
+exact iterative divider that emits
 two quotient bits per cycle. Both stages favor a bounded synthesis problem over
 single-cycle block latency.
 
