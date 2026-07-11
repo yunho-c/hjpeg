@@ -62,6 +62,113 @@ Not yet proven:
   software.
 - Meeting the provisional 1080p30 performance/resource target at 100 MHz.
 
+## Immediate Continuation Brief: Performance Architecture Sprint
+
+The latest completed work added a simulation-only pipeline profiler. The two
+relevant commits are:
+
+- `42021a9 test: capture JPEG pipeline performance traces`
+- `3308ddd feat: generate pipeline performance traces`
+
+Run it with:
+
+```sh
+./scripts/dev/generate-performance-trace
+```
+
+It runs deterministic 32x16 quality-50 frames for 4:4:4, 4:2:0, and 4:4:4
+with controlled JPEG-output stalls. Generated files are ignored under
+`build/performance-traces/`: `trace.json` opens in Perfetto, `metrics.json` and
+`metrics.csv` contain aggregate measurements, `scenarios.csv` and `samples.csv`
+are the reusable raw capture, and `pipeline-*.mmd`/`.dot`/`.svg` show
+budget-annotated summaries. `--capture-dir` re-renders a capture without
+simulation. The test-only harness bores internal signals to simulation ports;
+production `HjpegCore` IO and generated RTL are unchanged.
+
+The current capture contains one complete frame per scenario, not one MCU and
+not back-to-back frames:
+
+| Scenario | Pixels | MCUs | Blocks | JPEG bytes | Frame cycles |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 4:4:4 | 512 | 8 | 24 | 852 | 4,999 |
+| 4:2:0 | 512 | 2 | 12 | 729 | 3,509 |
+| 4:4:4 output stalls | 512 | 8 | 24 | 852 | 5,201 |
+
+The stalled and unstalled 4:4:4 streams are byte-identical and every generated
+JPEG is decoder-validated. For this fixture, 4:2:0 is about 1.42x faster because
+it transforms and entropy-encodes half as many component blocks. Do not treat
+that small single-band fixture as a precise 1080p speedup.
+
+Perfetto ready/valid rows classify each sampled boundary as `transfer`
+(`valid && ready`), `blocked` (`valid && !ready`), `starved`
+(`!valid && ready`), or `idle` (`!valid && !ready`). These are boundary states,
+not module-execution states. A module may be calculating while its boundary is
+idle. The rows also carry different token types--pixels, 8x8 blocks, MCUs,
+entropy runs, and bytes--so transfer density is not directly comparable.
+
+The long 4:4:4 region where `rgb_input` is blocked while `transform_input` is
+starved is real serialization, not a trace error. The raster FSM only accepts
+pixels in `sCollect`, issues blocks in `sTransform`, and can hold one completed
+MCU in `sEmit`. In the current trace, the first MCU transfers at cycle 654; the
+second becomes ready at cycle 1,053 but remains blocked until cycle 2,201 while
+the encoder emits the once-per-frame header and handles the first MCU. Later
+4:4:4 MCU intervals are 399 cycles, except a 655-cycle raster-stripe transition,
+and do not show repeated `mcu_output` blocking for this content. The roughly
+1,500-cycle header startup is visually dominant in a 4,999-cycle toy frame but
+only about 0.045% of the 3.33-million-cycle 1080p30 frame budget. Do not optimize
+the header first.
+
+The important target math is independent of this fixture. At 100 MHz,
+1920x1080x30 requires 62.208 million RGB pixels/second, or about 1.61
+cycles/pixel. In 4:4:4, every 8x8 pixel tile creates Y, Cb, and Cr blocks:
+97,200 blocks/frame and an average budget of 34.3 cycles/block. In 4:2:0 the
+padded frame has 48,960 blocks and a 68.1-cycle block budget. These are
+initiation-interval budgets; transform latency may be longer if blocks overlap.
+
+The current complete transform has about 200 cycles of fire-to-fire latency and
+a sustained 65--68-cycle block initiation interval. Its latency is acceptable
+in principle, but its acceptance rate is about half of the required 4:4:4
+rate. Both limiting stages must change: `Dct8x8Stage` produces one row/column
+coefficient per cycle, and `QuantizeBlockStage` processes one coefficient per
+cycle, so accelerating only the DCT will merely expose quantization as the next
+bottleneck.
+
+Recommended next sprint, in order:
+
+1. Extend profiling with an optional steady-state 64x64 matrix covering flat,
+   smooth-gradient, checkerboard, and seeded pseudo-random content at qualities
+   10, 50, and 90. Add explicit raster/encoder phase lanes and separate startup,
+   within-MCU, stripe/band-transition, and steady-state MCU metrics. This is
+   needed to classify content-dependent entropy capacity; it is not needed to
+   confirm the transform-rate gap.
+2. Prototype a factorized, separable, pipelined 1D DCT with banked transpose
+   storage rather than starting with a generic full 2D systolic array. Pipeline
+   depth alone is insufficient: throughput must increase beyond one coefficient
+   per cycle. Two lanes give a theoretical 32-cycle block rate with little
+   margin; aim for roughly four coefficients/cycle or a 16-cycle block
+   initiation interval if resources permit.
+3. Pair the faster DCT with a matching multi-lane streaming quantizer and
+   banked zig-zag reorder path. Preserve the current external block-level
+   `Decoupled` interface initially, and keep exact coefficient, fixed-point,
+   ready/valid, and decoded-JPEG regressions. Do not merge a factorized
+   arithmetic change without documenting widths, scaling, rounding, and any
+   deliberate coefficient-reference change.
+4. Decouple raster collection, transform processing, and MCU emission with
+   BRAM-friendly ping-pong stripe/band storage and a measured MCU queue. A tiny
+   FIFO can absorb startup temporarily but cannot fix a sustained downstream
+   rate mismatch.
+5. Optimize entropy only if larger high-entropy traces show repeated
+   steady-state `mcu_output` blockage after excluding the once-per-frame header.
+   After every material transform/buffering change, regenerate performance
+   traces; regenerate Vivado timing/utilization evidence when Vivado is
+   available.
+
+The preferred DCT direction is deeply throughput-pipelined but not necessarily
+systolic. A fixed 8x8 JPEG DCT can exploit separability and butterfly symmetry
+more directly than a general matrix-multiply array. A systolic alternative is
+worth retaining only as a synthesis comparison if resource, routing, or reuse
+evidence justifies it.
+
 ## Important Entry Points
 
 Start with these files:
@@ -73,6 +180,8 @@ Start with these files:
 - `docs/architecture.md`: architecture overview and integration direction.
 - `docs/design-decisions.md`: rationale, consequences, and revisit triggers for
   major accepted and provisional architectural choices.
+- `docs/performance-targets.md`: 1080p30 cycle budgets, current simulation
+  baseline, profiler interpretation, and optimization direction.
 - `docs/kv260-bringup.md`: evidence checklist for calling the KV260 path
   complete.
 - `src/main/scala/hjpeg/HjpegCore.scala`: top of the simulated JPEG datapath.
@@ -83,6 +192,8 @@ Start with these files:
 - `scripts/vivado/*.tcl`: Vivado build and packaging flow.
 - `scripts/host/hjpeg_host.py`: host-side packing, register, DMA-device, and
   JPEG validation helper.
+- `scripts/dev/generate-performance-trace`: Perfetto trace, metrics, and
+  annotated performance-graph generator.
 
 ## Source Layout
 
@@ -181,6 +292,9 @@ without changing mapped control/status registers.
 Recent baseline commits before this handoff update, newest first. Use
 `git log --oneline` as the source of truth if this list drifts again:
 
+- `3308ddd feat: generate pipeline performance traces`
+- `42021a9 test: capture JPEG pipeline performance traces`
+- `067a8e8 perf: overlap DCT row and column passes`
 - `8de3873 perf: compute one DCT coefficient per cycle`
 - `7f71a33 perf: process four DCT terms per cycle`
 - `ecc8e0a docs: refresh performance handoff`
@@ -576,10 +690,13 @@ python3 scripts/host/hjpeg_host_test.py
 python3 scripts/vivado/check_reports_test.py
 python3 scripts/dev/check_chiselsim_env_test.py
 python3 scripts/dev/generate_design_graphs_test.py
+python3 scripts/dev/generate_performance_trace_test.py
+./scripts/dev/generate-performance-trace
 python3 -m py_compile \
   scripts/host/hjpeg_host.py \
   scripts/vivado/check_reports.py \
-  scripts/dev/check_chiselsim_env.py
+  scripts/dev/check_chiselsim_env.py \
+  scripts/dev/generate_performance_trace.py
 ```
 
 Current results are 122/122 Scala tests through sbt and `138/138, SUCCESS`
@@ -587,7 +704,10 @@ through Mill. All three core/KV260 SystemVerilog elaboration entry points pass.
 The generated-design-graph smoke run finds 27 reachable module types and 38
 instances with no missing focus modules. The most recent maintained Python
 suite results remain 234 host tests, 59 Vivado-report tests, 10
-ChiselSim-environment tests, and 11 design-graph helper tests. The normal local
+ChiselSim-environment tests, 11 design-graph helper tests, and 7
+performance-trace renderer tests. The default performance helper completed all
+three scenarios, produced strict JSON/CSV plus Mermaid/DOT/SVG artifacts, and
+decoder-validated the scenario outputs. The normal local
 Mill daemon did not launch inside the restricted execution environment;
 `--no-server` ran the same test target successfully.
 
@@ -1020,6 +1140,13 @@ object-shaped transcript.
   frame cycle contracts are simulation drift guards, not proof of timing
   closure or KV260 hardware throughput. The current transform initiation
   interval remains far above the 34.3-cycle average 4:4:4 block budget.
+- The 32x16 profiler fixture is intentionally quick but exaggerates the
+  once-per-frame header and does not establish steady-state 4:2:0 or
+  high-entropy throughput. Use a larger multi-band content/quality matrix before
+  declaring entropy safe or bottlenecked.
+- The transform-rate deficit is already conclusive: both the one-coefficient-
+  per-cycle DCT and one-coefficient-per-cycle quantizer must be widened,
+  interleaved, or otherwise re-architected for 4:4:4 1080p30 at 100 MHz.
 - Restart interval coverage now includes stage-level RTL and host-side JPEG
   validation regressions for RST marker numbering wrapping from RST7 back to
   RST0.
@@ -1056,18 +1183,20 @@ If the new PC has KV260 access too:
 
 If the new PC does not have Vivado or hardware:
 
-1. Continue reducing the transform initiation interval against the explicit
-   budgets in `docs/performance-targets.md`, preserving exact stage and decoded
-   frame regressions. Term-level unrolling and row/column overlap are complete;
-   investigate a factorized/pipelined DCT or carefully justified transform
-   replication next.
-2. Investigate BRAM-friendly synchronous stripe/band storage and ping-pong
-   buffering after transform throughput is no longer overwhelmingly dominant.
-3. Expand simulator coverage for randomized stalls and longer frames.
-4. Add more non-flat/color image regressions at frame level if they cover a new
-   shape, chroma mode, or protocol condition.
-5. Keep each slice committed and avoid large rewrites unless a test exposes a
-   structural issue.
+1. Implement the steady-state/content/quality profiler extension described in
+   the immediate continuation brief, keeping the current quick scenarios as the
+   default or an explicitly quick profile.
+2. Develop a focused factorized/pipelined DCT prototype and matching multi-lane
+   quantizer against the explicit 34.3-cycle 4:4:4 block budget. Preserve the
+   current implementation until the alternative passes exact stage and decoded
+   frame tests.
+3. Investigate BRAM-friendly synchronous ping-pong stripe/band storage and MCU
+   queueing so pixel collection overlaps processing without hiding a sustained
+   rate mismatch behind an arbitrarily deep FIFO.
+4. Use larger high-entropy traces to decide whether entropy/output work needs
+   architectural optimization after startup is excluded.
+5. Keep each validated slice committed; avoid combining profiler, arithmetic,
+   buffering, and entropy rewrites into one change.
 
 ## Development Rules For Future Agents
 
