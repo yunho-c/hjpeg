@@ -7,6 +7,8 @@ import chisel3.simulator.scalatest.ChiselSim
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
+import scala.collection.mutable.ArrayBuffer
+
 class JpegBlockTransformStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
   private def pokeConstantBlock(dut: JpegBlockTransformStage, value: Int): Unit = {
     for (index <- 0 until HjpegConstants.BlockSize) {
@@ -45,7 +47,7 @@ class JpegBlockTransformStageSpec extends AnyFreeSpec with Matchers with ChiselS
 
       val cycles = waitForOutput(dut)
       info(s"complete block-transform latency: $cycles cycles")
-      cycles must be <= 195
+      cycles must be <= 196
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.coefficients(0).expect(16.S)
       for (index <- 1 until HjpegConstants.BlockSize) {
@@ -125,6 +127,8 @@ class JpegBlockTransformStageSpec extends AnyFreeSpec with Matchers with ChiselS
         dut.clock.step()
         cycles += 1
       }
+      info(s"overlapped block-transform initiation interval: $cycles cycles")
+      cycles must be <= 65
       dut.clock.step()
       dut.io.input.valid.poke(false.B)
 
@@ -133,6 +137,54 @@ class JpegBlockTransformStageSpec extends AnyFreeSpec with Matchers with ChiselS
       dut.clock.step()
       waitForOutput(dut)
       dut.io.output.bits.coefficients(0).expect(16.S)
+    }
+  }
+
+  "JpegBlockTransformStage should sustain bounded initiation across consecutive blocks" in {
+    simulate(new JpegBlockTransformStage()) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      dut.io.output.ready.poke(true.B)
+      dut.io.input.valid.poke(true.B)
+
+      val acceptedAt = ArrayBuffer.empty[Int]
+      var accepted = 0
+      var emitted = 0
+      var cycle = 0
+      while (accepted < 4 || emitted < 4) {
+        assert(cycle < 1200, "timeout streaming consecutive block transforms")
+
+        if (accepted < 4) {
+          val isLuminance = (accepted & 1) == 0
+          dut.io.quality.poke(50.U)
+          dut.io.isLuminance.poke(isLuminance.B)
+          pokeConstantBlock(dut, if (isLuminance) 32 else 34)
+        }
+
+        if (dut.io.output.valid.peek().litToBoolean) {
+          dut.io.output.bits.coefficients(0).expect(16.S)
+          for (index <- 1 until HjpegConstants.BlockSize) {
+            dut.io.output.bits.coefficients(index).expect(0.S)
+          }
+          emitted += 1
+        }
+
+        if (accepted < 4 && dut.io.input.ready.peek().litToBoolean) {
+          acceptedAt += cycle
+          accepted += 1
+        }
+
+        dut.clock.step()
+        cycle += 1
+        if (accepted == 4) {
+          dut.io.input.valid.poke(false.B)
+        }
+      }
+
+      val intervals = acceptedAt.sliding(2).map(pair => pair(1) - pair(0)).toSeq
+      info(s"sustained block-transform initiation intervals: ${intervals.mkString(", ")} cycles")
+      intervals.max must be <= 68
     }
   }
 }

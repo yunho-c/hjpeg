@@ -47,9 +47,10 @@ been resolved by subsequent commits:
   standalone reference blocks, 4:4:4 chroma selection, and legal transform
   pipeline overlap under output backpressure.
 - Explicit 1080p30/100 MHz performance and resource targets now define cycle
-  budgets and evidence levels. Ordered transform overlap, a fully unrolled
-  dot-product DCT, and registered exact reciprocal quantization reduce the
-  measured 16x16 fixture from the earlier 15,744-cycle baseline to 3,465 cycles.
+  budgets and evidence levels. Ordered transform overlap, a fully unrolled,
+  row/column-pipelined DCT, and registered exact reciprocal quantization reduce
+  the measured 16x16 fixture from the earlier 15,744-cycle baseline to 3,096
+  cycles.
   The remaining gap is still large and no updated Vivado timing/resource
   evidence is claimed.
 
@@ -57,7 +58,7 @@ Current verification after those changes:
 
 ```text
 sbt test under Homebrew JDK 26:
-  120 tests run, 120 passed
+  122 tests run, 122 passed
 
 ./mill --no-server _.test:
   138/138, SUCCESS

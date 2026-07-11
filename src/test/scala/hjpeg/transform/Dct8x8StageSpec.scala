@@ -75,7 +75,7 @@ class Dct8x8StageSpec extends AnyFreeSpec with Matchers with ChiselSim {
 
       val cycles = waitForOutput(dut)
       info(s"constant-block DCT latency: $cycles cycles")
-      cycles must be <= 128
+      cycles must be <= 129
       dut.io.output.valid.expect(true.B)
       expectBlock(dut, Seq(40) ++ Seq.fill(HjpegConstants.BlockSize - 1)(0))
     }
@@ -163,22 +163,57 @@ class Dct8x8StageSpec extends AnyFreeSpec with Matchers with ChiselSim {
     }
   }
 
+  "Dct8x8Stage should overlap rows and columns for consecutive blocks" in {
+    simulate(new Dct8x8Stage()) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      dut.io.output.ready.poke(true.B)
+
+      pushBlock(dut, Seq.fill(HjpegConstants.BlockSize)(5))
+
+      dut.io.input.valid.poke(true.B)
+      pokeBlock(dut, Seq.fill(HjpegConstants.BlockSize)(-8))
+      var cycles = 0
+      while (!dut.io.input.ready.peek().litToBoolean) {
+        assert(cycles < 128, "timeout waiting for pipelined DCT input")
+        dut.clock.step()
+        cycles += 1
+      }
+      info(s"consecutive-block DCT initiation interval: $cycles cycles")
+      cycles must be <= 65
+      dut.clock.step()
+      dut.io.input.valid.poke(false.B)
+
+      waitForOutput(dut)
+      expectBlock(dut, Seq(40) ++ Seq.fill(HjpegConstants.BlockSize - 1)(0))
+      dut.clock.step()
+      waitForOutput(dut)
+      expectBlock(dut, Seq(-64) ++ Seq.fill(HjpegConstants.BlockSize - 1)(0))
+    }
+  }
+
   "Dct8x8Stage should propagate ready backpressure" in {
     simulate(new Dct8x8Stage()) { dut =>
       dut.reset.poke(true.B)
       dut.clock.step()
       dut.reset.poke(false.B)
+      dut.io.output.ready.poke(false.B)
 
       pushBlock(dut, Seq.fill(HjpegConstants.BlockSize)(0))
       waitForOutput(dut)
 
-      dut.io.output.ready.poke(false.B)
-      dut.io.input.ready.expect(false.B)
       dut.io.output.valid.expect(true.B)
+      dut.io.input.ready.expect(true.B)
+      pushBlock(dut, Seq.fill(HjpegConstants.BlockSize)(16))
+      dut.clock.step(3)
+      dut.io.output.valid.expect(true.B)
+      expectBlock(dut, Seq.fill(HjpegConstants.BlockSize)(0))
 
       dut.io.output.ready.poke(true.B)
       dut.clock.step()
-      dut.io.input.ready.expect(true.B)
+      waitForOutput(dut)
+      expectBlock(dut, Seq(128) ++ Seq.fill(HjpegConstants.BlockSize - 1)(0))
     }
   }
 }

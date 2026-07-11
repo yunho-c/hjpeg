@@ -48,18 +48,20 @@ average, including any input backpressure.
 
 ## Current Simulation Baseline
 
-The current correctness-first implementation is intentionally serialized.
+The current correctness-first implementation remains largely serialized.
 Deterministic ChiselSim regressions measure the following latency from an
 accepted boundary to output validity:
 
 | Boundary | Observed cycles | Regression ceiling |
 | --- | ---: | ---: |
-| 8x8 DCT block | 128 | 128 |
+| 8x8 DCT block latency | 129 | 129 |
+| Consecutive DCT block initiation | 64 | 65 |
 | 64-coefficient quantization | 66 | 66 |
-| Complete DCT/quantize/zig-zag block | 195 | 195 |
-| First 4:4:4 MCU after stripe collection | 521 | 540 |
-| First 4:2:0 MCU after band collection | 1,359 | 1,380 |
-| Complete 16x16 4:4:4 test frame | 3,465 | 3,550 |
+| Complete DCT/quantize/zig-zag block latency | 196 | 196 |
+| Four-block transform initiation intervals | 65/65/68 | 68 maximum |
+| First 4:4:4 MCU after stripe collection | 398 | 410 |
+| First 4:2:0 MCU after band collection | 1,050 | 1,070 |
+| Complete 16x16 4:4:4 test frame | 3,096 | 3,150 |
 
 The block and MCU measurements use quality 50 and deterministic fixtures. The
 transform latency is fixed by the current state machines; entropy and complete
@@ -91,8 +93,18 @@ fully unrolled dot product doubles parallel multipliers without increasing the
 prior multiplier-plus-adder-tree logic depth, but still requires fresh Vivado
 timing and utilization evidence.
 
+The DCT row and column engines now overlap consecutive blocks through an
+intermediate buffer. Single-block latency grows by one transfer cycle, but DCT
+initiation falls from 128 to 64 cycles. A two-entry metadata queue in the block
+transform keeps table selection aligned with in-flight blocks. Across four
+alternating luminance/chrominance blocks, the complete transform accepts inputs
+at 65/65/68-cycle intervals; the longest interval reflects downstream
+quantize/zig-zag handoff bubbles. Relative to the preceding sequential-pass
+implementation, current 4:4:4/4:2:0 MCU latency falls by about 24%/23% and the
+16x16 frame fixture by about 11%.
+
 Using only the MCU regression ceilings gives optimistic 1080p throughput
-ceilings of roughly 5.72 fps for 4:4:4 and 8.88 fps for 4:2:0 at 100 MHz.
+ceilings of roughly 7.53 fps for 4:4:4 and 11.45 fps for 4:2:0 at 100 MHz.
 Actual frame throughput will be lower because those estimates omit some raster,
 entropy, marker, and flow-control work. They are architectural gap indicators,
 not board measurements.
@@ -114,8 +126,8 @@ Vivado reports cannot prove DMA behavior or decoder-valid hardware output.
 ## Optimization Direction
 
 The current gap is too large for timeout tuning or small state-machine changes.
-Term-level DCT unrolling is complete, so the next throughput architecture
-should prioritize:
+Term-level DCT unrolling and row/column overlap are complete, so the next
+throughput architecture should prioritize:
 
 1. a block-transform initiation interval compatible with the 34.3-cycle 4:4:4
    budget, even if end-to-end transform latency remains longer;

@@ -59,13 +59,20 @@ their input block.
 `Dct8x8Stage` is a multi-cycle separable transform. It captures one block,
 computes each eight-term Q14 row or column dot product in one cycle through a
 balanced sum tree, and holds the completed coefficient block until its consumer
-accepts it. It therefore produces one intermediate or final coefficient per
-cycle and completes the two 64-coefficient passes in 128 cycles.
+accepts it. Independent row and column engines communicate through a one-block
+buffer, so rows for the next block can overlap columns for the current block.
+The stage has 129-cycle single-block latency and accepts consecutive blocks at
+a 64-cycle interval under an unstalled consumer.
 `QuantizeBlockStage` accepts one coefficient per cycle through registered
 table-lookup, floor-reciprocal-multiply, and multiply-back-correction steps. The
 reciprocal estimate is never high and can be at most one low over the supported
 coefficient range, so the correction preserves exact rounded division. Both
 stages favor a bounded synthesis problem over single-cycle block latency.
+
+`JpegBlockTransformStage` carries quality and luminance/chrominance selection
+through a two-entry ordered metadata queue. DCT output and metadata dequeue only
+when the quantizer accepts both, preventing later in-flight blocks from changing
+the table selection of an earlier result.
 
 After quantization, coefficients are reordered into JPEG zig-zag order. The
 entropy stages difference DC coefficients per component, encode AC zero runs

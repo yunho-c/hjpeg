@@ -24,7 +24,9 @@ object Dct8x8Constants {
   * Cosine coefficients are Q14. The stage applies a row transform followed by a
   * column transform and rounds the final Q28 result to integer coefficients.
   * Each eight-term dot product is evaluated in one cycle through a balanced
-  * sum tree, producing one row or column coefficient per cycle.
+  * sum tree, producing one row or column coefficient per cycle. Independent
+  * row and column engines overlap consecutive blocks through a one-block
+  * intermediate buffer.
   */
 class Dct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module {
   val io = IO(new Bundle {
@@ -48,16 +50,22 @@ class Dct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module
     else balancedSum(values.grouped(2).map(pair => pair.head +& pair(1)).toSeq)
   }
 
-  val sIdle :: sRows :: sColumns :: sOutput :: Nil = Enum(4)
-  val state = RegInit(sIdle)
+  val rowActive = RegInit(false.B)
   val rowIndex = RegInit(0.U(6.W))
+  val rowBufferValid = RegInit(false.B)
+  val columnActive = RegInit(false.B)
   val columnIndex = RegInit(0.U(6.W))
+  val outputValid = RegInit(false.B)
   val samples = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
   val rowTransformed = Reg(Vec(HjpegConstants.BlockSize, SInt(32.W)))
+  val columnInput = Reg(Vec(HjpegConstants.BlockSize, SInt(32.W)))
   val coefficients = Reg(Vec(HjpegConstants.BlockSize, SInt(coefficientBits.W)))
 
-  io.input.ready := state === sIdle
-  io.output.valid := state === sOutput
+  val columnCanStart = !columnActive && (!outputValid || io.output.ready)
+  val rowBufferFire = rowBufferValid && columnCanStart
+
+  io.input.ready := !rowActive && (!rowBufferValid || rowBufferFire)
+  io.output.valid := outputValid
   for (index <- 0 until HjpegConstants.BlockSize) {
     io.output.bits.coefficients(index) := coefficients(index)
   }
@@ -67,8 +75,7 @@ class Dct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module
       samples(index) := io.input.bits.samples(index)
     }
     rowIndex := 0.U
-    columnIndex := 0.U
-    state := sRows
+    rowActive := true.B
   }
 
   val rowX = rowIndex(5, 3)
@@ -77,33 +84,43 @@ class Dct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module
     (cosine(rowV)(term) * samples(Cat(rowX, term.U(3.W)))).asSInt
   })
 
-  when(state === sRows) {
+  when(rowActive) {
     rowTransformed(rowIndex) := rowTermSum
     when(rowIndex === (HjpegConstants.BlockSize - 1).U) {
-      columnIndex := 0.U
-      state := sColumns
+      rowActive := false.B
+      rowBufferValid := true.B
     }.otherwise {
       rowIndex := rowIndex + 1.U
     }
   }
 
+  when(rowBufferFire) {
+    for (index <- 0 until HjpegConstants.BlockSize) {
+      columnInput(index) := rowTransformed(index)
+    }
+    columnIndex := 0.U
+    columnActive := true.B
+    rowBufferValid := false.B
+  }
+
   val columnU = columnIndex(5, 3)
   val columnV = columnIndex(2, 0)
   val columnTermSum = balancedSum((0 until HjpegConstants.BlockDim).map { term =>
-    (cosine(columnU)(term) * rowTransformed(Cat(term.U(3.W), columnV))).asSInt
+    (cosine(columnU)(term) * columnInput(Cat(term.U(3.W), columnV))).asSInt
   })
   val rounded = roundShiftSigned(columnTermSum, Dct8x8Constants.FractionBits * 2)
 
-  when(state === sColumns) {
+  when(columnActive) {
     coefficients(columnIndex) := rounded(coefficientBits - 1, 0).asSInt
     when(columnIndex === (HjpegConstants.BlockSize - 1).U) {
-      state := sOutput
+      columnActive := false.B
+      outputValid := true.B
     }.otherwise {
       columnIndex := columnIndex + 1.U
     }
   }
 
   when(io.output.fire) {
-    state := sIdle
+    outputValid := false.B
   }
 }

@@ -181,6 +181,7 @@ without changing mapped control/status registers.
 Recent baseline commits before this handoff update, newest first. Use
 `git log --oneline` as the source of truth if this list drifts again:
 
+- `8de3873 perf: compute one DCT coefficient per cycle`
 - `7f71a33 perf: process four DCT terms per cycle`
 - `ecc8e0a docs: refresh performance handoff`
 - `d48af0c perf: pipeline exact reciprocal quantization`
@@ -379,21 +380,27 @@ parallel block transforms to one and the 4:2:0 path from six to one.
 
 The current `Dct8x8Stage` is a multi-cycle separable row/column engine that
 evaluates one complete eight-term Q14 dot product per cycle through a balanced
-sum tree.
+sum tree. Separate row and column engines overlap consecutive blocks through a
+one-block intermediate buffer.
 `QuantizeBlockStage` accepts one coefficient per cycle through registered
 table-lookup, floor-reciprocal-estimate, and exact multiply-back-correction
 steps. The raster stages issue the next component DCT while the previous
 component is being quantized, retaining ordered results and block metadata.
-Exhaustive arithmetic
-checks cover every supported reciprocal numerator/divisor pair, and focused RTL
-tests cover signed extremes and exact quality-scaled table results.
+Exhaustive arithmetic checks cover every supported reciprocal numerator/divisor
+pair, and focused RTL tests cover signed extremes and exact quality-scaled table
+results.
 
-The current simulation contracts are 128 cycles per DCT block, 66 per
-quantized block, 195 per complete block transform, at most 540/1,380 cycles
-for the measured 4:4:4/4:2:0 MCU boundaries, and fewer than 3,550 cycles for the
-16x16 4:4:4 frame fixture. These changes materially improve the serialized
-prototype but still imply optimistic ceilings of only about 5.72 fps for 4:4:4
-and 8.88 fps for 4:2:0 at 1080p and 100 MHz. See
+`JpegBlockTransformStage` queues two quality/component metadata entries so the
+overlapped DCT blocks retain their original luminance/chrominance table
+selection. Metadata and coefficient blocks advance into quantization together.
+
+The current simulation contracts are 129 cycles of DCT latency with 64-cycle
+DCT initiation, 66 cycles per quantized block, 196-cycle complete block latency,
+at most 68 cycles between accepted blocks in the four-block transform fixture,
+at most 410/1,070 cycles for the measured 4:4:4/4:2:0 MCU boundaries, and fewer
+than 3,150 cycles for the 16x16 4:4:4 frame fixture. These changes materially
+improve the prototype but still imply optimistic ceilings of only about 7.53
+fps for 4:4:4 and 11.45 fps for 4:2:0 at 1080p and 100 MHz. See
 `docs/performance-targets.md`; no current Vivado timing/resource claim is made
 for this changed RTL.
 
@@ -575,9 +582,9 @@ python3 -m py_compile \
   scripts/dev/check_chiselsim_env.py
 ```
 
-Current results are 120/120 Scala tests through sbt and `138/138, SUCCESS`
+Current results are 122/122 Scala tests through sbt and `138/138, SUCCESS`
 through Mill. All three core/KV260 SystemVerilog elaboration entry points pass.
-The generated-design-graph smoke run finds 25 reachable module types and 34
+The generated-design-graph smoke run finds 27 reachable module types and 38
 instances with no missing focus modules. The most recent maintained Python
 suite results remain 234 host tests, 59 Vivado-report tests, 10
 ChiselSim-environment tests, and 11 design-graph helper tests. The normal local
@@ -1051,8 +1058,9 @@ If the new PC does not have Vivado or hardware:
 
 1. Continue reducing the transform initiation interval against the explicit
    budgets in `docs/performance-targets.md`, preserving exact stage and decoded
-   frame regressions. Term-level unrolling is complete; investigate concurrent
-   block transforms or a factorized/pipelined DCT next.
+   frame regressions. Term-level unrolling and row/column overlap are complete;
+   investigate a factorized/pipelined DCT or carefully justified transform
+   replication next.
 2. Investigate BRAM-friendly synchronous stripe/band storage and ping-pong
    buffering after transform throughput is no longer overwhelmingly dominant.
 3. Expand simulator coverage for randomized stalls and longer frames.

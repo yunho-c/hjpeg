@@ -268,8 +268,10 @@ smaller and its intermediate values easier to test.
 
 - The 4:4:4 path issues three ordered blocks per MCU through one transform.
 - The 4:2:0 path issues six ordered blocks per MCU through one transform.
-- DCT processing for a later component may overlap quantization of an earlier
-  component while results remain in issue order.
+- The DCT row pass for a later component may overlap the column pass and
+  quantization of earlier components while results remain in issue order.
+- A two-entry metadata queue aligns quality and component selection with the two
+  in-flight DCT blocks.
 - Quantization uses a reciprocal constant table and two dynamic products. Its
   exact arithmetic is exhaustively checked in simulation, but its timing and
   DSP cost require fresh Vivado evidence.
@@ -277,6 +279,9 @@ smaller and its intermediate values easier to test.
   unrolling one dot product removes the term accumulator without increasing the
   current multiplier-plus-adder-tree logic depth, but doubles the parallel
   multipliers and requires fresh Vivado timing and utilization evidence.
+- Separate row and column engines reuse hardware that was already present and
+  reduce DCT initiation from 128 to 64 cycles, at the cost of another complete
+  64-entry intermediate register bank.
 - Transform latency dominates frame time; no real-time frame-rate target is
   currently demonstrated.
 - Resource savings and timing closure must be judged together with measured
