@@ -48,66 +48,75 @@ average, including any input backpressure.
 
 ## Current Simulation Baseline
 
-The current correctness-first implementation remains largely serialized.
-Deterministic ChiselSim regressions measure the following latency from an
-accepted boundary to output validity:
+The block transform now meets the average 4:4:4 block-rate budget in
+deterministic simulation, while raster collection/loading and complete-frame
+flow remain serialized. ChiselSim regressions measure the following latency
+from an accepted boundary to output validity:
 
 | Boundary | Observed cycles | Regression ceiling |
 | --- | ---: | ---: |
-| 8x8 DCT block latency | 129 | 129 |
-| Consecutive DCT block initiation | 64 | 65 |
-| 64-coefficient quantization | 66 | 66 |
-| Complete DCT/quantize/zig-zag block latency | 196 | 196 |
-| Four-block transform initiation intervals | 65/65/68 | 68 maximum |
-| First 4:4:4 MCU after stripe collection | 398 | 410 |
-| First 4:2:0 MCU after band collection | 1,050 | 1,070 |
-| Complete 16x16 4:4:4 test frame | 3,096 | 3,150 |
+| Four-lane 8x8 DCT block latency | 35 | 36 |
+| Consecutive DCT block initiation | 16 | 16 |
+| Four-lane 64-coefficient quantization | 21 | 22 |
+| Complete DCT/quantize/zig-zag block latency | 55 | 57 |
+| Four-block transform initiation intervals | 16/16/16 | 17 maximum |
+| First 4:4:4 MCU after stripe collection | 153 | 160 |
+| First 4:2:0 MCU after band collection | 649 | 660 |
+| Complete 16x16 4:4:4 test frame | 2,362 | 2,400 |
 
 The block and MCU measurements use quality 50 and deterministic fixtures. The
 transform latency is fixed by the current state machines; entropy and complete
 frame time can also depend on coefficient content and emitted byte count.
 
-The raster stages issue the next component block when the DCT becomes ready
-while the previous block is still being quantized. This ordered overlap keeps
-one transform instance but reduced the measured 4:4:4 MCU latency by about 29%,
-the 4:2:0 MCU latency by about 36%, and the 16x16 frame latency by about 29%.
+`PipelinedDct8x8Stage` exploits exact symmetry in the existing Q14 cosine
+matrix. Four `x0 +/- x7` through `x3 +/- x4` butterflies feed four frequency
+lanes; even frequencies use the sums and odd frequencies use the differences.
+Each output therefore needs four products rather than eight, with no arithmetic
+change. Pair formation is registered, row and column engines overlap through
+three banked transpose buffers, and two result banks absorb output
+backpressure. There is no intermediate rounding: the final Q28 value retains
+nearest rounding with halves away from zero. Deterministic varied blocks match
+the prior fixed-point reference coefficient-for-coefficient.
 
-The quantizer accepts one coefficient per cycle through registered table-lookup,
-reciprocal-estimate, and multiply-back-correction steps. It uses a
-17-fraction-bit floor reciprocal whose estimate is never high and is at most
-one low for every supported rounded numerator and nonzero 8-bit divisor.
-Exhaustive software-side checks cover all 8,388,480 such pairs, while RTL tests
-cover signed extremes, luminance/chrominance tables, multiple quality settings,
-and exact rounded results. Compared with the preceding two-bit restoring
-divider, this reduced quantizer latency by about 91%, complete
-block-transform latency by about 53%, 4:4:4/4:2:0 MCU latency by about 38%/30%,
-and 16x16 frame latency by about 37%.
+`PipelinedQuantizeBlockStage` processes four adjacent coefficients per cycle.
+Its two banks overlap block capture, processing, and output holding. The four
+lanes share one quality-scale calculation and retain the existing registered
+table lookup, 17-fraction-bit floor-reciprocal estimate, and exact
+multiply-back correction. The exhaustive 8,388,480-pair reciprocal proof still
+applies, and new RTL tests cover signed extremes, both tables, out-of-range
+quality clamping, sustained traffic, and ordered backpressure.
 
-The DCT evaluates one complete eight-term Q14 dot product per cycle through a
-three-level balanced sum tree. Relative to the preceding four-term
-implementation, this halves DCT latency and reduces complete block-transform
-latency by about 40%, 4:4:4/4:2:0 MCU latency by about 42%/36%, and 16x16 frame
-latency by about 25%. Varied deterministic blocks are checked
-coefficient-for-coefficient against the fixed-point software calculation. The
-fully unrolled dot product doubles parallel multipliers without increasing the
-prior multiplier-plus-adder-tree logic depth, but still requires fresh Vivado
-timing and utilization evidence.
+`JpegBlockTransformStage` uses the new stages with an eight-entry ordered
+metadata queue. Across varied luminance/chrominance blocks it sustains a
+16-cycle block interval, below the 34.3-cycle 4:4:4 budget. Relative to the
+previous production path, DCT latency fell from 129 to 35 cycles, quantization
+from 66 to 21, and complete transform latency from 196 to 55. First-MCU
+processing fell from 398 to 153 cycles for 4:4:4 and from 1,050 to 649 for
+4:2:0; the 16x16 frame fixture fell from 3,096 to 2,362 cycles.
 
-The DCT row and column engines now overlap consecutive blocks through an
-intermediate buffer. Single-block latency grows by one transfer cycle, but DCT
-initiation falls from 128 to 64 cycles. A two-entry metadata queue in the block
-transform keeps table selection aligned with in-flight blocks. Across four
-alternating luminance/chrominance blocks, the complete transform accepts inputs
-at 65/65/68-cycle intervals; the longest interval reflects downstream
-quantize/zig-zag handoff bubbles. Relative to the preceding sequential-pass
-implementation, current 4:4:4/4:2:0 MCU latency falls by about 24%/23% and the
-16x16 frame fixture by about 11%.
+The quick 32x16 trace now completes in 3,275 cycles for 4:4:4 and 3,106 for
+4:2:0. Within-MCU block intervals are 16 cycles; steady same-stripe 4:4:4 MCU
+spacing is 152 cycles and a stripe transition is 408 cycles. Header/entropy
+startup dominates these small frames, while serial MCU loading and raster
+collection dominate the remaining steady-state gap.
 
-Using only the MCU regression ceilings gives optimistic 1080p throughput
-ceilings of roughly 7.53 fps for 4:4:4 and 11.45 fps for 4:2:0 at 100 MHz.
-Actual frame throughput will be lower because those estimates omit some raster,
-entropy, marker, and flow-control work. They are architectural gap indicators,
-not board measurements.
+A current-code 64x64 seeded-random quality-90 capture adds the missing
+high-entropy evidence. The 4:4:4 frame completes in 19,563 cycles and has
+post-first-stripe MCU intervals of 222--230 cycles. Its `mcu_output` boundary
+has one 1,574-cycle startup stall followed by 55 repeated 64--76-cycle stalls,
+so entropy consumption is a sustained 4:4:4 bottleneck for this content. The
+4:2:0 frame completes in 16,277 cycles, has a stable 650-cycle post-first-band
+MCU interval, and has only one contiguous 1,318-cycle startup stall; serialized
+MCU loading remains its dominant steady-state limit. Both scenarios retain a
+16-cycle transform initiation interval and decode at the expected dimensions.
+
+Using only the new MCU regression ceilings gives optimistic 1080p throughput
+ceilings of roughly 19.3 fps for 4:4:4 and 18.6 fps for 4:2:0 at 100 MHz.
+Actual frame throughput will be lower because those estimates omit raster band
+collection, entropy, markers, and other flow-control work. The transform-rate
+deficit is resolved in simulation; the next architectural limit is overlapping
+raster collection, MCU loading, and transform work. These are architectural gap
+indicators, not timing closure or board measurements.
 
 ## Performance Trace Workflow
 
@@ -181,17 +190,18 @@ Vivado reports cannot prove DMA behavior or decoder-valid hardware output.
 ## Optimization Direction
 
 The current gap is too large for timeout tuning or small state-machine changes.
-Term-level DCT unrolling and row/column overlap are complete, so the next
+Term-level DCT unrolling and row/column overlap are complete. Current smooth
+and high-entropy traces show two independent sustained limits, so the next
 throughput architecture should prioritize:
 
-1. a block-transform initiation interval compatible with the 34.3-cycle 4:4:4
-   budget, even if end-to-end transform latency remains longer;
-2. a factorized/pipelined DCT or, only when justified by synthesis evidence,
-   limited transform replication;
-3. BRAM-friendly synchronous stripe/band storage;
-4. ping-pong buffering so raster collection overlaps MCU processing; and
-5. measured entropy/output capacity so the transform is not optimized past a
-   downstream bottleneck.
+1. at least two-coefficient-per-cycle AC scanning plus enough run buffering or
+   packer overlap to remove repeated high-entropy 4:4:4 MCU stalls;
+2. BRAM-friendly banked synchronous stripe/band storage with widened MCU reads;
+3. ping-pong buffering so raster collection overlaps MCU processing without
+   hiding a sustained downstream mismatch behind arbitrary FIFO depth;
+4. a measured MCU queue sized from the resulting producer/consumer rates; and
+5. fresh high-entropy traces and post-implementation evidence after each
+   material architecture change.
 
 Each optimization must retain the stage-level coefficient fixtures, complete
 JPEG decoding tests, recognizable-content checks, and ready/valid behavior.

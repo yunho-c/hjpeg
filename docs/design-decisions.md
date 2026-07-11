@@ -251,14 +251,15 @@ baseline.
 evidence show that 100 MHz or the 70% resource ceiling is the wrong platform
 contract. Change the target explicitly rather than silently redefining success.
 
-## Share one multi-cycle transform path per raster stage
+## Share one four-lane transform path per raster stage
 
 **Status:** Provisional
 
 **Decision:** Reuse one `JpegBlockTransformStage` across all component blocks in
-an MCU. Compute one complete eight-term DCT dot product per cycle and quantize
-one coefficient per cycle with a floor-reciprocal multiply and exact
-multiply-back correction.
+an MCU. Within that shared path, issue four exactly factorized DCT coefficients
+and four exact reciprocal-quantized coefficients per cycle. Sustain one block
+every 16 cycles while preserving the existing block-level `Decoupled`
+interfaces and coefficient results.
 
 **Context:** Earlier parallel and combinational structures created excessive
 memory-port, synthesis, and timing pressure. Serialization made the transform
@@ -268,29 +269,29 @@ smaller and its intermediate values easier to test.
 
 - The 4:4:4 path issues three ordered blocks per MCU through one transform.
 - The 4:2:0 path issues six ordered blocks per MCU through one transform.
-- The DCT row pass for a later component may overlap the column pass and
-  quantization of earlier components while results remain in issue order.
-- A two-entry metadata queue aligns quality and component selection with the two
+- Exact Q14 cosine symmetry reduces every eight-term DCT dot product to four
+  products of `x0 +/- x7` through `x3 +/- x4`; this changes neither intermediate
+  integer sums nor final Q28 rounding.
+- Four row and four column lanes overlap through three transpose banks. Two
+  result banks retain output order under backpressure.
+- Four quantizer lanes share one quality-scale calculation and retain the
+  registered floor-reciprocal estimate plus exact multiply-back correction.
+  Two banks overlap capture, processing, and output holding.
+- An eight-entry metadata queue aligns quality and component selection with all
   in-flight DCT blocks.
-- Quantization uses a reciprocal constant table and two dynamic products. Its
-  exact arithmetic is exhaustively checked in simulation, but its timing and
-  DSP cost require fresh Vivado evidence.
-- DCT products are combined with a three-level balanced sum tree. Fully
-  unrolling one dot product removes the term accumulator without increasing the
-  current multiplier-plus-adder-tree logic depth, but doubles the parallel
-  multipliers and requires fresh Vivado timing and utilization evidence.
-- Separate row and column engines reuse hardware that was already present and
-  reduce DCT initiation from 128 to 64 cycles, at the cost of another complete
-  64-entry intermediate register bank.
-- Transform latency dominates frame time; no real-time frame-rate target is
-  currently demonstrated.
+- DCT, quantizer, and complete-transform input/output intervals are 16 cycles in
+  deterministic RTL simulation, below the 34.3-cycle 4:4:4 block budget.
+- Current implementation closes 100 MHz timing at setup WNS `+0.245 ns` and
+  hold WHS `+0.010 ns`, with 127 DSPs, but consumes 90.51% of CLBs. The timing
+  result is acceptable; the resource result fails the provisional ceiling.
+- Serial raster collection and MCU loading, rather than block-transform issue
+  rate, now dominate simulated frame throughput.
 - Resource savings and timing closure must be judged together with measured
   frame throughput.
 
-**Revisit when:** Fresh Vivado evidence shows the fully unrolled dot product
-does not close timing or fit the resource budget, or when meeting the remaining
-initiation-interval target requires a factorized/pipelined DCT, limited
-transform replication, or overlap with raster collection.
+**Revisit when:** BRAM-oriented storage work materially changes routing or
+resource pressure, or if raster overlap changes the required transform
+buffering/issue contract.
 
 ## Serialize stripe-memory reads
 

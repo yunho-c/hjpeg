@@ -239,7 +239,7 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       emission.bytes.takeRight(2) mustBe Seq(0xff, 0xd9)
       info(s"16x16 4:4:4 frame latency: ${emission.cycles} cycles")
       withClue(s"cycles=${emission.cycles}, pixels=${width * height}") {
-        emission.cycles must be < 3150
+        emission.cycles must be < 2400
       }
       dut.io.protocolError.expect(false.B)
     }

@@ -56,23 +56,29 @@ overlap quantization of an earlier component. Results are captured in the same
 order and retain the quality and luminance/chrominance metadata sampled with
 their input block.
 
-`Dct8x8Stage` is a multi-cycle separable transform. It captures one block,
-computes each eight-term Q14 row or column dot product in one cycle through a
-balanced sum tree, and holds the completed coefficient block until its consumer
-accepts it. Independent row and column engines communicate through a one-block
-buffer, so rows for the next block can overlap columns for the current block.
-The stage has 129-cycle single-block latency and accepts consecutive blocks at
-a 64-cycle interval under an unstalled consumer.
-`QuantizeBlockStage` accepts one coefficient per cycle through registered
-table-lookup, floor-reciprocal-multiply, and multiply-back-correction steps. The
-reciprocal estimate is never high and can be at most one low over the supported
-coefficient range, so the correction preserves exact rounded division. Both
-stages favor a bounded synthesis problem over single-cycle block latency.
+`PipelinedDct8x8Stage` is the production separable transform. Exact even/odd
+symmetry in the Q14 cosine matrix reduces each eight-term dot product to four
+products of `x0 +/- x7` through `x3 +/- x4`. Four frequency lanes issue four
+coefficients per cycle. Pair formation is registered; row and column passes
+overlap through three banked transpose buffers, and two output banks absorb
+backpressure. No rounding occurs between passes, and the final Q28 rounding is
+bit-identical to the original transform. It has 35-cycle single-block latency
+and a 16-cycle sustained block interval.
+
+`PipelinedQuantizeBlockStage` handles four adjacent coefficients per cycle
+through registered table lookup, floor-reciprocal multiplication, and exact
+multiply-back correction. Two banks overlap capture, processing, and output
+holding. All lanes share one constant-ROM quality-scale lookup, while retaining
+exact nearest rounding with halves away from zero. It has 21-cycle first-block
+latency and a 16-cycle sustained block interval.
 
 `JpegBlockTransformStage` carries quality and luminance/chrominance selection
-through a two-entry ordered metadata queue. DCT output and metadata dequeue only
-when the quantizer accepts both, preventing later in-flight blocks from changing
-the table selection of an earlier result.
+through an eight-entry ordered metadata queue. DCT output and metadata dequeue
+only when the quantizer accepts both, preventing later in-flight blocks from
+changing the table selection of an earlier result. The former single-lane
+`Dct8x8Stage` and `QuantizeBlockStage` remain independently tested as
+reference/fallback implementations but are not instantiated by the active
+block transform.
 
 After quantization, coefficients are reordered into JPEG zig-zag order. The
 entropy stages difference DC coefficients per component, encode AC zero runs

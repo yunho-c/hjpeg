@@ -12,8 +12,11 @@ private class DctBlockMetadata extends Bundle {
 
 /** Transforms level-shifted component blocks into quantized zig-zag order.
   *
-  * A two-entry metadata queue keeps quality and component selection aligned
-  * with the DCT's row/column block pipeline.
+  * The production path uses four-lane, banked DCT and quantizer stages. An
+  * eight-entry metadata queue covers their in-flight block capacity and keeps
+  * quality/component selection aligned under backpressure. The original
+  * single-lane [[Dct8x8Stage]] and [[QuantizeBlockStage]] remain independently
+  * tested reference/fallback implementations.
   */
 class JpegBlockTransformStage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module {
   val io = IO(new Bundle {
@@ -23,10 +26,10 @@ class JpegBlockTransformStage(sampleBits: Int = 9, coefficientBits: Int = 16) ex
     val output = Decoupled(new ZigZagCoefficientBlock(coefficientBits))
   })
 
-  val dct = Module(new Dct8x8Stage(sampleBits, coefficientBits))
-  val quantize = Module(new QuantizeBlockStage(coefficientBits))
+  val dct = Module(new PipelinedDct8x8Stage(sampleBits, coefficientBits))
+  val quantize = Module(new PipelinedQuantizeBlockStage(coefficientBits))
   val zigZag = Module(new ZigZagBlockStage(coefficientBits))
-  private val metadata = Module(new Queue(new DctBlockMetadata, entries = 2, pipe = true))
+  private val metadata = Module(new Queue(new DctBlockMetadata, entries = 8, pipe = true))
 
   dct.io.input.bits := io.input.bits
   dct.io.input.valid := io.input.valid && metadata.io.enq.ready

@@ -47,7 +47,7 @@ class JpegBlockTransformStageSpec extends AnyFreeSpec with Matchers with ChiselS
 
       val cycles = waitForOutput(dut)
       info(s"complete block-transform latency: $cycles cycles")
-      cycles must be <= 196
+      cycles must be <= 57
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.coefficients(0).expect(16.S)
       for (index <- 1 until HjpegConstants.BlockSize) {
@@ -128,7 +128,7 @@ class JpegBlockTransformStageSpec extends AnyFreeSpec with Matchers with ChiselS
         cycles += 1
       }
       info(s"overlapped block-transform initiation interval: $cycles cycles")
-      cycles must be <= 65
+      cycles must be <= 16
       dut.clock.step()
       dut.io.input.valid.poke(false.B)
 
@@ -184,7 +184,7 @@ class JpegBlockTransformStageSpec extends AnyFreeSpec with Matchers with ChiselS
 
       val intervals = acceptedAt.sliding(2).map(pair => pair(1) - pair(0)).toSeq
       info(s"sustained block-transform initiation intervals: ${intervals.mkString(", ")} cycles")
-      intervals.max must be <= 68
+      intervals.max must be <= 17
     }
   }
 }

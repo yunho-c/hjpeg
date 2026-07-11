@@ -33,6 +33,17 @@ optional JFIF APP0 emission, marker assembly, restart intervals, entropy
 packing, byte stuffing, ready/valid flow control, and sticky protocol-error
 reporting.
 
+The active `JpegBlockTransformStage` uses bit-exact four-lane DCT and quantizer
+stages. Both sustain a 16-cycle block interval in deterministic simulation; the
+DCT uses registered even/odd butterflies with three transpose banks, and the
+quantizer shares quality scaling across four reciprocal/correction lanes with
+two banks. The earlier single-lane stages remain independently tested but are
+not in the active encoder datapath. Serialized raster collection and MCU loading
+plus high-entropy 4:4:4 entropy consumption are now the primary simulated
+throughput limits. Current Vivado implementation closes 100 MHz timing at setup
+WNS `+0.245 ns` and hold WHS `+0.010 ns`, but consumes 90.51% of CLBs, so it
+fails the provisional resource target and requires BRAM-oriented storage work.
+
 `HjpegAxiStreamCore` is the current hardware-facing shell. It accepts raster RGB
 AXI4-Stream-shaped words, generates pixel coordinates, forwards bytes from
 `HjpegCore`, and checks that input `last` matches the configured frame size.

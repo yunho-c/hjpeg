@@ -15,8 +15,11 @@ files, streaming RTL shells, elaboration entry points, and simulator tests.
 - Incremental test fixtures for each pipeline stage
 
 The provisional performance target is decoder-valid 1920x1080 at 30 fps in
-both 4:4:4 and 4:2:0 modes at a 100 MHz PL clock. Current measured simulation
-latencies are far below that throughput; see
+both 4:4:4 and 4:2:0 modes at a 100 MHz PL clock. The four-lane DCT/quantizer
+now meets the average 4:4:4 block-rate budget in simulation, but serialized
+raster collection/MCU loading and high-entropy 4:4:4 entropy consumption keep
+complete-frame estimates below target. Current implementation closes 100 MHz
+timing but uses 90.51% of CLBs, above the provisional resource ceiling; see
 [`docs/performance-targets.md`](docs/performance-targets.md) for cycle budgets,
 evidence levels, and the optimization direction.
 

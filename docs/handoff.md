@@ -55,6 +55,16 @@ current transform optimizations:
 - Vivado bitstream generation, bitstream copy, XSA export with bitstream
   included, and post-synthesis/post-implementation report checking.
 
+Current four-lane construction evidence includes IP packaging, block-design
+validation, implementation, bitstream/XSA export, and all twelve required
+evidence records. Timing closes at setup WNS `+0.245 ns` and hold WHS
+`+0.010 ns`; DRC and route-status reports pass with zero routing errors. The
+build uses 55.14% CLB LUTs, 44.51% LUTRAM, 23.34% registers, 2.78% BRAM, and
+10.18% DSPs. It consumes 90.51% of CLBs, however, so the default 90% checker
+and the provisional 70% project ceiling both fail. The same complete evidence
+set passes only when the checker ceiling is relaxed to 100%, which is diagnostic
+evidence rather than project acceptance.
+
 Not yet proven:
 
 - Programming a real KV260 and moving pixels through AXI DMA.
@@ -90,14 +100,15 @@ not back-to-back frames:
 
 | Scenario | Pixels | MCUs | Blocks | JPEG bytes | Frame cycles |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| 4:4:4 | 512 | 8 | 24 | 852 | 4,999 |
-| 4:2:0 | 512 | 2 | 12 | 729 | 3,509 |
-| 4:4:4 output stalls | 512 | 8 | 24 | 852 | 5,201 |
+| 4:4:4 | 512 | 8 | 24 | 852 | 3,275 |
+| 4:2:0 | 512 | 2 | 12 | 729 | 3,106 |
+| 4:4:4 output stalls | 512 | 8 | 24 | 852 | 3,504 |
 
 The stalled and unstalled 4:4:4 streams are byte-identical and every generated
-JPEG is decoder-validated. For this fixture, 4:2:0 is about 1.42x faster because
-it transforms and entropy-encodes half as many component blocks. Do not treat
-that small single-band fixture as a precise 1080p speedup.
+JPEG is decoder-validated. With the faster transform, 4:2:0 is only about 1.05x
+faster in this fixture because the once-per-frame header and serialized raster
+work dominate. Do not treat that small single-band fixture as a precise 1080p
+speedup.
 
 Perfetto ready/valid rows classify each sampled boundary as `transfer`
 (`valid && ready`), `blocked` (`valid && !ready`), `starved`
@@ -109,12 +120,12 @@ entropy runs, and bytes--so transfer density is not directly comparable.
 The long 4:4:4 region where `rgb_input` is blocked while `transform_input` is
 starved is real serialization, not a trace error. The raster FSM only accepts
 pixels in `sCollect`, issues blocks in `sTransform`, and can hold one completed
-MCU in `sEmit`. In the current trace, the first MCU transfers at cycle 654; the
-second becomes ready at cycle 1,053 but remains blocked until cycle 2,201 while
-the encoder emits the once-per-frame header and handles the first MCU. Later
-4:4:4 MCU intervals are 399 cycles, except a 655-cycle raster-stripe transition,
-and do not show repeated `mcu_output` blocking for this content. The roughly
-1,500-cycle header startup is visually dominant in a 4,999-cycle toy frame but
+MCU in `sEmit`. In the current four-lane-transform trace, the first MCU
+transfers at cycle 407; the second becomes
+ready at cycle 559 but remains blocked until cycle 1,954. Later 4:4:4 same-stripe
+MCU intervals are normally 152 cycles, with a 408-cycle stripe transition and
+one later five-cycle `mcu_output` block for this content. The roughly
+1,500-cycle header startup is visually dominant in a 3,275-cycle toy frame but
 only about 0.045% of the 3.33-million-cycle 1080p30 frame budget. Do not optimize
 the header first.
 
@@ -125,13 +136,14 @@ cycles/pixel. In 4:4:4, every 8x8 pixel tile creates Y, Cb, and Cr blocks:
 padded frame has 48,960 blocks and a 68.1-cycle block budget. These are
 initiation-interval budgets; transform latency may be longer if blocks overlap.
 
-The current complete transform has about 200 cycles of fire-to-fire latency and
-a sustained 65--68-cycle block initiation interval. Its latency is acceptable
-in principle, but its acceptance rate is about half of the required 4:4:4
-rate. Both limiting stages must change: `Dct8x8Stage` produces one row/column
-coefficient per cycle, and `QuantizeBlockStage` processes one coefficient per
-cycle, so accelerating only the DCT will merely expose quantization as the next
-bottleneck.
+The production block transform now uses bit-exact four-lane DCT and quantizer
+stages. It has 55-cycle complete latency and sustains a 16-cycle input/output
+block interval, below the 34.3-cycle 4:4:4 budget. The DCT exploits exact
+even/odd symmetry in the existing Q14 matrix, registers pair butterflies, and
+overlaps row/column work through three transpose banks. The quantizer shares
+quality scaling across four exact reciprocal/correction lanes and uses two
+banks. The prior single-lane stages remain independently tested but are no
+longer instantiated by `JpegBlockTransformStage`.
 
 The profiler extension is now implemented. The quick profile remains the
 default; `--profile steady-state` selects a 24-case, 64x64 matrix spanning both
@@ -139,39 +151,38 @@ sampling modes, four deterministic content classes, and qualities 10/50/90.
 The raw capture includes explicit raster/encoder FSM phases, and the metrics
 separate startup, within-MCU block, between-MCU block, stripe/band-transition,
 and post-first-band steady-state intervals. Production RTL IO is unchanged.
-On the Windows/Docker development PC, final-code representative capture covered
-all four content generators, both sampling modes, and qualities 10/50/90 across
-five 64x64 scenarios; every JPEG decoded at the expected dimensions. In those
-samples, each `mcu_output` blocked-cycle total was one contiguous startup run,
-with no later steady-state blockage. This is useful evidence but is not a
-substitute for running all 24 cases before making a broad entropy-capacity
-claim. The packed simulation snapshot produced byte-identical raw CSV captures
-to the original per-signal probe and reduced the same two-scenario run from
-about 34 minutes to about 8 minutes on this machine.
+An earlier profiler-validation capture covered all four content generators,
+both sampling modes, and qualities 10/50/90 across five 64x64 scenarios; every
+JPEG decoded at the expected dimensions. Those captures predate the four-lane
+production transform: their roughly 200-cycle transform latency and 65-cycle
+initiation interval identify them as evidence for the previous datapath, not
+the current one. The packed simulation snapshot did produce byte-identical raw
+CSV captures to the original per-signal probe and reduced the same two-scenario
+run from about 34 minutes to about 8 minutes, which validates the capture
+mechanism but not current steady-state performance. Run current-code 64x64
+high-entropy scenarios before making a broad entropy-capacity claim.
+
+Current-code 64x64 seeded-random quality-90 captures now cover both sampling
+modes. The 4:4:4 frame completes in 19,563 cycles and has 222--230-cycle
+post-first-stripe MCU intervals. Its MCU output has one 1,574-cycle startup
+stall plus 55 repeated 64--76-cycle stalls, proving a sustained high-entropy
+consumer mismatch. The 4:2:0 frame completes in 16,277 cycles, has a stable
+650-cycle post-first-band MCU interval, and has only one contiguous startup
+stall. Both decode and retain a 16-cycle transform interval.
 
 Recommended next sprint, in order:
 
-1. Prototype a factorized, separable, pipelined 1D DCT with banked transpose
-   storage rather than starting with a generic full 2D systolic array. Pipeline
-   depth alone is insufficient: throughput must increase beyond one coefficient
-   per cycle. Two lanes give a theoretical 32-cycle block rate with little
-   margin; aim for roughly four coefficients/cycle or a 16-cycle block
-   initiation interval if resources permit.
-2. Pair the faster DCT with a matching multi-lane streaming quantizer and
-   banked zig-zag reorder path. Preserve the current external block-level
-   `Decoupled` interface initially, and keep exact coefficient, fixed-point,
-   ready/valid, and decoded-JPEG regressions. Do not merge a factorized
-   arithmetic change without documenting widths, scaling, rounding, and any
-   deliberate coefficient-reference change.
-3. Decouple raster collection, transform processing, and MCU emission with
-   BRAM-friendly ping-pong stripe/band storage and a measured MCU queue. A tiny
-   FIFO can absorb startup temporarily but cannot fix a sustained downstream
-   rate mismatch.
-4. Optimize entropy only if larger high-entropy traces show repeated
-   steady-state `mcu_output` blockage after excluding the once-per-frame header.
-   After every material transform/buffering change, regenerate performance
-   traces; regenerate Vivado timing/utilization evidence when Vivado is
-   available.
+1. Widen AC scanning to at least two coefficients per cycle and decouple run
+   production from byte packing enough to remove the repeated high-entropy
+   4:4:4 stalls. A tiny FIFO alone cannot fix this sustained mismatch.
+2. Add BRAM-friendly banked/widened MCU loading together with ping-pong
+   stripe/band storage. Ping-pong collection alone still leaves the current
+   153-cycle 4:4:4 and 649-cycle 4:2:0 processing times above their MCU budgets.
+3. Regenerate traces after each material entropy/buffering change and size any
+   MCU queue from measured producer/consumer rates.
+4. Preserve the current timing-clean implementation as a comparison point, but
+   treat BRAM conversion as required: the routed design uses 90.51% of CLBs and
+   fails the project resource gate despite positive setup/hold timing.
 
 The preferred DCT direction is deeply throughput-pipelined but not necessarily
 systolic. A fixed 8x8 JPEG DCT can exploit separability and butterfly symmetry
@@ -502,31 +513,33 @@ read ports. A later source edit reuses one `JpegBlockTransformStage` per raster
 stage across the MCU's component blocks, reducing the 4:4:4 path from three
 parallel block transforms to one and the 4:2:0 path from six to one.
 
-The current `Dct8x8Stage` is a multi-cycle separable row/column engine that
-evaluates one complete eight-term Q14 dot product per cycle through a balanced
-sum tree. Separate row and column engines overlap consecutive blocks through a
-one-block intermediate buffer.
-`QuantizeBlockStage` accepts one coefficient per cycle through registered
-table-lookup, floor-reciprocal-estimate, and exact multiply-back-correction
-steps. The raster stages issue the next component DCT while the previous
-component is being quantized, retaining ordered results and block metadata.
+The active `PipelinedDct8x8Stage` is a four-lane separable row/column engine.
+Exact cosine symmetry turns every eight-term Q14 dot product into four products
+of registered pair sums or differences. Three row/transpose banks overlap row
+and column work; two output banks retain ordered results under backpressure.
+`PipelinedQuantizeBlockStage` processes four coefficients per cycle through
+registered table lookup, floor-reciprocal estimate, and exact multiply-back
+correction. Its four lanes share quality scaling and use two banks. The raster
+stages issue the next component DCT while the previous component is being
+quantized, retaining ordered results and block metadata.
 Exhaustive arithmetic checks cover every supported reciprocal numerator/divisor
 pair, and focused RTL tests cover signed extremes and exact quality-scaled table
 results.
 
-`JpegBlockTransformStage` queues two quality/component metadata entries so the
+`JpegBlockTransformStage` queues eight quality/component metadata entries so the
 overlapped DCT blocks retain their original luminance/chrominance table
 selection. Metadata and coefficient blocks advance into quantization together.
 
-The current simulation contracts are 129 cycles of DCT latency with 64-cycle
-DCT initiation, 66 cycles per quantized block, 196-cycle complete block latency,
-at most 68 cycles between accepted blocks in the four-block transform fixture,
-at most 410/1,070 cycles for the measured 4:4:4/4:2:0 MCU boundaries, and fewer
-than 3,150 cycles for the 16x16 4:4:4 frame fixture. These changes materially
-improve the prototype but still imply optimistic ceilings of only about 7.53
-fps for 4:4:4 and 11.45 fps for 4:2:0 at 1080p and 100 MHz. See
-`docs/performance-targets.md`; no current Vivado timing/resource claim is made
-for this changed RTL.
+The current simulation contracts are 35 cycles of DCT latency with 16-cycle
+DCT initiation, 21 cycles for the four-lane quantizer, 55-cycle complete block
+latency, at most 17 cycles between accepted blocks in the four-block transform
+fixture, at most 160/660 cycles for the measured 4:4:4/4:2:0 MCU boundaries,
+and fewer than 2,400 cycles for the 16x16 4:4:4 frame fixture. The transform now
+meets its average 4:4:4 block-rate budget, but serialized raster/MCU work still
+implies optimistic ceilings of only about 19.3 fps for 4:4:4 and 18.6 fps for
+4:2:0 at 1080p and 100 MHz. See
+`docs/performance-targets.md`. Current Vivado evidence closes 100 MHz timing but
+fails the resource target at 90.51% CLB utilization.
 
 `JpegHeaderStage` was also changed from a one-byte-per-cycle combinational
 header mux into a small byte-generation FSM. Static marker bytes still emit in
@@ -684,14 +697,13 @@ meaningless gate values.
 
 ## Last Known Local Verification
 
-The current checkout includes RTL correctness changes after the last full
-Vivado bitstream validation. The saved Vivado reports remain useful historical
-construction evidence, but they do not prove timing, utilization, or bitstream
-behavior for the current RTL. Regenerate them before making a current hardware
-readiness claim.
+The current checkout has fresh full Vivado construction evidence for the
+four-lane RTL. It proves that the design packages, routes, closes 100 MHz timing,
+and emits a bitstream/XSA, but it fails the resource gate because routed CLB
+utilization is 90.51%. It does not prove board behavior.
 
-The 2026-07-10 software baseline is green. Current RTL validation used the
-default Homebrew JDK 26 installation:
+The 2026-07-11 software baseline is green. Current RTL validation used the
+pinned Docker JDK 21/sbt/Verilator toolchain on Windows:
 
 ```sh
 sbt test
@@ -709,7 +721,7 @@ python3 -m py_compile \
   scripts/dev/generate_performance_trace.py
 ```
 
-Current results are 123/123 Scala tests through the pinned Docker sbt/Verilator
+Current results are 126/126 Scala tests through the pinned Docker sbt/Verilator
 toolchain. All three core/KV260 SystemVerilog elaboration entry points pass.
 The generated-design-graph smoke run finds 27 reachable module types and 38
 instances with no missing focus modules. The most recent maintained Python
@@ -785,23 +797,17 @@ Known local limitations:
   `MAKESHELL` to `cmd.exe` is also not a reliable workaround because generated
   svsim Makefiles mix Windows clean rules with POSIX fragments such as
   `$(shell pwd)` and replay pipelines.
-- Latest focused attempt on this Windows/MSYS setup:
-  `sbt 'testOnly hjpeg.HjpegAxiStreamCoreSpec'` compiled the updated spec, then
-  all simulations failed at svsim `make clean` because the generated Makefile
-  ran `for /f "delims=" ...` under `/bin/sh`. This matches the known simulator
-  path/shell incompatibility above; it does not validate the new AXI wrapper
-  regression until run on a compatible simulator setup.
-- The current block-design Vivado reports pass the default 100 MHz
-  setup/hold/utilization gates. The standalone synthesis smoke evidence hashes
-  `post_synth.dcp`. Latest block-design artifact reports include the bitstream,
-  XSA, and post-implementation checkpoint, and show post-synthesis setup WNS
-  `+0.807 ns` and post-implementation setup WNS `+0.131 ns`;
-  post-implementation hold WHS is `+0.010 ns`. Post-implementation utilization is approximately
-  50,662 CLB LUTs (43.26%), 25,619 LUTRAMs (44.48%), 2 BRAM tiles (1.39%), and
-  17 DSPs (1.36%). `write_kv260_floorplan_report.tcl` regenerated
-  `post_impl_floorplan.rpt` from the existing implemented project with 107,114
-  placed primitive cells, and the complete Vivado evidence checker passed with
-  12 checked records including the floorplan report.
+- The native Windows/MSYS simulator path remains incompatible, but the pinned
+  Docker flow runs the complete suite against the same checkout; the current
+  126-test result includes all AXI-stream and AXI-Lite recovery regressions.
+- Current four-lane full Vivado construction emits the bitstream, XSA, and
+  post-implementation checkpoint. Post-synthesis setup WNS is `+1.895 ns`;
+  post-implementation setup WNS is `+0.245 ns` and hold WHS is `+0.010 ns`.
+  Post-implementation utilization is 64,579 CLB LUTs (55.14%), 25,635 LUTRAMs
+  (44.51%), 54,681 registers (23.34%), 4 BRAM tiles (2.78%), 127 DSPs (10.18%),
+  and 13,251 CLBs (90.51%). The floorplan report records 142,345 placed
+  primitive cells. The complete twelve-record checker fails at its default 90%
+  ceiling only on CLB utilization; it passes with a diagnostic 100% ceiling.
 
 On a new machine, run these first:
 
@@ -1148,14 +1154,17 @@ object-shaped transcript.
   and red/blue decoded-frame recognizability checks.
 - Deterministic DCT, quantizer, block-transform, 4:4:4/4:2:0 MCU, and 16x16
   frame cycle contracts are simulation drift guards, not proof of timing
-  closure or KV260 hardware throughput. The current transform initiation
-  interval remains far above the 34.3-cycle average 4:4:4 block budget.
+  closure or KV260 hardware throughput. The four-lane transform now sustains a
+  16-cycle block interval, but serialized MCU loading and raster collection
+  still exceed the whole-system MCU and pixel budgets.
 - The default 32x16 profiler fixture is intentionally quick and exaggerates the
   once-per-frame header. Use `--profile steady-state`, or selected 64x64 matrix
   scenarios, before declaring entropy safe or bottlenecked.
-- The transform-rate deficit is already conclusive: both the one-coefficient-
-  per-cycle DCT and one-coefficient-per-cycle quantizer must be widened,
-  interleaved, or otherwise re-architected for 4:4:4 1080p30 at 100 MHz.
+- The transform-rate deficit is resolved in simulation. A 4:4:4 MCU still takes
+  about 153 cycles after collection against a 102.9-cycle average budget, and
+  the 4:2:0 loader alone serializes 512 source-sample cycles against a
+  408.5-cycle whole-MCU budget. Ping-pong collection must therefore be paired
+  with BRAM-friendly banked/widened MCU loading rather than added by itself.
 - Restart interval coverage now includes stage-level RTL and host-side JPEG
   validation regressions for RST marker numbering wrapping from RST7 back to
   RST0.
@@ -1192,16 +1201,12 @@ If the new PC has KV260 access too:
 
 If the new PC does not have Vivado or hardware:
 
-1. Develop a focused factorized/pipelined DCT prototype and matching multi-lane
-   quantizer against the explicit 34.3-cycle 4:4:4 block budget. Preserve the
-   current implementation until the alternative passes exact stage and decoded
-   frame tests.
-2. Investigate BRAM-friendly synchronous ping-pong stripe/band storage and MCU
+1. Investigate BRAM-friendly synchronous ping-pong stripe/band storage and MCU
    queueing so pixel collection overlaps processing without hiding a sustained
    rate mismatch behind an arbitrarily deep FIFO.
-3. Use larger high-entropy traces to decide whether entropy/output work needs
+2. Use larger high-entropy traces to decide whether entropy/output work needs
    architectural optimization after startup is excluded.
-4. Keep each validated slice committed; avoid combining profiler, arithmetic,
+3. Keep each validated slice committed; avoid combining profiler, arithmetic,
    buffering, and entropy rewrites into one change.
 
 ## Development Rules For Future Agents
