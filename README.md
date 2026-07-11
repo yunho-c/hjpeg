@@ -92,9 +92,35 @@ The preflight detects mixed Windows/MSYS setups where svsim-generated Makefiles
 can fail before RTL simulation starts. It also warns that forcing MSYS `make` to
 use `cmd.exe` is not a reliable workaround because svsim Makefiles include both
 Windows clean rules and POSIX shell fragments. If it reports an incompatible
-simulator environment, `sbt Test/compile` is still useful as a source-level
-gate, but run simulation tests from a compatible Linux/WSL Verilator
-environment.
+simulator environment, use the Docker test launcher below. It uses the same
+Windows working checkout, so it does not require a second Linux clone or Linux
+installation. Vivado remains a Windows-host command.
+
+### Docker test launcher (recommended on Windows)
+
+Start Docker Desktop once, then run the complete ChiselSim suite from
+PowerShell:
+
+```powershell
+.\scripts\dev\test.ps1
+```
+
+The first invocation builds the pinned JDK 21/sbt/Verilator image and creates a
+named `hjpeg-sbt-cache` volume for dependency caches. Later invocations reuse
+both. The source checkout is bind-mounted at `/workspace`; `.dockerignore`
+keeps Vivado and simulator products out of the image build context. Generated
+simulator files remain ignored local build output. Rebuild the tool image after
+changing `scripts/dev/Dockerfile`:
+
+```powershell
+.\scripts\dev\test.ps1 -RebuildImage
+```
+
+Pass a focused sbt command after the options when debugging:
+
+```powershell
+.\scripts\dev\test.ps1 'testOnly hjpeg.HjpegAxiStreamCoreSpec'
+```
 
 Run the test suite with sbt:
 

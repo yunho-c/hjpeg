@@ -1,0 +1,14 @@
+# The test image does not copy project files: test.ps1 bind-mounts the checkout
+# at runtime. Keep the build context small and avoid sending Vivado/simulation
+# products to Docker Desktop.
+.git
+.bsp
+.Xil
+build
+null
+target
+out
+generated*
+**/__pycache__
+*.jou
+*.log

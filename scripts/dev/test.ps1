@@ -1,0 +1,49 @@
+[CmdletBinding()]
+param(
+    [switch]$RebuildImage,
+    [string]$Image = "hjpeg-test:local",
+    [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
+    [string[]]$SbtArguments
+)
+
+$ErrorActionPreference = "Stop"
+
+if ($null -eq (Get-Command docker -ErrorAction SilentlyContinue)) {
+    throw "Docker Desktop is required. Install and start Docker Desktop, then rerun this script."
+}
+
+& docker info 1>$null 2>$null
+if ($LASTEXITCODE -ne 0) {
+    throw "Docker Desktop is installed but its engine is not running. Start Docker Desktop, wait until it reports 'Engine running', then rerun this script."
+}
+
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$dockerfile = Join-Path $PSScriptRoot "Dockerfile"
+
+& docker image inspect $Image 1>$null 2>$null
+$imageExists = $LASTEXITCODE -eq 0
+if ($RebuildImage -or -not $imageExists) {
+    & docker build --tag $Image --file $dockerfile $repoRoot
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
+}
+
+if ($null -eq $SbtArguments -or $SbtArguments.Count -eq 0) {
+    $SbtArguments = @("test")
+}
+
+$runArguments = @(
+    "run",
+    "--rm",
+    "--init",
+    "--mount", "type=bind,source=$repoRoot,target=/workspace",
+    "--mount", "type=volume,source=hjpeg-sbt-cache,target=/cache",
+    "--env", "HOME=/cache/home",
+    "--env", "COURSIER_CACHE=/cache/coursier",
+    "--env", "SBT_OPTS=-Dsbt.global.base=/cache/sbt -Dsbt.ivy.home=/cache/ivy",
+    $Image
+) + $SbtArguments
+
+& docker @runArguments
+exit $LASTEXITCODE
