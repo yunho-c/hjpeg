@@ -45,13 +45,14 @@ class JpegRasterToSubsampledMcuStageSpec extends AnyFreeSpec with Matchers with 
     }
   }
 
-  private def waitForOutput(dut: JpegRasterToSubsampledMcuStage, maxCycles: Int = 18000): Unit = {
+  private def waitForOutput(dut: JpegRasterToSubsampledMcuStage, maxCycles: Int = 18000): Int = {
     var cycles = 0
     while (!dut.io.output.valid.peek().litToBoolean) {
       assert(cycles < maxCycles, "timeout waiting for subsampled raster-to-MCU output")
       dut.clock.step()
       cycles += 1
     }
+    cycles
   }
 
   "JpegRasterToSubsampledMcuStage should emit padded 4:2:0 MCUs" in {
@@ -68,10 +69,13 @@ class JpegRasterToSubsampledMcuStageSpec extends AnyFreeSpec with Matchers with 
       }
       dut.io.input.valid.poke(false.B)
 
-      waitForOutput(dut)
+      val firstMcuCycles = waitForOutput(dut)
+      info(s"4:2:0 first-MCU processing latency after band collection: $firstMcuCycles cycles")
+      firstMcuCycles must be <= 14500
       expectFlatMcu(dut, last = false)
       dut.clock.step()
-      waitForOutput(dut)
+      val secondMcuCycles = waitForOutput(dut)
+      secondMcuCycles must be <= 14500
       expectFlatMcu(dut, last = true)
     }
   }

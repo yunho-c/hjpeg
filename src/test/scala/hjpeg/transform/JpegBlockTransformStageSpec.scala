@@ -22,13 +22,14 @@ class JpegBlockTransformStageSpec extends AnyFreeSpec with Matchers with ChiselS
     dut.io.input.valid.poke(false.B)
   }
 
-  private def waitForOutput(dut: JpegBlockTransformStage, maxCycles: Int = 2600): Unit = {
+  private def waitForOutput(dut: JpegBlockTransformStage, maxCycles: Int = 2600): Int = {
     var cycles = 0
     while (!dut.io.output.valid.peek().litToBoolean) {
       assert(cycles < maxCycles, "timeout waiting for block transform output")
       dut.clock.step()
       cycles += 1
     }
+    cycles
   }
 
   "JpegBlockTransformStage should transform a flat luminance block to one DC coefficient" in {
@@ -42,7 +43,9 @@ class JpegBlockTransformStageSpec extends AnyFreeSpec with Matchers with ChiselS
       dut.io.output.ready.poke(true.B)
       pushConstantBlock(dut, 32)
 
-      waitForOutput(dut)
+      val cycles = waitForOutput(dut)
+      info(s"complete block-transform latency: $cycles cycles")
+      cycles must be <= 2305
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.coefficients(0).expect(16.S)
       for (index <- 1 until HjpegConstants.BlockSize) {

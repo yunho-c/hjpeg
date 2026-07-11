@@ -21,13 +21,14 @@ class QuantizeBlockStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
     dut.io.input.valid.poke(false.B)
   }
 
-  private def waitForOutput(dut: QuantizeBlockStage, maxCycles: Int = 1400): Unit = {
+  private def waitForOutput(dut: QuantizeBlockStage, maxCycles: Int = 1400): Int = {
     var cycles = 0
     while (!dut.io.output.valid.peek().litToBoolean) {
       assert(cycles < maxCycles, "timeout waiting for quantize output")
       dut.clock.step()
       cycles += 1
     }
+    cycles
   }
 
   "QuantizeBlockStage should quantize signed coefficients with luminance tables" in {
@@ -48,7 +49,9 @@ class QuantizeBlockStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
       dut.io.input.bits.coefficients(4).poke((-36).S)
 
       pushBlock(dut)
-      waitForOutput(dut)
+      val cycles = waitForOutput(dut)
+      info(s"64-coefficient quantizer latency: $cycles cycles")
+      cycles must be <= 1280
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.coefficients(0).expect(1.S)
       dut.io.output.bits.coefficients(1).expect((-1).S)

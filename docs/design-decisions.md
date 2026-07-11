@@ -221,6 +221,36 @@ while preserving the encoder's natural three-byte pixel representation.
 - The fourth `keep` bit is ignored with the unused high byte.
 - Host packing writes four bytes per pixel in `R, G, B, unused` order.
 
+## Target 1080p30 at a 100 MHz PL clock
+
+**Status:** Provisional
+
+**Decision:** Use decoder-valid 1920x1080 at 30 frames per second in both 4:4:4
+and 4:2:0 as the minimum throughput target, with a 100 MHz programmable-logic
+clock and no tracked post-implementation fabric resource above 70%.
+
+**Context:** The configured frame limit is already 1920x1080, but “performant”
+was previously undefined. Without a resolution, sampling mode, frame rate,
+clock, and resource budget, architecture changes cannot be evaluated against a
+stable requirement. [`performance-targets.md`](performance-targets.md) derives
+the corresponding MCU and block budgets and records the current simulation
+baseline.
+
+**Consequences:**
+
+- At 100 MHz, a frame has an average budget of 3,333,333 cycles.
+- The transform must eventually achieve a small initiation interval; reducing
+  latency without improving sustained block throughput is insufficient.
+- Timing/resource claims require fresh Vivado evidence for the exact RTL.
+- Final frame-rate claims require a physical KV260 transfer and decoder-valid
+  captured output.
+- Correctness remains a prerequisite and cannot be traded away to meet the
+  throughput number.
+
+**Revisit when:** Board measurements, host bandwidth, or implementation
+evidence show that 100 MHz or the 70% resource ceiling is the wrong platform
+contract. Change the target explicitly rather than silently redefining success.
+
 ## Share one multi-cycle transform path per raster stage
 
 **Status:** Provisional

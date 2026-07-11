@@ -28,13 +28,14 @@ class Dct8x8StageSpec extends AnyFreeSpec with Matchers with ChiselSim {
     dut.io.input.valid.poke(false.B)
   }
 
-  private def waitForOutput(dut: Dct8x8Stage, maxCycles: Int = 1200): Unit = {
+  private def waitForOutput(dut: Dct8x8Stage, maxCycles: Int = 1200): Int = {
     var cycles = 0
     while (!dut.io.output.valid.peek().litToBoolean) {
       assert(cycles < maxCycles, "timeout waiting for DCT output")
       dut.clock.step()
       cycles += 1
     }
+    cycles
   }
 
   "Dct8x8Stage should transform a constant block into DC only" in {
@@ -46,7 +47,9 @@ class Dct8x8StageSpec extends AnyFreeSpec with Matchers with ChiselSim {
       dut.io.output.ready.poke(true.B)
       pushBlock(dut, Seq.fill(HjpegConstants.BlockSize)(5))
 
-      waitForOutput(dut)
+      val cycles = waitForOutput(dut)
+      info(s"constant-block DCT latency: $cycles cycles")
+      cycles must be <= 1024
       dut.io.output.valid.expect(true.B)
       expectBlock(dut, Seq(40) ++ Seq.fill(HjpegConstants.BlockSize - 1)(0))
     }

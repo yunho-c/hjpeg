@@ -55,13 +55,14 @@ class JpegRasterToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
     }
   }
 
-  private def waitForOutput(dut: JpegRasterToMcuStage, maxCycles: Int = 10000): Unit = {
+  private def waitForOutput(dut: JpegRasterToMcuStage, maxCycles: Int = 10000): Int = {
     var cycles = 0
     while (!dut.io.output.valid.peek().litToBoolean) {
       assert(cycles < maxCycles, "timeout waiting for raster-to-MCU output")
       dut.clock.step()
       cycles += 1
     }
+    cycles
   }
 
   "JpegRasterToMcuStage should emit left-to-right MCUs from one raster stripe" in {
@@ -77,7 +78,9 @@ class JpegRasterToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
       }
       dut.io.input.valid.poke(false.B)
 
-      waitForOutput(dut)
+      val firstMcuCycles = waitForOutput(dut)
+      info(s"4:4:4 first-MCU processing latency after stripe collection: $firstMcuCycles cycles")
+      firstMcuCycles must be <= 7000
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.last.expect(false.B)
       for (index <- 0 until HjpegConstants.BlockSize) {
@@ -87,7 +90,8 @@ class JpegRasterToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
       }
       dut.clock.step()
 
-      waitForOutput(dut)
+      val secondMcuCycles = waitForOutput(dut)
+      secondMcuCycles must be <= 7000
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.last.expect(true.B)
       dut.io.output.bits.mcu.y.coefficients(0).expect(16.S)

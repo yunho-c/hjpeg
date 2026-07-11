@@ -14,6 +14,12 @@ files, streaming RTL shells, elaboration entry points, and simulator tests.
 - KV260-oriented top-level elaboration target
 - Incremental test fixtures for each pipeline stage
 
+The provisional performance target is decoder-valid 1920x1080 at 30 fps in
+both 4:4:4 and 4:2:0 modes at a 100 MHz PL clock. Current measured simulation
+latencies are far below that throughput; see
+[`docs/performance-targets.md`](docs/performance-targets.md) for cycle budgets,
+evidence levels, and the optimization direction.
+
 ## Current RTL Shape
 
 `HjpegCore` accepts raster RGB pixels and emits a complete baseline JPEG byte

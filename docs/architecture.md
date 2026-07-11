@@ -8,7 +8,9 @@ This document describes the major components, data flow, and integration
 boundaries. See [`kv260-bringup.md`](kv260-bringup.md) for commands, generated
 artifacts, and the detailed evidence required to validate a hardware build. See
 [`design-decisions.md`](design-decisions.md) for the rationale and consequences
-behind the major architectural choices.
+behind the major architectural choices and
+[`performance-targets.md`](performance-targets.md) for cycle budgets and the
+provisional throughput/resource target.
 
 ## Top-Level Flow
 
