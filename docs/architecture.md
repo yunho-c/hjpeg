@@ -112,6 +112,26 @@ The main RTL groups are:
 
 Focused ChiselSim tests for these stages live under `src/test/scala/hjpeg`.
 
+## Generated Design Views
+
+Run `./scripts/dev/generate-design-graphs` from the repository root to elaborate
+the current KV260 AXI-Lite top and generate module views under
+`build/design-graphs/`. The helper emits:
+
+- an instance hierarchy with repeated hardware instances expanded;
+- a deduplicated module-dependency graph with instance names on its edges;
+- focused dependency cones for the AXI wrapper, encoder core, block transform,
+  and MCU stream encoder; and
+- Mermaid, Graphviz DOT, and, when Graphviz is installed, SVG versions.
+
+The graphs are derived from Verilator's elaborated representation of the
+generated SystemVerilog rather than from the Scala call graph. They therefore
+describe the hardware Chisel emitted, including generated memories and
+parameterized module variants. They show ownership and instantiation, not
+ready/valid timing, state transitions, or synthesized signal cones. Use
+simulation waveforms for temporal behavior and Vivado schematics for the
+synthesized or implemented design.
+
 ## KV260 Integration
 
 The internal `HjpegAxiStreamCore` input is 24 bits wide: R occupies bits

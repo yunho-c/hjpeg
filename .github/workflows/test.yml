@@ -25,6 +25,8 @@ jobs:
         run: |
           sudo apt-get install verilator
           verilator --version
+      - name: Design Graph Helper Tests
+        run: python3 scripts/dev/generate_design_graphs_test.py
       - name: SBT Test
         run: sbt test
       - name: mill Test

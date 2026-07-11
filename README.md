@@ -68,6 +68,7 @@ between frames.
 - sbt, or the checked-in Mill bootstrap script
 - Verilator for simulator-backed tests
 - Python 3 for host-side helper scripts
+- Graphviz for optional SVG design-graph rendering
 
 ## Build
 
@@ -118,6 +119,34 @@ Generate the KV260 AXI-Lite control top:
 ```sh
 sbt 'runMain hjpeg.ElaborateKv260AxiLiteTop'
 ```
+
+Generate module hierarchy and dependency graphs from the elaborated
+SystemVerilog:
+
+```sh
+./scripts/dev/generate-design-graphs
+```
+
+The helper elaborates the current KV260 AXI-Lite top by default, asks Verilator
+for its elaborated JSON representation, and writes an index plus Mermaid, DOT,
+and SVG graphs under `build/design-graphs/`. The default focused dependency
+cones cover `HjpegAxiStreamCore`, `HjpegCore`, `JpegBlockTransformStage`, and
+`JpegMcuStreamEncoderStage`.
+
+Use `--skip-elaboration` only when the existing
+`generated-kv260-axi-lite-top/` is known to match the source. Repeat
+`--focus MODULE` to choose focused dependency cones, pass `--no-svg` when
+Graphviz is unavailable, or pass `--ast-json FILE` to render an existing
+Verilator AST without running Chisel or Verilator. Run the isolated helper tests
+with:
+
+```sh
+python3 scripts/dev/generate_design_graphs_test.py
+```
+
+These graphs show module ownership and instantiation. They do not replace
+waveforms for cycle-by-cycle behavior or Vivado schematics for synthesized and
+implemented connectivity.
 
 Run a Vivado synthesis project for the AXI-Lite top, when Vivado is installed:
 
