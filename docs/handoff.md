@@ -181,6 +181,8 @@ without changing mapped control/status registers.
 Recent baseline commits before this handoff update, newest first. Use
 `git log --oneline` as the source of truth if this list drifts again:
 
+- `7f71a33 perf: process four DCT terms per cycle`
+- `ecc8e0a docs: refresh performance handoff`
 - `d48af0c perf: pipeline exact reciprocal quantization`
 - `77946f2 perf: process two DCT terms per cycle`
 - `efc7596 perf: process two quantizer bits per cycle`
@@ -376,7 +378,8 @@ stage across the MCU's component blocks, reducing the 4:4:4 path from three
 parallel block transforms to one and the 4:2:0 path from six to one.
 
 The current `Dct8x8Stage` is a multi-cycle separable row/column engine that
-evaluates four exact Q14 product terms per cycle through a balanced sum tree.
+evaluates one complete eight-term Q14 dot product per cycle through a balanced
+sum tree.
 `QuantizeBlockStage` accepts one coefficient per cycle through registered
 table-lookup, floor-reciprocal-estimate, and exact multiply-back-correction
 steps. The raster stages issue the next component DCT while the previous
@@ -385,12 +388,12 @@ Exhaustive arithmetic
 checks cover every supported reciprocal numerator/divisor pair, and focused RTL
 tests cover signed extremes and exact quality-scaled table results.
 
-The current simulation contracts are 256 cycles per DCT block, 66 per
-quantized block, 323 per complete block transform, at most 920/2,150 cycles
-for the measured 4:4:4/4:2:0 MCU boundaries, and fewer than 4,700 cycles for the
+The current simulation contracts are 128 cycles per DCT block, 66 per
+quantized block, 195 per complete block transform, at most 540/1,380 cycles
+for the measured 4:4:4/4:2:0 MCU boundaries, and fewer than 3,550 cycles for the
 16x16 4:4:4 frame fixture. These changes materially improve the serialized
-prototype but still imply optimistic ceilings of only about 3.35 fps for 4:4:4
-and 5.70 fps for 4:2:0 at 1080p and 100 MHz. See
+prototype but still imply optimistic ceilings of only about 5.72 fps for 4:4:4
+and 8.88 fps for 4:2:0 at 1080p and 100 MHz. See
 `docs/performance-targets.md`; no current Vivado timing/resource claim is made
 for this changed RTL.
 
@@ -1048,7 +1051,8 @@ If the new PC does not have Vivado or hardware:
 
 1. Continue reducing the transform initiation interval against the explicit
    budgets in `docs/performance-targets.md`, preserving exact stage and decoded
-   frame regressions.
+   frame regressions. Term-level unrolling is complete; investigate concurrent
+   block transforms or a factorized/pipelined DCT next.
 2. Investigate BRAM-friendly synchronous stripe/band storage and ping-pong
    buffering after transform throughput is no longer overwhelmingly dominant.
 3. Expand simulator coverage for randomized stalls and longer frames.

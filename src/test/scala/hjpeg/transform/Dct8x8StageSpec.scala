@@ -75,7 +75,7 @@ class Dct8x8StageSpec extends AnyFreeSpec with Matchers with ChiselSim {
 
       val cycles = waitForOutput(dut)
       info(s"constant-block DCT latency: $cycles cycles")
-      cycles must be <= 256
+      cycles must be <= 128
       dut.io.output.valid.expect(true.B)
       expectBlock(dut, Seq(40) ++ Seq.fill(HjpegConstants.BlockSize - 1)(0))
     }

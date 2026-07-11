@@ -54,12 +54,12 @@ accepted boundary to output validity:
 
 | Boundary | Observed cycles | Regression ceiling |
 | --- | ---: | ---: |
-| 8x8 DCT block | 256 | 256 |
+| 8x8 DCT block | 128 | 128 |
 | 64-coefficient quantization | 66 | 66 |
-| Complete DCT/quantize/zig-zag block | 323 | 323 |
-| First 4:4:4 MCU after stripe collection | 905 | 920 |
-| First 4:2:0 MCU after band collection | 2,127 | 2,150 |
-| Complete 16x16 4:4:4 test frame | 4,617 | 4,700 |
+| Complete DCT/quantize/zig-zag block | 195 | 195 |
+| First 4:4:4 MCU after stripe collection | 521 | 540 |
+| First 4:2:0 MCU after band collection | 1,359 | 1,380 |
+| Complete 16x16 4:4:4 test frame | 3,465 | 3,550 |
 
 The block and MCU measurements use quality 50 and deterministic fixtures. The
 transform latency is fixed by the current state machines; entropy and complete
@@ -81,16 +81,18 @@ divider, this reduced quantizer latency by about 91%, complete
 block-transform latency by about 53%, 4:4:4/4:2:0 MCU latency by about 38%/30%,
 and 16x16 frame latency by about 37%.
 
-The DCT evaluates four exact Q14 product terms per cycle through a balanced
-pair-sum tree. Relative to the preceding two-term implementation, this halves
-DCT latency and reduces complete block-transform latency by about 44%,
-4:4:4/4:2:0 MCU latency by about 46%/42%, and 16x16 frame latency by about 35%.
-Varied deterministic blocks are checked coefficient-for-coefficient against
-the fixed-point software calculation. The additional parallel multipliers and
-adder-tree width require fresh Vivado timing and utilization evidence.
+The DCT evaluates one complete eight-term Q14 dot product per cycle through a
+three-level balanced sum tree. Relative to the preceding four-term
+implementation, this halves DCT latency and reduces complete block-transform
+latency by about 40%, 4:4:4/4:2:0 MCU latency by about 42%/36%, and 16x16 frame
+latency by about 25%. Varied deterministic blocks are checked
+coefficient-for-coefficient against the fixed-point software calculation. The
+fully unrolled dot product doubles parallel multipliers without increasing the
+prior multiplier-plus-adder-tree logic depth, but still requires fresh Vivado
+timing and utilization evidence.
 
 Using only the MCU regression ceilings gives optimistic 1080p throughput
-ceilings of roughly 3.35 fps for 4:4:4 and 5.70 fps for 4:2:0 at 100 MHz.
+ceilings of roughly 5.72 fps for 4:4:4 and 8.88 fps for 4:2:0 at 100 MHz.
 Actual frame throughput will be lower because those estimates omit some raster,
 entropy, marker, and flow-control work. They are architectural gap indicators,
 not board measurements.
@@ -112,17 +114,16 @@ Vivado reports cannot prove DMA behavior or decoder-valid hardware output.
 ## Optimization Direction
 
 The current gap is too large for timeout tuning or small state-machine changes.
-The next throughput architecture should prioritize:
+Term-level DCT unrolling is complete, so the next throughput architecture
+should prioritize:
 
 1. a block-transform initiation interval compatible with the 34.3-cycle 4:4:4
    budget, even if end-to-end transform latency remains longer;
-2. BRAM-friendly synchronous stripe/band storage;
-3. ping-pong buffering so raster collection overlaps MCU processing;
-4. pipelined or reciprocal-multiply quantization instead of one iterative
-   division per coefficient;
-5. DCT pipelining and, only when justified by synthesis evidence, limited
-   transform replication; and
-6. measured entropy/output capacity so the transform is not optimized past a
+2. a factorized/pipelined DCT or, only when justified by synthesis evidence,
+   limited transform replication;
+3. BRAM-friendly synchronous stripe/band storage;
+4. ping-pong buffering so raster collection overlaps MCU processing; and
+5. measured entropy/output capacity so the transform is not optimized past a
    downstream bottleneck.
 
 Each optimization must retain the stage-level coefficient fixtures, complete

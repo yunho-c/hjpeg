@@ -256,8 +256,9 @@ contract. Change the target explicitly rather than silently redefining success.
 **Status:** Provisional
 
 **Decision:** Reuse one `JpegBlockTransformStage` across all component blocks in
-an MCU. Compute the DCT four product terms per cycle and quantize one coefficient
-per cycle with a floor-reciprocal multiply and exact multiply-back correction.
+an MCU. Compute one complete eight-term DCT dot product per cycle and quantize
+one coefficient per cycle with a floor-reciprocal multiply and exact
+multiply-back correction.
 
 **Context:** Earlier parallel and combinational structures created excessive
 memory-port, synthesis, and timing pressure. Serialization made the transform
@@ -272,18 +273,19 @@ smaller and its intermediate values easier to test.
 - Quantization uses a reciprocal constant table and two dynamic products. Its
   exact arithmetic is exhaustively checked in simulation, but its timing and
   DSP cost require fresh Vivado evidence.
-- DCT products are combined with a balanced pair-sum tree rather than a serial
-  four-adder chain. The additional multipliers likewise require fresh Vivado
-  timing and utilization evidence.
+- DCT products are combined with a three-level balanced sum tree. Fully
+  unrolling one dot product removes the term accumulator without increasing the
+  current multiplier-plus-adder-tree logic depth, but doubles the parallel
+  multipliers and requires fresh Vivado timing and utilization evidence.
 - Transform latency dominates frame time; no real-time frame-rate target is
   currently demonstrated.
 - Resource savings and timing closure must be judged together with measured
   frame throughput.
 
-**Revisit when:** The correctness suite is green and explicit resolution,
-frame-rate, clock, and resource targets are agreed. Candidate changes include
-pipelining, limited transform replication, and overlapping transform with raster
-collection.
+**Revisit when:** Fresh Vivado evidence shows the fully unrolled dot product
+does not close timing or fit the resource budget, or when meeting the remaining
+initiation-interval target requires a factorized/pipelined DCT, limited
+transform replication, or overlap with raster collection.
 
 ## Serialize stripe-memory reads
 
