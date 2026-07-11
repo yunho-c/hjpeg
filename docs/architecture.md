@@ -57,8 +57,9 @@ order and retain the quality and luminance/chrominance metadata sampled with
 their input block.
 
 `Dct8x8Stage` is a multi-cycle separable transform. It captures one block,
-computes two exact Q14 row or column product terms per cycle, and holds the
-completed coefficient block until its consumer accepts it.
+computes four exact Q14 row or column product terms per cycle through a balanced
+pair-sum tree, and holds the completed coefficient block until its consumer
+accepts it.
 `QuantizeBlockStage` accepts one coefficient per cycle through registered
 table-lookup, floor-reciprocal-multiply, and multiply-back-correction steps. The
 reciprocal estimate is never high and can be at most one low over the supported

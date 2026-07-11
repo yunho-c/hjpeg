@@ -23,6 +23,8 @@ object Dct8x8Constants {
   *
   * Cosine coefficients are Q14. The stage applies a row transform followed by a
   * column transform and rounds the final Q28 result to integer coefficients.
+  * Four products are evaluated per cycle and combined through a balanced pair
+  * sum before accumulation.
   */
 class Dct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module {
   val io = IO(new Bundle {
@@ -72,10 +74,17 @@ class Dct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module
   val rowProduct = (cosine(rowV)(termIndex) * samples(Cat(rowX, termIndex))).asSInt
   val rowNextTerm = termIndex + 1.U
   val rowNextProduct = (cosine(rowV)(rowNextTerm) * samples(Cat(rowX, rowNextTerm))).asSInt
-  val rowAccumulated = accumulator +& rowProduct +& rowNextProduct
+  val rowThirdTerm = termIndex + 2.U
+  val rowThirdProduct = (cosine(rowV)(rowThirdTerm) * samples(Cat(rowX, rowThirdTerm))).asSInt
+  val rowFourthTerm = termIndex + 3.U
+  val rowFourthProduct = (cosine(rowV)(rowFourthTerm) * samples(Cat(rowX, rowFourthTerm))).asSInt
+  val rowFirstPair = rowProduct +& rowNextProduct
+  val rowSecondPair = rowThirdProduct +& rowFourthProduct
+  val rowTermSum = rowFirstPair +& rowSecondPair
+  val rowAccumulated = accumulator +& rowTermSum
 
   when(state === sRows) {
-    when(termIndex === (HjpegConstants.BlockDim - 2).U) {
+    when(termIndex === (HjpegConstants.BlockDim - 4).U) {
       rowTransformed(rowIndex) := rowAccumulated(31, 0).asSInt
       termIndex := 0.U
       accumulator := 0.S
@@ -87,7 +96,7 @@ class Dct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module
       }
     }.otherwise {
       accumulator := rowAccumulated
-      termIndex := termIndex + 2.U
+      termIndex := termIndex + 4.U
     }
   }
 
@@ -97,11 +106,20 @@ class Dct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module
   val columnNextTerm = termIndex + 1.U
   val columnNextProduct =
     (cosine(columnU)(columnNextTerm) * rowTransformed(Cat(columnNextTerm, columnV))).asSInt
-  val columnAccumulated = accumulator +& columnProduct +& columnNextProduct
+  val columnThirdTerm = termIndex + 2.U
+  val columnThirdProduct =
+    (cosine(columnU)(columnThirdTerm) * rowTransformed(Cat(columnThirdTerm, columnV))).asSInt
+  val columnFourthTerm = termIndex + 3.U
+  val columnFourthProduct =
+    (cosine(columnU)(columnFourthTerm) * rowTransformed(Cat(columnFourthTerm, columnV))).asSInt
+  val columnFirstPair = columnProduct +& columnNextProduct
+  val columnSecondPair = columnThirdProduct +& columnFourthProduct
+  val columnTermSum = columnFirstPair +& columnSecondPair
+  val columnAccumulated = accumulator +& columnTermSum
   val rounded = roundShiftSigned(columnAccumulated, Dct8x8Constants.FractionBits * 2)
 
   when(state === sColumns) {
-    when(termIndex === (HjpegConstants.BlockDim - 2).U) {
+    when(termIndex === (HjpegConstants.BlockDim - 4).U) {
       coefficients(columnIndex) := rounded(coefficientBits - 1, 0).asSInt
       termIndex := 0.U
       accumulator := 0.S
@@ -112,7 +130,7 @@ class Dct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module
       }
     }.otherwise {
       accumulator := columnAccumulated
-      termIndex := termIndex + 2.U
+      termIndex := termIndex + 4.U
     }
   }
 

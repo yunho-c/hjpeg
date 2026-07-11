@@ -47,9 +47,9 @@ been resolved by subsequent commits:
   standalone reference blocks, 4:4:4 chroma selection, and legal transform
   pipeline overlap under output backpressure.
 - Explicit 1080p30/100 MHz performance and resource targets now define cycle
-  budgets and evidence levels. Ordered transform overlap, a two-term-per-cycle
+  budgets and evidence levels. Ordered transform overlap, a four-term-per-cycle
   DCT, and registered exact reciprocal quantization reduce the measured 16x16
-  fixture from the earlier 15,744-cycle baseline to 7,048 cycles. The remaining
+  fixture from the earlier 15,744-cycle baseline to 4,617 cycles. The remaining
   gap is still large and no updated Vivado timing/resource evidence is claimed.
 
 Current verification after those changes:

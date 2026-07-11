@@ -376,20 +376,21 @@ stage across the MCU's component blocks, reducing the 4:4:4 path from three
 parallel block transforms to one and the 4:2:0 path from six to one.
 
 The current `Dct8x8Stage` is a multi-cycle separable row/column engine that
-evaluates two exact Q14 product terms per cycle. `QuantizeBlockStage` accepts
-one coefficient per cycle through registered table-lookup,
-floor-reciprocal-estimate, and exact multiply-back-correction steps. The raster
-stages issue the next component DCT while the previous component is being
-quantized, retaining ordered results and block metadata. Exhaustive arithmetic
+evaluates four exact Q14 product terms per cycle through a balanced sum tree.
+`QuantizeBlockStage` accepts one coefficient per cycle through registered
+table-lookup, floor-reciprocal-estimate, and exact multiply-back-correction
+steps. The raster stages issue the next component DCT while the previous
+component is being quantized, retaining ordered results and block metadata.
+Exhaustive arithmetic
 checks cover every supported reciprocal numerator/divisor pair, and focused RTL
 tests cover signed extremes and exact quality-scaled table results.
 
-The current simulation contracts are 512 cycles per DCT block, 66 per
-quantized block, 579 per complete block transform, at most 1,700/3,700 cycles
-for the measured 4:4:4/4:2:0 MCU boundaries, and fewer than 7,100 cycles for the
+The current simulation contracts are 256 cycles per DCT block, 66 per
+quantized block, 323 per complete block transform, at most 920/2,150 cycles
+for the measured 4:4:4/4:2:0 MCU boundaries, and fewer than 4,700 cycles for the
 16x16 4:4:4 frame fixture. These changes materially improve the serialized
-prototype but still imply optimistic ceilings of only about 1.82 fps for 4:4:4
-and 3.31 fps for 4:2:0 at 1080p and 100 MHz. See
+prototype but still imply optimistic ceilings of only about 3.35 fps for 4:4:4
+and 5.70 fps for 4:2:0 at 1080p and 100 MHz. See
 `docs/performance-targets.md`; no current Vivado timing/resource claim is made
 for this changed RTL.
 

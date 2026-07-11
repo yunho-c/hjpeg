@@ -256,7 +256,7 @@ contract. Change the target explicitly rather than silently redefining success.
 **Status:** Provisional
 
 **Decision:** Reuse one `JpegBlockTransformStage` across all component blocks in
-an MCU. Compute the DCT two product terms per cycle and quantize one coefficient
+an MCU. Compute the DCT four product terms per cycle and quantize one coefficient
 per cycle with a floor-reciprocal multiply and exact multiply-back correction.
 
 **Context:** Earlier parallel and combinational structures created excessive
@@ -272,6 +272,9 @@ smaller and its intermediate values easier to test.
 - Quantization uses a reciprocal constant table and two dynamic products. Its
   exact arithmetic is exhaustively checked in simulation, but its timing and
   DSP cost require fresh Vivado evidence.
+- DCT products are combined with a balanced pair-sum tree rather than a serial
+  four-adder chain. The additional multipliers likewise require fresh Vivado
+  timing and utilization evidence.
 - Transform latency dominates frame time; no real-time frame-rate target is
   currently demonstrated.
 - Resource savings and timing closure must be judged together with measured

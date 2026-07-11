@@ -54,12 +54,12 @@ accepted boundary to output validity:
 
 | Boundary | Observed cycles | Regression ceiling |
 | --- | ---: | ---: |
-| 8x8 DCT block | 512 | 512 |
+| 8x8 DCT block | 256 | 256 |
 | 64-coefficient quantization | 66 | 66 |
-| Complete DCT/quantize/zig-zag block | 579 | 579 |
-| First 4:4:4 MCU after stripe collection | 1,673 | 1,700 |
-| First 4:2:0 MCU after band collection | 3,663 | 3,700 |
-| Complete 16x16 4:4:4 test frame | 7,048 | 7,100 |
+| Complete DCT/quantize/zig-zag block | 323 | 323 |
+| First 4:4:4 MCU after stripe collection | 905 | 920 |
+| First 4:2:0 MCU after band collection | 2,127 | 2,150 |
+| Complete 16x16 4:4:4 test frame | 4,617 | 4,700 |
 
 The block and MCU measurements use quality 50 and deterministic fixtures. The
 transform latency is fixed by the current state machines; entropy and complete
@@ -81,14 +81,16 @@ divider, this reduced quantizer latency by about 91%, complete
 block-transform latency by about 53%, 4:4:4/4:2:0 MCU latency by about 38%/30%,
 and 16x16 frame latency by about 37%.
 
-The DCT evaluates two exact Q14 product terms per cycle. This halves DCT
-latency and, relative to the immediately preceding baseline, reduced complete
-block-transform latency by about 30%, 4:4:4/4:2:0 MCU latency by about 30%/29%,
-and 16x16 frame latency by about 29%. Varied deterministic blocks are checked
-coefficient-for-coefficient against the fixed-point software calculation.
+The DCT evaluates four exact Q14 product terms per cycle through a balanced
+pair-sum tree. Relative to the preceding two-term implementation, this halves
+DCT latency and reduces complete block-transform latency by about 44%,
+4:4:4/4:2:0 MCU latency by about 46%/42%, and 16x16 frame latency by about 35%.
+Varied deterministic blocks are checked coefficient-for-coefficient against
+the fixed-point software calculation. The additional parallel multipliers and
+adder-tree width require fresh Vivado timing and utilization evidence.
 
 Using only the MCU regression ceilings gives optimistic 1080p throughput
-ceilings of roughly 1.82 fps for 4:4:4 and 3.31 fps for 4:2:0 at 100 MHz.
+ceilings of roughly 3.35 fps for 4:4:4 and 5.70 fps for 4:2:0 at 100 MHz.
 Actual frame throughput will be lower because those estimates omit some raster,
 entropy, marker, and flow-control work. They are architectural gap indicators,
 not board measurements.
