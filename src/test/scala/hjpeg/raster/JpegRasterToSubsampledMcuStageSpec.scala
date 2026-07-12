@@ -102,4 +102,31 @@ class JpegRasterToSubsampledMcuStageSpec extends AnyFreeSpec with Matchers with 
       expectFlatMcu(dut, last = true, yDc = 16)
     }
   }
+
+  "JpegRasterToSubsampledMcuStage should collect the next band while processing" in {
+    val overlapConfig = HjpegConfig(maxFrameWidth = 16, maxFrameHeight = 32)
+    simulate(new JpegRasterToSubsampledMcuStage(overlapConfig)) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      pokeConfig(dut, width = 16, height = 32)
+      dut.io.output.ready.poke(false.B)
+
+      for (index <- 0 until 16 * 16) {
+        pushPixel(dut, index, width = 16, gray = 128)
+      }
+      for (index <- 16 * 16 until 16 * 32) {
+        pushPixel(dut, index, width = 16, gray = 160)
+      }
+      dut.io.input.valid.poke(false.B)
+
+      dut.io.output.ready.poke(true.B)
+      waitForOutput(dut)
+      expectFlatMcu(dut, last = false)
+      dut.clock.step()
+      waitForOutput(dut)
+      expectFlatMcu(dut, last = true, yDc = 16)
+    }
+  }
 }

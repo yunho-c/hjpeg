@@ -42,6 +42,10 @@ class JpegRasterToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
     dut.clock.step()
   }
 
+  private def pushGrayPixel(dut: JpegRasterToMcuStage, index: Int, width: Int, gray: Int): Unit = {
+    pushPixel(dut, index, width, _ => gray)
+  }
+
   private def expectFlatMcu(dut: JpegRasterToMcuStage, yDc: Int, last: Boolean): Unit = {
     dut.io.output.valid.expect(true.B)
     dut.io.output.bits.last.expect(last.B)
@@ -155,10 +159,43 @@ class JpegRasterToMcuStageSpec extends AnyFreeSpec with Matchers with ChiselSim 
       waitForOutput(dut)
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.last.expect(false.B)
-      dut.io.input.ready.expect(false.B)
+      dut.io.input.ready.expect(true.B)
       dut.clock.step()
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.last.expect(false.B)
+    }
+  }
+
+  "JpegRasterToMcuStage should collect the next stripe while output is backpressured" in {
+    val overlapConfig = HjpegConfig(maxFrameWidth = 16, maxFrameHeight = 16)
+    simulate(new JpegRasterToMcuStage(overlapConfig)) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      pokeCustomConfig(dut, width = 16, height = 16)
+      dut.io.output.ready.poke(false.B)
+
+      for (index <- 0 until 16 * 8) {
+        pushGrayPixel(dut, index, width = 16, gray = 128)
+      }
+      for (index <- 16 * 8 until 16 * 16) {
+        pushGrayPixel(dut, index, width = 16, gray = 160)
+      }
+      dut.io.input.valid.poke(false.B)
+
+      dut.io.output.ready.poke(true.B)
+      waitForOutput(dut)
+      expectFlatMcu(dut, yDc = 0, last = false)
+      dut.clock.step()
+      waitForOutput(dut)
+      expectFlatMcu(dut, yDc = 0, last = false)
+      dut.clock.step()
+      waitForOutput(dut)
+      expectFlatMcu(dut, yDc = 16, last = false)
+      dut.clock.step()
+      waitForOutput(dut)
+      expectFlatMcu(dut, yDc = 16, last = true)
     }
   }
 }

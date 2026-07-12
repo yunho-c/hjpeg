@@ -62,9 +62,12 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
   val expectedKeep = Fill(pixelDataBits / 8, 1.U(1.W))
   val inputKeepValid = io.input.bits.keep === expectedKeep
   val feedCoreInput = activeInputSupported && inputKeepValid
+  // Raster collection may finish before its JPEG drains. Keep the next frame
+  // outside the core until the active frame's snapshotted config is released.
+  val inputFrameCanAdvance = inputFrameActive || !frameConfigActive
 
-  core.io.input.valid := io.input.valid && feedCoreInput
-  io.input.ready := Mux(feedCoreInput, core.io.input.ready, true.B)
+  core.io.input.valid := io.input.valid && feedCoreInput && inputFrameCanAdvance
+  io.input.ready := inputFrameCanAdvance && Mux(feedCoreInput, core.io.input.ready, true.B)
   core.io.input.bits.x := x
   core.io.input.bits.y := y
   core.io.input.bits.r := io.input.bits.data(c.pixelBits - 1, 0)

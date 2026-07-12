@@ -15,12 +15,12 @@ files, streaming RTL shells, elaboration entry points, and simulator tests.
 - Incremental test fixtures for each pipeline stage
 
 The provisional performance target is decoder-valid 1920x1080 at 30 fps in
-both 4:4:4 and 4:2:0 modes at a 100 MHz PL clock. The four-lane DCT/quantizer
-and four-coefficient AC scanner now meet the average 4:4:4 block-rate budget in
-simulation, but serialized raster collection keeps complete-frame estimates
-below target. Banked synchronous raster storage now loads 4:4:4 and 4:2:0 MCUs
-within their average cycle budgets. Current implementation closes 100 MHz
-timing and uses 57.06% of CLBs and 27.78% of block RAM; see
+both 4:4:4 and 4:2:0 modes at a 100 MHz PL clock. The four-lane DCT/quantizer,
+four-coefficient AC scanner, and two-slot raster collector meet their measured
+stage budgets in simulation. A seeded 64x64 quality-90 trace is within the
+1.61-cycle/pixel input budget in 4:2:0 and remains above it in 4:4:4; physical
+board throughput is not yet measured. Current implementation closes 100 MHz
+timing and uses 54.29% of CLBs and 52.78% of block RAM; see
 [`docs/performance-targets.md`](docs/performance-targets.md) for cycle budgets,
 evidence levels, and the optimization direction.
 
@@ -70,7 +70,8 @@ stable under host backpressure.
 
 Frame configuration is sampled on the first accepted input pixel and held until
 the encoded JPEG frame completes. Host software should update control registers
-between frames.
+between frames. After a supported input TLAST, the wrapper backpressures the
+next input frame until the active JPEG output TLAST transfers.
 
 ## Requirements
 

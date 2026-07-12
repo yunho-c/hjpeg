@@ -242,6 +242,40 @@ class HjpegAxiStreamCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
     }
   }
 
+  "HjpegAxiStreamCore should not accept a new frame before the active JPEG completes" in {
+    simulate(new HjpegAxiStreamCore()) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      pokeConfig(dut, width = 8, height = 8)
+      dut.io.clearProtocolError.poke(false.B)
+      dut.io.output.ready.poke(false.B)
+
+      for (index <- 0 until 8 * 8) {
+        pushPixel(dut, index, last = index == 8 * 8 - 1)
+      }
+
+      pokeConfig(dut, width = 16, height = 8, subsample = true, emitJfif = false)
+      dut.io.input.valid.poke(true.B)
+      dut.io.input.bits.keep.poke(7.U)
+      dut.io.input.bits.data.poke(0x808080.U)
+      dut.io.input.bits.last.poke(false.B)
+      for (_ <- 0 until 8) {
+        dut.io.input.ready.expect(false.B)
+        dut.clock.step()
+      }
+
+      dut.io.input.valid.poke(false.B)
+      dut.io.output.ready.poke(true.B)
+      val bytes = collectFrame(dut, JpegHeaderBytes.HeaderLength + 128)
+      bytes.take(2) mustBe Seq(0xff, 0xd8)
+      bytes.takeRight(2) mustBe Seq(0xff, 0xd9)
+      dut.io.input.ready.expect(true.B)
+      dut.io.protocolError.expect(false.B)
+    }
+  }
+
   "HjpegAxiStreamCore should encode non-gray AXI RGB frames like direct HjpegCore input" in {
     val width = 16
     val height = 8

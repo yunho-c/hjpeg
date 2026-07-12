@@ -281,12 +281,12 @@ smaller and its intermediate values easier to test.
   in-flight DCT blocks.
 - DCT, quantizer, and complete-transform input/output intervals are 16 cycles in
   deterministic RTL simulation, below the 34.3-cycle 4:4:4 block budget.
-- Current banked block-RAM implementation closes 100 MHz timing at setup WNS
-  `+0.252 ns` and hold WHS `+0.011 ns`, with 127 DSPs and 57.06% CLB
-  occupancy. Both timing and the provisional resource ceiling pass.
-- Serial raster collection, rather than block-transform, isolated MCU-load
-  rate, or measured high-entropy block rate, now dominates simulated frame
-  throughput.
+- At this revision, the banked block-RAM implementation closes 100 MHz timing
+  at setup WNS `+0.252 ns` and hold WHS `+0.011 ns`, with 127 DSPs and 57.06%
+  CLB occupancy. Both timing and the provisional resource ceiling pass.
+- At this revision, serial raster collection, rather than block-transform,
+  isolated MCU-load rate, or measured high-entropy block rate, now dominates
+  simulated frame throughput.
 - Resource savings and timing closure must be judged together with measured
   frame throughput.
 
@@ -355,13 +355,55 @@ created repeated MCU backpressure after raster loading was widened.
   34,319 to 35,300. BRAM remains 40 tiles and DSPs remain 127. At 100 MHz,
   setup WNS is `+0.252 ns`, hold WHS is `+0.011 ns`, and the complete evidence
   gate passes.
-- The measured high-entropy mismatch is resolved. Serialized raster collection
-  is now the next simulated throughput limit.
+- The measured high-entropy mismatch is resolved. At this revision, serialized
+  raster collection is the next simulated throughput limit.
 
 **Revisit when:** A broader entropy-content matrix exposes a sustained mismatch,
 or ping-pong collection increases the producer rate enough to require a small
 measured queue. Preserve exact byte output and re-run routed timing because the
 lookahead path uses additional coefficient muxing.
+
+## Overlap raster collection with two BRAM-backed slots
+
+**Status:** Accepted
+
+**Decision:** Give each 4:4:4 stripe store and 4:2:0 band store two ownership
+slots. The collector alternates write slots and marks a completed slot ready;
+an independent processor alternates read slots, snapshots final-row metadata,
+and releases the slot after the final MCU transfers. Include the slot index in
+every banked synchronous-memory address so collection and processing use the
+same one-read/one-write memories concurrently.
+
+**Context:** After widening transform and entropy work, the raster FSM still
+stopped input for the full processing interval of every stripe or band. The
+seeded 64x64 traces showed 611-cycle 4:4:4 stripe transitions and 1,291-cycle
+4:2:0 band transitions even though isolated MCU processing fit the average
+mode budgets.
+
+**Consequences:**
+
+- Directed backpressure tests fill both slots before allowing output, then
+  prove ordered MCU contents, final-frame metadata, and slot reuse in both
+  sampling modes.
+- The AXI wrapper blocks a following frame after input TLAST until the active
+  JPEG output TLAST transfers, preventing a free slot from admitting pixels
+  governed by a different, not-yet-active configuration snapshot.
+- Seeded-random quality-90 frame time falls from 12,032 to 8,456 cycles for
+  4:4:4 and from 9,999 to 6,931 for 4:2:0, with unchanged 5,862- and
+  3,428-byte decoder-valid JPEGs. Stripe/band transition intervals fall to
+  100/268 cycles and steady intervals remain 99/267 cycles.
+- Input acceptance is 1.78 cycles/pixel for the small 4:4:4 fixture and 1.37
+  cycles/pixel for 4:2:0. The latter meets the provisional 1.61-cycle/pixel
+  target; startup and bounded buffering still inflate the former fixture.
+- Routed BRAM rises from 40 to 76 tiles (52.78%). The design still closes
+  100 MHz at setup WNS `+0.064 ns` and hold WHS `+0.011 ns`, with 35,377 CLB
+  LUTs, 54,487 registers, 127 DSPs, and 54.29% CLB occupancy. The setup margin
+  is positive but tight; the complete twelve-record evidence gate passes.
+
+**Revisit when:** Larger-frame traces show whether 4:4:4 converges to its
+99-cycle-per-MCU steady rate or needs a measured MCU queue or third collection
+slot. Do not add depth without separating startup occupancy from sustained
+producer/consumer mismatch.
 
 ## Generate header bytes with a multi-cycle state machine
 

@@ -190,12 +190,12 @@ Latest local Vivado 2026.1 evidence:
   `hjpeg_kv260.xsa`, and `post_impl.dcp`.
 - `check_reports.py` passed on post-synthesis and post-implementation timing
   and utilization reports.
-- Current banked-block-RAM, four-lane transform, and four-coefficient entropy
-  post-implementation timing is setup WNS `+0.252 ns` and hold WHS `+0.011 ns`
-  at the 100 MHz target clock.
-- Current post-implementation utilization is 35,300 CLB LUTs (30.14%), 675
-  LUTRAMs (1.17%), 54,446 registers (23.24%), 40 BRAM tiles (27.78%), 127 DSPs
-  (10.18%), and 8,353 CLBs (57.06%). The complete twelve-record report set
+- Current two-slot banked-block-RAM, four-lane transform, and four-coefficient
+  entropy post-implementation timing is setup WNS `+0.064 ns` and hold WHS
+  `+0.011 ns` at the 100 MHz target clock. Setup margin is positive but tight.
+- Current post-implementation utilization is 35,377 CLB LUTs (30.21%), 675
+  LUTRAMs (1.17%), 54,487 registers (23.26%), 76 BRAM tiles (52.78%), 127 DSPs
+  (10.18%), and 7,948 CLBs (54.29%). The complete twelve-record report set
   passes the default checker and the project's provisional 70% resource
   ceiling.
 

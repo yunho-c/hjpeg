@@ -7,9 +7,10 @@ import chisel3.util._
 
 /** Buffers one 8-row raster stripe and emits 8x8, 4:4:4 MCUs.
   *
-  * This stage is the first raster-order frame buffer. It accepts pixels in
-  * row-major order, stores level-shifted Y/Cb/Cr samples for up to eight rows,
-  * then emits MCUs left-to-right for that stripe. Samples are striped across
+  * This stage is the first raster-order frame buffer. Two alternating stripe
+  * slots let it collect the next eight rows while processing the current rows.
+  * It stores level-shifted Y/Cb/Cr samples, then emits MCUs left-to-right for
+  * each stripe. Samples are striped across
   * eight synchronous banks by column modulo eight, so one complete 8-sample
   * block row is loaded per cycle. Partial right and bottom edges are padded by
   * broadcasting the final valid column or row sample.
@@ -27,11 +28,19 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
   private val BankCount = ReadLanes
   private val BankIndexBits = log2Ceil(BankCount)
   private val BankColumns = (c.maxFrameWidth + BankCount - 1) / BankCount
-  private val BankSamples = StripeRows * BankColumns
+  private val StripeBankSamples = StripeRows * BankColumns
+  private val BufferCount = 2
+  private val BankSamples = BufferCount * StripeBankSamples
   private val BankAddressBits = log2Ceil(BankSamples).max(1)
 
-  val sCollect :: sLoad :: sTransform :: sEmit :: Nil = Enum(4)
-  val state = RegInit(sCollect)
+  val sIdle :: sLoad :: sTransform :: sEmit :: Nil = Enum(4)
+  val state = RegInit(sIdle)
+  val writeBuffer = RegInit(0.U(1.W))
+  val nextReadBuffer = RegInit(0.U(1.W))
+  val activeReadBuffer = RegInit(0.U(1.W))
+  val bufferReady = RegInit(VecInit(Seq.fill(BufferCount)(false.B)))
+  val bufferLast = Reg(Vec(BufferCount, Bool()))
+  val bufferLastRow = Reg(Vec(BufferCount, UInt(3.W)))
   val blockX = RegInit(0.U(c.coordBits.W))
   val currentStripeLast = RegInit(false.B)
   val lastRowInStripe = RegInit(0.U(3.W))
@@ -55,7 +64,9 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
   val rowInStripe = io.input.bits.y(2, 0)
   val writeBank = io.input.bits.x(BankIndexBits - 1, 0)
   val writeBankColumn = io.input.bits.x >> BankIndexBits
-  val writeAddress = (rowInStripe * BankColumns.U + writeBankColumn)(BankAddressBits - 1, 0)
+  val writeLocalAddress = rowInStripe * BankColumns.U + writeBankColumn
+  val writeAddress =
+    (writeBuffer * StripeBankSamples.U + writeLocalAddress)(BankAddressBits - 1, 0)
   val lastPixelInStripe =
     io.input.bits.x === io.config.xsize - 1.U &&
       (rowInStripe === (StripeRows - 1).U || io.input.bits.y === io.config.ysize - 1.U)
@@ -63,7 +74,7 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
   val (yComponent, cbComponent, crComponent) =
     JpegColorConversion.rgbToYCbCr(io.input.bits.r, io.input.bits.g, io.input.bits.b, c.pixelBits)
 
-  io.input.ready := state === sCollect
+  io.input.ready := !bufferReady(writeBuffer)
 
   when(io.input.fire) {
     for (bank <- 0 until BankCount) {
@@ -74,15 +85,23 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
       }
     }
     when(lastPixelInStripe) {
-      state := sLoad
-      blockX := 0.U
-      currentStripeLast := io.input.bits.y + 1.U >= io.config.ysize
-      lastRowInStripe := rowInStripe
-      loadRow := 0.U
-      loadAllIssued := false.B
-      issueBlock := 0.U
-      captureBlock := 0.U
+      bufferReady(writeBuffer) := true.B
+      bufferLast(writeBuffer) := io.input.bits.y + 1.U >= io.config.ysize
+      bufferLastRow(writeBuffer) := rowInStripe
+      writeBuffer := ~writeBuffer
     }
+  }
+
+  when(state === sIdle && bufferReady(nextReadBuffer)) {
+    activeReadBuffer := nextReadBuffer
+    blockX := 0.U
+    currentStripeLast := bufferLast(nextReadBuffer)
+    lastRowInStripe := bufferLastRow(nextReadBuffer)
+    loadRow := 0.U
+    loadAllIssued := false.B
+    issueBlock := 0.U
+    captureBlock := 0.U
+    state := sLoad
   }
 
   val readRow = Mux(loadRow > lastRowInStripe, lastRowInStripe, loadRow)
@@ -92,8 +111,9 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
     val requestedCol = blockX + lane.U
     val readCol = Mux(requestedCol >= io.config.xsize, io.config.xsize - 1.U, requestedCol)
     laneReadBanks(lane) := readCol(BankIndexBits - 1, 0)
+    val readLocalAddress = readRow * BankColumns.U + (readCol >> BankIndexBits)
     laneReadAddresses(lane) :=
-      (readRow * BankColumns.U + (readCol >> BankIndexBits))(BankAddressBits - 1, 0)
+      (activeReadBuffer * StripeBankSamples.U + readLocalAddress)(BankAddressBits - 1, 0)
   }
 
   val loadReadEnable = state === sLoad && !loadAllIssued
@@ -182,7 +202,9 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
 
   when(io.output.fire) {
     when(lastBlockInStripe) {
-      state := sCollect
+      bufferReady(activeReadBuffer) := false.B
+      nextReadBuffer := ~nextReadBuffer
+      state := sIdle
       blockX := 0.U
     }.otherwise {
       blockX := blockX + HjpegConstants.BlockDim.U

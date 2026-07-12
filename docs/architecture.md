@@ -42,19 +42,22 @@ The color stages convert one RGB pixel at a time to fixed-point YCbCr and level
 shift the samples into the signed DCT domain. The raster stages then reorder
 pixels into component blocks:
 
-- 4:4:4 buffers one 8-row stripe and forms one Y, Cb, and Cr block per MCU.
-- 4:2:0 buffers one 16-row band and forms four Y blocks plus one subsampled Cb
-  and one subsampled Cr block per MCU.
+- 4:4:4 alternates two 8-row stripe slots and forms one Y, Cb, and Cr block per
+  MCU.
+- 4:2:0 alternates two 16-row band slots and forms four Y blocks plus one
+  subsampled Cb and one subsampled Cr block per MCU.
 
 Each raster stage loads one MCU into small block registers over multiple cycles.
-It reuses one transform path across the component blocks and captures the
-resulting coefficients before emitting the MCU packet. This keeps the stripe
-memories to one read and one write port per component and avoids parallel DCT
-and quantization units for every block in an MCU. Component blocks are issued
-in order whenever the DCT input is ready, so DCT work for a later component can
-overlap quantization of an earlier component. Results are captured in the same
-order and retain the quality and luminance/chrominance metadata sampled with
-their input block.
+The collector writes one slot while the processor reads the other; per-slot
+ready and final-row metadata transfer ownership without adding a multiported
+memory. It reuses one transform path across the component blocks and captures
+the resulting coefficients before emitting the MCU packet. This keeps each
+bank to one read and one write port and avoids parallel DCT and quantization
+units for every block in an MCU. Component blocks are issued in order whenever
+the DCT input is ready, so DCT work for a later component can overlap
+quantization of an earlier component. Results are captured in the same order
+and retain the quality and luminance/chrominance metadata sampled with their
+input block.
 
 `PipelinedDct8x8Stage` is the production separable transform. Exact even/odd
 symmetry in the Q14 cosine matrix reduces each eight-term dot product to four
@@ -107,7 +110,10 @@ reports malformed input through a sticky `protocolError` flag. A
 
 The AXI-stream wrapper snapshots `FrameConfig` on the first accepted pixel and
 holds it until the matching JPEG output frame completes. Configuration writes
-during an active frame therefore apply to a later frame.
+during an active frame therefore apply to a later frame. Once a supported input
+frame ends, the wrapper holds input `ready` low until the active JPEG output
+TLAST transfers; the two raster slots overlap work within a frame, not encoder
+state or configuration across frames.
 
 Unsupported dimensions and incomplete RGB input words are drained through
 input TLAST without entering or completing a JPEG frame. If the expected final
