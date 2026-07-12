@@ -181,21 +181,44 @@ another. Its 4:2:0 loader also still reads four source samples per cycle. Those
 serial regions explain why the measured MCU interval remains above the 4K60
 budget despite having enough raw transform arithmetic.
 
+## Eight-Sample Raster Read Slice
+
+The shared raster store now reads all eight banks every cycle without changing
+its organization or capacity. Lanes 0..3 fetch four adjacent columns from one
+row and lanes 4..7 fetch the same columns from the following row. For 4:2:0,
+the same ports fetch two adjacent 2x2 chroma footprints and produce two
+downsampled values per cycle. Replicated right/bottom edges may cause multiple
+logical lanes to request one physical bank; the RTL permits this only when all
+such lanes use the same address, so one read can fan out safely.
+
+The quick profiler measures the intended loader reduction:
+
+| Quick fixture | Three-transform loader | Eight-read loader | Change |
+| --- | ---: | ---: | ---: |
+| 32x16 4:4:4 raster-load phase | 136 cycles | 72 cycles | -64 (-47.1%) |
+| 32x16 4:2:0 raster-load phase | 258 cycles | 130 cycles | -128 (-49.6%) |
+| 32x16 4:4:4 complete frame | 2,651 cycles | 2,605 cycles | -46 (-1.7%) |
+| 32x16 4:2:0 complete frame | 2,462 cycles | 2,398 cycles | -64 (-2.6%) |
+
+Coefficient-level tests pass in both modes, including partial-edge padding.
+Exact UHD post-synthesis use at 100 MHz is 39,351 logic LUTs (33.60%), 56,720
+registers (24.21%), 99 BRAM tiles (68.75%), and 194 DSPs (15.54%), with setup
+WNS `+1.103 ns`. Relative to the three-transform checkpoint, the schedule adds
+623 LUTs and 10 registers while BRAM and DSP use remain unchanged.
+
 ## Remaining Architecture
 
 Implementation order is:
 
-1. Read eight conflict-free samples per cycle for 4:2:0 by pairing rows across
-   the existing eight banks; do not replicate the raster store.
-2. Pipeline MCU loading, transform batches, and ordered output assembly across
+1. Pipeline MCU loading, transform batches, and ordered output assembly across
    separate slots so transform latency does not serialize consecutive MCUs.
-3. Parallelize entropy by independently encoded restart intervals with ordered
+2. Parallelize entropy by independently encoded restart intervals with ordered
    byte-aligned merge, or demonstrate another design that meets the same rate
    without changing decoder-visible coefficient order.
-4. Widen the JPEG AXI stream if measured entropy traffic approaches the
+3. Widen the JPEG AXI stream if measured entropy traffic approaches the
    byte-oriented clock limit; the q85 benchmark's scaled output rate alone does
    not require it.
-5. Close routed 150 MHz timing/resources, then
+4. Close routed 150 MHz timing/resources, then
    measure first-input through output-TLAST cycles on a physical KV260 and
    decode both modes with standard software.
 

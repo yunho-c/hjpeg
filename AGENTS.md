@@ -46,9 +46,10 @@ banked store and one transform serve both chroma modes. It emits two ordered
 fell from 144/144 tiles to 97/144. The UHD top accepts four adjacent pixels per
 128-bit DMA beat. Three ordered transform lanes now process Y/Cb/Cr together
 for 4:4:4 and two three-block batches for 4:2:0. UHD post-synthesis use is 99
-BRAM tiles, 194 DSPs, 38,728 logic LUTs, and 56,710 registers; WNS is `+1.103
-ns` at 100 MHz. Wider 4:2:0 reads, cross-MCU pipeline overlap, parallel entropy,
-150 MHz routed closure, and physical 4K60 evidence remain required.
+BRAM tiles, 194 DSPs, 39,351 logic LUTs, and 56,720 registers after widening
+raster reads to eight samples per cycle without adding storage; WNS is `+1.103
+ns` at 100 MHz. Cross-MCU pipeline overlap, parallel entropy, 150 MHz routed
+closure, and physical 4K60 evidence remain required.
 
 The active `JpegBlockTransformStage` uses bit-exact four-lane DCT and quantizer
 stages. Both sustain a 16-cycle block interval in deterministic simulation; the

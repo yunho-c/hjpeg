@@ -5,10 +5,11 @@
 > UHD slice adds an explicit elaboration target and replaces duplicated raster
 > stores/transforms with `JpegUnifiedRasterToMcuStage`. The next slice accepts
 > four adjacent RGB pixels in each 128-bit DMA beat. UHD post-synthesis use is
-> 99 BRAM tiles, 194 DSPs, 38,728 logic LUTs, and 56,710 registers with `+1.103
-> ns` WNS at 100 MHz after adding three ordered transform lanes. This is
-> resource/ingress evidence, not 4K60 throughput proof; wider 4:2:0 reads,
-> cross-MCU pipeline overlap, parallel entropy, routed 150 MHz, and physical
+> 99 BRAM tiles, 194 DSPs, 39,351 logic LUTs, and 56,720 registers with `+1.103
+> ns` WNS at 100 MHz after adding three ordered transform lanes and eight-sample
+> raster reads. This is
+> resource/ingress evidence, not 4K60 throughput proof; cross-MCU pipeline
+> overlap, parallel entropy, routed 150 MHz, and physical
 > decoder-valid measurements remain outstanding. The last complete vector
 > checkpoint passed 145/145 Scala/Chisel tests; rerun the full suite before
 > treating the newer transform slice as a completed regression boundary.

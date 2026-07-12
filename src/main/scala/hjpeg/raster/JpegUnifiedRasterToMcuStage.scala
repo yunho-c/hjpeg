@@ -27,8 +27,8 @@ class JpegUnifiedRasterToMcuStage(
   })
 
   private val BandRows = HjpegConstants.BlockDim * 2
-  private val ReadLanes = 4
-  private val ColumnBankCount = ReadLanes
+  private val ReadLanes = 8
+  private val ColumnBankCount = 4
   private val ColumnBankBits = log2Ceil(ColumnBankCount)
   private val BankCount = ColumnBankCount * 2
   private val BankIndexBits = log2Ceil(BankCount)
@@ -148,23 +148,22 @@ class JpegUnifiedRasterToMcuStage(
     state := sLoad
   }
 
-  val loadGroupRow = loadSample(3, 1)
-  val loadGroupCol = Mux(loadSample(0), ReadLanes.U, 0.U)
+  val loadGroupRow = loadSample(2, 1) << 1
+  val loadGroupCol = Mux(loadSample(0), ColumnBankCount.U, 0.U)
 
-  // 4:2:0 luminance reads one four-sample group at a time from four blocks.
+  // Each read uses both row parities and all four column banks: lanes 0..3
+  // fetch one row and lanes 4..7 fetch the following row.
   val yBaseRow420 = Mux(loadPhase(1), HjpegConstants.BlockDim.U, 0.U(4.W))
   val yBaseCol420 = Mux(loadPhase(0), HjpegConstants.BlockDim.U, 0.U(c.coordBits.W))
-  val yRequestedRow420 = yBaseRow420 + loadGroupRow
-  val yReadRow420 = Mux(yRequestedRow420 > lastRowInBand, lastRowInBand, yRequestedRow420(3, 0))
 
-  // 4:2:0 chroma reads one complete 2x2 source footprint per cycle.
-  val chromaBaseRow420 = loadSample(5, 3) << 1
-  val chromaBaseCol420 = blockX + (loadSample(2, 0) << 1)
+  // 4:2:0 chroma reads two horizontally adjacent 2x2 source footprints per
+  // cycle. An even output index ensures the pair never crosses an 8-pixel row.
+  val chromaOutputBase420 = loadSample << 1
+  val chromaBaseRow420 = chromaOutputBase420(5, 3) << 1
+  val chromaBaseCol420 = blockX + (chromaOutputBase420(2, 0) << 1)
 
-  // 4:4:4 reads top or bottom 8-row stripe in two four-sample groups per row.
+  // 4:4:4 reads top or bottom 8-row stripe in four columns from two rows.
   val fullBaseRow444 = Mux(stripeHalf, HjpegConstants.BlockDim.U, 0.U(4.W))
-  val fullRequestedRow444 = fullBaseRow444 + loadGroupRow
-  val fullReadRow444 = Mux(fullRequestedRow444 > lastRowInBand, lastRowInBand, fullRequestedRow444(3, 0))
 
   val yLaneReadBanks420 = Wire(Vec(ReadLanes, UInt(BankIndexBits.W)))
   val yLaneReadAddresses420 = Wire(Vec(ReadLanes, UInt(BankAddressBits.W)))
@@ -176,15 +175,23 @@ class JpegUnifiedRasterToMcuStage(
   val selectedLaneReadAddresses = Wire(Vec(ReadLanes, UInt(BankAddressBits.W)))
 
   for (lane <- 0 until ReadLanes) {
-    val yRequestedCol420 = blockX + yBaseCol420 + loadGroupCol + lane.U
+    val laneRowOffset = (lane / ColumnBankCount).U
+    val laneColumn = (lane % ColumnBankCount).U
+    val yRequestedRow420 = yBaseRow420 + loadGroupRow + laneRowOffset
+    val yReadRow420 =
+      Mux(yRequestedRow420 > lastRowInBand, lastRowInBand, yRequestedRow420(3, 0))
+    val yRequestedCol420 = blockX + yBaseCol420 + loadGroupCol + laneColumn
     val yReadCol420 = Mux(yRequestedCol420 >= io.config.xsize, io.config.xsize - 1.U, yRequestedCol420)
     yLaneReadBanks420(lane) := Cat(yReadRow420(0), yReadCol420(ColumnBankBits - 1, 0))
     val yReadLocalAddress420 = (yReadRow420 >> 1) * BankColumns.U + (yReadCol420 >> ColumnBankBits)
     yLaneReadAddresses420(lane) :=
       (activeReadBuffer * BandBankSamples.U + yReadLocalAddress420)(BankAddressBits - 1, 0)
 
-    val chromaRequestedRow420 = chromaBaseRow420 + (lane / 2).U
-    val chromaRequestedCol420 = chromaBaseCol420 + (lane % 2).U
+    val chromaFootprint = lane / 4
+    val chromaFootprintLane = lane % 4
+    val chromaRequestedRow420 = chromaBaseRow420 + (chromaFootprintLane / 2).U
+    val chromaRequestedCol420 =
+      chromaBaseCol420 + (chromaFootprint * 2).U + (chromaFootprintLane % 2).U
     val chromaReadRow420 =
       Mux(chromaRequestedRow420 > lastRowInBand, lastRowInBand, chromaRequestedRow420(3, 0))
     val chromaReadCol420 =
@@ -195,7 +202,10 @@ class JpegUnifiedRasterToMcuStage(
     chromaLaneReadAddresses420(lane) :=
       (activeReadBuffer * BandBankSamples.U + chromaReadLocalAddress420)(BankAddressBits - 1, 0)
 
-    val fullRequestedCol444 = blockX + loadGroupCol + lane.U
+    val fullRequestedRow444 = fullBaseRow444 + loadGroupRow + laneRowOffset
+    val fullReadRow444 =
+      Mux(fullRequestedRow444 > lastRowInBand, lastRowInBand, fullRequestedRow444(3, 0))
+    val fullRequestedCol444 = blockX + loadGroupCol + laneColumn
     val fullReadCol444 =
       Mux(fullRequestedCol444 >= io.config.xsize, io.config.xsize - 1.U, fullRequestedCol444)
     fullLaneReadBanks444(lane) := Cat(fullReadRow444(0), fullReadCol444(ColumnBankBits - 1, 0))
@@ -220,6 +230,13 @@ class JpegUnifiedRasterToMcuStage(
     val bankReadEnable = loadReadEnable && laneMatches.asUInt.orR
     val bankReadAddress = PriorityMux(
       (0 until ReadLanes).map(lane => laneMatches(lane) -> selectedLaneReadAddresses(lane)))
+    for (lane <- 0 until ReadLanes) {
+      when(bankReadEnable && laneMatches(lane)) {
+        assert(
+          selectedLaneReadAddresses(lane) === bankReadAddress,
+          "same-bank raster reads must use an identical replicated-edge address")
+      }
+    }
     yBankReadData(bank) := ySampleBanks(bank).read(bankReadAddress, bankReadEnable)
     cbBankReadData(bank) := cbSampleBanks(bank).read(bankReadAddress, bankReadEnable)
     crBankReadData(bank) := crSampleBanks(bank).read(bankReadAddress, bankReadEnable)
@@ -239,7 +256,7 @@ class JpegUnifiedRasterToMcuStage(
           loadSample := loadSample + 1.U
         }
       }.otherwise {
-        when(loadSample === (HjpegConstants.BlockSize - 1).U) {
+        when(loadSample === ((HjpegConstants.BlockSize / 2) - 1).U) {
           loadAllIssued := true.B
         }.otherwise {
           loadSample := loadSample + 1.U
@@ -255,10 +272,14 @@ class JpegUnifiedRasterToMcuStage(
   }
 
   when(state === sLoad && loadReadValid) {
-    when(subsampled) {
+      when(subsampled) {
       when(loadReadPhase < 4.U) {
         for (lane <- 0 until ReadLanes) {
-          val blockIndex = Cat(loadReadSample(3, 0), lane.U(ColumnBankBits.W))
+          val blockIndex = Cat(
+            loadReadSample(2, 1),
+            (lane / ColumnBankCount).U(1.W),
+            loadReadSample(0),
+            (lane % ColumnBankCount).U(ColumnBankBits.W))
           val yLoadSample = yBankReadData(loadReadBanks(lane))
           switch(loadReadPhase) {
             is(0.U) { y0Block(blockIndex) := yLoadSample }
@@ -274,11 +295,19 @@ class JpegUnifiedRasterToMcuStage(
           cbLoadSamples(lane) := cbBankReadData(loadReadBanks(lane))
           crLoadSamples(lane) := crBankReadData(loadReadBanks(lane))
         }
-        val cbSum = (cbLoadSamples(0) +& cbLoadSamples(1)) +& (cbLoadSamples(2) +& cbLoadSamples(3))
-        val crSum = (crLoadSamples(0) +& crLoadSamples(1)) +& (crLoadSamples(2) +& crLoadSamples(3))
-        cbBlock(loadReadSample) := (cbSum >> 2).asSInt
-        crBlock(loadReadSample) := (crSum >> 2).asSInt
-        when(loadReadSample === (HjpegConstants.BlockSize - 1).U) {
+        for (output <- 0 until 2) {
+          val base = output * 4
+          val cbSum =
+            (cbLoadSamples(base) +& cbLoadSamples(base + 1)) +&
+              (cbLoadSamples(base + 2) +& cbLoadSamples(base + 3))
+          val crSum =
+            (crLoadSamples(base) +& crLoadSamples(base + 1)) +&
+              (crLoadSamples(base + 2) +& crLoadSamples(base + 3))
+          val outputIndex = Cat(loadReadSample(4, 0), output.U(1.W))
+          cbBlock(outputIndex) := (cbSum >> 2).asSInt
+          crBlock(outputIndex) := (crSum >> 2).asSInt
+        }
+        when(loadReadSample === ((HjpegConstants.BlockSize / 2) - 1).U) {
           state := sTransform
           issueBlock := 0.U
           captureBlock := 0.U
@@ -286,7 +315,11 @@ class JpegUnifiedRasterToMcuStage(
       }
     }.otherwise {
       for (lane <- 0 until ReadLanes) {
-        val blockIndex = Cat(loadReadSample(3, 1), loadReadSample(0), lane.U(ColumnBankBits.W))
+        val blockIndex = Cat(
+          loadReadSample(2, 1),
+          (lane / ColumnBankCount).U(1.W),
+          loadReadSample(0),
+          (lane % ColumnBankCount).U(ColumnBankBits.W))
         y0Block(blockIndex) := yBankReadData(loadReadBanks(lane))
         cbBlock(blockIndex) := cbBankReadData(loadReadBanks(lane))
         crBlock(blockIndex) := crBankReadData(loadReadBanks(lane))
