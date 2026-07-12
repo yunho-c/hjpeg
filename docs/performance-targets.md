@@ -48,10 +48,10 @@ average, including any input backpressure.
 
 ## Current Simulation Baseline
 
-The block transform now meets the average 4:4:4 block-rate budget in
-deterministic simulation, while raster collection/loading and complete-frame
-flow remain serialized. ChiselSim regressions measure the following latency
-from an accepted boundary to output validity:
+The block transform and isolated MCU loaders now meet their average mode
+budgets in deterministic simulation, while raster collection/processing and
+complete-frame flow remain serialized. ChiselSim regressions measure the
+following latency from an accepted boundary to output validity:
 
 | Boundary | Observed cycles | Regression ceiling |
 | --- | ---: | ---: |
@@ -60,9 +60,9 @@ from an accepted boundary to output validity:
 | Four-lane 64-coefficient quantization | 21 | 22 |
 | Complete DCT/quantize/zig-zag block latency | 55 | 57 |
 | Four-block transform initiation intervals | 16/16/16 | 17 maximum |
-| First 4:4:4 MCU after stripe collection | 154 | 160 |
-| First 4:2:0 MCU after band collection | 650 | 660 |
-| Complete 16x16 4:4:4 test frame | 2,364 | 2,400 |
+| First 4:4:4 MCU after stripe collection | 98 | 100 |
+| First 4:2:0 MCU after band collection | 266 | 270 |
+| Complete 16x16 4:4:4 test frame | 2,252 | 2,300 |
 
 The block and MCU measurements use quality 50 and deterministic fixtures. The
 transform latency is fixed by the current state machines; entropy and complete
@@ -91,10 +91,10 @@ metadata queue. Across varied luminance/chrominance blocks it sustains a
 16-cycle block interval, below the 34.3-cycle 4:4:4 budget. Relative to the
 previous production path, DCT latency fell from 129 to 35 cycles, quantization
 from 66 to 21, and complete transform latency from 196 to 55. First-MCU
-processing fell from 398 to 153 cycles for 4:4:4 and from 1,050 to 649 for
-4:2:0. Synchronous raster reads intentionally add one cycle to those paths,
-making the current measurements 154 and 650 cycles; the previously measured
-16x16 frame fixture moves from 2,362 to 2,364 cycles.
+processing first fell from 398 to 154 cycles for 4:4:4 and from 1,050 to 650
+for 4:2:0 with the pipelined transform and synchronous scalar reads. Banked
+reads reduce those current measurements further to 98 and 266 cycles; the
+16x16 frame fixture falls from 2,364 to 2,252 cycles.
 
 The last pre-BRAM quick 32x16 trace completed in 3,275 cycles for 4:4:4 and
 3,106 for 4:2:0. Within-MCU block intervals are 16 cycles; steady same-stripe
@@ -102,24 +102,26 @@ The last pre-BRAM quick 32x16 trace completed in 3,275 cycles for 4:4:4 and
 Header/entropy startup dominates these small frames, while serial MCU loading
 and raster collection dominate the remaining steady-state gap.
 
-A current-code, block-RAM-backed 64x64 seeded-random quality-90 capture adds
-the missing high-entropy evidence. The 4:4:4 frame completes in 19,571 cycles
+A current-code, banked-block-RAM 64x64 seeded-random quality-90 capture adds
+the missing high-entropy evidence. The 4:4:4 frame completes in 19,123 cycles
 and has post-first-stripe MCU intervals of 218--230 cycles. Its `mcu_output`
-boundary has one 1,573-cycle startup stall followed by 55 repeated 63--75-cycle
+boundary has one 1,629-cycle startup stall followed by 55 repeated 119--131-cycle
 stalls, so entropy consumption is a sustained 4:4:4 bottleneck for this
-content. The 4:2:0 frame completes in 16,292 cycles, has a stable 651-cycle
-post-first-band MCU interval, and has only one contiguous 1,317-cycle startup
-stall; serialized MCU loading remains its dominant steady-state limit. Both
-scenarios retain a 16-cycle transform initiation interval and decode at the
-expected dimensions.
+content. The 4:2:0 frame completes in 12,647 cycles, a 1.29x improvement over
+the scalar BRAM loader, and has 450--466-cycle post-first-band MCU intervals.
+Its `mcu_output` boundary now has one 1,701-cycle startup stall followed by 11
+repeated 183--199-cycle stalls, so the faster loader exposes entropy as a
+sustained limit in this mode too. Both scenarios retain a 16-cycle transform
+initiation interval and decode at the expected dimensions.
 
 Using only the new MCU regression ceilings gives optimistic 1080p throughput
-ceilings of roughly 19.3 fps for 4:4:4 and 18.6 fps for 4:2:0 at 100 MHz.
+ceilings of roughly 30.9 fps for 4:4:4 and 45.4 fps for 4:2:0 at 100 MHz.
 Actual frame throughput will be lower because those estimates omit raster band
 collection, entropy, markers, and other flow-control work. The transform-rate
-deficit is resolved in simulation; the next architectural limit is overlapping
-raster collection, MCU loading, and transform work. These are architectural gap
-indicators, not timing closure or board measurements.
+and isolated loader-rate deficits are resolved in simulation; the next
+architectural limits are entropy throughput and overlapping raster collection
+with processing. These are architectural gap indicators, not timing closure or
+board measurements.
 
 ## Performance Trace Workflow
 
@@ -198,13 +200,11 @@ and high-entropy traces show two independent sustained limits, so the next
 throughput architecture should prioritize:
 
 1. at least two-coefficient-per-cycle AC scanning plus enough run buffering or
-   packer overlap to remove repeated high-entropy 4:4:4 MCU stalls;
-2. banked synchronous stripe/band storage with widened MCU reads, building on
-   the now-verified single-port block-RAM inference;
-3. ping-pong buffering so raster collection overlaps MCU processing without
+   packer overlap to remove repeated high-entropy MCU stalls in both modes;
+2. ping-pong buffering so raster collection overlaps MCU processing without
    hiding a sustained downstream mismatch behind arbitrary FIFO depth;
-4. a measured MCU queue sized from the resulting producer/consumer rates; and
-5. fresh high-entropy traces and post-implementation evidence after each
+3. a measured MCU queue sized from the resulting producer/consumer rates; and
+4. fresh high-entropy traces and post-implementation evidence after each
    material architecture change.
 
 Each optimization must retain the stage-level coefficient fixtures, complete

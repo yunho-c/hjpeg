@@ -239,7 +239,7 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       emission.bytes.takeRight(2) mustBe Seq(0xff, 0xd9)
       info(s"16x16 4:4:4 frame latency: ${emission.cycles} cycles")
       withClue(s"cycles=${emission.cycles}, pixels=${width * height}") {
-        emission.cycles must be < 2400
+        emission.cycles must be < 2300
       }
       dut.io.protocolError.expect(false.B)
     }
@@ -301,6 +301,27 @@ class HjpegCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       image must not be null
       image.getWidth mustBe 17
       image.getHeight mustBe 13
+      dut.io.protocolError.expect(false.B)
+    }
+  }
+
+  "HjpegCore should preserve recognizable non-flat color content in 4:2:0 mode" in {
+    simulate(new HjpegCore()) { dut =>
+      val width = 16
+      val height = 16
+      val bytes = emitFrame(dut, width = width, height = height, subsample = true) { index =>
+        val x = index % width
+        if (x < width / 2) (224, 32, 32) else (32, 32, 224)
+      }
+
+      bytes.take(2) mustBe Seq(0xff, 0xd8)
+      bytes.takeRight(2) mustBe Seq(0xff, 0xd9)
+      val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
+      image must not be null
+      image.getWidth mustBe width
+      image.getHeight mustBe height
+      averageChannel(image, 0, width / 2, 16) - averageChannel(image, 0, width / 2, 0) must be > 60.0
+      averageChannel(image, width / 2, width, 0) - averageChannel(image, width / 2, width, 16) must be > 60.0
       dut.io.protocolError.expect(false.B)
     }
   }

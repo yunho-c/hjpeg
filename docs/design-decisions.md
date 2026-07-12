@@ -281,43 +281,50 @@ smaller and its intermediate values easier to test.
   in-flight DCT blocks.
 - DCT, quantizer, and complete-transform input/output intervals are 16 cycles in
   deterministic RTL simulation, below the 34.3-cycle 4:4:4 block budget.
-- Current block-RAM-backed implementation closes 100 MHz timing at setup WNS
-  `+0.446 ns` and hold WHS `+0.011 ns`, with 127 DSPs and 52.63% CLB
+- Current banked block-RAM implementation closes 100 MHz timing at setup WNS
+  `+0.461 ns` and hold WHS `+0.011 ns`, with 127 DSPs and 54.35% CLB
   occupancy. Both timing and the provisional resource ceiling pass.
-- Serial raster collection and MCU loading, rather than block-transform issue
-  rate, now dominate simulated frame throughput.
+- Serial raster collection and entropy consumption, rather than block-transform
+  or isolated MCU-load rate, now dominate simulated frame throughput.
 - Resource savings and timing closure must be judged together with measured
   frame throughput.
 
 **Revisit when:** Raster banking/overlap changes the required transform
 buffering/issue contract or materially changes routing pressure.
 
-## Serialize stripe-memory reads
+## Bank and widen synchronous stripe-memory reads
 
 **Status:** Accepted
 
-**Decision:** Store stripe and band samples in `SyncReadMem`, pipeline the
-one-cycle read response with its sample/phase metadata, and load MCU samples
-over multiple cycles before starting the shared transform.
+**Decision:** Store stripe and band samples in banked `SyncReadMem` arrays and
+pipeline each one-cycle read response with its sample/phase metadata. Use eight
+column banks to read a complete 4:4:4 block row per cycle. Use row parity and
+four column banks to read four luma samples or a complete 2x2 chroma footprint
+per cycle in 4:2:0.
 
 **Context:** Reading every block sample in parallel creates a memory with too
-many read ports for practical FPGA inference. Serial loading gives each
-component store a bounded access pattern.
+many read ports for practical FPGA inference. Banking gives every physical
+memory one read port while widening the logical load path. Replicated padding
+coordinates select one physical address and broadcast its returned sample.
 
 **Consequences:**
 
-- MCU construction adds load latency before transform latency. Synchronous
-  reads add exactly one cycle to each measured first-MCU path: 4:4:4 moves from
-  153 to 154 cycles and 4:2:0 from 649 to 650 cycles.
+- The 4:4:4 loader issues eight row reads plus one response cycle instead of 64
+  scalar reads; first-MCU latency falls from 154 to 98 cycles.
+- The 4:2:0 loader issues 64 four-wide luma reads and 64 four-wide chroma reads
+  plus one response cycle instead of 512 scalar reads; first-MCU latency falls
+  from 650 to 266 cycles.
 - Vivado maps the raster stores into block RAM. Relative to the preceding
-  four-lane implementation, routed LUTRAM falls from 25,635 to 675 and CLB
-  occupancy from 90.51% to 52.63%, while BRAM tile use rises from 4 to 40.
-- The stores remain single-read-port and the load schedules remain serialized;
-  this decision recovers physical resources but does not close the frame-rate
-  gap by itself.
+  monolithic BRAM implementation, routed CLB occupancy rises only from 52.63%
+  to 54.35%, while BRAM remains 40 tiles, LUTRAM remains 675, and setup/hold
+  timing stays positive.
+- MCU loading now fits both average mode budgets in isolation. Collection still
+  cannot overlap processing, and faster MCU production exposes sustained
+  entropy backpressure in both high-entropy trace scenarios.
 
-**Revisit when:** Adding banking, widened reads, or ping-pong stripe/band
-buffers. Preserve synchronous inference and re-run routed resource evidence.
+**Revisit when:** Adding ping-pong stripe/band buffers or changing the memory
+layout for collection overlap. Preserve bank conflict freedom and synchronous
+BRAM inference, then re-run routed resource evidence.
 
 ## Generate header bytes with a multi-cycle state machine
 

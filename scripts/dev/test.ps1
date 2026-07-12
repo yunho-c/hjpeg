@@ -22,8 +22,11 @@ if ($LASTEXITCODE -ne 0) {
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $dockerfile = Join-Path $PSScriptRoot "Dockerfile"
 
-& docker image inspect $Image 1>$null 2>$null
-$imageExists = $LASTEXITCODE -eq 0
+$imageIds = @(& docker image ls --quiet --no-trunc $Image)
+if ($LASTEXITCODE -ne 0) {
+    throw "Could not query Docker image '$Image'."
+}
+$imageExists = $imageIds.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($imageIds[0])
 if ($RebuildImage -or -not $imageExists) {
     & docker build --tag $Image --file $dockerfile $repoRoot
     if ($LASTEXITCODE -ne 0) {

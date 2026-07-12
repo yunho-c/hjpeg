@@ -38,13 +38,14 @@ stages. Both sustain a 16-cycle block interval in deterministic simulation; the
 DCT uses registered even/odd butterflies with three transpose banks, and the
 quantizer shares quality scaling across four reciprocal/correction lanes with
 two banks. The earlier single-lane stages remain independently tested but are
-not in the active encoder datapath. Serialized raster collection and MCU loading
-plus high-entropy 4:4:4 entropy consumption are now the primary simulated
-throughput limits. The raster stores use synchronous block-RAM-friendly reads.
-Current Vivado implementation closes 100 MHz timing at setup WNS `+0.446 ns`
-and hold WHS `+0.011 ns`, uses 52.63% of CLBs and 27.78% of BRAM tiles, and
-passes the provisional resource target. Banked/widened loading remains future
-performance work.
+not in the active encoder datapath. Serialized raster collection and entropy
+consumption are now the primary simulated throughput limits. The raster stores
+use banked synchronous block RAM: 4:4:4 loads eight samples per cycle, while
+4:2:0 loads four luma samples or one 2x2 chroma footprint per cycle. Current
+Vivado implementation closes 100 MHz timing
+at setup WNS `+0.461 ns` and hold WHS `+0.011 ns`, uses 54.35% of CLBs and
+27.78% of BRAM tiles, and passes the provisional resource target. Serialized
+raster collection and entropy throughput are the next performance limits.
 
 `HjpegAxiStreamCore` is the current hardware-facing shell. It accepts raster RGB
 AXI4-Stream-shaped words, generates pixel coordinates, forwards bytes from

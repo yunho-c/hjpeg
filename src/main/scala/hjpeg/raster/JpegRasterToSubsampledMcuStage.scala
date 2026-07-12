@@ -8,8 +8,10 @@ import chisel3.util._
 /** Buffers one 16-row raster band and emits 16x16, 4:2:0 MCUs.
   *
   * Each output MCU contains four luminance blocks followed by one downsampled
-  * Cb block and one downsampled Cr block. Edge samples are padded by replicating
-  * the last valid row or column.
+  * Cb block and one downsampled Cr block. Eight synchronous banks use row
+  * parity and column modulo four, allowing four adjacent luma samples or one
+  * complete 2x2 chroma footprint to be read per cycle. Edge samples are padded
+  * by replicating the last valid row or column.
   */
 class JpegRasterToSubsampledMcuStage(
     c: HjpegConfig = HjpegConfig(),
@@ -23,8 +25,15 @@ class JpegRasterToSubsampledMcuStage(
   })
 
   private val McuDim = HjpegConstants.BlockDim * 2
-  private val BandSamples = McuDim * c.maxFrameWidth
-  private val sampleIndexBits = log2Ceil(BandSamples).max(1)
+  private val ReadLanes = 4
+  private val ColumnBankCount = ReadLanes
+  private val ColumnBankBits = log2Ceil(ColumnBankCount)
+  private val BankCount = ColumnBankCount * 2
+  private val BankIndexBits = log2Ceil(BankCount)
+  private val BankColumns = (c.maxFrameWidth + ColumnBankCount - 1) / ColumnBankCount
+  private val BankRows = McuDim / 2
+  private val BankSamples = BankRows * BankColumns
+  private val BankAddressBits = log2Ceil(BankSamples).max(1)
 
   val sCollect :: sLoad :: sTransform :: sEmit :: Nil = Enum(4)
   val state = RegInit(sCollect)
@@ -35,17 +44,15 @@ class JpegRasterToSubsampledMcuStage(
   val loadSample = RegInit(0.U(6.W))
   val loadReadPhase = RegInit(0.U(3.W))
   val loadReadSample = RegInit(0.U(6.W))
-  val loadReadChromaSubSample = RegInit(0.U(2.W))
+  val loadReadYBanks = Reg(Vec(ReadLanes, UInt(BankIndexBits.W)))
+  val loadReadChromaBanks = Reg(Vec(ReadLanes, UInt(BankIndexBits.W)))
   val loadAllIssued = RegInit(false.B)
   val issueBlock = RegInit(0.U(3.W))
   val captureBlock = RegInit(0.U(3.W))
-  val chromaSubSample = RegInit(0.U(2.W))
-  val cbAccumulator = RegInit(0.S((sampleBits + 2).W))
-  val crAccumulator = RegInit(0.S((sampleBits + 2).W))
 
-  val ySamples = SyncReadMem(BandSamples, SInt(sampleBits.W))
-  val cbSamples = SyncReadMem(BandSamples, SInt(sampleBits.W))
-  val crSamples = SyncReadMem(BandSamples, SInt(sampleBits.W))
+  val ySampleBanks = Seq.fill(BankCount)(SyncReadMem(BankSamples, SInt(sampleBits.W)))
+  val cbSampleBanks = Seq.fill(BankCount)(SyncReadMem(BankSamples, SInt(sampleBits.W)))
+  val crSampleBanks = Seq.fill(BankCount)(SyncReadMem(BankSamples, SInt(sampleBits.W)))
   val y0Block = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
   val y1Block = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
   val y2Block = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
@@ -60,7 +67,10 @@ class JpegRasterToSubsampledMcuStage(
   val crCoefficients = Reg(new ZigZagCoefficientBlock(coefficientBits))
 
   val rowInBand = io.input.bits.y(3, 0)
-  val writeIndex = (rowInBand * c.maxFrameWidth.U + io.input.bits.x)(sampleIndexBits - 1, 0)
+  val writeBank = Cat(rowInBand(0), io.input.bits.x(ColumnBankBits - 1, 0))
+  val writeBankRow = rowInBand >> 1
+  val writeBankColumn = io.input.bits.x >> ColumnBankBits
+  val writeAddress = (writeBankRow * BankColumns.U + writeBankColumn)(BankAddressBits - 1, 0)
   val lastPixelInBand =
     io.input.bits.x === io.config.xsize - 1.U &&
       (rowInBand === (McuDim - 1).U || io.input.bits.y === io.config.ysize - 1.U)
@@ -71,9 +81,13 @@ class JpegRasterToSubsampledMcuStage(
   io.input.ready := state === sCollect
 
   when(io.input.fire) {
-    ySamples.write(writeIndex, (yComponent.zext - 128.S)(sampleBits - 1, 0).asSInt)
-    cbSamples.write(writeIndex, (cbComponent.zext - 128.S)(sampleBits - 1, 0).asSInt)
-    crSamples.write(writeIndex, (crComponent.zext - 128.S)(sampleBits - 1, 0).asSInt)
+    for (bank <- 0 until BankCount) {
+      when(writeBank === bank.U) {
+        ySampleBanks(bank).write(writeAddress, (yComponent.zext - 128.S)(sampleBits - 1, 0).asSInt)
+        cbSampleBanks(bank).write(writeAddress, (cbComponent.zext - 128.S)(sampleBits - 1, 0).asSInt)
+        crSampleBanks(bank).write(writeAddress, (crComponent.zext - 128.S)(sampleBits - 1, 0).asSInt)
+      }
+    }
     when(lastPixelInBand) {
       state := sLoad
       blockX := 0.U
@@ -84,81 +98,110 @@ class JpegRasterToSubsampledMcuStage(
       loadAllIssued := false.B
       issueBlock := 0.U
       captureBlock := 0.U
-      chromaSubSample := 0.U
-      cbAccumulator := 0.S
-      crAccumulator := 0.S
     }
   }
 
-  val loadRow = loadSample(5, 3)
-  val loadCol = loadSample(2, 0)
+  val loadGroupRow = loadSample(3, 1)
+  val loadGroupCol = Mux(loadSample(0), ReadLanes.U, 0.U)
 
   val yBaseRow = Mux(loadPhase(1), HjpegConstants.BlockDim.U, 0.U(4.W))
   val yBaseCol = Mux(loadPhase(0), HjpegConstants.BlockDim.U, 0.U(c.coordBits.W))
-  val yReadRow = yBaseRow + loadRow
-  val yReadCol = blockX + yBaseCol + loadCol
+  val yRequestedRow = yBaseRow + loadGroupRow
+  val yReadRow = Mux(yRequestedRow > lastRowInBand, lastRowInBand, yRequestedRow(3, 0))
+  val chromaBaseRow = loadSample(5, 3) << 1
+  val chromaBaseCol = blockX + (loadSample(2, 0) << 1)
 
-  val chromaBaseRow = loadRow << 1
-  val chromaBaseCol = blockX + (loadCol << 1)
-  val chromaReadRow = chromaBaseRow + chromaSubSample(1)
-  val chromaReadCol = chromaBaseCol + chromaSubSample(0)
+  val yLaneReadBanks = Wire(Vec(ReadLanes, UInt(BankIndexBits.W)))
+  val yLaneReadAddresses = Wire(Vec(ReadLanes, UInt(BankAddressBits.W)))
+  val chromaLaneReadBanks = Wire(Vec(ReadLanes, UInt(BankIndexBits.W)))
+  val chromaLaneReadAddresses = Wire(Vec(ReadLanes, UInt(BankAddressBits.W)))
+  for (lane <- 0 until ReadLanes) {
+    val yRequestedCol = blockX + yBaseCol + loadGroupCol + lane.U
+    val yReadCol = Mux(yRequestedCol >= io.config.xsize, io.config.xsize - 1.U, yRequestedCol)
+    yLaneReadBanks(lane) := Cat(yReadRow(0), yReadCol(ColumnBankBits - 1, 0))
+    yLaneReadAddresses(lane) :=
+      ((yReadRow >> 1) * BankColumns.U + (yReadCol >> ColumnBankBits))(BankAddressBits - 1, 0)
 
-  val yReadIndex = clampedIndex(yReadRow, yReadCol)
-  val chromaReadIndex = clampedIndex(chromaReadRow, chromaReadCol)
+    val chromaRequestedRow = chromaBaseRow + (lane / 2).U
+    val chromaRequestedCol = chromaBaseCol + (lane % 2).U
+    val chromaReadRow =
+      Mux(chromaRequestedRow > lastRowInBand, lastRowInBand, chromaRequestedRow(3, 0))
+    val chromaReadCol =
+      Mux(chromaRequestedCol >= io.config.xsize, io.config.xsize - 1.U, chromaRequestedCol)
+    chromaLaneReadBanks(lane) := Cat(chromaReadRow(0), chromaReadCol(ColumnBankBits - 1, 0))
+    chromaLaneReadAddresses(lane) :=
+      ((chromaReadRow >> 1) * BankColumns.U + (chromaReadCol >> ColumnBankBits))(BankAddressBits - 1, 0)
+  }
+
   val loadReadEnable = state === sLoad && !loadAllIssued
-  val yLoadSample = ySamples.read(yReadIndex, loadReadEnable)
-  val cbLoadSample = cbSamples.read(chromaReadIndex, loadReadEnable)
-  val crLoadSample = crSamples.read(chromaReadIndex, loadReadEnable)
+  val yBankReadData = Wire(Vec(BankCount, SInt(sampleBits.W)))
+  val cbBankReadData = Wire(Vec(BankCount, SInt(sampleBits.W)))
+  val crBankReadData = Wire(Vec(BankCount, SInt(sampleBits.W)))
+  for (bank <- 0 until BankCount) {
+    val yLaneMatches = VecInit((0 until ReadLanes).map(lane => yLaneReadBanks(lane) === bank.U))
+    val yBankReadEnable = loadReadEnable && loadPhase < 4.U && yLaneMatches.asUInt.orR
+    val yBankReadAddress = PriorityMux(
+      (0 until ReadLanes).map(lane => yLaneMatches(lane) -> yLaneReadAddresses(lane)))
+    yBankReadData(bank) := ySampleBanks(bank).read(yBankReadAddress, yBankReadEnable)
+
+    val chromaLaneMatches =
+      VecInit((0 until ReadLanes).map(lane => chromaLaneReadBanks(lane) === bank.U))
+    val chromaBankReadEnable = loadReadEnable && loadPhase === 4.U && chromaLaneMatches.asUInt.orR
+    val chromaBankReadAddress = PriorityMux(
+      (0 until ReadLanes).map(lane => chromaLaneMatches(lane) -> chromaLaneReadAddresses(lane)))
+    cbBankReadData(bank) := cbSampleBanks(bank).read(chromaBankReadAddress, chromaBankReadEnable)
+    crBankReadData(bank) := crSampleBanks(bank).read(chromaBankReadAddress, chromaBankReadEnable)
+  }
   val loadReadValid = RegNext(loadReadEnable, false.B)
 
   when(loadReadEnable) {
     loadReadPhase := loadPhase
     loadReadSample := loadSample
-    loadReadChromaSubSample := chromaSubSample
+    loadReadYBanks := yLaneReadBanks
+    loadReadChromaBanks := chromaLaneReadBanks
     when(loadPhase < 4.U) {
-      when(loadSample === (HjpegConstants.BlockSize - 1).U) {
+      when(loadSample === ((HjpegConstants.BlockSize / ReadLanes) - 1).U) {
         loadSample := 0.U
         loadPhase := loadPhase + 1.U
       }.otherwise {
         loadSample := loadSample + 1.U
       }
     }.otherwise {
-      when(chromaSubSample === 3.U) {
-        chromaSubSample := 0.U
-        when(loadSample === (HjpegConstants.BlockSize - 1).U) {
-          loadAllIssued := true.B
-        }.otherwise {
-          loadSample := loadSample + 1.U
-        }
+      when(loadSample === (HjpegConstants.BlockSize - 1).U) {
+        loadAllIssued := true.B
       }.otherwise {
-        chromaSubSample := chromaSubSample + 1.U
+        loadSample := loadSample + 1.U
       }
     }
   }
 
   when(state === sLoad && loadReadValid) {
     when(loadReadPhase < 4.U) {
-      switch(loadReadPhase) {
-        is(0.U) { y0Block(loadReadSample) := yLoadSample }
-        is(1.U) { y1Block(loadReadSample) := yLoadSample }
-        is(2.U) { y2Block(loadReadSample) := yLoadSample }
-        is(3.U) { y3Block(loadReadSample) := yLoadSample }
+      for (lane <- 0 until ReadLanes) {
+        val blockIndex = Cat(loadReadSample(3, 0), lane.U(ColumnBankBits.W))
+        val yLoadSample = yBankReadData(loadReadYBanks(lane))
+        switch(loadReadPhase) {
+          is(0.U) { y0Block(blockIndex) := yLoadSample }
+          is(1.U) { y1Block(blockIndex) := yLoadSample }
+          is(2.U) { y2Block(blockIndex) := yLoadSample }
+          is(3.U) { y3Block(blockIndex) := yLoadSample }
+        }
       }
     }.otherwise {
-      val cbNextSum = Mux(loadReadChromaSubSample === 0.U, 0.S, cbAccumulator) + cbLoadSample
-      val crNextSum = Mux(loadReadChromaSubSample === 0.U, 0.S, crAccumulator) + crLoadSample
-      cbAccumulator := cbNextSum
-      crAccumulator := crNextSum
-      when(loadReadChromaSubSample === 3.U) {
-        cbBlock(loadReadSample) := (cbNextSum >> 2).asSInt
-        crBlock(loadReadSample) := (crNextSum >> 2).asSInt
-        cbAccumulator := 0.S
-        crAccumulator := 0.S
-        when(loadReadSample === (HjpegConstants.BlockSize - 1).U) {
-          state := sTransform
-          issueBlock := 0.U
-          captureBlock := 0.U
-        }
+      val cbLoadSamples = Wire(Vec(ReadLanes, SInt(sampleBits.W)))
+      val crLoadSamples = Wire(Vec(ReadLanes, SInt(sampleBits.W)))
+      for (lane <- 0 until ReadLanes) {
+        cbLoadSamples(lane) := cbBankReadData(loadReadChromaBanks(lane))
+        crLoadSamples(lane) := crBankReadData(loadReadChromaBanks(lane))
+      }
+      val cbSum = (cbLoadSamples(0) +& cbLoadSamples(1)) +& (cbLoadSamples(2) +& cbLoadSamples(3))
+      val crSum = (crLoadSamples(0) +& crLoadSamples(1)) +& (crLoadSamples(2) +& crLoadSamples(3))
+      cbBlock(loadReadSample) := (cbSum >> 2).asSInt
+      crBlock(loadReadSample) := (crSum >> 2).asSInt
+      when(loadReadSample === (HjpegConstants.BlockSize - 1).U) {
+        state := sTransform
+        issueBlock := 0.U
+        captureBlock := 0.U
       }
     }
   }
@@ -167,12 +210,6 @@ class JpegRasterToSubsampledMcuStage(
   transform.io.quality := io.config.quality
   transform.io.isLuminance := issueBlock < 4.U
   transform.io.input.valid := state === sTransform && issueBlock < 6.U
-
-  private def clampedIndex(row: UInt, col: UInt): UInt = {
-    val readRow = Mux(row > lastRowInBand, lastRowInBand, row(3, 0))
-    val readCol = Mux(col >= io.config.xsize, io.config.xsize - 1.U, col)
-    (readRow * c.maxFrameWidth.U + readCol)(sampleIndexBits - 1, 0)
-  }
 
   for (row <- 0 until HjpegConstants.BlockDim) {
     for (col <- 0 until HjpegConstants.BlockDim) {
@@ -243,9 +280,6 @@ class JpegRasterToSubsampledMcuStage(
       loadAllIssued := false.B
       issueBlock := 0.U
       captureBlock := 0.U
-      chromaSubSample := 0.U
-      cbAccumulator := 0.S
-      crAccumulator := 0.S
       state := sLoad
     }
   }

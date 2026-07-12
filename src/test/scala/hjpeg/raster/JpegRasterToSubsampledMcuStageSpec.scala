@@ -71,11 +71,11 @@ class JpegRasterToSubsampledMcuStageSpec extends AnyFreeSpec with Matchers with 
 
       val firstMcuCycles = waitForOutput(dut)
       info(s"4:2:0 first-MCU processing latency after band collection: $firstMcuCycles cycles")
-      firstMcuCycles must be <= 660
+      firstMcuCycles must be <= 270
       expectFlatMcu(dut, last = false)
       dut.clock.step()
       val secondMcuCycles = waitForOutput(dut)
-      secondMcuCycles must be <= 660
+      secondMcuCycles must be <= 270
       expectFlatMcu(dut, last = true)
     }
   }

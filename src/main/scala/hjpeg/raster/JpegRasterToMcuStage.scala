@@ -9,8 +9,10 @@ import chisel3.util._
   *
   * This stage is the first raster-order frame buffer. It accepts pixels in
   * row-major order, stores level-shifted Y/Cb/Cr samples for up to eight rows,
-  * then emits MCUs left-to-right for that stripe. Partial right and bottom
-  * edges are padded by repeating the final valid column or row sample.
+  * then emits MCUs left-to-right for that stripe. Samples are striped across
+  * eight synchronous banks by column modulo eight, so one complete 8-sample
+  * block row is loaded per cycle. Partial right and bottom edges are padded by
+  * broadcasting the final valid column or row sample.
   */
 class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, coefficientBits: Int = 16)
     extends Module {
@@ -21,23 +23,28 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
   })
 
   private val StripeRows = HjpegConstants.BlockDim
-  private val StripeSamples = StripeRows * c.maxFrameWidth
-  private val sampleIndexBits = log2Ceil(StripeSamples).max(1)
+  private val ReadLanes = HjpegConstants.BlockDim
+  private val BankCount = ReadLanes
+  private val BankIndexBits = log2Ceil(BankCount)
+  private val BankColumns = (c.maxFrameWidth + BankCount - 1) / BankCount
+  private val BankSamples = StripeRows * BankColumns
+  private val BankAddressBits = log2Ceil(BankSamples).max(1)
 
   val sCollect :: sLoad :: sTransform :: sEmit :: Nil = Enum(4)
   val state = RegInit(sCollect)
   val blockX = RegInit(0.U(c.coordBits.W))
   val currentStripeLast = RegInit(false.B)
   val lastRowInStripe = RegInit(0.U(3.W))
-  val loadSample = RegInit(0.U(6.W))
-  val loadReadSample = RegInit(0.U(6.W))
+  val loadRow = RegInit(0.U(3.W))
+  val loadReadRow = RegInit(0.U(3.W))
+  val loadReadBanks = Reg(Vec(ReadLanes, UInt(BankIndexBits.W)))
   val loadAllIssued = RegInit(false.B)
   val issueBlock = RegInit(0.U(2.W))
   val captureBlock = RegInit(0.U(2.W))
 
-  val ySamples = SyncReadMem(StripeSamples, SInt(sampleBits.W))
-  val cbSamples = SyncReadMem(StripeSamples, SInt(sampleBits.W))
-  val crSamples = SyncReadMem(StripeSamples, SInt(sampleBits.W))
+  val ySampleBanks = Seq.fill(BankCount)(SyncReadMem(BankSamples, SInt(sampleBits.W)))
+  val cbSampleBanks = Seq.fill(BankCount)(SyncReadMem(BankSamples, SInt(sampleBits.W)))
+  val crSampleBanks = Seq.fill(BankCount)(SyncReadMem(BankSamples, SInt(sampleBits.W)))
   val yBlock = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
   val cbBlock = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
   val crBlock = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
@@ -46,7 +53,9 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
   val crCoefficients = Reg(new ZigZagCoefficientBlock(coefficientBits))
 
   val rowInStripe = io.input.bits.y(2, 0)
-  val writeIndex = (rowInStripe * c.maxFrameWidth.U + io.input.bits.x)(sampleIndexBits - 1, 0)
+  val writeBank = io.input.bits.x(BankIndexBits - 1, 0)
+  val writeBankColumn = io.input.bits.x >> BankIndexBits
+  val writeAddress = (rowInStripe * BankColumns.U + writeBankColumn)(BankAddressBits - 1, 0)
   val lastPixelInStripe =
     io.input.bits.x === io.config.xsize - 1.U &&
       (rowInStripe === (StripeRows - 1).U || io.input.bits.y === io.config.ysize - 1.U)
@@ -57,47 +66,69 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
   io.input.ready := state === sCollect
 
   when(io.input.fire) {
-    ySamples.write(writeIndex, (yComponent.zext - 128.S)(sampleBits - 1, 0).asSInt)
-    cbSamples.write(writeIndex, (cbComponent.zext - 128.S)(sampleBits - 1, 0).asSInt)
-    crSamples.write(writeIndex, (crComponent.zext - 128.S)(sampleBits - 1, 0).asSInt)
+    for (bank <- 0 until BankCount) {
+      when(writeBank === bank.U) {
+        ySampleBanks(bank).write(writeAddress, (yComponent.zext - 128.S)(sampleBits - 1, 0).asSInt)
+        cbSampleBanks(bank).write(writeAddress, (cbComponent.zext - 128.S)(sampleBits - 1, 0).asSInt)
+        crSampleBanks(bank).write(writeAddress, (crComponent.zext - 128.S)(sampleBits - 1, 0).asSInt)
+      }
+    }
     when(lastPixelInStripe) {
       state := sLoad
       blockX := 0.U
       currentStripeLast := io.input.bits.y + 1.U >= io.config.ysize
       lastRowInStripe := rowInStripe
-      loadSample := 0.U
+      loadRow := 0.U
       loadAllIssued := false.B
       issueBlock := 0.U
       captureBlock := 0.U
     }
   }
 
-  val loadRow = loadSample(5, 3)
-  val loadCol = loadSample(2, 0)
   val readRow = Mux(loadRow > lastRowInStripe, lastRowInStripe, loadRow)
-  val requestedCol = blockX + loadCol
-  val readCol = Mux(requestedCol >= io.config.xsize, io.config.xsize - 1.U, requestedCol)
-  val readIndex = (readRow * c.maxFrameWidth.U + readCol)(sampleIndexBits - 1, 0)
+  val laneReadBanks = Wire(Vec(ReadLanes, UInt(BankIndexBits.W)))
+  val laneReadAddresses = Wire(Vec(ReadLanes, UInt(BankAddressBits.W)))
+  for (lane <- 0 until ReadLanes) {
+    val requestedCol = blockX + lane.U
+    val readCol = Mux(requestedCol >= io.config.xsize, io.config.xsize - 1.U, requestedCol)
+    laneReadBanks(lane) := readCol(BankIndexBits - 1, 0)
+    laneReadAddresses(lane) :=
+      (readRow * BankColumns.U + (readCol >> BankIndexBits))(BankAddressBits - 1, 0)
+  }
+
   val loadReadEnable = state === sLoad && !loadAllIssued
-  val yLoadSample = ySamples.read(readIndex, loadReadEnable)
-  val cbLoadSample = cbSamples.read(readIndex, loadReadEnable)
-  val crLoadSample = crSamples.read(readIndex, loadReadEnable)
+  val yBankReadData = Wire(Vec(BankCount, SInt(sampleBits.W)))
+  val cbBankReadData = Wire(Vec(BankCount, SInt(sampleBits.W)))
+  val crBankReadData = Wire(Vec(BankCount, SInt(sampleBits.W)))
+  for (bank <- 0 until BankCount) {
+    val laneMatches = VecInit((0 until ReadLanes).map(lane => laneReadBanks(lane) === bank.U))
+    val bankReadEnable = loadReadEnable && laneMatches.asUInt.orR
+    val bankReadAddress = PriorityMux(
+      (0 until ReadLanes).map(lane => laneMatches(lane) -> laneReadAddresses(lane)))
+    yBankReadData(bank) := ySampleBanks(bank).read(bankReadAddress, bankReadEnable)
+    cbBankReadData(bank) := cbSampleBanks(bank).read(bankReadAddress, bankReadEnable)
+    crBankReadData(bank) := crSampleBanks(bank).read(bankReadAddress, bankReadEnable)
+  }
   val loadReadValid = RegNext(loadReadEnable, false.B)
 
   when(loadReadEnable) {
-    loadReadSample := loadSample
-    when(loadSample === (HjpegConstants.BlockSize - 1).U) {
+    loadReadRow := loadRow
+    loadReadBanks := laneReadBanks
+    when(loadRow === (StripeRows - 1).U) {
       loadAllIssued := true.B
     }.otherwise {
-      loadSample := loadSample + 1.U
+      loadRow := loadRow + 1.U
     }
   }
 
   when(state === sLoad && loadReadValid) {
-    yBlock(loadReadSample) := yLoadSample
-    cbBlock(loadReadSample) := cbLoadSample
-    crBlock(loadReadSample) := crLoadSample
-    when(loadReadSample === (HjpegConstants.BlockSize - 1).U) {
+    for (lane <- 0 until ReadLanes) {
+      val blockIndex = Cat(loadReadRow, lane.U(BankIndexBits.W))
+      yBlock(blockIndex) := yBankReadData(loadReadBanks(lane))
+      cbBlock(blockIndex) := cbBankReadData(loadReadBanks(lane))
+      crBlock(blockIndex) := crBankReadData(loadReadBanks(lane))
+    }
+    when(loadReadRow === (StripeRows - 1).U) {
       state := sTransform
       issueBlock := 0.U
       captureBlock := 0.U
@@ -155,7 +186,7 @@ class JpegRasterToMcuStage(c: HjpegConfig = HjpegConfig(), sampleBits: Int = 9, 
       blockX := 0.U
     }.otherwise {
       blockX := blockX + HjpegConstants.BlockDim.U
-      loadSample := 0.U
+      loadRow := 0.U
       loadAllIssued := false.B
       issueBlock := 0.U
       captureBlock := 0.U

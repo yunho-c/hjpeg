@@ -59,8 +59,10 @@ class HjpegElaborationSpec extends AnyFreeSpec with Matchers {
     listedFiles must contain("HjpegKv260AxiLiteTop.sv")
     listedFiles must contain("HjpegAxiStreamCore.sv")
     listedFiles must contain("HjpegCore.sv")
-    listedFiles must contain("mem_15360x9.sv")
-    listedFiles must contain("mem_30720x9.sv")
+    listedFiles must contain("mem_1920x9.sv")
+    listedFiles must contain("mem_3840x9.sv")
+    listedFiles must not contain ("mem_15360x9.sv")
+    listedFiles must not contain ("mem_30720x9.sv")
     listedFiles.last mustBe "HjpegKv260AxiLiteTop.sv"
 
     for (rtl <- listedFiles) {

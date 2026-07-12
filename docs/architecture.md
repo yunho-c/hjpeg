@@ -118,8 +118,8 @@ The main RTL groups under `src/main/scala/hjpeg` are:
 - the package root: shared configuration/bundles/tables and `HjpegCore`;
 - `color/`: RGB conversion and level shifting;
 - `raster/`: 4:4:4 and 4:2:0 synchronous raster buffering, padding, and MCU
-  construction; the component stores infer block RAM and explicitly pipeline
-  their one-cycle read latency;
+  construction; 4:4:4 uses eight column banks and 4:2:0 uses row-parity/four-
+  column banking, while both explicitly pipeline one-cycle block-RAM reads;
 - `transform/`: DCT, quantization, zig-zag ordering, and their composition;
 - `entropy/`: DC/AC tokenization, Huffman lookup, packing, and byte stuffing;
 - `stream/`: JPEG header and complete multi-MCU stream assembly;
