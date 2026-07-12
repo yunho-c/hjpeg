@@ -191,11 +191,11 @@ Latest local Vivado 2026.1 evidence:
 - `check_reports.py` passed on post-synthesis and post-implementation timing
   and utilization reports.
 - Current two-slot banked-block-RAM, four-lane transform, and four-coefficient
-  entropy post-implementation timing is setup WNS `+0.227 ns` and hold WHS
-  `+0.010 ns` at the 100 MHz target clock.
-- Current post-implementation utilization is 35,440 CLB LUTs (30.26%), 675
-  LUTRAMs (1.17%), 54,493 registers (23.26%), 76 BRAM tiles (52.78%), 127 DSPs
-  (10.18%), and 8,201 CLBs (56.02%). The complete twelve-record report set
+  entropy post-implementation timing is setup WNS `+0.106 ns` and hold WHS
+  `+0.011 ns` at the 100 MHz target clock.
+- Current post-implementation utilization is 35,583 CLB LUTs (30.38%), 690
+  LUTRAMs (1.20%), 54,686 registers (23.35%), 76 BRAM tiles (52.78%), 127 DSPs
+  (10.18%), and 8,052 CLBs (55.00%). The complete twelve-record report set
   passes the default checker and the project's provisional 70% resource
   ceiling.
 
@@ -252,6 +252,28 @@ Adjust the `--tx-device` and `--rx-device` paths to match the loaded board
 image. Drivers that expose AXI DMA through ioctls or descriptor queues need a
 small adapter, but should reuse the same packing, register, and validation
 helpers.
+
+If the board has initialized PS clocks and DDR but no usable Linux DMA device,
+run the intrusive XSDB/JTAG backend instead:
+
+```sh
+xsdb scripts/host/run_kv260_xsdb_dma.tcl \
+  build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit \
+  input.rgb output.jpg WIDTH HEIGHT QUALITY RESTART_INTERVAL 1 1
+python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
+  --width WIDTH --height HEIGHT --restart-interval RESTART_INTERVAL \
+  --chroma-subsample --check-chroma-mode --expect-jfif present \
+  --quality QUALITY --require-standard-huffman \
+  --decoder-command 'ffmpeg -v error -i {jpeg} -f null -' --json
+```
+
+The last two XSDB arguments select 4:2:0 and JFIF. The runner stops Cortex-A53
+#0, programs the PL, uses reserved DDR buffers, checks both DMA status words and
+encoder status, verifies the full MM2S length, and writes exactly the S2MM
+reported byte count. It therefore disrupts a running Linux system and is a lab
+validation path, not a production driver. The block design configures a 26-bit
+DMA length field; the prior 14-bit default could not carry a packed 1080p frame
+without an early TLAST.
 
 Expected evidence:
 
@@ -562,6 +584,42 @@ Expected evidence:
 - The decoded dimensions match the input.
 - Visual content is recognizable for non-flat test images.
 
+## Current Physical KV260 Evidence (2026-07-12)
+
+The current routed image was programmed over the on-board FTDI JTAG cable into
+a physical KV260 revB / K26 target. Its bitstream is 7,797,910 bytes with SHA-256
+`127e2f5fe19d0b0b9b37322d398d2e7e148f93d4fef5cd0f35386ed1bed72fb8`.
+The matching strict Vivado evidence contains 12 passing records, zero failing
+records, zero unrouted nets, and zero routing errors.
+
+Two JTAG-driven AXI DMA runs passed:
+
+- A 17x13 quality-85 4:2:0 frame with restart interval 1 transferred 884 packed
+  RGB bytes and captured a 738-byte JPEG. The JPEG SHA-256 is
+  `41c0a8470992dd07469005a7fd11a1ea15af47bc46f18828ebf054aaa690b959`.
+  Validation found JFIF, DRI=1, `RST0`, two MCUs, three stuffed `0xff` bytes,
+  standard DQT/DHT payloads, non-empty entropy data, and terminal EOI. FFmpeg
+  decoded it at 17x13 `yuvj420p`.
+- A deterministic non-flat/color 1920x1080 quality-85 4:2:0 frame transferred
+  all 8,294,400 packed RGB bytes in one MM2S transaction and captured a
+  151,020-byte JPEG. The input PPM/RGB SHA-256 values are
+  `c6aa316e2b2dbc2ad39f5e23c83420d44d116ed4d4b8d8748af38375af4bd771`
+  and `ad3ff48774e62e0ddc0e8778c8dd651b7d628fa57769f8e05f0132fd745f6f0e`;
+  the JPEG SHA-256 is
+  `be9217b91465ccad42822d8eb87cb0f278a3f9f0182ac32e1d44129a1d50f461`.
+  Validation found 8,160 MCUs, 148,434 entropy bytes, 1,961 stuffed `0xff`
+  bytes, standard tables, JFIF, SOI through EOI marker order, and no DRI/RST as
+  configured. FFmpeg decoded it at 1920x1080 `yuvj420p`; comparison with the
+  source pattern measured 41.68 dB average PSNR.
+
+For both runs, MM2S and S2MM ended at status `0x00001002` (IOC plus idle), the
+encoder returned to status `0x00000000`, and no DMA or protocol error was
+reported. The debugger-polled 1080p interval was 47.490 ms. XSDB/JTAG polling
+adds large, variable latency (the 17x13 runner itself observes about 31 ms), so
+that number proves completion but is not an accurate 100 MHz frame-cycle or
+30-fps measurement. Use an on-device or RTL cycle counter for the throughput
+claim.
+
 ## Completion Bar
 
 Do not mark the project complete until the repo has current evidence for:
@@ -573,3 +631,7 @@ Do not mark the project complete until the repo has current evidence for:
 - Post-implementation timing/resource reports reviewed.
 - A real KV260 run producing at least one decodable JPEG through AXI DMA.
 - Host-side validation passing for that hardware-produced JPEG.
+
+All functional completion items above have current evidence. The provisional
+1920x1080-at-30-fps target remains a separate performance claim and still needs
+a debugger-independent cycle/elapsed-time measurement in both chroma modes.

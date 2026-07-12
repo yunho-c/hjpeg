@@ -19,9 +19,10 @@ both 4:4:4 and 4:2:0 modes at a 100 MHz PL clock. The four-lane DCT/quantizer,
 four-coefficient AC scanner, and two-slot raster collector meet their measured
 stage budgets in simulation. A 256x64 seeded-random quality-90 4:4:4 trace
 accepts input at 1.522 cycles/pixel, and a two-frame capture accepts at 1.594,
-both within the 1.61-cycle/pixel budget; physical board throughput is not yet
-measured. Current implementation closes 100 MHz
-timing and uses 56.02% of CLBs and 52.78% of block RAM; see
+both within the 1.61-cycle/pixel budget. A physical KV260 has now encoded and
+DMA-captured decoder-valid 17x13 and 1920x1080 4:2:0 frames. The debugger-polled
+1080p interval is not precise enough to establish 30 fps. Current implementation
+closes 100 MHz timing and uses 55.00% of CLBs and 52.78% of block RAM; see
 [`docs/performance-targets.md`](docs/performance-targets.md) for cycle budgets,
 evidence levels, and the optimization direction.
 
@@ -380,7 +381,8 @@ block design, and generates the HDL wrapper. The bitstream script runs synthesis
 and implementation, writes
 post-synthesis/post-implementation utilization and timing reports, copies the
 bitstream, and exports a hardware platform XSA. These scripts do not create a
-complete bootable KV260 image or prove on-board behavior.
+complete bootable KV260 image. Physical DMA/JPEG behavior is covered by the
+XSDB lab runner below or by a Linux DMA backend.
 
 See `docs/kv260-bringup.md` for the end-to-end evidence checklist before calling
 the hardware path complete.
@@ -417,6 +419,20 @@ python3 scripts/host/hjpeg_host.py run-stream-devices \
   --json
 python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg --width 640 --height 480
 ```
+
+When a board has initialized PS clocks and DDR but its Linux image does not
+expose DMA devices, the intrusive XSDB lab runner programs the PL, stops A53 #0,
+drives AXI DMA through JTAG, and captures the JPEG directly:
+
+```sh
+xsdb scripts/host/run_kv260_xsdb_dma.tcl \
+  build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit \
+  input.rgb output.jpg 640 480 85 0 1 1
+```
+
+The final two arguments enable 4:2:0 and JFIF. The tracked block design uses a
+26-bit DMA length field so a packed 1920x1080 frame (8,294,400 bytes) transfers
+in one MM2S transaction and TLAST coincides with the frame boundary.
 
 `make-test-ppm` writes a deterministic non-flat binary P6 PPM pattern for
 repeatable board bring-up. `pack-ppm` accepts binary P6 PPM and writes one

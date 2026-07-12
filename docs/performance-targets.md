@@ -141,13 +141,24 @@ complete in 56,763 cycles, or 28,381.5 cycles/frame, and accept input at 1.594
 cycles/pixel. Both 22,882-byte JPEGs decode independently, and the inter-frame
 MCU transition is 105 cycles. The finite capture still averages 1.732 total
 cycles per pixel from first input through second output; header and final-tail
-costs are not a direct 1080p estimate. Board/DMA measurement remains required
-for the 1080p30 claim.
+costs are not a direct 1080p estimate. A physical full-HD DMA run now proves
+frame transport and decoding, but precise board cycles remain required for the
+1080p30 claim.
 
 The exact same-config-overlap RTL passes the complete routed Vivado evidence
-gate at 100 MHz with setup WNS `+0.227 ns` and hold WHS `+0.010 ns`. It uses
-35,440 CLB LUTs (30.26%), 54,493 registers (23.26%), 76 BRAM tiles (52.78%),
-127 DSPs (10.18%), and 8,201 physical CLBs (56.02%).
+gate at 100 MHz with setup WNS `+0.106 ns` and hold WHS `+0.011 ns`. The
+26-bit AXI DMA length configuration allows one packed 1920x1080 frame per MM2S
+transaction. The routed design uses 35,583 CLB LUTs (30.38%), 54,686 registers
+(23.35%), 76 BRAM tiles (52.78%), 127 DSPs (10.18%), and 8,052 physical CLBs
+(55.00%).
+
+A physical KV260 revB run transferred all 8,294,400 bytes of a deterministic
+1920x1080 quality-85 4:2:0 frame and captured a 151,020-byte decoder-valid JPEG.
+Both DMA channels ended IOC/idle, encoder status returned to zero, and FFmpeg
+decoded the 8,160-MCU image at the expected dimensions. The XSDB-polled interval
+was 47.490 ms, but a 17x13 run observes about 31 ms through the same debugger
+poll loop. This fixed debugger overhead makes the interval useful as completion
+evidence, not as a defensible FPS measurement.
 
 Using only the new MCU regression ceilings gives optimistic 1080p throughput
 ceilings of roughly 30.9 fps for 4:4:4 and 45.4 fps for 4:2:0 at 100 MHz.
@@ -229,8 +240,9 @@ Performance claims must identify their evidence level:
    stated ready/valid pattern.
 2. **Vivado construction:** post-implementation timing and utilization for the
    exact RTL revision and target clock.
-3. **Board measurement:** host-observed bytes, elapsed time, frames per second,
-   protocol status, and decoder validation from a physical KV260 run.
+3. **Board measurement:** hardware-observed cycles or low-overhead host elapsed
+   time, bytes, frames per second, protocol status, and decoder validation from
+   a physical KV260 run. Debugger-polled time must be identified separately.
 
 Simulation extrapolation cannot prove clock closure or physical throughput.
 Vivado reports cannot prove DMA behavior or decoder-valid hardware output.
@@ -242,9 +254,10 @@ packer input/output overlap, two-slot raster collection, and bounded
 same-config frame overlap are complete. Current high-entropy and large-frame
 traces no longer justify additional raster depth. Next work should prioritize:
 
-1. physical KV260 DMA measurement with decoder-validated 1080p frames;
+1. precise on-device or RTL cycle measurement for decoder-validated 1080p in
+   both 4:4:4 and 4:2:0;
 2. broader large-content traces only for a concrete unresolved hypothesis; and
-3. additional buffering only if board or broader large-content evidence shows
+3. additional buffering only if precise board or broader content evidence shows
    a sustained mismatch.
 
 Each optimization must retain the stage-level coefficient fixtures, complete

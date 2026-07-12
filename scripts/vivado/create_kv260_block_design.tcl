@@ -96,10 +96,13 @@ create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:* reset_pl0
 set_property -dict [list CONFIG.C_EXT_RESET_HIGH {0}] [get_bd_cells reset_pl0]
 
 create_bd_cell -type ip -vlnv xilinx.com:ip:axi_dma:* axi_dma_0
+# 26 bits covers one packed 1920x1080 RGB frame (8,294,400 bytes) in a
+# single MM2S transaction, so DMA emits TLAST only at the frame boundary.
 set_property -dict [list \
   CONFIG.c_include_sg {0} \
   CONFIG.c_include_mm2s {1} \
   CONFIG.c_include_s2mm {1} \
+  CONFIG.c_sg_length_width {26} \
   CONFIG.c_m_axis_mm2s_tdata_width {32} \
   CONFIG.c_s_axis_s2mm_tdata_width {8} \
 ] [get_bd_cells axi_dma_0]

@@ -435,14 +435,41 @@ reuse one snapshot.
 - The bounded count mirrors physical capacity and cannot hide a sustained
   mismatch behind an arbitrary logical FIFO. A configuration change may
   intentionally introduce a drain bubble.
-- Exact-current implementation closes 100 MHz at setup WNS `+0.227 ns` and
-  hold WHS `+0.010 ns`. It uses 35,440 CLB LUTs, 54,493 registers, 76 BRAM
-  tiles, 127 DSPs, and 56.02% physical CLBs; the complete twelve-record gate
+- Exact-current implementation closes 100 MHz at setup WNS `+0.106 ns` and
+  hold WHS `+0.011 ns`. It uses 35,583 CLB LUTs, 54,686 registers, 76 BRAM
+  tiles, 127 DSPs, and 55.00% physical CLBs; the complete twelve-record gate
   passes with zero route errors.
 
 **Revisit when:** The host requires mixed-configuration frames without drain
 gaps. That requires per-frame config metadata through raster and encoder
 boundaries, not a wider unqualified admission rule.
+
+## Size AXI DMA for a complete maximum frame
+
+**Status:** Accepted
+
+**Decision:** Configure AXI DMA with a 26-bit buffer-length field and keep each
+packed input frame in one MM2S simple-mode transaction. Provide an intrusive
+XSDB/JTAG runner as a physical-validation fallback when Linux does not expose
+usable DMA endpoints.
+
+**Context:** Vivado's 14-bit default accepts the small smoke fixtures but cannot
+represent a packed 1920x1080 RGB frame (8,294,400 bytes). Splitting one frame
+into multiple simple-mode MM2S transfers would assert TLAST at every segment
+boundary and deliberately trigger the encoder's frame protocol checks.
+
+**Consequences:**
+
+- `c_sg_length_width=26` represents both maximum input and bounded JPEG receive
+  buffers while preserving a single frame-ending TLAST.
+- A physical KV260 run retained the full 8,294,400-byte MM2S length and captured
+  a decoder-valid 151,020-byte 1920x1080 JPEG.
+- The XSDB runner stops A53 #0 and assumes PS clocks/DDR were initialized. It is
+  a deterministic lab backend, not a production driver or precise performance
+  timer.
+
+**Revisit when:** A production driver uses scatter/gather descriptors or a wider
+frame limit requires more than 26 length bits.
 
 ## Generate header bytes with a multi-cycle state machine
 

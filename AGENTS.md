@@ -44,8 +44,8 @@ run while the bit packer emits a byte. The raster stores use two ping-pong
 slots in banked synchronous block RAM, so collection of the next stripe or band
 overlaps processing of the current one. 4:4:4 loads eight samples per cycle,
 while 4:2:0 loads four luma samples or one 2x2 chroma footprint per cycle.
-Current Vivado implementation closes 100 MHz timing at setup WNS `+0.227 ns`
-and hold WHS `+0.010 ns`, uses 56.02% of CLBs and 52.78% of BRAM tiles, and
+Current Vivado implementation closes 100 MHz timing at setup WNS `+0.106 ns`
+and hold WHS `+0.011 ns`, uses 55.00% of CLBs and 52.78% of BRAM tiles, and
 passes the provisional resource target. Current
 high-entropy traces no longer show sustained entropy backpressure. A 256x64
 seeded-random quality-90 4:4:4 trace accepts input at 1.522 cycles/pixel; a
@@ -64,10 +64,12 @@ error.
 `HjpegKv260Top` is a direct-config KV260-oriented elaboration target.
 `HjpegKv260AxiLiteTop` adds AXI-Lite control/status registers around the same
 AXI-stream RGB/JPEG datapath. Its write address/data channels are independently
-handshaked and writable registers honor byte strobes. Neither is a finished
-Vivado block design; board
-clocking, reset synchronization, DMA connection, interrupts, IP packaging, and
-hardware validation still need platform work.
+handshaked and writable registers honor byte strobes. The tracked Vivado flow
+packages this top and builds a routed KV260 PS/AXI DMA/SmartConnect design. AXI
+DMA uses a 26-bit length field so a packed 1920x1080 frame fits in one MM2S
+transaction. A physical KV260 has produced decoder-valid 17x13 and 1920x1080
+JPEGs through this DMA path. A production Linux driver/image integration and
+precise 1080p30 measurement remain platform work.
 
 The AXI-stream wrapper snapshots `FrameConfig` on the first accepted input pixel
 and holds it until all JPEGs using that snapshot complete. Frames whose entire
@@ -190,7 +192,8 @@ SmartConnect, reset, and interrupt plumbing in one reproducible TCL entry point.
 The bitstream script should run synthesis/implementation, write timing and
 utilization reports, copy the `.bit`, and export an XSA with the bitstream
 included. The scripts prove project/IP/bitstream construction only when Vivado
-runs; they do not prove hardware behavior on a KV260 board.
+runs; physical behavior must be established separately. Current physical
+evidence and hashes are recorded in `docs/kv260-bringup.md`.
 Use `scripts/vivado/check_reports.py` to gate generated timing/utilization
 reports, and run `python3 scripts/vivado/check_reports_test.py` after changing
 the parser.
@@ -210,6 +213,9 @@ validates JPEG output dimensions, and has a `run-stream-devices` command for
 Linux board images that expose AXI DMA MM2S/S2MM endpoints as byte-stream device
 files. Drivers that use ioctls or descriptor queues should reuse the same
 packing/register/validation helpers and add a separate backend.
+`run_kv260_xsdb_dma.tcl` is the intrusive JTAG lab backend when PS clocks/DDR
+are initialized but Linux DMA endpoints are unavailable. It stops A53 #0, so
+do not use it as a production coexistence path or a precise elapsed-time timer.
 
 For new encoder stages, add focused tests before frame-level tests. Good early
 fixtures are all-zero blocks, constant-color 8x8 images, one nonzero AC

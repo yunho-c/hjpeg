@@ -27,6 +27,7 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
     val blockDesign = read("scripts/vivado/create_kv260_block_design.tcl")
     val bitstream = read("scripts/vivado/build_kv260_bitstream.tcl")
     val floorplan = read("scripts/vivado/write_kv260_floorplan_report.tcl")
+    val xsdbDma = read("scripts/host/run_kv260_xsdb_dma.tcl")
 
     for (script <- Seq(synth, packageIp)) {
       script must include("HjpegKv260AxiLiteTop")
@@ -103,6 +104,7 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
     blockDesign must include("CONFIG.C_EXT_RESET_HIGH {0}")
     blockDesign must include("xilinx.com:ip:xlconcat")
     blockDesign must include("user.org:user:hjpeg_kv260_axi_lite:1.0")
+    blockDesign must include("CONFIG.c_sg_length_width {26}")
     blockDesign must include("CONFIG.c_m_axis_mm2s_tdata_width {32}")
     blockDesign must include("CONFIG.c_s_axis_s2mm_tdata_width {8}")
     blockDesign must include("hjpeg_0/s_axis_rgb")
@@ -118,6 +120,13 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
     blockDesign must include("write_address_map_report")
     blockDesign must include("get_bd_addr_segs -of_objects $ps_data_space")
     blockDesign must include("hjpeg_kv260_address_map.rpt")
+
+    xsdbDma must include("packed RGB byte length $input_bytes does not match width*height*4")
+    xsdbDma must include("packed RGB input exceeds the AXI DMA 26-bit length field")
+    xsdbDma must include("mwr [expr {$dma_base + 0x58}] $output_capacity")
+    xsdbDma must include("mwr [expr {$dma_base + 0x28}] $input_bytes")
+    xsdbDma must include("if {$mm2s_length != $input_bytes}")
+    xsdbDma must include("if {$s2mm_length <= 0 || $s2mm_length >= $output_capacity}")
     blockDesign must include("validate_bd_design")
     blockDesign must include("save_bd_design")
     blockDesign must include("make_wrapper")

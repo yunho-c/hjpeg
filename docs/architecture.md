@@ -190,7 +190,9 @@ elaborated RTL to a KV260 bitstream:
 - `package_kv260_axi_lite_ip.tcl` packages explicit clock, reset, AXI-Lite, and
   AXI-stream interfaces as reusable IP.
 - `create_kv260_block_design.tcl` connects the encoder to the Zynq UltraScale+
-  PS, AXI DMA, SmartConnect, reset, and interrupt infrastructure.
+  PS, AXI DMA, SmartConnect, reset, and interrupt infrastructure. The DMA uses
+  a 26-bit buffer-length field so a packed 1920x1080 input fits in one MM2S
+  transaction and produces exactly one frame-ending TLAST.
 - `build_kv260_bitstream.tcl` runs implementation, writes the bitstream and
   reports, and exports an XSA.
 - `write_kv260_floorplan_report.tcl` regenerates floorplan evidence from an
@@ -224,6 +226,13 @@ that expose MM2S and S2MM as byte-stream device files. Drivers based on ioctls
 or descriptor queues should add a separate transport backend while reusing the
 packing, register, JPEG validation, and evidence helpers.
 
+`scripts/host/run_kv260_xsdb_dma.tcl` is the intrusive lab backend for boards
+without those Linux devices. After PS clocks and DDR are initialized, it stops
+A53 #0, programs the PL, loads packed RGB into DDR, drives AXI-Lite and simple
+DMA registers through JTAG, and reads exactly the S2MM-reported JPEG bytes back.
+It is useful for deterministic physical validation, but debugger polling is not
+a precise performance timer.
+
 Hardware evidence connects four boundaries: the source PPM and packed RGB
 stream, the requested encoder configuration, AXI-Lite status observations, and
 the captured JPEG plus external-decoder result. The checker hashes artifacts,
@@ -241,4 +250,6 @@ Simulation establishes stage behavior and complete JPEG generation in the RTL
 model. Vivado establishes that the design can be packaged, placed, routed, and
 timed for the target part. Completion additionally requires a physical KV260
 run that transfers a known image through DMA, captures the encoder's bytes, and
-opens the result with an ordinary JPEG decoder.
+opens the result with an ordinary JPEG decoder. The 2026-07-12 KV260 evidence
+meets this functional boundary for both a small padded/restart frame and a
+1920x1080 4:2:0 frame. Precise 1080p30 measurement remains a performance gate.

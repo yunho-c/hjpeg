@@ -17,8 +17,8 @@ JPEG that standard software can decode and validate.
 
 ## Current Status
 
-The project is past scaffolding. It is a working simulated RTL prototype with
-KV260 integration collateral, but it is not hardware-complete yet.
+The project is past scaffolding. It is a working RTL encoder with current
+Vivado construction evidence and decoder-valid physical KV260 DMA evidence.
 
 Implemented and tested in simulation:
 
@@ -59,19 +59,25 @@ Current four-lane construction evidence includes IP packaging, block-design
 validation, implementation, bitstream/XSA export, and all twelve required
 evidence records. Raster stripe/band storage uses two ping-pong slots with
 banked synchronous reads and infers block RAM; entropy scanning examines four
-coefficients per cycle. Timing closes at setup WNS `+0.227 ns` and hold WHS
-`+0.010 ns`; DRC and route-status reports pass with zero routing errors. The
-build uses 30.26% CLB LUTs, 1.17% LUTRAM,
-23.26% registers, 52.78% BRAM, and 10.18% DSPs. Physical CLB occupancy is
-56.02%, so the complete evidence set passes both the default checker and the
+coefficients per cycle. The AXI DMA uses a 26-bit length field so one packed
+1920x1080 frame fits in a single MM2S transfer. Timing closes at setup WNS
+`+0.106 ns` and hold WHS `+0.011 ns`; DRC and route-status reports pass with
+zero routing errors. The build uses 30.38% CLB LUTs, 1.20% LUTRAM,
+23.35% registers, 52.78% BRAM, and 10.18% DSPs. Physical CLB occupancy is
+55.00%, so the complete evidence set passes both the default checker and the
 provisional 70% project ceiling.
+
+Physical KV260 evidence now includes a byte-identical 17x13 padded/restart smoke
+frame and a deterministic non-flat 1920x1080 quality-85 4:2:0 frame. The latter
+transferred 8,294,400 RGB bytes in one MM2S transaction and captured a
+151,020-byte JPEG that FFmpeg decoded at 1920x1080. Both DMA channels ended
+IOC/idle and encoder status returned to zero.
 
 Not yet proven:
 
-- Programming a real KV260 and moving pixels through AXI DMA.
-- A hardware-produced JPEG captured from the board and validated with standard
-  software.
-- Meeting the provisional 1080p30 performance/resource target at 100 MHz.
+- Meeting the provisional 1080p30 target in both 4:4:4 and 4:2:0 at 100 MHz.
+  XSDB observed 47.490 ms for the 1080p run, but its polling path adds roughly
+  31 ms even to a 17x13 frame, so a hardware/low-overhead timer is still needed.
 
 ## Immediate Continuation Brief: Performance Architecture Sprint
 
@@ -185,7 +191,8 @@ raster slot.
 
 Recommended next sprint, in order:
 
-1. Move to physical KV260 DMA and decoder-validated 1080p measurement.
+1. Add a debugger-independent hardware cycle measurement and measure 1080p in
+   both chroma modes.
 2. Expand large-content traces only for a concrete unresolved hypothesis.
 3. Add buffering only if board or broader large-content evidence demonstrates
    a sustained mismatch.
@@ -553,7 +560,7 @@ are 100/270 cycles (observed 99/267 after slot ownership handoff), and the frame
 fixture is 2,020 cycles. The transform, isolated loaders, measured high-entropy
 scanner rate, and stripe/band transition gaps meet their mode budgets. See
 `docs/performance-targets.md`. Current Vivado evidence closes 100 MHz timing and
-passes the resource target at 56.02% CLB and 52.78% BRAM occupancy.
+passes the resource target at 55.00% CLB and 52.78% BRAM occupancy.
 
 `JpegHeaderStage` was also changed from a one-byte-per-cycle combinational
 header mux into a small byte-generation FSM. Static marker bytes still emit in
@@ -713,8 +720,8 @@ meaningless gate values.
 
 The current checkout has fresh full Vivado construction evidence for the
 four-lane RTL. It proves that the design packages, routes, closes 100 MHz timing,
-emits a bitstream/XSA, and passes the resource gate at 56.02% routed CLB
-occupancy. It does not prove board behavior.
+emits a bitstream/XSA, and passes the resource gate at 55.00% routed CLB
+occupancy. The physical evidence below separately proves board behavior.
 
 The 2026-07-11 software baseline is green. Current RTL validation used the
 pinned Docker JDK 21/sbt/Verilator toolchain on Windows:
@@ -828,12 +835,20 @@ Known local limitations:
 - Current two-slot banked-block-RAM, four-lane transform, and four-coefficient
   entropy Vivado construction emits the bitstream, XSA, and
   post-implementation checkpoint. Post-synthesis setup WNS is `+1.291 ns`;
-  post-implementation setup WNS is `+0.227 ns` and hold WHS is `+0.010 ns`.
-  Post-implementation utilization is 35,440 CLB LUTs (30.26%), 675 LUTRAMs
-  (1.17%), 54,493 registers (23.26%), 76 BRAM tiles (52.78%), 127 DSPs
-  (10.18%), and 8,201 CLBs (56.02%). The floorplan report records 107,010
+  post-implementation setup WNS is `+0.106 ns` and hold WHS is `+0.011 ns`.
+  Post-implementation utilization is 35,583 CLB LUTs (30.38%), 690 LUTRAMs
+  (1.20%), 54,686 registers (23.35%), 76 BRAM tiles (52.78%), 127 DSPs
+  (10.18%), and 8,052 CLBs (55.00%). The floorplan report records 107,385
   placed primitive cells. The complete
   twelve-record checker passes at its default ceiling.
+- Physical KV260 revB XSDB runs program bitstream SHA-256
+  `127e2f5fe19d0b0b9b37322d398d2e7e148f93d4fef5cd0f35386ed1bed72fb8`.
+  The 17x13 restart/padding run produces the expected 738-byte JPEG hash. The
+  1920x1080 quality-85 4:2:0 run transmits 8,294,400 bytes in one MM2S
+  transaction, captures a 151,020-byte JPEG with SHA-256
+  `be9217b91465ccad42822d8eb87cb0f278a3f9f0182ac32e1d44129a1d50f461`,
+  ends both DMA channels at `0x00001002`, returns encoder status zero, and
+  decodes with FFmpeg at 1920x1080 `yuvj420p`.
 
 On a new machine, run these first:
 
@@ -874,7 +889,7 @@ Vivado scripts consume:
 generated-kv260-axi-lite-top/filelist.f
 ```
 
-## Vivado Flow To Prove Next
+## Verified Vivado Flow
 
 If Vivado is available, prioritize this sequence:
 
@@ -904,11 +919,11 @@ python3 scripts/vivado/check_reports.py \
 
 Expected evidence is listed in `docs/kv260-bringup.md`.
 
-Important: passing these Vivado commands proves the tool flow and bitstream
-build, not board behavior. Board behavior still requires programming a KV260
-and capturing output from the DMA path.
+Passing these Vivado commands proves the tool flow and bitstream build. The
+2026-07-12 physical XSDB runs separately prove DMA and JPEG behavior for the
+same bitstream hash; see `docs/kv260-bringup.md` for the exact record.
 
-## KV260 Hardware Flow To Prove
+## KV260 Hardware Flow
 
 After bitstream/XSA generation, program the board and use a Linux image or
 driver stack that exposes the AXI-Lite aperture and AXI DMA channels.
@@ -951,6 +966,19 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
   --expect-jfif present \
   --json
 ```
+
+If the board image has initialized clocks and DDR but exposes no DMA device,
+use the tracked intrusive JTAG runner instead:
+
+```sh
+xsdb scripts/host/run_kv260_xsdb_dma.tcl \
+  build/vivado/hjpeg-kv260-artifacts/hjpeg_kv260.bit \
+  input.rgb output.jpg WIDTH HEIGHT QUALITY RESTART_INTERVAL 1 1
+```
+
+This is the path used for the passing 17x13 and 1920x1080 runs. It stops A53 #0
+and is not a production Linux backend. The 26-bit DMA length field is required
+for the 8,294,400-byte full-HD RGB transaction.
 
 The device paths and base address may need adjustment for the actual board
 image. If the DMA driver exposes ioctls or descriptor queues instead of simple
@@ -1156,10 +1184,9 @@ object-shaped transcript.
 
 ## Known Blockers And Bottlenecks
 
-- KV260 hardware access was unavailable. This blocks final completion.
-- KV260 board execution is not proven. The Vivado flow now builds a bitstream
-  and XSA and passes post-synthesis/post-implementation report gates, but no
-  transfer has been run through AXI DMA on real hardware.
+- Functional KV260 execution is proven. The remaining board-level uncertainty
+  is precise 1080p throughput: XSDB polling contributes about 31 ms even to a
+  17x13 transfer, so its 47.490 ms full-HD observation cannot establish FPS.
 - Chisel/Verilator frame-level tests are not instant. A focused AXI wrapper
   frame-level spec recently took about 76 seconds.
 - On Windows, avoid running multiple sbt commands in parallel; the launcher can
@@ -1219,21 +1246,22 @@ If the new PC has Vivado:
    timing/utilization/DRC, route-status, clock-utilization, floorplan report paths,
    `--hold-timing` for post-implementation timing, `--require-complete-evidence`,
    and `--json`.
-7. Save the report/artifact JSON evidence, then move to KV260 board validation.
+7. Save the report/artifact JSON evidence and compare it with the current
+   physical bitstream hash before reusing board evidence.
 
 If the new PC has KV260 access too:
 
 1. Use the bitstream/XSA from the Vivado flow.
 2. Confirm the AXI-Lite base address from the Vivado address-map report and the
    DMA device model.
-3. Run a small PPM through `hjpeg_host.py` using the JSON evidence options.
-4. Validate the captured JPEG with `--json`, marker/chroma/JFIF/restart
-   expectations, a standard decoder command, and a decoder timeout.
-5. Use `run-stream-devices --require-complete-evidence` for the final board
-   run transcript.
-6. Run `check-run-evidence` on the saved run JSON.
-7. Save the command JSON records and enough output evidence to update
-   `docs/kv260-bringup.md`.
+3. Use `run_kv260_xsdb_dma.tcl` for direct JTAG validation or the Linux stream
+   backend when its DMA endpoints exist.
+4. Measure 1920x1080 in both chroma modes with a debugger-independent hardware
+   counter or low-overhead on-device timer.
+5. Validate each captured JPEG with strict marker/table settings and an
+   ordinary decoder; preserve hashes and protocol/DMA status.
+6. Use `run-stream-devices --require-complete-evidence` and
+   `check-run-evidence` when the Linux device backend is available.
 
 If the new PC does not have Vivado or hardware:
 
