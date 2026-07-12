@@ -43,9 +43,10 @@ reporting.
 The active core now uses `JpegUnifiedRasterToMcuStage`: one two-slot 16-row
 banked store and one transform serve both chroma modes. It emits two ordered
 8-row stripes for 4:4:4 or one 16-row band for 4:2:0. UHD post-synthesis BRAM
-fell from 144/144 tiles to 97/144 and DSP use from 127 to 64. Four-pixel ingress,
-parallel transforms/entropy, 150 MHz routed closure, and physical 4K60 evidence
-remain required.
+fell from 144/144 tiles to 97/144. The UHD top accepts four adjacent pixels per
+128-bit DMA beat, uses 76 DSPs, and retains 97 BRAM tiles; its post-synthesis
+WNS is `+1.103 ns` at 100 MHz. Parallel transforms/entropy, 150 MHz routed
+closure, and physical 4K60 evidence remain required.
 
 The active `JpegBlockTransformStage` uses bit-exact four-lane DCT and quantizer
 stages. Both sustain a 16-cycle block interval in deterministic simulation; the
@@ -66,14 +67,14 @@ seeded-random quality-90 4:4:4 trace accepts input at 1.522 cycles/pixel; a
 two-frame trace with the same configuration accepts at 1.594 cycles/pixel,
 both within the 1.61-cycle/pixel budget.
 
-`HjpegAxiStreamCore` is the current hardware-facing shell. It accepts raster RGB
-AXI4-Stream-shaped words, generates pixel coordinates, forwards bytes from
-`HjpegCore`, and checks that input `last` matches the configured frame size.
-The internal `HjpegAxiStreamCore` input packs R in bits `[7:0]`, G in
-`[15:8]`, and B in `[23:16]`, with `keep = 0b111`. The KV260 top-level wrappers
-expose a DMA-compatible 32-bit RGB input; the low three bytes carry R/G/B, the
-high byte is ignored, and incomplete low RGB bytes raise the sticky protocol
-error.
+`HjpegAxiStreamCore` is the current hardware-facing shell. It accepts one to
+four raster RGB pixels per AXI4-Stream-shaped beat, generates lane coordinates,
+forwards bytes from `HjpegGroupedCore`, and checks that input `last` matches the
+configured frame size. Each internal 24-bit lane packs R in bits `[7:0]`, G in
+`[15:8]`, and B in `[23:16]`. Default KV260 tops expose one 32-bit pixel word;
+the UHD elaboration exposes four words in a 128-bit beat. Each word's low three
+bytes carry R/G/B, the high byte is ignored, and incomplete RGB bytes raise the
+sticky protocol error.
 
 `HjpegKv260Top` is a direct-config KV260-oriented elaboration target.
 `HjpegKv260AxiLiteTop` adds AXI-Lite control/status registers around the same

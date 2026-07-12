@@ -40,9 +40,13 @@ object HjpegAxiLiteRegisters {
   *   0x1c last completed frame latency in PL cycles, bits 63:32
   *   0x20 completed output frame count
   */
-class HjpegKv260AxiLiteTop(c: HjpegConfig = HjpegConfig(), axiLiteAddrBits: Int = 12) extends Module {
-  val pixelDataBits = c.pixelBits * HjpegConstants.Components
-  val dmaInputDataBits = 32
+class HjpegKv260AxiLiteTop(
+    c: HjpegConfig = HjpegConfig(),
+    axiLiteAddrBits: Int = 12,
+    inputPixelsPerBeat: Int = 1)
+    extends Module {
+  require(inputPixelsPerBeat > 0 && inputPixelsPerBeat <= 4, "KV260 input supports one to four pixels per beat")
+  val dmaInputDataBits = 32 * inputPixelsPerBeat
 
   val io = IO(new Bundle {
     val sAxiLite = new AxiLiteSlave(axiLiteAddrBits, 32)
@@ -62,7 +66,7 @@ class HjpegKv260AxiLiteTop(c: HjpegConfig = HjpegConfig(), axiLiteAddrBits: Int 
 
   clearProtocolErrorPulse := false.B
 
-  val core = Module(new HjpegAxiStreamCore(c))
+  val core = Module(new HjpegAxiStreamCore(c, pixelsPerBeat = inputPixelsPerBeat))
   core.io.config.xsize := xsize
   core.io.config.ysize := ysize
   core.io.config.quality := quality
@@ -72,8 +76,12 @@ class HjpegKv260AxiLiteTop(c: HjpegConfig = HjpegConfig(), axiLiteAddrBits: Int 
   core.io.clearProtocolError := clearProtocolErrorPulse
   core.io.input.valid := io.sAxisRgb.valid
   io.sAxisRgb.ready := core.io.input.ready
-  core.io.input.bits.data := io.sAxisRgb.bits.data(pixelDataBits - 1, 0)
-  core.io.input.bits.keep := io.sAxisRgb.bits.keep((pixelDataBits / 8) - 1, 0)
+  core.io.input.bits.data := Cat((0 until inputPixelsPerBeat).reverse.map { lane =>
+    io.sAxisRgb.bits.data((lane * 32) + 23, lane * 32)
+  })
+  core.io.input.bits.keep := Cat((0 until inputPixelsPerBeat).reverse.map { lane =>
+    io.sAxisRgb.bits.keep((lane * 4) + 2, lane * 4)
+  })
   core.io.input.bits.last := io.sAxisRgb.bits.last
   io.mAxisJpeg <> core.io.output
   io.busy := core.io.busy

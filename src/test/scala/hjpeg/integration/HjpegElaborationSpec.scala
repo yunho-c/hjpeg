@@ -37,6 +37,7 @@ class HjpegElaborationSpec extends AnyFreeSpec with Matchers {
     ChiselStage.emitSystemVerilog(new QuantizeBlockStage()) must include("module QuantizeBlockStage")
     ChiselStage.emitSystemVerilog(new PipelinedQuantizeBlockStage()) must include("module PipelinedQuantizeBlockStage")
     ChiselStage.emitSystemVerilog(new ZigZagBlockStage()) must include("module ZigZagBlockStage")
+    ChiselStage.emitSystemVerilog(new HjpegGroupedCore(inputLanes = 4)) must include("module HjpegGroupedCore")
     ChiselStage.emitSystemVerilog(new HjpegCore()) must include("module HjpegCore")
     ChiselStage.emitSystemVerilog(new HjpegAxiStreamCore()) must include("module HjpegAxiStreamCore")
     ChiselStage.emitSystemVerilog(new HjpegKv260Top()) must include("module HjpegKv260Top")
@@ -59,7 +60,8 @@ class HjpegElaborationSpec extends AnyFreeSpec with Matchers {
 
     listedFiles must contain("HjpegKv260AxiLiteTop.sv")
     listedFiles must contain("HjpegAxiStreamCore.sv")
-    listedFiles must contain("HjpegCore.sv")
+    listedFiles must contain("HjpegGroupedCore.sv")
+    listedFiles must not contain ("HjpegCore.sv")
     listedFiles must contain("mem_7680x9.sv")
     listedFiles must not contain ("mem_3840x9.sv")
     listedFiles must not contain ("mem_1920x9.sv")
@@ -80,7 +82,7 @@ class HjpegElaborationSpec extends AnyFreeSpec with Matchers {
 
     val targetDir = Files.createTempDirectory("hjpeg-kv260-4k60-axi-lite-elab-")
     HjpegElaboration.emitSystemVerilogFile(
-      new HjpegKv260AxiLiteTop(HjpegTargetConfigs.Kv260Uhd4k),
+      new HjpegKv260AxiLiteTop(HjpegTargetConfigs.Kv260Uhd4k, inputPixelsPerBeat = 4),
       targetDir.toString)
 
     val listedFiles = Files
@@ -91,9 +93,14 @@ class HjpegElaborationSpec extends AnyFreeSpec with Matchers {
       .toSeq
 
     listedFiles must contain("mem_15360x9.sv")
+    listedFiles must contain("HjpegGroupedCore.sv")
     listedFiles must not contain ("mem_7680x9.sv")
     listedFiles must not contain ("mem_3840x9.sv")
     listedFiles must not contain ("mem_30720x9.sv")
     listedFiles.last mustBe "HjpegKv260AxiLiteTop.sv"
+
+    val topSystemVerilog = Files.readString(targetDir.resolve("HjpegKv260AxiLiteTop.sv"))
+    topSystemVerilog must include("input  [127:0] io_sAxisRgb_bits_data")
+    topSystemVerilog must include("input  [15:0]  io_sAxisRgb_bits_keep")
   }
 }

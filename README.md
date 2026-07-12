@@ -57,13 +57,16 @@ The KV260-oriented wrappers are:
 - `HjpegKv260AxiLiteTop`: AXI-Lite control/status plus AXI-stream RGB/JPEG
   ports for easier IP packaging
 
-`HjpegAxiStreamCore` uses a 24-bit internal RGB stream with R, G, and B in the
-low three bytes and requires `keep = 0b111`. The KV260 wrappers expose a
-DMA-compatible 32-bit RGB input stream: bytes 0, 1, and 2 are R, G, and B, byte
-3 is ignored, and the low three `keep` bits must be set for every pixel. The
-fourth `keep` bit may be clear, but any missing lower RGB byte is a malformed
-input word. A partial input word is accepted to avoid wedging the stream, raises
-the sticky protocol-error flag, and is not fed into the JPEG core.
+`HjpegAxiStreamCore` supports one to four packed 24-bit RGB lanes, with R, G,
+and B in each lane's low-to-high bytes and all RGB `keep` bits required. The
+default KV260 wrappers expose one DMA-compatible 32-bit pixel word per beat:
+bytes 0, 1, and 2 are R, G, and B, byte 3 is ignored, and the low three `keep`
+bits must be set. The `4k60` UHD elaboration exposes four such pixel words in a
+128-bit beat; it accepts four horizontally adjacent pixels per cycle and
+requires frame widths divisible by four. Padding-byte `keep` bits may be clear,
+but any missing RGB byte is a malformed input word. A partial input word is
+accepted to avoid wedging the stream, raises the sticky protocol-error flag,
+and is not fed into the JPEG core.
 Frames that start with unsupported dimensions are discarded through input TLAST
 without entering the JPEG core, so clearing the error lets the next valid frame
 start cleanly. Frames with incomplete RGB words are also drained through TLAST
@@ -290,6 +293,10 @@ Create the first KV260 block-design project around the packaged IP:
 ```sh
 vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl
 ```
+
+The block-design script accepts optional `ip_repo_dir`, `project_dir`, and
+MM2S stream-width arguments. Pass `128` for the four-pixel UHD IP; the default
+is `32` for the scalar top.
 
 Build the block design through bitstream generation and export an XSA:
 

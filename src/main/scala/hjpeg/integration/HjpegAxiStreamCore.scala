@@ -5,7 +5,7 @@ package hjpeg
 import chisel3._
 import chisel3.util._
 
-/** AXI4-Stream-shaped shell around `HjpegCore`.
+/** AXI4-Stream-shaped shell around the grouped JPEG core.
   *
   * The input stream is raster RGB. Within `input.bits.data`, bits `[7:0]` are R,
   * `[15:8]` are G, and `[23:16]` are B. The wrapper generates the `x/y`
@@ -13,8 +13,10 @@ import chisel3.util._
   * configured frame dimensions. Frames may overlap only while every config
   * field matches the active snapshot.
   */
-class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
-  val pixelDataBits = c.pixelBits * HjpegConstants.Components
+class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig(), pixelsPerBeat: Int = 1) extends Module {
+  require(pixelsPerBeat > 0 && pixelsPerBeat <= 4, "AXI RGB input supports one to four pixels per beat")
+  val bitsPerPixel = c.pixelBits * HjpegConstants.Components
+  val pixelDataBits = bitsPerPixel * pixelsPerBeat
 
   val io = IO(new Bundle {
     val config = Input(new FrameConfig(c))
@@ -26,7 +28,7 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
   })
 
   val core = withReset(reset.asBool || io.clearProtocolError) {
-    Module(new HjpegCore(c))
+    Module(new HjpegGroupedCore(c, inputLanes = pixelsPerBeat))
   }
   core.io.clearProtocolError := io.clearProtocolError
 
@@ -56,11 +58,12 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
     io.config.xsize =/= 0.U &&
       io.config.ysize =/= 0.U &&
       io.config.xsize <= c.maxFrameWidth.U &&
-      io.config.ysize <= c.maxFrameHeight.U
+      io.config.ysize <= c.maxFrameHeight.U &&
+      io.config.xsize % pixelsPerBeat.U === 0.U
   val activeInputSupported = Mux(inputFrameActive, inputFrameSupported, inputConfigSupported)
   val lastX = Mux(activeInputWidth === 0.U, 0.U, activeInputWidth - 1.U)
   val lastY = Mux(activeInputHeight === 0.U, 0.U, activeInputHeight - 1.U)
-  val expectedLast = x === lastX && y === lastY
+  val expectedLast = x + (pixelsPerBeat - 1).U === lastX && y === lastY
   val lateInputLastMissing = activeInputSupported && expectedLast && !io.input.bits.last
   val inputFrameDone = io.input.bits.last
   val expectedKeep = Fill(pixelDataBits / 8, 1.U(1.W))
@@ -75,11 +78,16 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
 
   core.io.input.valid := io.input.valid && feedCoreInput && inputFrameCanAdvance
   io.input.ready := inputFrameCanAdvance && Mux(feedCoreInput, core.io.input.ready, true.B)
-  core.io.input.bits.x := x
-  core.io.input.bits.y := y
-  core.io.input.bits.r := io.input.bits.data(c.pixelBits - 1, 0)
-  core.io.input.bits.g := io.input.bits.data((2 * c.pixelBits) - 1, c.pixelBits)
-  core.io.input.bits.b := io.input.bits.data((3 * c.pixelBits) - 1, 2 * c.pixelBits)
+  for (lane <- 0 until pixelsPerBeat) {
+    val laneBase = lane * bitsPerPixel
+    core.io.input.bits.pixels(lane).x := x + lane.U
+    core.io.input.bits.pixels(lane).y := y
+    core.io.input.bits.pixels(lane).r := io.input.bits.data(laneBase + c.pixelBits - 1, laneBase)
+    core.io.input.bits.pixels(lane).g :=
+      io.input.bits.data(laneBase + (2 * c.pixelBits) - 1, laneBase + c.pixelBits)
+    core.io.input.bits.pixels(lane).b :=
+      io.input.bits.data(laneBase + (3 * c.pixelBits) - 1, laneBase + (2 * c.pixelBits))
+  }
 
   io.output.valid := core.io.output.valid
   core.io.output.ready := io.output.ready
@@ -124,11 +132,11 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
       y := 0.U
       inputFrameActive := false.B
       inputFrameSupported := false.B
-    }.elsewhen(activeInputSupported && x === lastX) {
+    }.elsewhen(activeInputSupported && x + pixelsPerBeat.U >= activeInputWidth) {
       x := 0.U
       y := y + 1.U
     }.elsewhen(activeInputSupported) {
-      x := x + 1.U
+      x := x + pixelsPerBeat.U
     }
   }
 

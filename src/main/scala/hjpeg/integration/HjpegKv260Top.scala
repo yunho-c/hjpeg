@@ -11,9 +11,9 @@ import chisel3.util._
   * block. Board-specific clocking, reset synchronization, DMA, and AXI-Lite
   * packaging should wrap this module outside the core encoder tree.
   */
-class HjpegKv260Top(c: HjpegConfig = HjpegConfig()) extends Module {
-  val pixelDataBits = c.pixelBits * HjpegConstants.Components
-  val dmaInputDataBits = 32
+class HjpegKv260Top(c: HjpegConfig = HjpegConfig(), inputPixelsPerBeat: Int = 1) extends Module {
+  require(inputPixelsPerBeat > 0 && inputPixelsPerBeat <= 4, "KV260 input supports one to four pixels per beat")
+  val dmaInputDataBits = 32 * inputPixelsPerBeat
 
   val io = IO(new Bundle {
     val config = Input(new FrameConfig(c))
@@ -24,13 +24,17 @@ class HjpegKv260Top(c: HjpegConfig = HjpegConfig()) extends Module {
     val protocolError = Output(Bool())
   })
 
-  val core = Module(new HjpegAxiStreamCore(c))
+  val core = Module(new HjpegAxiStreamCore(c, pixelsPerBeat = inputPixelsPerBeat))
   core.io.config := io.config
   core.io.clearProtocolError := io.clearProtocolError
   core.io.input.valid := io.sAxisRgb.valid
   io.sAxisRgb.ready := core.io.input.ready
-  core.io.input.bits.data := io.sAxisRgb.bits.data(pixelDataBits - 1, 0)
-  core.io.input.bits.keep := io.sAxisRgb.bits.keep((pixelDataBits / 8) - 1, 0)
+  core.io.input.bits.data := Cat((0 until inputPixelsPerBeat).reverse.map { lane =>
+    io.sAxisRgb.bits.data((lane * 32) + 23, lane * 32)
+  })
+  core.io.input.bits.keep := Cat((0 until inputPixelsPerBeat).reverse.map { lane =>
+    io.sAxisRgb.bits.keep((lane * 4) + 2, lane * 4)
+  })
   core.io.input.bits.last := io.sAxisRgb.bits.last
   io.mAxisJpeg <> core.io.output
   io.busy := core.io.busy

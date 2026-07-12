@@ -41,6 +41,6 @@ object ElaborateKv260AxiLiteTop extends App {
 
 object ElaborateKv2604k60AxiLiteTop extends App {
   HjpegElaboration.emitSystemVerilogFile(
-    new HjpegKv260AxiLiteTop(HjpegTargetConfigs.Kv260Uhd4k),
+    new HjpegKv260AxiLiteTop(HjpegTargetConfigs.Kv260Uhd4k, inputPixelsPerBeat = 4),
     "generated-kv260-4k60-axi-lite-top")
 }

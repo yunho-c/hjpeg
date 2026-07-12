@@ -69,10 +69,11 @@ private class HjpegPerformanceHarness(c: HjpegConfig = HjpegConfig()) extends Mo
     result
   }
 
-  private val transform = core.rasterToMcu.transform
+  private val groupedCore = core.grouped
+  private val transform = groupedCore.rasterToMcu.transform
 
-  io.performance.rasterPhase := BoringUtils.bore(core.rasterToMcu.state)
-  io.performance.encoderPhase := BoringUtils.bore(core.encoder.state)
+  io.performance.rasterPhase := BoringUtils.bore(groupedCore.rasterToMcu.state)
+  io.performance.encoderPhase := BoringUtils.bore(groupedCore.encoder.state)
 
   io.performance.transformInput := boreBoundary(transform.io.input.valid, transform.io.input.ready)
   io.performance.dctInput := boreBoundary(transform.dct.io.input.valid, transform.dct.io.input.ready)
@@ -83,17 +84,17 @@ private class HjpegPerformanceHarness(c: HjpegConfig = HjpegConfig()) extends Mo
   io.performance.zigZagOutput := boreBoundary(transform.zigZag.io.output.valid, transform.zigZag.io.output.ready)
   io.performance.transformOutput := boreBoundary(transform.io.output.valid, transform.io.output.ready)
   io.performance.mcuOutput := boreBoundary(
-    core.rasterToMcu.io.output.valid,
-    core.rasterToMcu.io.output.ready)
+    groupedCore.rasterToMcu.io.output.valid,
+    groupedCore.rasterToMcu.io.output.ready)
   io.performance.entropyBlockInput := boreBoundary(
-    core.encoder.blockEncoder.io.input.valid,
-    core.encoder.blockEncoder.io.input.ready)
+    groupedCore.encoder.blockEncoder.io.input.valid,
+    groupedCore.encoder.blockEncoder.io.input.ready)
   io.performance.entropyRunOutput := boreBoundary(
-    core.encoder.blockEncoder.io.output.valid,
-    core.encoder.blockEncoder.io.output.ready)
+    groupedCore.encoder.blockEncoder.io.output.valid,
+    groupedCore.encoder.blockEncoder.io.output.ready)
   io.performance.packerOutput := boreBoundary(
-    core.encoder.packer.io.output.valid,
-    core.encoder.packer.io.output.ready)
+    groupedCore.encoder.packer.io.output.valid,
+    groupedCore.encoder.packer.io.output.ready)
 
   // A single packed peek keeps large matrix captures practical on simulators
   // where each individual signal peek crosses a process/API boundary.

@@ -204,6 +204,70 @@ class HjpegAxiStreamCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
     }
   }
 
+  "HjpegAxiStreamCore should accept four packed RGB pixels per beat" in {
+    simulate(new HjpegAxiStreamCore(pixelsPerBeat = 4)) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      dut.io.clearProtocolError.poke(false.B)
+      dut.io.output.ready.poke(true.B)
+
+      val width = 12
+      val height = 10
+      for (subsample <- Seq(false, true)) {
+        pokeConfig(dut, width = width, height = height, subsample = subsample)
+        for (beat <- 0 until (width * height) / 4) {
+          val packedBeat = (0 until 4).foldLeft(BigInt(0)) { (data, lane) =>
+            val pixel = beat * 4 + lane
+            val x = pixel % width
+            val y = pixel / width
+            val r = (x * 19 + y * 3) & 0xff
+            val g = (x * 5 + y * 23) & 0xff
+            val b = (x * 11 + y * 7) & 0xff
+            data | ((BigInt(r) | (BigInt(g) << 8) | (BigInt(b) << 16)) << (lane * 24))
+          }
+          dut.io.input.valid.poke(true.B)
+          dut.io.input.bits.keep.poke(0xfff.U)
+          dut.io.input.bits.data.poke(packedBeat.U)
+          dut.io.input.bits.last.poke((beat == ((width * height) / 4) - 1).B)
+          dut.io.input.ready.expect(true.B)
+          dut.clock.step()
+        }
+        dut.io.input.valid.poke(false.B)
+
+        val bytes = collectFrame(dut, JpegHeaderBytes.MaxHeaderLength + 4096)
+        val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
+        image must not be null
+        image.getWidth mustBe width
+        image.getHeight mustBe height
+        dut.io.protocolError.expect(false.B)
+      }
+    }
+  }
+
+  "HjpegAxiStreamCore should reject widths that cannot fill a vector beat" in {
+    simulate(new HjpegAxiStreamCore(pixelsPerBeat = 4)) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      pokeConfig(dut, width = 10, height = 8)
+      dut.io.clearProtocolError.poke(false.B)
+      dut.io.output.ready.poke(true.B)
+      dut.io.input.valid.poke(true.B)
+      dut.io.input.bits.keep.poke(0xfff.U)
+      dut.io.input.bits.data.poke(0.U)
+      dut.io.input.bits.last.poke(true.B)
+      dut.io.input.ready.expect(true.B)
+      dut.clock.step()
+      dut.io.input.valid.poke(false.B)
+
+      dut.io.protocolError.expect(true.B)
+      dut.io.output.valid.expect(false.B)
+    }
+  }
+
   "HjpegAxiStreamCore should hold frame config stable after the first input beat" in {
     simulate(new HjpegAxiStreamCore()) { dut =>
       dut.reset.poke(true.B)

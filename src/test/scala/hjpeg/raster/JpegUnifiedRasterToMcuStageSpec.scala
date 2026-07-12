@@ -27,13 +27,13 @@ class JpegUnifiedRasterToMcuStageSpec extends AnyFreeSpec with Matchers with Chi
       dut: JpegUnifiedRasterToMcuStage,
       index: Int,
       width: Int,
-      gray: Int): Unit = {
+    gray: Int): Unit = {
     dut.io.input.valid.poke(true.B)
-    dut.io.input.bits.x.poke((index % width).U)
-    dut.io.input.bits.y.poke((index / width).U)
-    dut.io.input.bits.r.poke(gray.U)
-    dut.io.input.bits.g.poke(gray.U)
-    dut.io.input.bits.b.poke(gray.U)
+    dut.io.input.bits.pixels(0).x.poke((index % width).U)
+    dut.io.input.bits.pixels(0).y.poke((index / width).U)
+    dut.io.input.bits.pixels(0).r.poke(gray.U)
+    dut.io.input.bits.pixels(0).g.poke(gray.U)
+    dut.io.input.bits.pixels(0).b.poke(gray.U)
     dut.io.input.ready.expect(true.B)
     dut.clock.step()
   }

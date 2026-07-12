@@ -53,9 +53,9 @@ vivado -mode batch -source scripts/vivado/synth_kv260_axi_lite.tcl \
   build/vivado/hjpeg-kv260-4k60-unified
 ```
 
-`HjpegTargetConfigs.Kv260Uhd4k` sets maximum dimensions to 3840x2160. The
-generated top retains the existing AXI interfaces for baseline measurement; it
-does not yet provide multi-pixel ingress.
+`HjpegTargetConfigs.Kv260Uhd4k` sets maximum dimensions to 3840x2160. The UHD
+elaboration uses four RGB pixels per beat, giving it a 128-bit DMA input while
+the Full-HD/default elaborations retain their existing 32-bit input.
 
 The first unmodified dual-raster UHD synthesis proved the predicted memory
 blocker: 144/144 BRAM tiles (100%), 127 DSPs, 32,789 LUTs, 48,912 registers, and
@@ -96,24 +96,73 @@ measures 3,094 cycles for its 32x16 4:4:4 fixture and 2,526 cycles for 4:2:0;
 steady 4:4:4 MCU spacing is 139 cycles. These small-frame numbers diagnose the
 shared loader and are not a 4K60 extrapolation.
 
+## Four-Pixel Raster Ingress Slice
+
+`HjpegGroupedCore` and `HjpegAxiStreamCore` now accept one to four adjacent RGB
+pixels per beat. The UHD top selects four lanes. Each external 128-bit beat is
+four little-endian 32-bit pixel words: each word carries R/G/B in its low three
+bytes, its high byte is ignored, and its low three `TKEEP` bits must be set.
+The host's existing four-byte-per-pixel packed files therefore need no format
+conversion. Widths on the vector path must be divisible by four; malformed or
+unsupported frames retain the existing drain-to-TLAST recovery behavior.
+
+The shared raster store writes the four adjacent pixels to four distinct
+column banks in one cycle. Four independent fixed-point RGB-to-YCbCr converters
+feed those writes. Decoder-backed simulation covers non-MCU-aligned 12x10
+frames in both 4:4:4 and 4:2:0, so lane ordering and right/bottom edge padding
+are checked together.
+
+Exact UHD post-synthesis evidence for the 128-bit top at 100 MHz is:
+
+| Resource/timing | Unified scalar input | Unified four-pixel input | Change |
+| --- | ---: | ---: | ---: |
+| Logic LUTs | 21,036 (17.96%) | 21,634 (18.47%) | +598 |
+| Registers | 31,405 (13.41%) | 31,401 (13.41%) | -4 |
+| BRAM tiles | 97 (67.36%) | 97 (67.36%) | unchanged |
+| DSPs | 64 (5.13%) | 76 (6.09%) | +12 |
+| Post-synthesis WNS at 100 MHz | +1.103 ns | +1.103 ns | unchanged |
+
+The standalone synthesis reports 215/189 bonded I/O sites because it treats
+all AXI signals as package pins. They are internal connections in the PS/DMA
+block design, so routed block-design utilization is the applicable I/O gate.
+Create the matching 128-bit DMA design with:
+
+```sh
+vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl \
+  -tclargs generated-kv260-4k60-axi-lite-top build/vivado/ip_repo-4k60
+vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl \
+  -tclargs build/vivado/ip_repo-4k60 build/vivado/hjpeg-kv260-4k60-bd 128
+```
+
+Vivado 2026.1 successfully packaged this UHD IP and validated the 128-bit DMA
+block design. The generated design records `c_m_axis_mm2s_tdata_width = 128`
+and preserves the expected encoder/DMA AXI-Lite address map. This is interface
+construction evidence; implementation timing and hardware behavior are later
+gates.
+
+The raw ingress ceiling is now 400 Mpixel/s at the measured 100 MHz synthesis
+clock and 600 Mpixel/s at the 150 MHz target. Only the latter exceeds the
+497.664 Mpixel/s 4K60 requirement, and downstream transform/entropy capacity
+still prevents an end-to-end claim.
+
+Exact-current verification after this slice is 145/145 Scala/Chisel tests
+across 27 suites, plus 5 capacity-model, 235 host-flow, and 59 Vivado-report
+parser tests. The Scala total includes decoder-backed vector tests at both the
+internal 96-bit RGB boundary and the external 128-bit KV260 boundary.
+
 ## Remaining Architecture
 
 Implementation order is:
 
-1. Replace the 32-bit input with four-pixel/128-bit AXI stream ingress and four
-   parallel RGB-to-YCbCr conversions. Preserve a compatibility adapter only if
-   it does not constrain the hardware-facing path.
-2. Accept four adjacent pixels per cycle into the existing four column banks;
-   prove sustained collection without bank conflicts and retain edge padding.
-3. Add ordered parallel block transforms: two lanes for 4:2:0 and three for
+1. Add ordered parallel block transforms: two lanes for 4:2:0 and three for
    4:4:4 at the 150 MHz goal, or an evidence-backed equivalent.
-4. Parallelize entropy by independently encoded restart intervals with ordered
+2. Parallelize entropy by independently encoded restart intervals with ordered
    byte-aligned merge, or demonstrate another design that meets the same rate
    without changing decoder-visible coefficient order.
-5. Widen the JPEG AXI stream if measured entropy traffic approaches the
+3. Widen the JPEG AXI stream if measured entropy traffic approaches the
    byte-oriented clock limit; the q85 benchmark's scaled output rate alone does
    not require it.
-6. Update AXI DMA/interconnect widths, close routed timing/resources, then
+4. Close routed 150 MHz timing/resources, then
    measure first-input through output-TLAST cycles on a physical KV260 and
    decode both modes with standard software.
 

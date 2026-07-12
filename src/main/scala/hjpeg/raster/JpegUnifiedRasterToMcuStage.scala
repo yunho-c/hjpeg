@@ -15,11 +15,14 @@ import chisel3.util._
 class JpegUnifiedRasterToMcuStage(
     c: HjpegConfig = HjpegConfig(),
     sampleBits: Int = 9,
-    coefficientBits: Int = 16)
+    coefficientBits: Int = 16,
+    inputLanes: Int = 1)
     extends Module {
+  require(inputLanes > 0 && inputLanes <= 4, "unified raster input supports one to four lanes")
+
   val io = IO(new Bundle {
     val config = Input(new FrameConfig(c))
-    val input = Flipped(Decoupled(new RgbPixel(c)))
+    val input = Flipped(Decoupled(new RgbPixelGroup(c, inputLanes)))
     val output = Decoupled(new ZigZagMinimumCodedUnitPacket(coefficientBits))
   })
 
@@ -74,34 +77,59 @@ class JpegUnifiedRasterToMcuStage(
   val crCoefficients = Reg(new ZigZagCoefficientBlock(coefficientBits))
 
   val subsampled = io.config.enableChromaSubsample
-  val rowInBand = io.input.bits.y(3, 0)
-  val writeBank = Cat(rowInBand(0), io.input.bits.x(ColumnBankBits - 1, 0))
-  val writeBankRow = rowInBand >> 1
-  val writeBankColumn = io.input.bits.x >> ColumnBankBits
-  val writeLocalAddress = writeBankRow * BankColumns.U + writeBankColumn
-  val writeAddress =
-    (writeBuffer * BandBankSamples.U + writeLocalAddress)(BankAddressBits - 1, 0)
-  val lastPixelInBand =
-    io.input.bits.x === io.config.xsize - 1.U &&
-      (rowInBand === (BandRows - 1).U || io.input.bits.y === io.config.ysize - 1.U)
+  val laneWriteBanks = Wire(Vec(inputLanes, UInt(BankIndexBits.W)))
+  val laneWriteAddresses = Wire(Vec(inputLanes, UInt(BankAddressBits.W)))
+  val laneY = Wire(Vec(inputLanes, SInt(sampleBits.W)))
+  val laneCb = Wire(Vec(inputLanes, SInt(sampleBits.W)))
+  val laneCr = Wire(Vec(inputLanes, SInt(sampleBits.W)))
+  val laneLastInBand = Wire(Vec(inputLanes, Bool()))
 
-  val (yComponent, cbComponent, crComponent) =
-    JpegColorConversion.rgbToYCbCr(io.input.bits.r, io.input.bits.g, io.input.bits.b, c.pixelBits)
+  for (lane <- 0 until inputLanes) {
+    val pixel = io.input.bits.pixels(lane)
+    val rowInBand = pixel.y(3, 0)
+    val writeBankRow = rowInBand >> 1
+    val writeBankColumn = pixel.x >> ColumnBankBits
+    val writeLocalAddress = writeBankRow * BankColumns.U + writeBankColumn
+    val (yComponent, cbComponent, crComponent) =
+      JpegColorConversion.rgbToYCbCr(pixel.r, pixel.g, pixel.b, c.pixelBits)
+
+    laneWriteBanks(lane) := Cat(rowInBand(0), pixel.x(ColumnBankBits - 1, 0))
+    laneWriteAddresses(lane) :=
+      (writeBuffer * BandBankSamples.U + writeLocalAddress)(BankAddressBits - 1, 0)
+    laneY(lane) := (yComponent.zext - 128.S)(sampleBits - 1, 0).asSInt
+    laneCb(lane) := (cbComponent.zext - 128.S)(sampleBits - 1, 0).asSInt
+    laneCr(lane) := (crComponent.zext - 128.S)(sampleBits - 1, 0).asSInt
+    laneLastInBand(lane) :=
+      pixel.x === io.config.xsize - 1.U &&
+        (rowInBand === (BandRows - 1).U || pixel.y === io.config.ysize - 1.U)
+  }
+
+  val lastPixelInBand = laneLastInBand.asUInt.orR
+  val lastPixelY = PriorityMux(
+    (0 until inputLanes).map(lane => laneLastInBand(lane) -> io.input.bits.pixels(lane).y))
+  val lastPixelRowInBand = lastPixelY(3, 0)
 
   io.input.ready := !bufferReady(writeBuffer)
 
   when(io.input.fire) {
     for (bank <- 0 until BankCount) {
-      when(writeBank === bank.U) {
-        ySampleBanks(bank).write(writeAddress, (yComponent.zext - 128.S)(sampleBits - 1, 0).asSInt)
-        cbSampleBanks(bank).write(writeAddress, (cbComponent.zext - 128.S)(sampleBits - 1, 0).asSInt)
-        crSampleBanks(bank).write(writeAddress, (crComponent.zext - 128.S)(sampleBits - 1, 0).asSInt)
+      val laneMatches = VecInit((0 until inputLanes).map(lane => laneWriteBanks(lane) === bank.U))
+      assert(PopCount(laneMatches) <= 1.U, "RGB input lanes must map to distinct raster banks")
+      when(laneMatches.asUInt.orR) {
+        val writeAddress = PriorityMux(
+          (0 until inputLanes).map(lane => laneMatches(lane) -> laneWriteAddresses(lane)))
+        val writeY = PriorityMux((0 until inputLanes).map(lane => laneMatches(lane) -> laneY(lane)))
+        val writeCb = PriorityMux((0 until inputLanes).map(lane => laneMatches(lane) -> laneCb(lane)))
+        val writeCr = PriorityMux((0 until inputLanes).map(lane => laneMatches(lane) -> laneCr(lane)))
+        ySampleBanks(bank).write(writeAddress, writeY)
+        cbSampleBanks(bank).write(writeAddress, writeCb)
+        crSampleBanks(bank).write(writeAddress, writeCr)
       }
     }
     when(lastPixelInBand) {
       bufferReady(writeBuffer) := true.B
-      bufferLast(writeBuffer) := io.input.bits.y + 1.U >= io.config.ysize
-      bufferLastRow(writeBuffer) := rowInBand
+      bufferLast(writeBuffer) := lastPixelY + 1.U >= io.config.ysize
+      bufferLastRow(writeBuffer) := lastPixelRowInBand
       writeBuffer := ~writeBuffer
     }
   }

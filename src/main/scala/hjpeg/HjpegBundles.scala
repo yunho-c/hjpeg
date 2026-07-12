@@ -21,6 +21,11 @@ class RgbPixel(c: HjpegConfig) extends Bundle {
   val b = UInt(c.pixelBits.W)
 }
 
+class RgbPixelGroup(c: HjpegConfig, val lanes: Int) extends Bundle {
+  require(lanes > 0, "RGB pixel group must contain at least one lane")
+  val pixels = Vec(lanes, new RgbPixel(c))
+}
+
 class YCbCrPixel(c: HjpegConfig) extends Bundle {
   val x = UInt(c.coordBits.W)
   val y = UInt(c.coordBits.W)

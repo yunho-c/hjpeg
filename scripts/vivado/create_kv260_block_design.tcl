@@ -3,28 +3,37 @@
 # Usage from the repository root, after RTL generation and IP packaging:
 #
 #   vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl \
-#     -tclargs build/vivado/ip_repo build/vivado/hjpeg-kv260-bd
+#     -tclargs build/vivado/ip_repo build/vivado/hjpeg-kv260-bd 32
 #
 # The first argument is the Vivado IP repository containing
 # hjpeg_kv260_axi_lite. The second argument is the Vivado project directory to
-# create. This script builds a reusable block design with Zynq UltraScale+ PS,
-# AXI DMA, and the hjpeg encoder IP. Board constraints, image packaging, and
-# on-board validation remain separate platform steps.
+# create. The optional third argument selects the AXI DMA MM2S stream width in
+# bits; use 32 for the scalar top and 128 for the four-pixel 4K60 top. This
+# script builds a reusable block design with Zynq UltraScale+ PS, AXI DMA, and
+# the hjpeg encoder IP. Board constraints, image packaging, and on-board
+# validation remain separate platform steps.
 
 set script_dir [file dirname [file normalize [info script]]]
 set repo_root [file normalize [file join $script_dir ../..]]
 
 set ip_repo_dir [file normalize [file join $repo_root build/vivado/ip_repo]]
 set project_dir [file normalize [file join $repo_root build/vivado/hjpeg-kv260-bd]]
+set mm2s_data_width 32
 
-if {$argc > 2} {
-  error "Expected at most 2 arguments: ip_repo_dir project_dir"
+if {$argc > 3} {
+  error "Expected at most 3 arguments: ip_repo_dir project_dir mm2s_data_width"
 }
 if {$argc >= 1} {
   set ip_repo_dir [file normalize [lindex $argv 0]]
 }
 if {$argc >= 2} {
   set project_dir [file normalize [lindex $argv 1]]
+}
+if {$argc >= 3} {
+  set mm2s_data_width [lindex $argv 2]
+}
+if {$mm2s_data_width ni {32 128}} {
+  error "AXI DMA MM2S stream width must be 32 or 128 bits, got: $mm2s_data_width"
 }
 
 set part_name xck26-sfvc784-2LV-c
@@ -96,14 +105,15 @@ create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:* reset_pl0
 set_property -dict [list CONFIG.C_EXT_RESET_HIGH {0}] [get_bd_cells reset_pl0]
 
 create_bd_cell -type ip -vlnv xilinx.com:ip:axi_dma:* axi_dma_0
-# 26 bits covers one packed 1920x1080 RGB frame (8,294,400 bytes) in a
-# single MM2S transaction, so DMA emits TLAST only at the frame boundary.
+# 26 bits covers one packed 3840x2160 RGB frame (33,177,600 bytes) in a single
+# MM2S transaction, so DMA emits TLAST only at the frame boundary. The packed
+# byte layout remains four bytes per pixel at either stream width.
 set_property -dict [list \
   CONFIG.c_include_sg {0} \
   CONFIG.c_include_mm2s {1} \
   CONFIG.c_include_s2mm {1} \
   CONFIG.c_sg_length_width {26} \
-  CONFIG.c_m_axis_mm2s_tdata_width {32} \
+  CONFIG.c_m_axis_mm2s_tdata_width $mm2s_data_width \
   CONFIG.c_s_axis_s2mm_tdata_width {8} \
 ] [get_bd_cells axi_dma_0]
 

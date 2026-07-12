@@ -92,6 +92,60 @@ class HjpegKv260TopSpec extends AnyFreeSpec with Matchers with ChiselSim {
     }
   }
 
+  "HjpegKv260Top should encode four pixels per 128-bit AXI beat" in {
+    simulate(
+      new HjpegKv260Top(
+        HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32),
+        inputPixelsPerBeat = 4)) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      init(dut)
+      configure(dut, width = 8, height = 8)
+
+      for (beat <- 0 until 16) {
+        val packedBeat = (0 until 4).foldLeft(BigInt(0)) { (data, lane) =>
+          val pixel = beat * 4 + lane
+          val x = pixel % 8
+          val y = pixel / 8
+          val word =
+            BigInt((x * 29 + y * 3) & 0xff) |
+              (BigInt((x * 7 + y * 31) & 0xff) << 8) |
+              (BigInt((x * 17 + y * 11) & 0xff) << 16) |
+              (BigInt(0xa5) << 24)
+          data | (word << (lane * 32))
+        }
+        dut.io.sAxisRgb.valid.poke(true.B)
+        dut.io.sAxisRgb.bits.data.poke(packedBeat.U)
+        dut.io.sAxisRgb.bits.keep.poke("h7777".U)
+        dut.io.sAxisRgb.bits.last.poke((beat == 15).B)
+        dut.io.sAxisRgb.ready.expect(true.B)
+        dut.clock.step()
+      }
+      dut.io.sAxisRgb.valid.poke(false.B)
+
+      val bytes = scala.collection.mutable.ArrayBuffer.empty[Int]
+      var sawLast = false
+      var cycles = 0
+      while (!sawLast) {
+        assert(cycles < 80000, "timeout waiting for vector KV260 top JPEG output")
+        if (dut.io.mAxisJpeg.valid.peek().litToBoolean) {
+          dut.io.mAxisJpeg.bits.keep.expect(1.U)
+          bytes += dut.io.mAxisJpeg.bits.data.peek().litValue.toInt
+          sawLast = dut.io.mAxisJpeg.bits.last.peek().litToBoolean
+        }
+        dut.clock.step()
+        cycles += 1
+      }
+
+      val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
+      image must not be null
+      image.getWidth mustBe 8
+      image.getHeight mustBe 8
+      dut.io.protocolError.expect(false.B)
+    }
+  }
+
   "HjpegKv260Top should recover after a direct clear pulse" in {
     simulate(new HjpegKv260Top(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
       dut.reset.poke(true.B)

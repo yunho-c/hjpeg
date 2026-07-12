@@ -195,8 +195,9 @@ elaborated RTL to a KV260 bitstream:
   AXI-stream interfaces as reusable IP.
 - `create_kv260_block_design.tcl` connects the encoder to the Zynq UltraScale+
   PS, AXI DMA, SmartConnect, reset, and interrupt infrastructure. The DMA uses
-  a 26-bit buffer-length field so a packed 1920x1080 input fits in one MM2S
-  transaction and produces exactly one frame-ending TLAST.
+  a 26-bit buffer-length field so a packed 3840x2160 input fits in one MM2S
+  transaction and produces exactly one frame-ending TLAST. Its optional stream
+  width is 32 bits for the scalar top or 128 bits for the four-pixel UHD top.
 - `build_kv260_bitstream.tcl` runs implementation, writes the bitstream and
   reports, and exports an XSA.
 - `write_kv260_floorplan_report.tcl` regenerates floorplan evidence from an
