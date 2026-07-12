@@ -17,10 +17,11 @@ files, streaming RTL shells, elaboration entry points, and simulator tests.
 The provisional performance target is decoder-valid 1920x1080 at 30 fps in
 both 4:4:4 and 4:2:0 modes at a 100 MHz PL clock. The four-lane DCT/quantizer,
 four-coefficient AC scanner, and two-slot raster collector meet their measured
-stage budgets in simulation. A seeded 64x64 quality-90 trace is within the
-1.61-cycle/pixel input budget in 4:2:0 and remains above it in 4:4:4; physical
-board throughput is not yet measured. Current implementation closes 100 MHz
-timing and uses 54.29% of CLBs and 52.78% of block RAM; see
+stage budgets in simulation. A 256x64 seeded-random quality-90 4:4:4 trace
+accepts input at 1.522 cycles/pixel, and a two-frame capture accepts at 1.594,
+both within the 1.61-cycle/pixel budget; physical board throughput is not yet
+measured. Current implementation closes 100 MHz
+timing and uses 56.02% of CLBs and 52.78% of block RAM; see
 [`docs/performance-targets.md`](docs/performance-targets.md) for cycle budgets,
 evidence levels, and the optimization direction.
 
@@ -68,10 +69,12 @@ The AXI-Lite control wrapper accepts independent AW and W channel handshakes,
 honors byte write strobes on writable registers, and holds read/write responses
 stable under host backpressure.
 
-Frame configuration is sampled on the first accepted input pixel and held until
-the encoded JPEG frame completes. Host software should update control registers
-between frames. After a supported input TLAST, the wrapper backpressures the
-next input frame until the active JPEG output TLAST transfers.
+Frame configuration is sampled on the first accepted input pixel. Up to three
+frames with the exact same configuration may overlap through the encoder and
+two raster slots. A frame with any changed field is backpressured until all
+JPEGs using the old snapshot complete. Host software may update control
+registers while a frame is active; those values apply only after the old group
+drains.
 
 ## Requirements
 
@@ -222,6 +225,12 @@ pseudo-random pixels, and qualities 10/50/90 (24 scenarios, each
 decoder-validated during capture).
 It is intentionally much slower than the quick profile. Select one matrix case
 with, for example, `--scenario steady-444-seeded-random-q90`.
+
+Explicit large-frame scenarios are
+`large-444-seeded-random-q90` and
+`large-444-two-frame-seeded-random-q90`. The latter records two independently
+decoded JPEGs and reports average frame cycles plus a separate frame-transition
+MCU interval.
 
 Repeat `--scenario 444`, `--scenario 420`, or
 `--scenario 444-output-stalls` to select scenarios. Use `--capture-dir DIR` to

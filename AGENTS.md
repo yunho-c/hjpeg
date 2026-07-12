@@ -44,12 +44,13 @@ run while the bit packer emits a byte. The raster stores use two ping-pong
 slots in banked synchronous block RAM, so collection of the next stripe or band
 overlaps processing of the current one. 4:4:4 loads eight samples per cycle,
 while 4:2:0 loads four luma samples or one 2x2 chroma footprint per cycle.
-Current Vivado implementation closes 100 MHz timing at setup WNS `+0.064 ns`
-and hold WHS `+0.011 ns`, uses 54.29% of CLBs and 52.78% of BRAM tiles, and
-passes the provisional resource target with tight setup margin. Current
-high-entropy traces no longer show sustained entropy backpressure; a seeded
-64x64 quality-90 trace meets the 1.61-cycle/pixel input budget in 4:2:0, while
-the small 4:4:4 fixture remains above it at 1.78 cycles/pixel.
+Current Vivado implementation closes 100 MHz timing at setup WNS `+0.227 ns`
+and hold WHS `+0.010 ns`, uses 56.02% of CLBs and 52.78% of BRAM tiles, and
+passes the provisional resource target. Current
+high-entropy traces no longer show sustained entropy backpressure. A 256x64
+seeded-random quality-90 4:4:4 trace accepts input at 1.522 cycles/pixel; a
+two-frame trace with the same configuration accepts at 1.594 cycles/pixel,
+both within the 1.61-cycle/pixel budget.
 
 `HjpegAxiStreamCore` is the current hardware-facing shell. It accepts raster RGB
 AXI4-Stream-shaped words, generates pixel coordinates, forwards bytes from
@@ -69,11 +70,11 @@ clocking, reset synchronization, DMA connection, interrupts, IP packaging, and
 hardware validation still need platform work.
 
 The AXI-stream wrapper snapshots `FrameConfig` on the first accepted input pixel
-and holds it until the JPEG output frame completes. Mid-frame AXI-Lite register
-writes are for the next frame, not the active one. After a supported frame's
-input TLAST, the wrapper backpressures a following frame until the active JPEG
-output TLAST transfers, so two frames cannot share encoder state or a config
-snapshot.
+and holds it until all JPEGs using that snapshot complete. Frames whose entire
+configuration matches may overlap through the encoder and two raster slots;
+the wrapper tracks at most three such frames. A differently configured frame
+is backpressured until the active group drains. Mid-frame AXI-Lite writes do not
+alter frames already using the snapshot.
 
 ## Intended JPEG Pipeline
 

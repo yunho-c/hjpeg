@@ -109,11 +109,12 @@ reports malformed input through a sticky `protocolError` flag. A
 `clearProtocolError` pulse clears the fault and resets buffered pipeline state.
 
 The AXI-stream wrapper snapshots `FrameConfig` on the first accepted pixel and
-holds it until the matching JPEG output frame completes. Configuration writes
-during an active frame therefore apply to a later frame. Once a supported input
-frame ends, the wrapper holds input `ready` low until the active JPEG output
-TLAST transfers; the two raster slots overlap work within a frame, not encoder
-state or configuration across frames.
+holds it while any frame uses that snapshot. A bounded two-bit count represents
+one frame in the encoder plus one in each raster slot. A new frame may overlap
+only when every configuration field exactly matches the snapshot and the count
+is below three. A differently configured frame remains backpressured until the
+active group drains. Configuration writes therefore never change marker,
+sampling, quality, or restart behavior of queued frames.
 
 Unsupported dimensions and incomplete RGB input words are drained through
 input TLAST without entering or completing a JPEG frame. If the expected final

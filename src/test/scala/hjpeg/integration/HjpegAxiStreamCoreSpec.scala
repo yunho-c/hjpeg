@@ -242,7 +242,7 @@ class HjpegAxiStreamCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
     }
   }
 
-  "HjpegAxiStreamCore should not accept a new frame before the active JPEG completes" in {
+  "HjpegAxiStreamCore should defer a differently configured frame until the active JPEG completes" in {
     simulate(new HjpegAxiStreamCore()) { dut =>
       dut.reset.poke(true.B)
       dut.clock.step()
@@ -272,6 +272,74 @@ class HjpegAxiStreamCoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
       bytes.take(2) mustBe Seq(0xff, 0xd8)
       bytes.takeRight(2) mustBe Seq(0xff, 0xd9)
       dut.io.input.ready.expect(true.B)
+      dut.io.protocolError.expect(false.B)
+    }
+  }
+
+  "HjpegAxiStreamCore should overlap two frames with identical configuration" in {
+    simulate(new HjpegAxiStreamCore()) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      pokeConfig(dut, width = 8, height = 8)
+      dut.io.clearProtocolError.poke(false.B)
+      dut.io.output.ready.poke(false.B)
+
+      for (index <- 0 until 8 * 8) {
+        pushPixel(dut, index, last = index == 8 * 8 - 1)
+      }
+      for (index <- 0 until 8 * 8) {
+        pushPixel(dut, index, last = index == 8 * 8 - 1)
+      }
+      dut.io.input.valid.poke(false.B)
+      dut.io.busy.expect(true.B)
+
+      dut.io.output.ready.poke(true.B)
+      val first = collectFrame(dut, JpegHeaderBytes.HeaderLength + 128)
+      dut.io.busy.expect(true.B)
+      val second = collectFrame(dut, JpegHeaderBytes.HeaderLength + 128)
+
+      second mustBe first
+      Seq(first, second).foreach { bytes =>
+        val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
+        image must not be null
+        image.getWidth mustBe 8
+        image.getHeight mustBe 8
+      }
+      dut.io.busy.expect(false.B)
+      dut.io.protocolError.expect(false.B)
+    }
+  }
+
+  "HjpegAxiStreamCore should overlap two identical 4:2:0 frames" in {
+    simulate(new HjpegAxiStreamCore()) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      pokeConfig(dut, width = 16, height = 16, subsample = true)
+      dut.io.clearProtocolError.poke(false.B)
+      dut.io.output.ready.poke(false.B)
+
+      for (_ <- 0 until 2; index <- 0 until 16 * 16) {
+        pushPixel(dut, index, last = index == 16 * 16 - 1)
+      }
+      dut.io.input.valid.poke(false.B)
+      dut.io.busy.expect(true.B)
+
+      dut.io.output.ready.poke(true.B)
+      val first = collectFrame(dut, JpegHeaderBytes.HeaderLength + 512)
+      val second = collectFrame(dut, JpegHeaderBytes.HeaderLength + 512)
+
+      second mustBe first
+      Seq(first, second).foreach { bytes =>
+        val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
+        image must not be null
+        image.getWidth mustBe 16
+        image.getHeight mustBe 16
+      }
+      dut.io.busy.expect(false.B)
       dut.io.protocolError.expect(false.B)
     }
   }

@@ -59,11 +59,11 @@ Current four-lane construction evidence includes IP packaging, block-design
 validation, implementation, bitstream/XSA export, and all twelve required
 evidence records. Raster stripe/band storage uses two ping-pong slots with
 banked synchronous reads and infers block RAM; entropy scanning examines four
-coefficients per cycle. Timing closes at setup WNS `+0.064 ns` and hold WHS
-`+0.011 ns`; DRC and route-status reports pass with zero routing errors. Setup
-margin is positive but tight. The build uses 30.21% CLB LUTs, 1.17% LUTRAM,
+coefficients per cycle. Timing closes at setup WNS `+0.227 ns` and hold WHS
+`+0.010 ns`; DRC and route-status reports pass with zero routing errors. The
+build uses 30.26% CLB LUTs, 1.17% LUTRAM,
 23.26% registers, 52.78% BRAM, and 10.18% DSPs. Physical CLB occupancy is
-54.29%, so the complete evidence set passes both the default checker and the
+56.02%, so the complete evidence set passes both the default checker and the
 provisional 70% project ceiling.
 
 Not yet proven:
@@ -174,15 +174,21 @@ the same 5,862/3,428 byte counts as the preceding baseline. Input acceptance is
 1.78 cycles/pixel for this small 4:4:4 frame and 1.37 for 4:2:0, so only the
 4:2:0 fixture currently meets the provisional 1.61-cycle/pixel target.
 
+The larger 256x64 seeded-random quality-90 4:4:4 scenario completes in 29,455
+cycles, emits a 22,882-byte decoder-valid JPEG, and accepts input at 1.522
+cycles/pixel. Steady MCU mean/p95/max are 100.65/103/105 cycles; stripe
+transitions are at most 102 cycles. A two-frame version completes in 56,763
+cycles, or 28,381.5 cycles/frame, and accepts input at 1.594 cycles/pixel. Its
+frame transition is 105 cycles and both 22,882-byte JPEGs decode independently.
+This resolves the larger-frame input-rate question without justifying another
+raster slot.
+
 Recommended next sprint, in order:
 
-1. Run larger 4:4:4 traces to determine whether its 1.78-cycle/pixel small-frame
-   result converges to the 99-cycle steady MCU rate after startup.
-2. Size an MCU queue or additional raster slot only from measured sustained
-   producer/consumer rates; do not hide a mismatch behind arbitrary depth.
-3. Preserve the current two-slot comparison point: routed CLB occupancy is
-   54.29%, BRAM is 52.78%, setup/hold timing is positive, and the complete
-   evidence gate passes.
+1. Move to physical KV260 DMA and decoder-validated 1080p measurement.
+2. Expand large-content traces only for a concrete unresolved hypothesis.
+3. Add buffering only if board or broader large-content evidence demonstrates
+   a sustained mismatch.
 
 The preferred DCT direction is deeply throughput-pipelined but not necessarily
 systolic. A fixed 8x8 JPEG DCT can exploit separability and butterfly symmetry
@@ -289,9 +295,13 @@ Frame configuration:
 
 - The AXI-stream wrapper snapshots `FrameConfig` on the first accepted input
   beat.
-- The snapshot is held until the matching JPEG output frame completes.
+- Up to three frames may share the snapshot: one in the encoder and one in each
+  raster slot. Every config field must match exactly before another frame is
+  admitted.
+- A differently configured frame remains backpressured until all JPEGs using
+  the old snapshot complete.
 - AXI-Lite writes during a frame should be treated as configuration for a later
-  frame, not the active frame.
+  frame, not any frame in the active group.
 
 `HjpegKv260AxiLiteTop` register map:
 
@@ -543,7 +553,7 @@ are 100/270 cycles (observed 99/267 after slot ownership handoff), and the frame
 fixture is 2,020 cycles. The transform, isolated loaders, measured high-entropy
 scanner rate, and stripe/band transition gaps meet their mode budgets. See
 `docs/performance-targets.md`. Current Vivado evidence closes 100 MHz timing and
-passes the resource target at 54.29% CLB and 52.78% BRAM occupancy.
+passes the resource target at 56.02% CLB and 52.78% BRAM occupancy.
 
 `JpegHeaderStage` was also changed from a one-byte-per-cycle combinational
 header mux into a small byte-generation FSM. Static marker bytes still emit in
@@ -703,7 +713,7 @@ meaningless gate values.
 
 The current checkout has fresh full Vivado construction evidence for the
 four-lane RTL. It proves that the design packages, routes, closes 100 MHz timing,
-emits a bitstream/XSA, and passes the resource gate at 54.29% routed CLB
+emits a bitstream/XSA, and passes the resource gate at 56.02% routed CLB
 occupancy. It does not prove board behavior.
 
 The 2026-07-11 software baseline is green. Current RTL validation used the
@@ -729,15 +739,19 @@ The latest full-suite result is 133/133 Scala tests on the entropy parent
 revision through the pinned Docker sbt/Verilator toolchain. On the two-slot
 revision, seven focused raster tests and the 47-test core/AXI-stream/AXI-Lite
 integration selection passed. After adding the frame-boundary guard, the full
-14-test AXI-stream wrapper suite was rerun and passed with zero failures or
-aborts. All three core/KV260 SystemVerilog elaboration entry points pass.
+15-test AXI-stream wrapper suite passed; the additional identical-frame 4:2:0
+case also passes in a focused run. The exact-current 20-test AXI-Lite top suite
+passes with zero failures or aborts. All three core/KV260 SystemVerilog
+elaboration entry points pass.
 The generated-design-graph smoke run finds 27 reachable module types and 38
 instances with no missing focus modules. The most recent maintained Python
 suite results remain 234 host tests, 59 Vivado-report tests, 10
 ChiselSim-environment tests, 11 design-graph helper tests, and 9
-performance-trace renderer tests. Current selected 64x64 performance scenarios
-produced strict JSON/CSV evidence and decoder-validated both outputs. The
-normal local Mill daemon did not launch inside the restricted execution environment;
+performance-trace renderer tests on the preceding profiler revision; the
+current schema-3 profiler has 11 passing helper tests. Current 256x64 single-
+and two-frame scenarios produced strict JSON/CSV evidence and decoder-validated
+all three outputs. The normal local Mill daemon did not launch inside the
+restricted execution environment;
 `--no-server` ran the same test target successfully.
 
 Previously recorded Vivado/Windows checks:
@@ -809,16 +823,16 @@ Known local limitations:
   full-suite result on the entropy parent revision is 133 passing tests. On the
   two-slot revision, all seven focused raster tests and the 47-test
   core/AXI-stream/AXI-Lite selection passed, reporting a 2,020-cycle 16x16
-  4:4:4 frame. The boundary-guard change was followed by a clean 14/14 rerun of
-  the complete AXI-stream wrapper suite.
+  4:4:4 frame. The same-config overlap change has a clean 15-test wrapper run,
+  a focused passing 4:2:0 overlap case, and a clean 20-test AXI-Lite top run.
 - Current two-slot banked-block-RAM, four-lane transform, and four-coefficient
   entropy Vivado construction emits the bitstream, XSA, and
   post-implementation checkpoint. Post-synthesis setup WNS is `+1.291 ns`;
-  post-implementation setup WNS is `+0.064 ns` and hold WHS is `+0.011 ns`.
-  Setup margin is positive but tight. Post-implementation utilization is
-  35,377 CLB LUTs (30.21%), 675 LUTRAMs (1.17%), 54,487 registers (23.26%),
-  76 BRAM tiles (52.78%), 127 DSPs (10.18%), and 7,948 CLBs (54.29%). The
-  floorplan report records 106,973 placed primitive cells. The complete
+  post-implementation setup WNS is `+0.227 ns` and hold WHS is `+0.010 ns`.
+  Post-implementation utilization is 35,440 CLB LUTs (30.26%), 675 LUTRAMs
+  (1.17%), 54,493 registers (23.26%), 76 BRAM tiles (52.78%), 127 DSPs
+  (10.18%), and 8,201 CLBs (56.02%). The floorplan report records 107,010
+  placed primitive cells. The complete
   twelve-record checker passes at its default ceiling.
 
 On a new machine, run these first:
@@ -1169,8 +1183,8 @@ object-shaped transcript.
   closure or KV260 hardware throughput. The four-lane transform sustains a
   16-cycle block interval. Isolated banked MCU loading, measured high-entropy
   scanning, and stripe/band transition gaps now fit their mode budgets. The
-  small 64x64 4:4:4 fixture still exceeds the whole-system pixel budget; 4:2:0
-  is within it.
+  small 64x64 4:4:4 fixture exaggerates startup, while the 256x64 single- and
+  two-frame scenarios accept input within the whole-system pixel budget.
 - The default 32x16 profiler fixture is intentionally quick and exaggerates the
   once-per-frame header. Use `--profile steady-state`, or selected 64x64 matrix
   scenarios, before declaring entropy safe or bottlenecked.
@@ -1182,6 +1196,11 @@ object-shaped transcript.
   packer overlap reduces entropy work to 30.28/31.28 cycles per block and
   removes repeated MCU-output backpressure from both seeded-random quality-90
   traces.
+- Exact-config frame overlap is bounded to three physical ownership positions.
+  Directed 4:4:4 and 4:2:0 tests produce two byte-identical, independently
+  decoded JPEGs while a changed config remains deferred. The profiler schema is
+  now version 3, segments frame transitions from steady MCU intervals, and its
+  generated CSV round-trips through `--capture-dir`.
 - Restart interval coverage now includes stage-level RTL and host-side JPEG
   validation regressions for RST marker numbering wrapping from RST7 back to
   RST0.
@@ -1218,10 +1237,10 @@ If the new PC has KV260 access too:
 
 If the new PC does not have Vivado or hardware:
 
-1. Run larger 4:4:4 traces to separate fixed startup occupancy from its
-   sustained 99-cycle MCU rate.
-2. Size any MCU queue or extra raster slot from measured producer/consumer
-   rates rather than adding arbitrary depth.
+1. Extend the large-content matrix only where it tests a concrete remaining
+   hypothesis; the seeded-random 256x64 rate is already within budget.
+2. Improve timing margin if exact-current implementation becomes the limiting
+   evidence; do not add arbitrary queue depth.
 3. Keep each validated slice committed; avoid combining profiler, arithmetic,
    buffering, and entropy rewrites into one change.
 

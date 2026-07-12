@@ -27,7 +27,11 @@ STEADY_STATE_SCENARIOS = tuple(
     for content in ("flat", "smooth-gradient", "checkerboard", "seeded-random")
     for quality in (10, 50, 90)
 )
-SUPPORTED_SCENARIOS = QUICK_SCENARIOS + STEADY_STATE_SCENARIOS
+LARGE_SCENARIOS = (
+    "large-444-seeded-random-q90",
+    "large-444-two-frame-seeded-random-q90",
+)
+SUPPORTED_SCENARIOS = QUICK_SCENARIOS + STEADY_STATE_SCENARIOS + LARGE_SCENARIOS
 BOUNDARY_ORDER = (
     "rgb_input",
     "transform_input",
@@ -50,7 +54,9 @@ STAGE_BOUNDARIES = {
     "zigzag": ("zigzag_input", "zigzag_output"),
     "block_transform": ("transform_input", "transform_output"),
 }
-RASTER_PHASES = {0: "collect", 1: "load", 2: "transform", 3: "emit"}
+# Collection now runs independently of the raster processor FSM. State zero is
+# the processor waiting for a completed stripe/band slot, not collection.
+RASTER_PHASES = {0: "idle", 1: "load", 2: "transform", 3: "emit"}
 ENCODER_PHASES = {
     0: "idle",
     1: "header",
@@ -74,6 +80,7 @@ class PerformanceTraceError(RuntimeError):
 class Scenario:
     name: str
     profile: str
+    frames: int
     width: int
     height: int
     sampling: str
@@ -117,11 +124,15 @@ class Distribution:
     mean: float | None
 
 
-def _parse_int(row: dict[str, str], field: str, *, minimum: int = 0) -> int:
+def _parse_int(
+    row: dict[str, str], field: str, *, minimum: int = 0, default: int | None = None
+) -> int:
     try:
-        value = int(row[field])
-    except (KeyError, ValueError) as error:
+        text = row.get(field)
+        value = default if (text is None or text == "") and default is not None else int(text)
+    except (TypeError, ValueError) as error:
         raise PerformanceTraceError(f"invalid integer field {field!r}: {row.get(field)!r}") from error
+    assert value is not None
     if value < minimum:
         raise PerformanceTraceError(f"field {field!r} must be at least {minimum}, got {value}")
     return value
@@ -148,12 +159,15 @@ def read_capture(directory: Path) -> tuple[list[Scenario], list[Sample], list[Ph
     scenarios: list[Scenario] = []
     names: set[str] = set()
     for row in scenario_rows:
-        name = row.get("scenario", "")
+        # Older generated artifact directories used the dataclass field name
+        # here even though simulator captures use the canonical CSV name.
+        name = row.get("scenario") or row.get("name", "")
         if not name or name in names:
             raise PerformanceTraceError(f"scenario names must be nonempty and unique: {name!r}")
         scenario = Scenario(
             name=name,
             profile=row.get("profile", ""),
+            frames=_parse_int(row, "frames", minimum=1, default=1),
             width=_parse_int(row, "width", minimum=1),
             height=_parse_int(row, "height", minimum=1),
             sampling=row.get("sampling", ""),
@@ -171,6 +185,8 @@ def read_capture(directory: Path) -> tuple[list[Scenario], list[Sample], list[Ph
         )
         if scenario.last_output_cycle - scenario.first_input_cycle + 1 != scenario.frame_cycles:
             raise PerformanceTraceError(f"scenario {name!r} has inconsistent frame cycle bounds")
+        if scenario.pixels != scenario.width * scenario.height * scenario.frames:
+            raise PerformanceTraceError(f"scenario {name!r} has inconsistent pixel count")
         scenarios.append(scenario)
         names.add(name)
 
@@ -366,8 +382,12 @@ def calculate_metrics(
         entropy_block_fires = fires["entropy_block_input"]
         input_span = input_fires[-1] - input_fires[0] + 1
         input_cycles_per_pixel = input_span / scenario.pixels
-        mcu_intervals = [right - left for left, right in zip(mcu_fires, mcu_fires[1:])]
         blocks_per_mcu = 3 if scenario.sampling == "4:4:4" else 6
+        if scenario.mcus % scenario.frames != 0:
+            raise PerformanceTraceError(
+                f"scenario {scenario.name!r} has {scenario.mcus} MCUs across {scenario.frames} frames"
+            )
+        mcus_per_frame = scenario.mcus // scenario.frames
         transform_inputs = fires["transform_input"]
         # Exclude the interval between the final block of one MCU and the first
         # block of the next. That gap measures raster/MCU supply rather than the
@@ -383,21 +403,28 @@ def calculate_metrics(
             if index % blocks_per_mcu == 0
         ]
         mcus_per_row = math.ceil(scenario.width / (8 if scenario.sampling == "4:4:4" else 16))
+        frame_transition_intervals = [
+            mcu_fires[index] - mcu_fires[index - 1]
+            for index in range(1, len(mcu_fires))
+            if index % mcus_per_frame == 0
+        ]
         transition_intervals = [
             mcu_fires[index] - mcu_fires[index - 1]
             for index in range(1, len(mcu_fires))
-            if index % mcus_per_row == 0
+            if index % mcus_per_frame != 0 and (index % mcus_per_frame) % mcus_per_row == 0
         ]
         within_row_intervals = [
             mcu_fires[index] - mcu_fires[index - 1]
             for index in range(1, len(mcu_fires))
-            if index % mcus_per_row != 0
+            if (index % mcus_per_frame) % mcus_per_row != 0
         ]
         steady_state_intervals = [
             mcu_fires[index] - mcu_fires[index - 1]
             for index in range(1, len(mcu_fires))
-            if index // mcus_per_row > 0 and index % mcus_per_row != 0
+            if (index % mcus_per_frame) // mcus_per_row > 0
+            and (index % mcus_per_frame) % mcus_per_row != 0
         ]
+        steady_state_distribution = distribution(steady_state_intervals)
         phase_metrics = {
             "raster_startup_to_first_mcu_cycles": mcu_fires[0] - input_fires[0],
             "encoder_startup_to_first_jpeg_byte_cycles": jpeg_fires[0] - input_fires[0],
@@ -406,7 +433,8 @@ def calculate_metrics(
             "between_mcu_block_interval_cycles": asdict(distribution(between_mcu_transform_intervals)),
             "within_stripe_or_band_mcu_interval_cycles": asdict(distribution(within_row_intervals)),
             "stripe_or_band_transition_mcu_interval_cycles": asdict(distribution(transition_intervals)),
-            "steady_state_mcu_interval_cycles": asdict(distribution(steady_state_intervals)),
+            "frame_transition_mcu_interval_cycles": asdict(distribution(frame_transition_intervals)),
+            "steady_state_mcu_interval_cycles": asdict(steady_state_distribution),
             "raster_phase_cycles": {
                 name: sum(1 for phase in by_scenario_phase[scenario.name] if phase.raster_phase == value)
                 for value, name in RASTER_PHASES.items()
@@ -427,13 +455,18 @@ def calculate_metrics(
         targets = [
             comparison("input_cycles_per_pixel", input_cycles_per_pixel, 1.61),
             comparison("block_transform_max_ii", max(transform_intervals) if transform_intervals else None, block_budget),
-            comparison("mcu_max_ii", max(mcu_intervals) if mcu_intervals else None, mcu_budget),
+            comparison(
+                "steady_state_mcu_mean_ii",
+                steady_state_distribution.mean,
+                mcu_budget,
+            ),
         ]
         scenario_metrics.append(
             {
                 "name": scenario.name,
                 "sampling": scenario.sampling,
                 "profile": scenario.profile,
+                "frames": scenario.frames,
                 "content": scenario.content,
                 "quality": scenario.quality,
                 "width": scenario.width,
@@ -441,8 +474,9 @@ def calculate_metrics(
                 "ready_pattern": scenario.ready_pattern,
                 "clock_hz": scenario.clock_hz,
                 "frame_cycles": scenario.frame_cycles,
-                "frame_time_us": scenario.frame_cycles * 1_000_000 / scenario.clock_hz,
-                "frames_per_second": scenario.clock_hz / scenario.frame_cycles,
+                "average_frame_cycles": scenario.frame_cycles / scenario.frames,
+                "frame_time_us": scenario.frame_cycles * 1_000_000 / (scenario.clock_hz * scenario.frames),
+                "frames_per_second": scenario.frames * scenario.clock_hz / scenario.frame_cycles,
                 "pixels": scenario.pixels,
                 "bytes": scenario.bytes,
                 "mcus": scenario.mcus,
@@ -456,7 +490,7 @@ def calculate_metrics(
                 "targets": targets,
             }
         )
-    return {"schema_version": 2, "scenarios": scenario_metrics}
+    return {"schema_version": 3, "scenarios": scenario_metrics}
 
 
 def _scenario_metric(metrics: dict[str, object], name: str) -> dict[str, object]:
@@ -579,7 +613,7 @@ def _stage(scenario_metrics: dict[str, object], name: str) -> dict[str, object]:
 def graph_nodes(scenario_metrics: dict[str, object]) -> list[tuple[str, str, str]]:
     input_target = _target(scenario_metrics, "input_cycles_per_pixel")
     block_target = _target(scenario_metrics, "block_transform_max_ii")
-    mcu_target = _target(scenario_metrics, "mcu_max_ii")
+    mcu_target = _target(scenario_metrics, "steady_state_mcu_mean_ii")
     transform = _stage(scenario_metrics, "block_transform")
     transform_latency = transform["latency_cycles"]
     assert isinstance(transform_latency, dict)
@@ -598,7 +632,11 @@ def graph_nodes(scenario_metrics: dict[str, object]) -> list[tuple[str, str, str
             f"Block transform\nlatency mean {_format_number(transform_latency['mean'])} cycles\nsustained II {target_label(block_target, 'cycles/block')}",
             str(block_target["status"]),
         ),
-        ("mcu", f"MCU handoff\nII {target_label(mcu_target, 'cycles/MCU')}", str(mcu_target["status"])),
+        (
+            "mcu",
+            f"MCU handoff\nsteady mean II {target_label(mcu_target, 'cycles/MCU')}",
+            str(mcu_target["status"]),
+        ),
         ("entropy", f"Entropy encoder\n{entropy['transfers']} blocks accepted", "neutral"),
         ("packer", f"Byte packer\n{packer['transfers']} bytes transferred", "neutral"),
         (
@@ -622,10 +660,11 @@ def render_graph_mermaid(scenario_metrics: dict[str, object]) -> str:
             "  classDef over fill:#fee2e2,stroke:#dc2626,stroke-width:2px",
             "  classDef near fill:#fef3c7,stroke:#d97706,stroke-width:2px",
             "  classDef within fill:#dcfce7,stroke:#16a34a",
+            "  classDef unknown fill:#f1f5f9,stroke:#94a3b8,stroke-dasharray:4 3",
             "  classDef neutral fill:#f8fafc,stroke:#64748b",
         ]
     )
-    for status in ("over", "near", "within", "neutral"):
+    for status in ("over", "near", "within", "unknown", "neutral"):
         selected = [node_id for node_id, _, node_status in nodes if node_status == status]
         if selected:
             lines.append(f"  class {','.join(selected)} {status}")
@@ -637,6 +676,7 @@ def render_graph_dot(scenario_metrics: dict[str, object]) -> str:
         "over": ("#fee2e2", "#dc2626"),
         "near": ("#fef3c7", "#d97706"),
         "within": ("#dcfce7", "#16a34a"),
+        "unknown": ("#f1f5f9", "#94a3b8"),
         "neutral": ("#f8fafc", "#64748b"),
     }
     nodes = graph_nodes(scenario_metrics)
@@ -660,9 +700,16 @@ def write_capture(
     directory: Path, scenarios: Sequence[Scenario], samples: Sequence[Sample], phases: Sequence[PhaseSample]
 ) -> None:
     with (directory / "scenarios.csv").open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(asdict(scenarios[0]).keys()))
+        scenario_fields = list(asdict(scenarios[0]).keys())
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=["scenario", *(field for field in scenario_fields if field != "name")],
+        )
         writer.writeheader()
-        writer.writerows(asdict(scenario) for scenario in scenarios)
+        for scenario in scenarios:
+            row = asdict(scenario)
+            row["scenario"] = row.pop("name")
+            writer.writerow(row)
     with (directory / "samples.csv").open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(asdict(samples[0]).keys()))
         writer.writeheader()
@@ -682,6 +729,7 @@ def write_metrics_csv(path: Path, metrics: dict[str, object]) -> None:
         name = scenario["name"]
         for metric_name, unit in (
             ("frame_cycles", "cycles"),
+            ("average_frame_cycles", "cycles/frame"),
             ("frame_time_us", "microseconds"),
             ("frames_per_second", "frames/second"),
             ("pixels_per_cycle", "pixels/cycle"),
@@ -713,6 +761,7 @@ def write_metrics_csv(path: Path, metrics: dict[str, object]) -> None:
             "between_mcu_block_interval_cycles",
             "within_stripe_or_band_mcu_interval_cycles",
             "stripe_or_band_transition_mcu_interval_cycles",
+            "frame_transition_mcu_interval_cycles",
             "steady_state_mcu_interval_cycles",
         ):
             values = phase_metrics[distribution_name]
@@ -874,7 +923,7 @@ def generate_artifacts(
     for graph in graph_files.values():
         files.extend(output_dir / value for value in graph.values() if value is not None)
     report: dict[str, object] = {
-        "schema_version": 2,
+        "schema_version": 3,
         "output_dir": str(output_dir.resolve()),
         "index": str(index_path.resolve()),
         "trace": str(trace_path.resolve()),

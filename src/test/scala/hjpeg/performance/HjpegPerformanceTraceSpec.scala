@@ -178,7 +178,8 @@ class HjpegPerformanceTraceSpec extends AnyFreeSpec with Matchers with ChiselSim
       sampling: String,
       content: String,
       quality: Int,
-      stalls: Boolean = false) {
+      stalls: Boolean = false,
+      frames: Int = 1) {
     val subsample: Boolean = sampling == "4:2:0"
   }
 
@@ -194,7 +195,26 @@ class HjpegPerformanceTraceSpec extends AnyFreeSpec with Matchers with ChiselSim
     val samplingName = if (sampling == "4:4:4") "444" else "420"
     ScenarioDefinition(s"steady-$samplingName-$content-q$quality", "steady-state", 64, 64, sampling, content, quality)
   }
-  private val SupportedScenarios = (QuickScenarios ++ SteadyStateScenarios).map(item => item.name -> item).toMap
+  private val LargeScenarios = Seq(
+    ScenarioDefinition(
+      "large-444-seeded-random-q90",
+      "large",
+      256,
+      64,
+      "4:4:4",
+      "seeded-random",
+      90),
+    ScenarioDefinition(
+      "large-444-two-frame-seeded-random-q90",
+      "large",
+      256,
+      64,
+      "4:4:4",
+      "seeded-random",
+      90,
+      frames = 2))
+  private val SupportedScenarios =
+    (QuickScenarios ++ SteadyStateScenarios ++ LargeScenarios).map(item => item.name -> item).toMap
   private val BoundaryNames = Seq(
     "rgb_input",
     "transform_input",
@@ -295,7 +315,10 @@ class HjpegPerformanceTraceSpec extends AnyFreeSpec with Matchers with ChiselSim
       val samples = ArrayBuffer.empty[BoundarySample]
       val phases = ArrayBuffer.empty[PhaseSample]
       val bytes = ArrayBuffer.empty[Int]
-      val pixels = definition.width * definition.height
+      val currentFrameBytes = ArrayBuffer.empty[Int]
+      val decodedFrames = ArrayBuffer.empty[Seq[Int]]
+      val pixelsPerFrame = definition.width * definition.height
+      val pixels = pixelsPerFrame * definition.frames
       var nextPixel = 0
       var firstInputCycle = -1
       var lastOutputCycle = -1
@@ -311,10 +334,11 @@ class HjpegPerformanceTraceSpec extends AnyFreeSpec with Matchers with ChiselSim
         dut.io.output.ready.poke(outputReady.B)
 
         if (nextPixel < pixels) {
-          val (r, g, b) = pixelAt(definition, nextPixel)
+          val framePixel = nextPixel % pixelsPerFrame
+          val (r, g, b) = pixelAt(definition, framePixel)
           dut.io.input.valid.poke(true.B)
-          dut.io.input.bits.x.poke((nextPixel % definition.width).U)
-          dut.io.input.bits.y.poke((nextPixel / definition.width).U)
+          dut.io.input.bits.x.poke((framePixel % definition.width).U)
+          dut.io.input.bits.y.poke((framePixel / definition.width).U)
           dut.io.input.bits.r.poke(r.U)
           dut.io.input.bits.g.poke(g.U)
           dut.io.input.bits.b.poke(b.U)
@@ -347,10 +371,16 @@ class HjpegPerformanceTraceSpec extends AnyFreeSpec with Matchers with ChiselSim
           mcuCount += 1
         }
         if (boundaryStates(13) == 3) {
-          bytes += dut.io.output.bits.byte.peek().litValue.toInt
+          val byte = dut.io.output.bits.byte.peek().litValue.toInt
+          bytes += byte
+          currentFrameBytes += byte
           if (dut.io.output.bits.last.peek().litToBoolean) {
-            lastOutputCycle = cycle
-            done = true
+            decodedFrames += currentFrameBytes.toSeq
+            currentFrameBytes.clear()
+            if (decodedFrames.size == definition.frames) {
+              lastOutputCycle = cycle
+              done = true
+            }
           }
         }
 
@@ -363,10 +393,13 @@ class HjpegPerformanceTraceSpec extends AnyFreeSpec with Matchers with ChiselSim
       dut.io.protocolError.expect(false.B)
       nextPixel mustBe pixels
 
-      val image = ImageIO.read(new ByteArrayInputStream(bytes.map(_.toByte).toArray))
-      image must not be null
-      image.getWidth mustBe definition.width
-      image.getHeight mustBe definition.height
+      decodedFrames.size mustBe definition.frames
+      decodedFrames.foreach { frameBytes =>
+        val image = ImageIO.read(new ByteArrayInputStream(frameBytes.map(_.toByte).toArray))
+        image must not be null
+        image.getWidth mustBe definition.width
+        image.getHeight mustBe definition.height
+      }
 
       ScenarioResult(
         definition,
@@ -402,12 +435,15 @@ class HjpegPerformanceTraceSpec extends AnyFreeSpec with Matchers with ChiselSim
     val scenarioWriter = new PrintWriter(Files.newBufferedWriter(directory.resolve("scenarios.csv")))
     try {
       scenarioWriter.println(
-        "scenario,profile,width,height,sampling,content,quality,ready_pattern,clock_hz,first_input_cycle,last_output_cycle,frame_cycles,pixels,bytes,mcus,blocks")
+        "scenario,profile,frames,width,height,sampling,content,quality," +
+          "ready_pattern,clock_hz,first_input_cycle,last_output_cycle," +
+          "frame_cycles,pixels,bytes,mcus,blocks")
       results.foreach { result =>
         scenarioWriter.println(
           Seq(
             result.name,
             result.definition.profile,
+            result.definition.frames,
             result.definition.width,
             result.definition.height,
             result.definition.sampling,

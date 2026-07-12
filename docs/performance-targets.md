@@ -128,15 +128,34 @@ transition gaps fall to 100/268 cycles, while steady MCU intervals remain
 99/267. Measured input acceptance is 1.78 cycles/pixel for this small 4:4:4
 frame and 1.37 for 4:2:0; only the latter is within the 1.61-cycle/pixel target.
 
+A 256x64 seeded-random quality-90 4:4:4 capture separates fixed startup from
+sustained behavior more clearly. It completes in 29,455 cycles, emits a
+22,882-byte decoder-valid JPEG, and accepts 16,384 pixels at 1.522 cycles/pixel.
+Steady MCU intervals have mean/p95/max 100.65/103/105 cycles and stripe
+transitions are at most 102 cycles. The average MCU rate and input acceptance
+both fit their provisional budgets; the maximum remains useful diagnostic
+evidence but is not compared against an explicitly average budget.
+
+With identical-config frame overlap enabled, two repeated 256x64 frames
+complete in 56,763 cycles, or 28,381.5 cycles/frame, and accept input at 1.594
+cycles/pixel. Both 22,882-byte JPEGs decode independently, and the inter-frame
+MCU transition is 105 cycles. The finite capture still averages 1.732 total
+cycles per pixel from first input through second output; header and final-tail
+costs are not a direct 1080p estimate. Board/DMA measurement remains required
+for the 1080p30 claim.
+
+The exact same-config-overlap RTL passes the complete routed Vivado evidence
+gate at 100 MHz with setup WNS `+0.227 ns` and hold WHS `+0.010 ns`. It uses
+35,440 CLB LUTs (30.26%), 54,493 registers (23.26%), 76 BRAM tiles (52.78%),
+127 DSPs (10.18%), and 8,201 physical CLBs (56.02%).
+
 Using only the new MCU regression ceilings gives optimistic 1080p throughput
 ceilings of roughly 30.9 fps for 4:4:4 and 45.4 fps for 4:2:0 at 100 MHz.
 Actual frame throughput will be lower because those estimates omit raster band
 collection, markers, and other flow-control work. The transform, isolated
-loader, measured high-entropy block rate, and stripe/band transition gaps are
-resolved in simulation. The next question is whether larger 4:4:4 frames
-converge to the 99-cycle steady MCU rate or expose a sustained
-producer/consumer mismatch requiring a measured queue. These are architectural
-gap indicators, not timing closure or board measurements.
+loader, measured high-entropy block rate, stripe/band transition gaps, and
+large-frame input rate are resolved in simulation. These are architectural gap
+indicators, not timing closure or board measurements.
 
 ## Performance Trace Workflow
 
@@ -168,6 +187,14 @@ both sampling modes. Generated artifacts live under `build/performance-traces/`:
   capture and can be passed back with `--capture-dir` to reproduce the rendered
   artifacts.
 
+Schema version 3 adds an explicit frame count, average frame cycles, and
+frame-transition MCU intervals. It also labels raster processor state zero as
+`idle`; collection runs independently through input handshakes. Generated CSV
+uses the canonical `scenario` column and round-trips through `--capture-dir`;
+older generated captures with a `name` column remain readable. Explicit large
+scenarios are `large-444-seeded-random-q90` and
+`large-444-two-frame-seeded-random-q90`.
+
 The transform target uses sustained intervals between component blocks within
 an MCU. Longer gaps between MCUs remain visible in the trace and the unfiltered
 stage initiation distribution, but belong to raster/MCU supply rather than the
@@ -181,9 +208,10 @@ Phase metrics distinguish:
 - raster startup from the first input pixel through the first MCU handoff;
 - encoder startup through the first emitted JPEG byte and first entropy block;
 - transform-input intervals within one MCU and between consecutive MCUs;
-- MCU intervals within a stripe/band and across stripe/band transitions; and
-- steady-state MCU intervals after the first stripe/band, excluding transition
-  intervals.
+- MCU intervals within a stripe/band and across stripe/band transitions;
+- frame-transition MCU intervals for multi-frame captures; and
+- steady-state MCU intervals after the first stripe/band of each frame,
+  excluding stripe and frame transitions.
 
 This classification keeps one-time header/startup behavior and raster refill
 gaps out of content-dependent steady-state entropy conclusions.
@@ -209,18 +237,15 @@ Vivado reports cannot prove DMA behavior or decoder-valid hardware output.
 
 ## Optimization Direction
 
-The current gap is too large for timeout tuning or small state-machine changes.
 Term-level DCT unrolling, row/column overlap, four-coefficient AC lookahead,
-packer input/output overlap, and two-slot raster collection are complete.
-Current high-entropy traces no longer show repeated MCU stalls, so the next
-throughput work should prioritize:
+packer input/output overlap, two-slot raster collection, and bounded
+same-config frame overlap are complete. Current high-entropy and large-frame
+traces no longer justify additional raster depth. Next work should prioritize:
 
-1. larger 4:4:4 traces that separate fixed startup occupancy from sustained
-   input rate;
-2. a measured MCU queue or additional raster slot only if those traces show a
-   producer/consumer mismatch; and
-3. fresh content-matrix traces and post-implementation evidence after each
-   material architecture change.
+1. physical KV260 DMA measurement with decoder-validated 1080p frames;
+2. broader large-content traces only for a concrete unresolved hypothesis; and
+3. additional buffering only if board or broader large-content evidence shows
+   a sustained mismatch.
 
 Each optimization must retain the stage-level coefficient fixtures, complete
 JPEG decoding tests, recognizable-content checks, and ready/valid behavior.

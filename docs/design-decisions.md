@@ -385,9 +385,9 @@ mode budgets.
 - Directed backpressure tests fill both slots before allowing output, then
   prove ordered MCU contents, final-frame metadata, and slot reuse in both
   sampling modes.
-- The AXI wrapper blocks a following frame after input TLAST until the active
-  JPEG output TLAST transfers, preventing a free slot from admitting pixels
-  governed by a different, not-yet-active configuration snapshot.
+- The AXI wrapper may admit a following frame only when its complete config
+  matches the active snapshot; changed configurations wait for the active
+  group to drain.
 - Seeded-random quality-90 frame time falls from 12,032 to 8,456 cycles for
   4:4:4 and from 9,999 to 6,931 for 4:2:0, with unchanged 5,862- and
   3,428-byte decoder-valid JPEGs. Stripe/band transition intervals fall to
@@ -400,10 +400,49 @@ mode budgets.
   LUTs, 54,487 registers, 127 DSPs, and 54.29% CLB occupancy. The setup margin
   is positive but tight; the complete twelve-record evidence gate passes.
 
-**Revisit when:** Larger-frame traces show whether 4:4:4 converges to its
-99-cycle-per-MCU steady rate or needs a measured MCU queue or third collection
-slot. Do not add depth without separating startup occupancy from sustained
-producer/consumer mismatch.
+**Revisit when:** Board measurements or larger content matrices contradict the
+256x64 result. Do not add depth without separating startup occupancy from a
+sustained producer/consumer mismatch.
+
+## Overlap frames only under one exact configuration snapshot
+
+**Status:** Accepted
+
+**Decision:** Track up to three supported frames in flight: one may be in the
+encoder and one may occupy each raster slot. Admit a later frame while the
+count is nonzero only when all `FrameConfig` bits match the active snapshot.
+Keep `busy` asserted until the count returns to zero. Defer any differently
+configured frame without accepting its first beat.
+
+**Context:** The initial correctness guard blocked every new frame until the
+previous JPEG TLAST, leaving the two raster slots idle during the output tail.
+The larger 256x64 4:4:4 trace showed that within-frame input already meets its
+budget, so more raster depth was unjustified. Repeated video frames normally
+share dimensions, quality, sampling, restart, and JFIF settings and can safely
+reuse one snapshot.
+
+**Consequences:**
+
+- Directed 4:4:4 and 4:2:0 tests accept two frames while output is stalled,
+  then require byte-identical, independently decodable JPEGs and continuous
+  `busy` assertion. A changed-config test proves the next frame remains
+  backpressured until the old JPEG completes.
+- A two-frame 256x64 seeded-random quality-90 capture completes in 56,763
+  cycles, or 28,381.5 cycles/frame versus 29,455 for one frame. Input
+  acceptance is 1.594 cycles/pixel, steady MCU mean/p95/max are
+  100.65/103/105 cycles, and the inter-frame MCU transition is 105 cycles.
+  Each JPEG remains 22,882 bytes and decoder-valid.
+- The bounded count mirrors physical capacity and cannot hide a sustained
+  mismatch behind an arbitrary logical FIFO. A configuration change may
+  intentionally introduce a drain bubble.
+- Exact-current implementation closes 100 MHz at setup WNS `+0.227 ns` and
+  hold WHS `+0.010 ns`. It uses 35,440 CLB LUTs, 54,493 registers, 76 BRAM
+  tiles, 127 DSPs, and 56.02% physical CLBs; the complete twelve-record gate
+  passes with zero route errors.
+
+**Revisit when:** The host requires mixed-configuration frames without drain
+gaps. That requires per-frame config metadata through raster and encoder
+boundaries, not a wider unqualified admission rule.
 
 ## Generate header bytes with a multi-cycle state machine
 

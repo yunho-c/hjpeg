@@ -6,6 +6,7 @@ import io
 import json
 import tempfile
 import unittest
+from dataclasses import replace
 from unittest import mock
 from pathlib import Path
 
@@ -20,6 +21,7 @@ class GeneratePerformanceTraceTest(unittest.TestCase):
                 (
                     "scenario",
                     "profile",
+                    "frames",
                     "width",
                     "height",
                     "sampling",
@@ -36,7 +38,10 @@ class GeneratePerformanceTraceTest(unittest.TestCase):
                     "blocks",
                 )
             )
-            writer.writerow(("444", "quick", 2, 1, "4:4:4", "deterministic-gradient", 50, "always", 100_000_000, 0, 5, 6, 2, 2, 2, 2))
+            writer.writerow(
+                ("444", "quick", 1, 2, 1, "4:4:4", "deterministic-gradient", 50,
+                 "always", 100_000_000, 0, 5, 6, 2, 2, 2, 2)
+            )
 
         transfers = {
             "rgb_input": {0, 1},
@@ -75,6 +80,7 @@ class GeneratePerformanceTraceTest(unittest.TestCase):
             scenarios, samples, phases = performance.read_capture(directory)
 
             self.assertEqual(scenarios[0].frame_cycles, 6)
+            self.assertEqual(scenarios[0].frames, 1)
             self.assertEqual(len(samples), 6 * len(performance.BOUNDARY_ORDER))
             self.assertEqual(samples[0].boundary, "rgb_input")
             self.assertEqual(len(phases), 6)
@@ -112,6 +118,7 @@ class GeneratePerformanceTraceTest(unittest.TestCase):
             scenario = metrics["scenarios"][0]
 
             self.assertEqual(scenario["frame_cycles"], 6)
+            self.assertEqual(scenario["average_frame_cycles"], 6)
             self.assertAlmostEqual(scenario["frames_per_second"], 100_000_000 / 6)
             transform = next(stage for stage in scenario["stages"] if stage["name"] == "block_transform")
             self.assertEqual(transform["latency_cycles"]["p50"], 2)
@@ -120,7 +127,27 @@ class GeneratePerformanceTraceTest(unittest.TestCase):
             self.assertEqual(target["status"], "within")
             self.assertEqual(scenario["phase_metrics"]["raster_startup_to_first_mcu_cycles"], 2)
             self.assertEqual(scenario["phase_metrics"]["encoder_startup_to_first_entropy_block_cycles"], 2)
-            self.assertEqual(scenario["phase_metrics"]["raster_phase_cycles"]["collect"], 3)
+            self.assertEqual(scenario["phase_metrics"]["raster_phase_cycles"]["idle"], 3)
+
+    def test_separates_frame_transitions_from_steady_mcu_intervals(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            self.write_fixture(directory)
+            scenarios, samples, phases = performance.read_capture(directory)
+            two_frame = replace(scenarios[0], frames=2, width=1, pixels=2)
+
+            metrics = performance.calculate_metrics([two_frame], samples, phases)
+            phase = metrics["scenarios"][0]["phase_metrics"]
+            target = next(
+                item
+                for item in metrics["scenarios"][0]["targets"]
+                if item["name"] == "steady_state_mcu_mean_ii"
+            )
+
+            self.assertEqual(phase["frame_transition_mcu_interval_cycles"]["maximum"], 3)
+            self.assertEqual(phase["steady_state_mcu_interval_cycles"]["count"], 0)
+            self.assertEqual(metrics["scenarios"][0]["average_frame_cycles"], 3)
+            self.assertEqual(target["status"], "unknown")
 
     def test_renders_deterministic_perfetto_and_graph_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -135,8 +162,13 @@ class GeneratePerformanceTraceTest(unittest.TestCase):
             performance.generate_artifacts(first, scenarios, samples, phases, dot_command=None)
             performance.generate_artifacts(second, scenarios, samples, phases, dot_command=None)
 
+            round_trip_scenarios, round_trip_samples, round_trip_phases = performance.read_capture(first)
+
             self.assertEqual((first / "trace.json").read_bytes(), (second / "trace.json").read_bytes())
             self.assertEqual((first / "metrics.json").read_bytes(), (second / "metrics.json").read_bytes())
+            self.assertEqual(round_trip_scenarios, scenarios)
+            self.assertEqual(round_trip_samples, samples)
+            self.assertEqual(round_trip_phases, phases)
             trace = json.loads((first / "trace.json").read_text(encoding="utf-8"))
             self.assertTrue(any(event.get("cat") == "transaction_latency" for event in trace["traceEvents"]))
             self.assertTrue(any(event.get("cat") == "fsm_phase" for event in trace["traceEvents"]))
@@ -199,6 +231,12 @@ class GeneratePerformanceTraceTest(unittest.TestCase):
         self.assertIn("steady-420-seeded-random-q90", performance.STEADY_STATE_SCENARIOS)
         args = performance.build_parser().parse_args(("--profile", "steady-state"))
         self.assertEqual(args.profile, "steady-state")
+
+    def test_large_sustained_scenario_is_explicitly_selectable(self) -> None:
+        name = "large-444-two-frame-seeded-random-q90"
+        self.assertIn(name, performance.LARGE_SCENARIOS)
+        args = performance.build_parser().parse_args(("--scenario", name))
+        self.assertEqual(args.scenario, [name])
 
     def test_windows_simulation_uses_docker_launcher_and_container_capture_path(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

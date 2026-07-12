@@ -10,7 +10,8 @@ import chisel3.util._
   * The input stream is raster RGB. Within `input.bits.data`, bits `[7:0]` are R,
   * `[15:8]` are G, and `[23:16]` are B. The wrapper generates the `x/y`
   * coordinates consumed by `HjpegCore` and checks that input `last` matches the
-  * configured frame dimensions.
+  * configured frame dimensions. Frames may overlap only while every config
+  * field matches the active snapshot.
   */
 class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
   val pixelDataBits = c.pixelBits * HjpegConstants.Components
@@ -30,7 +31,10 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
   core.io.clearProtocolError := io.clearProtocolError
 
   val frameConfig = Reg(new FrameConfig(c))
-  val frameConfigActive = RegInit(false.B)
+  // One MCU may be in the encoder while each of the two raster slots owns a
+  // later frame. All in-flight frames must share this config snapshot.
+  val framesInFlight = RegInit(0.U(2.W))
+  val frameConfigActive = framesInFlight =/= 0.U
   val activeConfig = Wire(new FrameConfig(c))
   activeConfig := io.config
   when(frameConfigActive) {
@@ -62,9 +66,12 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
   val expectedKeep = Fill(pixelDataBits / 8, 1.U(1.W))
   val inputKeepValid = io.input.bits.keep === expectedKeep
   val feedCoreInput = activeInputSupported && inputKeepValid
-  // Raster collection may finish before its JPEG drains. Keep the next frame
-  // outside the core until the active frame's snapshotted config is released.
-  val inputFrameCanAdvance = inputFrameActive || !frameConfigActive
+  val inputConfigMatches = io.config.asUInt === frameConfig.asUInt
+  val canStartInputFrame =
+    !frameConfigActive || (framesInFlight =/= 3.U && inputConfigMatches)
+  // Continue an already snapshotted input frame despite live register writes.
+  // A later frame may overlap only when it uses the exact active config.
+  val inputFrameCanAdvance = inputFrameActive || canStartInputFrame
 
   core.io.input.valid := io.input.valid && feedCoreInput && inputFrameCanAdvance
   io.input.ready := inputFrameCanAdvance && Mux(feedCoreInput, core.io.input.ready, true.B)
@@ -86,7 +93,6 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
     y := 0.U
     inputFrameActive := false.B
     inputFrameSupported := false.B
-    frameConfigActive := false.B
   }
 
   when(io.input.fire) {
@@ -95,8 +101,9 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
       inputFrameSupported := inputConfigSupported
       inputWidth := io.config.xsize
       inputHeight := io.config.ysize
-      frameConfig := io.config
-      frameConfigActive := inputConfigSupported
+      when(!frameConfigActive && inputConfigSupported && inputKeepValid) {
+        frameConfig := io.config
+      }
     }
     when(!activeInputSupported) {
       protocolError := true.B
@@ -125,10 +132,19 @@ class HjpegAxiStreamCore(c: HjpegConfig = HjpegConfig()) extends Module {
     }
   }
 
-  when(io.output.fire && io.output.bits.last) {
-    frameConfigActive := false.B
+  val acceptedFrameStart =
+    io.input.fire && !inputFrameActive && inputConfigSupported && inputKeepValid
+  val completedOutputFrame = io.output.fire && io.output.bits.last
+  when(io.clearProtocolError) {
+    framesInFlight := 0.U
+  }.elsewhen(acceptedFrameStart =/= completedOutputFrame) {
+    when(acceptedFrameStart) {
+      framesInFlight := framesInFlight + 1.U
+    }.otherwise {
+      framesInFlight := framesInFlight - 1.U
+    }
   }
 
-  io.busy := core.io.busy || inputFrameActive
+  io.busy := core.io.busy || inputFrameActive || frameConfigActive
   io.protocolError := core.io.protocolError || protocolError
 }
