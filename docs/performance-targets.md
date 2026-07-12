@@ -62,7 +62,7 @@ following latency from an accepted boundary to output validity:
 | Four-block transform initiation intervals | 16/16/16 | 17 maximum |
 | First 4:4:4 MCU after stripe collection | 98 | 100 |
 | First 4:2:0 MCU after band collection | 266 | 270 |
-| Complete 16x16 4:4:4 test frame | 2,252 | 2,300 |
+| Complete 16x16 4:4:4 test frame | 2,146 | 2,300 |
 
 The block and MCU measurements use quality 50 and deterministic fixtures. The
 transform latency is fixed by the current state machines; entropy and complete
@@ -94,7 +94,8 @@ from 66 to 21, and complete transform latency from 196 to 55. First-MCU
 processing first fell from 398 to 154 cycles for 4:4:4 and from 1,050 to 650
 for 4:2:0 with the pipelined transform and synchronous scalar reads. Banked
 reads reduce those current measurements further to 98 and 266 cycles; the
-16x16 frame fixture falls from 2,364 to 2,252 cycles.
+16x16 frame fixture first fell from 2,364 to 2,252 cycles; entropy lookahead
+reduces it further to 2,146 cycles.
 
 The last pre-BRAM quick 32x16 trace completed in 3,275 cycles for 4:4:4 and
 3,106 for 4:2:0. Within-MCU block intervals are 16 cycles; steady same-stripe
@@ -102,26 +103,29 @@ The last pre-BRAM quick 32x16 trace completed in 3,275 cycles for 4:4:4 and
 Header/entropy startup dominates these small frames, while serial MCU loading
 and raster collection dominate the remaining steady-state gap.
 
-A current-code, banked-block-RAM 64x64 seeded-random quality-90 capture adds
-the missing high-entropy evidence. The 4:4:4 frame completes in 19,123 cycles
-and has post-first-stripe MCU intervals of 218--230 cycles. Its `mcu_output`
-boundary has one 1,629-cycle startup stall followed by 55 repeated 119--131-cycle
-stalls, so entropy consumption is a sustained 4:4:4 bottleneck for this
-content. The 4:2:0 frame completes in 12,647 cycles, a 1.29x improvement over
-the scalar BRAM loader, and has 450--466-cycle post-first-band MCU intervals.
-Its `mcu_output` boundary now has one 1,701-cycle startup stall followed by 11
-repeated 183--199-cycle stalls, so the faster loader exposes entropy as a
-sustained limit in this mode too. Both scenarios retain a 16-cycle transform
-initiation interval and decode at the expected dimensions.
+A current-code, banked-block-RAM 64x64 seeded-random quality-90 capture covers
+the four-coefficient AC scanner and overlapped bit packer. The 4:4:4 frame
+completes in 12,032 cycles, 1.59x faster than the scalar entropy scanner, and
+has 99-cycle post-first-stripe steady MCU intervals. Entropy block work falls
+from 14,025 to 5,814 cycles, or 30.28 cycles/block. Its `mcu_output` boundary
+has only one 1,500-cycle startup stall instead of repeated steady-state stalls.
+The 4:2:0 frame completes in 9,999 cycles, 1.26x faster than the scalar entropy
+scanner, and has 267-cycle post-first-band steady MCU intervals. Entropy block
+work falls from 7,251 to 3,003 cycles, or 31.28 cycles/block, and `mcu_output`
+likewise has only one 1,432-cycle startup stall. Both scenarios retain a
+16-cycle transform initiation interval, emit the same byte counts as the
+scalar-scanner baseline, and decode at the expected dimensions. Short
+one-to-three-cycle run-to-packer stalls remain around byte emission and
+stuffing, but no sustained entropy mismatch remains in these fixtures.
 
 Using only the new MCU regression ceilings gives optimistic 1080p throughput
 ceilings of roughly 30.9 fps for 4:4:4 and 45.4 fps for 4:2:0 at 100 MHz.
 Actual frame throughput will be lower because those estimates omit raster band
-collection, entropy, markers, and other flow-control work. The transform-rate
-and isolated loader-rate deficits are resolved in simulation; the next
-architectural limits are entropy throughput and overlapping raster collection
-with processing. These are architectural gap indicators, not timing closure or
-board measurements.
+collection, markers, and other flow-control work. The transform, isolated
+loader, and measured high-entropy block-rate deficits are resolved in
+simulation; the next architectural limit is overlapping raster collection with
+processing. These are architectural gap indicators, not timing closure or board
+measurements.
 
 ## Performance Trace Workflow
 
@@ -195,16 +199,14 @@ Vivado reports cannot prove DMA behavior or decoder-valid hardware output.
 ## Optimization Direction
 
 The current gap is too large for timeout tuning or small state-machine changes.
-Term-level DCT unrolling and row/column overlap are complete. Current smooth
-and high-entropy traces show two independent sustained limits, so the next
-throughput architecture should prioritize:
+Term-level DCT unrolling, row/column overlap, four-coefficient AC lookahead, and
+packer input/output overlap are complete. Current high-entropy traces no longer
+show repeated MCU stalls, so the next throughput architecture should prioritize:
 
-1. at least two-coefficient-per-cycle AC scanning plus enough run buffering or
-   packer overlap to remove repeated high-entropy MCU stalls in both modes;
-2. ping-pong buffering so raster collection overlaps MCU processing without
+1. ping-pong buffering so raster collection overlaps MCU processing without
    hiding a sustained downstream mismatch behind arbitrary FIFO depth;
-3. a measured MCU queue sized from the resulting producer/consumer rates; and
-4. fresh high-entropy traces and post-implementation evidence after each
+2. a measured MCU queue sized from the resulting producer/consumer rates; and
+3. fresh high-entropy traces and post-implementation evidence after each
    material architecture change.
 
 Each optimization must retain the stage-level coefficient fixtures, complete

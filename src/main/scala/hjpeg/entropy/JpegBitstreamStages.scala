@@ -29,8 +29,9 @@ class JpegEntropyTokenBitsStage(maxBits: Int = 32, amplitudeBits: Int = 16) exte
   * asserted and fewer than eight bits are pending, the final byte is padded with
   * one bits, matching baseline JPEG entropy-segment fill behavior.
   *
-  * This first implementation is intentionally conservative: it only accepts a
-  * new run when it is not currently emitting a byte.
+  * A run may be accepted in the same cycle that an output byte is transferred.
+  * The post-transfer capacity check keeps the buffer bounded, and a stalled
+  * output always blocks the input so the visible byte remains stable.
   */
 class JpegBitRunPacker(maxRunBits: Int = 32, bufferBits: Int = 64) extends Module {
   require(bufferBits >= maxRunBits + 8, "bufferBits must hold one run plus one byte")
@@ -64,29 +65,45 @@ class JpegBitRunPacker(maxRunBits: Int = 32, bufferBits: Int = 64) extends Modul
   io.output.valid := stuffingPending || emittingDataByte
   io.output.bits.byte := outputByte
   io.output.bits.last := outputLast
-  io.input.ready := !io.output.valid
+
+  val outputTransfer = io.output.valid && io.output.ready
+  val dataByteTransfer = outputTransfer && !stuffingPending
+  val countAfterOutput = WireDefault(bitCount)
+  val bufferAfterOutput = WireDefault(bitBuffer)
+
+  when(dataByteTransfer) {
+    when(canEmitFullByte) {
+      val remainingCount = bitCount - 8.U
+      val keepMask = (1.U(bufferBits.W) << remainingCount) - 1.U
+      countAfterOutput := remainingCount
+      bufferAfterOutput := bitBuffer & keepMask
+    }.otherwise {
+      countAfterOutput := 0.U
+      bufferAfterOutput := 0.U
+    }
+  }
+
+  val countWithInput = countAfterOutput +& io.input.bits.length
+  val outputCanAdvance = !io.output.valid || io.output.ready
+  io.input.ready := !io.flush && outputCanAdvance && countWithInput <= bufferBits.U
   io.idle := !stuffingPending && bitCount === 0.U && !io.input.valid
 
-  when(io.output.fire) {
+  when(outputTransfer) {
     when(stuffingPending) {
       stuffingPending := false.B
     }.otherwise {
-      when(outputByte === 0xff.U) {
-        stuffingPending := true.B
-      }
-
-      when(canEmitFullByte) {
-        val remainingCount = bitCount - 8.U
-        val keepMask = (1.U(bufferBits.W) << remainingCount) - 1.U
-        bitBuffer := bitBuffer & keepMask
-        bitCount := remainingCount
-      }.otherwise {
-        bitBuffer := 0.U
-        bitCount := 0.U
-      }
+      stuffingPending := outputByte === 0xff.U
     }
-  }.elsewhen(io.input.fire) {
-    bitBuffer := (bitBuffer << io.input.bits.length) | io.input.bits.bits
-    bitCount := bitCount + io.input.bits.length
+  }
+
+  when(outputTransfer || io.input.fire) {
+    bitBuffer := bufferAfterOutput
+    bitCount := countAfterOutput
+
+    when(io.input.fire) {
+      val appended = (bufferAfterOutput << io.input.bits.length) | io.input.bits.bits
+      bitBuffer := appended(bufferBits - 1, 0)
+      bitCount := countWithInput
+    }
   }
 }

@@ -83,7 +83,11 @@ block transform.
 After quantization, coefficients are reordered into JPEG zig-zag order. The
 entropy stages difference DC coefficients per component, encode AC zero runs
 with EOB and ZRL handling, select the baseline Huffman codes, pack variable
-length codes into bytes, and apply `0xff` byte stuffing.
+length codes into bytes, and apply `0xff` byte stuffing. AC scanning examines
+four ordered coefficients per cycle while emitting at most one ordered event;
+captured last-nonzero metadata terminates trailing-zero scans without a wide
+remaining-block reduction. The packer can accept the next run while an output
+byte transfers when its post-transfer buffer has capacity.
 
 `JpegHeaderStage` emits marker bytes through a small output state machine. It
 prepares quality-scaled DQT payload bytes over multiple cycles rather than

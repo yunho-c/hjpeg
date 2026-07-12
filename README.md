@@ -16,11 +16,11 @@ files, streaming RTL shells, elaboration entry points, and simulator tests.
 
 The provisional performance target is decoder-valid 1920x1080 at 30 fps in
 both 4:4:4 and 4:2:0 modes at a 100 MHz PL clock. The four-lane DCT/quantizer
-now meets the average 4:4:4 block-rate budget in simulation, but serialized
-raster collection and entropy consumption keep complete-frame estimates below
-target. Banked synchronous raster storage now loads 4:4:4 and 4:2:0 MCUs within
-their average cycle budgets. Current implementation closes 100 MHz timing and
-uses 54.35% of CLBs and 27.78% of block RAM; see
+and four-coefficient AC scanner now meet the average 4:4:4 block-rate budget in
+simulation, but serialized raster collection keeps complete-frame estimates
+below target. Banked synchronous raster storage now loads 4:4:4 and 4:2:0 MCUs
+within their average cycle budgets. Current implementation closes 100 MHz
+timing and uses 57.06% of CLBs and 27.78% of block RAM; see
 [`docs/performance-targets.md`](docs/performance-targets.md) for cycle budgets,
 evidence levels, and the optimization direction.
 

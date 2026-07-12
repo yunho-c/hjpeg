@@ -282,10 +282,11 @@ smaller and its intermediate values easier to test.
 - DCT, quantizer, and complete-transform input/output intervals are 16 cycles in
   deterministic RTL simulation, below the 34.3-cycle 4:4:4 block budget.
 - Current banked block-RAM implementation closes 100 MHz timing at setup WNS
-  `+0.461 ns` and hold WHS `+0.011 ns`, with 127 DSPs and 54.35% CLB
+  `+0.252 ns` and hold WHS `+0.011 ns`, with 127 DSPs and 57.06% CLB
   occupancy. Both timing and the provisional resource ceiling pass.
-- Serial raster collection and entropy consumption, rather than block-transform
-  or isolated MCU-load rate, now dominate simulated frame throughput.
+- Serial raster collection, rather than block-transform, isolated MCU-load
+  rate, or measured high-entropy block rate, now dominates simulated frame
+  throughput.
 - Resource savings and timing closure must be judged together with measured
   frame throughput.
 
@@ -319,12 +320,48 @@ coordinates select one physical address and broadcast its returned sample.
   to 54.35%, while BRAM remains 40 tiles, LUTRAM remains 675, and setup/hold
   timing stays positive.
 - MCU loading now fits both average mode budgets in isolation. Collection still
-  cannot overlap processing, and faster MCU production exposes sustained
-  entropy backpressure in both high-entropy trace scenarios.
+  cannot overlap processing. The later entropy lookahead change removes the
+  sustained backpressure that this faster producer exposed.
 
 **Revisit when:** Adding ping-pong stripe/band buffers or changing the memory
 layout for collection overlap. Preserve bank conflict freedom and synchronous
 BRAM inference, then re-run routed resource evidence.
+
+## Scan four AC coefficients and overlap packer transfers
+
+**Status:** Accepted
+
+**Decision:** Capture whether a block has any nonzero AC coefficient and its
+last nonzero zig-zag index, then examine four ordered coefficients per cycle.
+Emit at most one coefficient, ZRL, or EOB event per cycle so the existing
+entropy contract remains ordered. Let the bit packer accept a new run in the
+same cycle that it transfers a data or stuffing byte when post-transfer capacity
+is available.
+
+**Context:** The scalar scanner spent one cycle on every AC position and used a
+wide remaining-coefficient test. The packer also deasserted input ready on every
+output cycle. Together they consumed 73--76 cycles per high-entropy block and
+created repeated MCU backpressure after raster loading was widened.
+
+**Consequences:**
+
+- Directed tests prove four-zero lookahead, exact coefficient/ZRL/EOB order,
+  one event per cycle for adjacent nonzeros, output stability under
+  backpressure, simultaneous packer input/output, and `0xff` stuffing.
+- Seeded-random quality-90 entropy work falls to 30.28 cycles/block for 4:4:4
+  and 31.28 cycles/block for 4:2:0. Frame cycles fall from 19,123 to 12,032 and
+  from 12,647 to 9,999, respectively, with unchanged JPEG byte counts.
+- Routed CLB occupancy rises from 54.35% to 57.06%; total CLB LUTs rise from
+  34,319 to 35,300. BRAM remains 40 tiles and DSPs remain 127. At 100 MHz,
+  setup WNS is `+0.252 ns`, hold WHS is `+0.011 ns`, and the complete evidence
+  gate passes.
+- The measured high-entropy mismatch is resolved. Serialized raster collection
+  is now the next simulated throughput limit.
+
+**Revisit when:** A broader entropy-content matrix exposes a sustained mismatch,
+or ping-pong collection increases the producer rate enough to require a small
+measured queue. Preserve exact byte output and re-run routed timing because the
+lookahead path uses additional coefficient muxing.
 
 ## Generate header bytes with a multi-cycle state machine
 
