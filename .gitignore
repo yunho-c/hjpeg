@@ -66,6 +66,9 @@ usage_statistics_webtalk.html
 webtalk.log
 webtalk_pn.xml
 
+# local credentials and other untracked secrets
+/.secrets/
+
 # generated folders
 generated*/
 .Xil/
