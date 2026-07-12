@@ -150,19 +150,52 @@ across 27 suites, plus 5 capacity-model, 235 host-flow, and 59 Vivado-report
 parser tests. The Scala total includes decoder-backed vector tests at both the
 internal 96-bit RGB boundary and the external 128-bit KV260 boundary.
 
+## Ordered Three-Lane Transform Slice
+
+The unified raster stage now owns three lockstep `JpegBlockTransformStage`
+instances. A 4:4:4 MCU issues Y, Cb, and Cr in one ordered batch. A 4:2:0 MCU
+issues Y0/Y1/Y2 followed by Y3/Cb/Cr after the pipelines' 16-cycle initiation
+interval. Atomic input/output handshakes prevent any subset of the three lanes
+from accepting or retiring a batch. The MCU exposed to entropy remains in the
+standard component order.
+
+For 4:4:4, the loader also captures Y, Cb, and Cr from their independent
+memories on the same read instead of repeating identical addresses in three
+phases. Focused coefficient-level tests pass for ordered 4:4:4 stripes and a
+padded 4:2:0 frame. The decoder-valid quick profiler changes are:
+
+| Quick fixture | One transform | Three ordered transforms | Change |
+| --- | ---: | ---: | ---: |
+| 32x16 4:4:4 frame | 3,094 cycles | 2,651 cycles | -443 (-14.3%) |
+| 32x16 4:2:0 frame | 2,526 cycles | 2,462 cycles | -64 (-2.5%) |
+| 4:4:4 steady MCU spacing | 139 cycles | 76.7 cycles | -62.3 (-44.8%) |
+
+Exact UHD post-synthesis evidence for this intermediate at 100 MHz is 38,728
+logic LUTs (33.07%), 56,710 registers (24.21%), 99 BRAM tiles (68.75%), 194
+DSPs (15.54%), and setup WNS `+1.103 ns`. The additional transforms therefore
+remain below the 70% resource gate, but BRAM headroom is only 1.25 percentage
+points and later changes must avoid replicated frame storage.
+
+This slice does not overlap loading one MCU with transformation/entropy of
+another. Its 4:2:0 loader also still reads four source samples per cycle. Those
+serial regions explain why the measured MCU interval remains above the 4K60
+budget despite having enough raw transform arithmetic.
+
 ## Remaining Architecture
 
 Implementation order is:
 
-1. Add ordered parallel block transforms: two lanes for 4:2:0 and three for
-   4:4:4 at the 150 MHz goal, or an evidence-backed equivalent.
-2. Parallelize entropy by independently encoded restart intervals with ordered
+1. Read eight conflict-free samples per cycle for 4:2:0 by pairing rows across
+   the existing eight banks; do not replicate the raster store.
+2. Pipeline MCU loading, transform batches, and ordered output assembly across
+   separate slots so transform latency does not serialize consecutive MCUs.
+3. Parallelize entropy by independently encoded restart intervals with ordered
    byte-aligned merge, or demonstrate another design that meets the same rate
    without changing decoder-visible coefficient order.
-3. Widen the JPEG AXI stream if measured entropy traffic approaches the
+4. Widen the JPEG AXI stream if measured entropy traffic approaches the
    byte-oriented clock limit; the q85 benchmark's scaled output rate alone does
    not require it.
-4. Close routed 150 MHz timing/resources, then
+5. Close routed 150 MHz timing/resources, then
    measure first-input through output-TLAST cycles on a physical KV260 and
    decode both modes with standard software.
 

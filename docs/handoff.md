@@ -5,12 +5,13 @@
 > UHD slice adds an explicit elaboration target and replaces duplicated raster
 > stores/transforms with `JpegUnifiedRasterToMcuStage`. The next slice accepts
 > four adjacent RGB pixels in each 128-bit DMA beat. UHD post-synthesis use is
-> 97 BRAM tiles, 76 DSPs, 21,634 logic LUTs, and 31,401 registers with `+1.103
-> ns` WNS at 100 MHz. This is resource/ingress evidence, not 4K60 throughput
-> proof; parallel transforms/entropy, routed 150 MHz, and physical decoder-valid
-> measurements remain outstanding. Exact-current verification is 145/145
-> Scala/Chisel tests across 27 suites, plus 5 capacity-model, 235 host-flow, and
-> 59 Vivado-report parser tests.
+> 99 BRAM tiles, 194 DSPs, 38,728 logic LUTs, and 56,710 registers with `+1.103
+> ns` WNS at 100 MHz after adding three ordered transform lanes. This is
+> resource/ingress evidence, not 4K60 throughput proof; wider 4:2:0 reads,
+> cross-MCU pipeline overlap, parallel entropy, routed 150 MHz, and physical
+> decoder-valid measurements remain outstanding. The last complete vector
+> checkpoint passed 145/145 Scala/Chisel tests; rerun the full suite before
+> treating the newer transform slice as a completed regression boundary.
 
 This document is for a new agent or developer picking up `hjpeg` without the
 conversation history. Treat the current checkout as authoritative, but use this

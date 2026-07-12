@@ -44,9 +44,11 @@ The active core now uses `JpegUnifiedRasterToMcuStage`: one two-slot 16-row
 banked store and one transform serve both chroma modes. It emits two ordered
 8-row stripes for 4:4:4 or one 16-row band for 4:2:0. UHD post-synthesis BRAM
 fell from 144/144 tiles to 97/144. The UHD top accepts four adjacent pixels per
-128-bit DMA beat, uses 76 DSPs, and retains 97 BRAM tiles; its post-synthesis
-WNS is `+1.103 ns` at 100 MHz. Parallel transforms/entropy, 150 MHz routed
-closure, and physical 4K60 evidence remain required.
+128-bit DMA beat. Three ordered transform lanes now process Y/Cb/Cr together
+for 4:4:4 and two three-block batches for 4:2:0. UHD post-synthesis use is 99
+BRAM tiles, 194 DSPs, 38,728 logic LUTs, and 56,710 registers; WNS is `+1.103
+ns` at 100 MHz. Wider 4:2:0 reads, cross-MCU pipeline overlap, parallel entropy,
+150 MHz routed closure, and physical 4K60 evidence remain required.
 
 The active `JpegBlockTransformStage` uses bit-exact four-lane DCT and quantizer
 stages. Both sustain a 16-cycle block interval in deterministic simulation; the

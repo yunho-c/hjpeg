@@ -247,12 +247,7 @@ class JpegUnifiedRasterToMcuStage(
       }
     }.otherwise {
       when(loadSample === ((HjpegConstants.BlockSize / ReadLanes) - 1).U) {
-        loadSample := 0.U
-        when(loadPhase === 2.U) {
-          loadAllIssued := true.B
-        }.otherwise {
-          loadPhase := loadPhase + 1.U
-        }
+        loadAllIssued := true.B
       }.otherwise {
         loadSample := loadSample + 1.U
       }
@@ -292,13 +287,11 @@ class JpegUnifiedRasterToMcuStage(
     }.otherwise {
       for (lane <- 0 until ReadLanes) {
         val blockIndex = Cat(loadReadSample(3, 1), loadReadSample(0), lane.U(ColumnBankBits.W))
-        switch(loadReadPhase) {
-          is(0.U) { y0Block(blockIndex) := yBankReadData(loadReadBanks(lane)) }
-          is(1.U) { cbBlock(blockIndex) := cbBankReadData(loadReadBanks(lane)) }
-          is(2.U) { crBlock(blockIndex) := crBankReadData(loadReadBanks(lane)) }
-        }
+        y0Block(blockIndex) := yBankReadData(loadReadBanks(lane))
+        cbBlock(blockIndex) := cbBankReadData(loadReadBanks(lane))
+        crBlock(blockIndex) := crBankReadData(loadReadBanks(lane))
       }
-      when(loadReadPhase === 2.U && loadReadSample === ((HjpegConstants.BlockSize / ReadLanes) - 1).U) {
+      when(loadReadSample === ((HjpegConstants.BlockSize / ReadLanes) - 1).U) {
         state := sTransform
         issueBlock := 0.U
         captureBlock := 0.U
@@ -306,44 +299,72 @@ class JpegUnifiedRasterToMcuStage(
     }
   }
 
+  // Three lockstep transform lanes preserve component order while matching the
+  // 4:4:4 capacity floor. 4:4:4 issues Y/Cb/Cr together; 4:2:0 issues
+  // Y0/Y1/Y2 followed by Y3/Cb/Cr. Atomic ready/valid gating prevents a batch
+  // from being accepted or retired by only a subset of lanes.
   val transform = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
-  val blocksPerMcu = Mux(subsampled, 6.U, 3.U)
-  transform.io.quality := io.config.quality
-  transform.io.isLuminance := Mux(subsampled, issueBlock < 4.U, issueBlock === 0.U)
-  transform.io.input.valid := state === sTransform && issueBlock < blocksPerMcu
+  val transform1 = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
+  val transform2 = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
+  val transforms = Seq(transform, transform1, transform2)
+  val transformBatches = Mux(subsampled, 2.U, 1.U)
+  val transformBatchPending = state === sTransform && issueBlock < transformBatches
+  val transformInputReadies = VecInit(transforms.map(_.io.input.ready))
 
-  for (sample <- 0 until HjpegConstants.BlockSize) {
-    val y01Sample = Mux(issueBlock === 0.U, y0Block(sample), y1Block(sample))
-    val y23Sample = Mux(issueBlock === 2.U, y2Block(sample), y3Block(sample))
-    val ySample420 = Mux(issueBlock < 2.U, y01Sample, y23Sample)
-    val chromaSample420 = Mux(issueBlock === 4.U, cbBlock(sample), crBlock(sample))
-    val sample420 = Mux(issueBlock < 4.U, ySample420, chromaSample420)
-    val sample444 = Mux(issueBlock === 0.U, y0Block(sample), Mux(issueBlock === 1.U, cbBlock(sample), crBlock(sample)))
-    transform.io.input.bits.samples(sample) := Mux(subsampled, sample420, sample444)
+  for ((laneTransform, lane) <- transforms.zipWithIndex) {
+    laneTransform.io.quality := io.config.quality
+    laneTransform.io.isLuminance := Mux(
+      subsampled,
+      if (lane == 0) true.B else issueBlock === 0.U,
+      (lane == 0).B)
+    laneTransform.io.input.valid :=
+      transformBatchPending && (0 until transforms.length).filter(_ != lane).map(transformInputReadies(_)).reduce(_ && _)
+
+    for (sample <- 0 until HjpegConstants.BlockSize) {
+      val sample420 = lane match {
+        case 0 => Mux(issueBlock === 0.U, y0Block(sample), y3Block(sample))
+        case 1 => Mux(issueBlock === 0.U, y1Block(sample), cbBlock(sample))
+        case _ => Mux(issueBlock === 0.U, y2Block(sample), crBlock(sample))
+      }
+      val sample444 = lane match {
+        case 0 => y0Block(sample)
+        case 1 => cbBlock(sample)
+        case _ => crBlock(sample)
+      }
+      laneTransform.io.input.bits.samples(sample) := Mux(subsampled, sample420, sample444)
+    }
   }
 
-  transform.io.output.ready := state === sTransform
-
-  when(transform.io.input.fire) {
+  when(transformBatchPending && transformInputReadies.asUInt.andR) {
     issueBlock := issueBlock + 1.U
   }
 
-  when(transform.io.output.fire) {
+  val transformOutputValids = VecInit(transforms.map(_.io.output.valid))
+  for ((laneTransform, lane) <- transforms.zipWithIndex) {
+    laneTransform.io.output.ready :=
+      state === sTransform &&
+        (0 until transforms.length).filter(_ != lane).map(transformOutputValids(_)).reduce(_ && _)
+  }
+  val transformBatchOutputFire = state === sTransform && transformOutputValids.asUInt.andR
+
+  when(transformBatchOutputFire) {
     when(subsampled) {
-      switch(captureBlock) {
-        is(0.U) { y0Coefficients := transform.io.output.bits; captureBlock := 1.U }
-        is(1.U) { y1Coefficients := transform.io.output.bits; captureBlock := 2.U }
-        is(2.U) { y2Coefficients := transform.io.output.bits; captureBlock := 3.U }
-        is(3.U) { y3Coefficients := transform.io.output.bits; captureBlock := 4.U }
-        is(4.U) { cbCoefficients := transform.io.output.bits; captureBlock := 5.U }
-        is(5.U) { crCoefficients := transform.io.output.bits; state := sEmit }
+      when(captureBlock === 0.U) {
+        y0Coefficients := transform.io.output.bits
+        y1Coefficients := transform1.io.output.bits
+        y2Coefficients := transform2.io.output.bits
+        captureBlock := 1.U
+      }.otherwise {
+        y3Coefficients := transform.io.output.bits
+        cbCoefficients := transform1.io.output.bits
+        crCoefficients := transform2.io.output.bits
+        state := sEmit
       }
     }.otherwise {
-      switch(captureBlock) {
-        is(0.U) { y0Coefficients := transform.io.output.bits; captureBlock := 1.U }
-        is(1.U) { cbCoefficients := transform.io.output.bits; captureBlock := 2.U }
-        is(2.U) { crCoefficients := transform.io.output.bits; state := sEmit }
-      }
+      y0Coefficients := transform.io.output.bits
+      cbCoefficients := transform1.io.output.bits
+      crCoefficients := transform2.io.output.bits
+      state := sEmit
     }
   }
 
