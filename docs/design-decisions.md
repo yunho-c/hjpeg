@@ -435,9 +435,9 @@ reuse one snapshot.
 - The bounded count mirrors physical capacity and cannot hide a sustained
   mismatch behind an arbitrary logical FIFO. A configuration change may
   intentionally introduce a drain bubble.
-- Exact-current implementation closes 100 MHz at setup WNS `+0.106 ns` and
-  hold WHS `+0.011 ns`. It uses 35,583 CLB LUTs, 54,686 registers, 76 BRAM
-  tiles, 127 DSPs, and 55.00% physical CLBs; the complete twelve-record gate
+- Exact-current implementation closes 100 MHz at setup WNS `+0.097 ns` and
+  hold WHS `+0.010 ns`. It uses 35,885 CLB LUTs, 55,074 registers, 76 BRAM
+  tiles, 127 DSPs, and 56.17% physical CLBs; the complete twelve-record gate
   passes with zero route errors.
 
 **Revisit when:** The host requires mixed-configuration frames without drain
@@ -465,11 +465,38 @@ boundary and deliberately trigger the encoder's frame protocol checks.
 - A physical KV260 run retained the full 8,294,400-byte MM2S length and captured
   a decoder-valid 151,020-byte 1920x1080 JPEG.
 - The XSDB runner stops A53 #0 and assumes PS clocks/DDR were initialized. It is
-  a deterministic lab backend, not a production driver or precise performance
-  timer.
+  a deterministic lab backend, not a production driver. Debugger elapsed time
+  is not a performance timer; the AXI-Lite PL-cycle registers are.
 
 **Revisit when:** A production driver uses scatter/gather descriptors or a wider
 frame limit requires more than 26 length bits.
+
+## Measure frame latency in the PL clock domain
+
+**Status:** Accepted
+
+**Decision:** Timestamp the first accepted input beat of each frame and the
+accepted output TLAST in the AXI-Lite top. Retain the last 64-bit cycle count and
+a 32-bit completed-frame count in read-only registers.
+
+**Context:** XSDB polling adds tens of milliseconds even to a tiny frame, so it
+proves DMA completion but cannot distinguish encoder time from debugger time.
+Same-configuration overlap permits three frames in flight, requiring ordered
+timestamp ownership rather than a single start register.
+
+**Consequences:**
+
+- A three-entry FIFO mirrors one encoder-owned frame plus two raster slots.
+- `0x18`/`0x1c` expose low/high cycle words and `0x20` exposes completed frames.
+- A deterministic quality-85 gradient/checker frame measures 2,210,885 cycles
+  (45.23 fps) in 4:2:0 and 3,224,557 cycles (31.01 fps) in 4:4:4 at 100 MHz.
+- A quality-90 seeded-random stress frame measures 2,211,207 cycles (45.22 fps)
+  in 4:2:0 and 3,734,574 cycles (26.78 fps) in 4:4:4. The target is therefore
+  tied to the stated benchmark; it is not a content-independent guarantee.
+
+**Revisit when:** Software needs atomic multiword snapshots while frames are
+completing concurrently, or a wider entropy/output architecture targets
+worst-case 4:4:4 throughput.
 
 ## Generate header bytes with a multi-cycle state machine
 

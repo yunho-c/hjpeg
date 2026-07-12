@@ -3,7 +3,7 @@
 This document is for a new agent or developer picking up `hjpeg` without the
 conversation history. Treat the current checkout as authoritative, but use this
 as the fastest map of what has been built, what has been verified, and what
-still blocks completion.
+remains as follow-on integration or performance work.
 
 ## Project Objective
 
@@ -61,23 +61,27 @@ evidence records. Raster stripe/band storage uses two ping-pong slots with
 banked synchronous reads and infers block RAM; entropy scanning examines four
 coefficients per cycle. The AXI DMA uses a 26-bit length field so one packed
 1920x1080 frame fits in a single MM2S transfer. Timing closes at setup WNS
-`+0.106 ns` and hold WHS `+0.011 ns`; DRC and route-status reports pass with
-zero routing errors. The build uses 30.38% CLB LUTs, 1.20% LUTRAM,
-23.35% registers, 52.78% BRAM, and 10.18% DSPs. Physical CLB occupancy is
-55.00%, so the complete evidence set passes both the default checker and the
+`+0.097 ns` and hold WHS `+0.010 ns`; DRC and route-status reports pass with
+zero routing errors. The build uses 30.64% CLB LUTs, 1.20% LUTRAM,
+23.51% registers, 52.78% BRAM, and 10.18% DSPs. Physical CLB occupancy is
+56.17%, so the complete evidence set passes both the default checker and the
 provisional 70% project ceiling.
 
-Physical KV260 evidence now includes a byte-identical 17x13 padded/restart smoke
-frame and a deterministic non-flat 1920x1080 quality-85 4:2:0 frame. The latter
-transferred 8,294,400 RGB bytes in one MM2S transaction and captured a
-151,020-byte JPEG that FFmpeg decoded at 1920x1080. Both DMA channels ended
-IOC/idle and encoder status returned to zero.
+Physical KV260 evidence includes a byte-identical 17x13 padded/restart smoke
+frame and four decoder-valid 1920x1080 captures. AXI-Lite PL-cycle counters
+measure first-input through output-TLAST latency independently of XSDB polling.
+The defined quality-85 gradient/checker benchmark measures 45.23 fps in 4:2:0
+and 31.01 fps in 4:4:4 at 100 MHz. A quality-90 seeded-random stress frame
+measures 45.22 fps in 4:2:0 and 26.78 fps in 4:4:4, documenting that the 30-fps
+claim is content-dependent rather than universal. Every run transferred the
+complete 8,294,400-byte input, ended both DMA channels IOC/idle, returned
+encoder status to zero, and passed FFmpeg decoding.
 
-Not yet proven:
+Follow-on work:
 
-- Meeting the provisional 1080p30 target in both 4:4:4 and 4:2:0 at 100 MHz.
-  XSDB observed 47.490 ms for the 1080p run, but its polling path adds roughly
-  31 ms even to a 17x13 frame, so a hardware/low-overhead timer is still needed.
+- Production Linux DMA/driver coexistence without stopping A53 #0.
+- Wider/multi-token entropy or output handling only if high-entropy quality-90
+  4:4:4 must also sustain 1080p30.
 
 ## Immediate Continuation Brief: Performance Architecture Sprint
 
@@ -319,6 +323,9 @@ Frame configuration:
 - `0x0c ysize`.
 - `0x10 quality`.
 - `0x14 restart interval in MCUs`.
+- `0x18 last completed frame cycles, bits 31:0` (read-only).
+- `0x1c last completed frame cycles, bits 63:32` (read-only).
+- `0x20 completed output frame count` (read-only).
 
 The AXI-Lite wrapper accepts independent AW and W channel handshakes, honors
 byte write strobes, and holds read/write responses stable under host
@@ -330,6 +337,8 @@ without changing mapped control/status registers.
 Recent baseline commits before this handoff update, newest first. Use
 `git log --oneline` as the source of truth if this list drifts again:
 
+- `8688eff feat: validate full-hd KV260 DMA`
+- `2d02623 perf: overlap same-config frames`
 - `3308ddd feat: generate pipeline performance traces`
 - `42021a9 test: capture JPEG pipeline performance traces`
 - `067a8e8 perf: overlap DCT row and column passes`
@@ -560,7 +569,7 @@ are 100/270 cycles (observed 99/267 after slot ownership handoff), and the frame
 fixture is 2,020 cycles. The transform, isolated loaders, measured high-entropy
 scanner rate, and stripe/band transition gaps meet their mode budgets. See
 `docs/performance-targets.md`. Current Vivado evidence closes 100 MHz timing and
-passes the resource target at 55.00% CLB and 52.78% BRAM occupancy.
+passes the resource target at 56.17% CLB and 52.78% BRAM occupancy.
 
 `JpegHeaderStage` was also changed from a one-byte-per-cycle combinational
 header mux into a small byte-generation FSM. Static marker bytes still emit in
@@ -720,10 +729,10 @@ meaningless gate values.
 
 The current checkout has fresh full Vivado construction evidence for the
 four-lane RTL. It proves that the design packages, routes, closes 100 MHz timing,
-emits a bitstream/XSA, and passes the resource gate at 55.00% routed CLB
+emits a bitstream/XSA, and passes the resource gate at 56.17% routed CLB
 occupancy. The physical evidence below separately proves board behavior.
 
-The 2026-07-11 software baseline is green. Current RTL validation used the
+The 2026-07-12 software baseline is green. Current RTL validation used the
 pinned Docker JDK 21/sbt/Verilator toolchain on Windows:
 
 ```sh
@@ -742,17 +751,14 @@ python3 -m py_compile \
   scripts/dev/generate_performance_trace.py
 ```
 
-The latest full-suite result is 133/133 Scala tests on the entropy parent
-revision through the pinned Docker sbt/Verilator toolchain. On the two-slot
-revision, seven focused raster tests and the 47-test core/AXI-stream/AXI-Lite
-integration selection passed. After adding the frame-boundary guard, the full
-15-test AXI-stream wrapper suite passed; the additional identical-frame 4:2:0
-case also passes in a focused run. The exact-current 20-test AXI-Lite top suite
-passes with zero failures or aborts. All three core/KV260 SystemVerilog
-elaboration entry points pass.
+The latest exact-current full-suite result is 139/139 Scala tests across 26
+suites through the pinned Docker sbt/Verilator toolchain. The exact-current
+21-test AXI-Lite top suite passes, including exact frame-cycle accounting for
+sequential frames. All three core/KV260 SystemVerilog elaboration entry points
+pass.
 The generated-design-graph smoke run finds 27 reachable module types and 38
 instances with no missing focus modules. The most recent maintained Python
-suite results remain 234 host tests, 59 Vivado-report tests, 10
+suite results are 235 host tests, 59 Vivado-report tests, 10
 ChiselSim-environment tests, 11 design-graph helper tests, and 9
 performance-trace renderer tests on the preceding profiler revision; the
 current schema-3 profiler has 11 passing helper tests. Current 256x64 single-
@@ -827,28 +833,25 @@ Known local limitations:
   `$(shell pwd)` and replay pipelines.
 - The native Windows/MSYS simulator path remains incompatible, but the pinned
   Docker flow runs the complete suite against the same checkout. The latest
-  full-suite result on the entropy parent revision is 133 passing tests. On the
-  two-slot revision, all seven focused raster tests and the 47-test
-  core/AXI-stream/AXI-Lite selection passed, reporting a 2,020-cycle 16x16
-  4:4:4 frame. The same-config overlap change has a clean 15-test wrapper run,
-  a focused passing 4:2:0 overlap case, and a clean 20-test AXI-Lite top run.
+  exact-current result is 139 passing tests across 26 suites, including 21
+  AXI-Lite top tests and exact frame-cycle accounting.
 - Current two-slot banked-block-RAM, four-lane transform, and four-coefficient
   entropy Vivado construction emits the bitstream, XSA, and
   post-implementation checkpoint. Post-synthesis setup WNS is `+1.291 ns`;
-  post-implementation setup WNS is `+0.106 ns` and hold WHS is `+0.011 ns`.
-  Post-implementation utilization is 35,583 CLB LUTs (30.38%), 690 LUTRAMs
-  (1.20%), 54,686 registers (23.35%), 76 BRAM tiles (52.78%), 127 DSPs
-  (10.18%), and 8,052 CLBs (55.00%). The floorplan report records 107,385
+  post-implementation setup WNS is `+0.097 ns` and hold WHS is `+0.010 ns`.
+  Post-implementation utilization is 35,885 CLB LUTs (30.64%), 690 LUTRAMs
+  (1.20%), 55,074 registers (23.51%), 76 BRAM tiles (52.78%), 127 DSPs
+  (10.18%), and 8,224 CLBs (56.17%). The floorplan report records 108,065
   placed primitive cells. The complete
   twelve-record checker passes at its default ceiling.
 - Physical KV260 revB XSDB runs program bitstream SHA-256
-  `127e2f5fe19d0b0b9b37322d398d2e7e148f93d4fef5cd0f35386ed1bed72fb8`.
-  The 17x13 restart/padding run produces the expected 738-byte JPEG hash. The
-  1920x1080 quality-85 4:2:0 run transmits 8,294,400 bytes in one MM2S
-  transaction, captures a 151,020-byte JPEG with SHA-256
-  `be9217b91465ccad42822d8eb87cb0f278a3f9f0182ac32e1d44129a1d50f461`,
-  ends both DMA channels at `0x00001002`, returns encoder status zero, and
-  decodes with FFmpeg at 1920x1080 `yuvj420p`.
+  `f42f9ad1861999a37636bf10a675bf7fa02206bdcadad73e086452b522205b8f`.
+  The 17x13 restart/padding run produces the expected 738-byte JPEG in 2,178 PL
+  cycles. Full-HD q85 gradient/checker runs measure 2,210,885 cycles in 4:2:0
+  and 3,224,557 in 4:4:4 (45.23/31.01 fps). Full-HD q90 seeded-random runs
+  measure 2,211,207 and 3,734,574 cycles (45.22/26.78 fps). All transfer
+  8,294,400 bytes in one MM2S transaction, end both DMA channels at
+  `0x00001002`, return encoder status zero, and decode with FFmpeg.
 
 On a new machine, run these first:
 
@@ -1182,11 +1185,16 @@ path/resolved-path and decoder-command inventories, plus the recomputed summary,
 evidence/check counts, missing evidence groups, and failing check names for each
 object-shaped transcript.
 
-## Known Blockers And Bottlenecks
+## Known Limitations And Bottlenecks
 
-- Functional KV260 execution is proven. The remaining board-level uncertainty
-  is precise 1080p throughput: XSDB polling contributes about 31 ms even to a
-  17x13 transfer, so its 47.490 ms full-HD observation cannot establish FPS.
+- Functional KV260 execution and precise PL-cycle throughput are proven. The
+  remaining platform gap is a production Linux DMA/driver path that coexists
+  with the running application processor; the tracked XSDB backend stops A53 #0.
+- Quality-90 seeded-random 4:4:4 emits a 3,021,074-byte JPEG and measures
+  3,734,574 cycles (26.78 fps). A trial 32-entry entropy-run FIFO improved the
+  representative large simulation only 0.47% because run output was already
+  never backpressured, so it was removed. A stronger worst-case target needs a
+  wider/multi-token entropy or output architecture, not arbitrary queue depth.
 - Chisel/Verilator frame-level tests are not instant. A focused AXI wrapper
   frame-level spec recently took about 76 seconds.
 - On Windows, avoid running multiple sbt commands in parallel; the launcher can
@@ -1234,7 +1242,7 @@ object-shaped transcript.
 
 ## Suggested Next Work
 
-If the new PC has Vivado:
+If the exact RTL or target changes and the new PC has Vivado:
 
 1. Run `sbt test` and the Python helper tests to establish a software baseline.
 2. Regenerate `generated-kv260-axi-lite-top/`.
@@ -1256,8 +1264,8 @@ If the new PC has KV260 access too:
    DMA device model.
 3. Use `run_kv260_xsdb_dma.tcl` for direct JTAG validation or the Linux stream
    backend when its DMA endpoints exist.
-4. Measure 1920x1080 in both chroma modes with a debugger-independent hardware
-   counter or low-overhead on-device timer.
+4. Read `FRAME_TIMING` from the PL counters for 1920x1080 in both chroma modes;
+   do not use the debugger-polled elapsed value as encoder latency.
 5. Validate each captured JPEG with strict marker/table settings and an
    ordinary decoder; preserve hashes and protocol/DMA status.
 6. Use `run-stream-devices --require-complete-evidence` and
@@ -1266,9 +1274,10 @@ If the new PC has KV260 access too:
 If the new PC does not have Vivado or hardware:
 
 1. Extend the large-content matrix only where it tests a concrete remaining
-   hypothesis; the seeded-random 256x64 rate is already within budget.
-2. Improve timing margin if exact-current implementation becomes the limiting
-   evidence; do not add arbitrary queue depth.
+   entropy/output hypothesis; physical seeded-random q90 evidence already
+   defines the current boundary.
+2. Improve timing margin or widen entropy/output only if a revised target
+   justifies it; do not add arbitrary queue depth.
 3. Keep each validated slice committed; avoid combining profiler, arithmetic,
    buffering, and entropy rewrites into one change.
 

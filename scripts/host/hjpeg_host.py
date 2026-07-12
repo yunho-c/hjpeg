@@ -305,15 +305,26 @@ class DecoderCommandResult:
     stderr_truncated: bool
 
 
-def make_test_image(width: int, height: int) -> PpmImage:
+def make_test_image(width: int, height: int, pattern: str = "gradient-checker") -> PpmImage:
     if width <= 0 or height <= 0:
         raise ValueError("PPM dimensions must be positive")
+    if pattern not in ("gradient-checker", "seeded-random"):
+        raise ValueError(f"unsupported test-image pattern: {pattern}")
 
     rgb = bytearray()
     denom_x = max(width - 1, 1)
     denom_y = max(height - 1, 1)
-    for y in range(height):
-        for x in range(width):
+    for index in range(width * height):
+        x = index % width
+        y = index // width
+        if pattern == "seeded-random":
+            value = (index ^ 0x5EED1234) & 0xFFFFFFFF
+            value ^= (value << 13) & 0xFFFFFFFF
+            value ^= value >> 17
+            value ^= (value << 5) & 0xFFFFFFFF
+            value &= 0xFFFFFFFF
+            rgb.extend([value & 0xFF, (value >> 8) & 0xFF, (value >> 16) & 0xFF])
+        else:
             checker = 48 if ((x // 8) ^ (y // 8)) & 1 else 0
             r = (x * 255) // denom_x
             g = (y * 255) // denom_y
@@ -5091,6 +5102,12 @@ def build_parser() -> argparse.ArgumentParser:
     make_ppm.add_argument("output", type=Path)
     make_ppm.add_argument("--width", type=_positive_int, required=True)
     make_ppm.add_argument("--height", type=_positive_int, required=True)
+    make_ppm.add_argument(
+        "--pattern",
+        choices=("gradient-checker", "seeded-random"),
+        default="gradient-checker",
+        help="deterministic pixel pattern (default: gradient-checker)",
+    )
     make_ppm.add_argument("--max-width", type=_positive_int, default=DEFAULT_MAX_FRAME_WIDTH)
     make_ppm.add_argument("--max-height", type=_positive_int, default=DEFAULT_MAX_FRAME_HEIGHT)
     make_ppm.add_argument("--json", action="store_true", help="print generated PPM evidence as JSON")
@@ -5253,7 +5270,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "make-test-ppm":
         require_supported_dimensions(args.width, args.height, args.max_width, args.max_height)
-        image = make_test_image(args.width, args.height)
+        image = make_test_image(args.width, args.height, args.pattern)
         write_ppm(image, args.output)
         if args.json:
             print(
@@ -5261,6 +5278,7 @@ def main(argv: list[str] | None = None) -> int:
                     {
                         "output_ppm": ppm_evidence_record(args.output, image),
                         "deterministic_pattern": True,
+                        "pattern": args.pattern,
                         "max_width": args.max_width,
                         "max_height": args.max_height,
                     },
@@ -5268,7 +5286,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
             )
             return 0
-        print(f"wrote deterministic P6 PPM {args.width}x{args.height} to {args.output}")
+        print(f"wrote deterministic {args.pattern} P6 PPM {args.width}x{args.height} to {args.output}")
         return 0
 
     if args.command == "validate-jpeg":

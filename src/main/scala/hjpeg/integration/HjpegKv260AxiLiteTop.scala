@@ -12,6 +12,9 @@ object HjpegAxiLiteRegisters {
   val YSize = 0x0c
   val Quality = 0x10
   val RestartInterval = 0x14
+  val LastFrameCyclesLow = 0x18
+  val LastFrameCyclesHigh = 0x1c
+  val CompletedFrameCount = 0x20
 
   val ControlClearProtocolErrorBit = 0
   val ControlEnableChromaSubsampleBit = 1
@@ -33,6 +36,9 @@ object HjpegAxiLiteRegisters {
   *   0x0c ysize
   *   0x10 quality
   *   0x14 restart interval in MCUs, or zero to disable restart markers
+  *   0x18 last completed frame latency in PL cycles, bits 31:0
+  *   0x1c last completed frame latency in PL cycles, bits 63:32
+  *   0x20 completed output frame count
   */
 class HjpegKv260AxiLiteTop(c: HjpegConfig = HjpegConfig(), axiLiteAddrBits: Int = 12) extends Module {
   val pixelDataBits = c.pixelBits * HjpegConstants.Components
@@ -72,6 +78,52 @@ class HjpegKv260AxiLiteTop(c: HjpegConfig = HjpegConfig(), axiLiteAddrBits: Int 
   io.mAxisJpeg <> core.io.output
   io.busy := core.io.busy
   io.protocolError := core.io.protocolError
+
+  // Timestamp each accepted input frame at its first beat and pair timestamps
+  // with output TLAST in FIFO order. The three entries mirror the wrapper's
+  // maximum of one encoder-owned frame plus two raster slots. This measures in
+  // the PL clock domain, so JTAG or host polling latency cannot affect it.
+  val cycleCounter = RegInit(0.U(64.W))
+  val frameStartTimestamps = Reg(Vec(3, UInt(64.W)))
+  val timestampEnqueueIndex = RegInit(0.U(2.W))
+  val timestampDequeueIndex = RegInit(0.U(2.W))
+  val timestampCount = RegInit(0.U(2.W))
+  val inputAtFrameStart = RegInit(true.B)
+  val lastFrameCycles = RegInit(0.U(64.W))
+  val completedFrameCount = RegInit(0.U(32.W))
+
+  cycleCounter := cycleCounter + 1.U
+
+  def nextTimestampIndex(index: UInt): UInt = Mux(index === 2.U, 0.U, index + 1.U)
+
+  val inputFire = io.sAxisRgb.valid && io.sAxisRgb.ready
+  val inputFrameStartFire = inputFire && inputAtFrameStart
+  val outputFrameDone = io.mAxisJpeg.valid && io.mAxisJpeg.ready && io.mAxisJpeg.bits.last
+  val timestampDequeue = outputFrameDone && timestampCount =/= 0.U
+  val timestampEnqueue = inputFrameStartFire && (timestampCount =/= 3.U || timestampDequeue)
+
+  when(clearProtocolErrorPulse) {
+    timestampEnqueueIndex := 0.U
+    timestampDequeueIndex := 0.U
+    timestampCount := 0.U
+    inputAtFrameStart := true.B
+  }.otherwise {
+    when(inputFire) {
+      inputAtFrameStart := io.sAxisRgb.bits.last
+    }
+    when(timestampEnqueue) {
+      frameStartTimestamps(timestampEnqueueIndex) := cycleCounter
+      timestampEnqueueIndex := nextTimestampIndex(timestampEnqueueIndex)
+    }
+    when(timestampDequeue) {
+      lastFrameCycles := cycleCounter - frameStartTimestamps(timestampDequeueIndex) + 1.U
+      completedFrameCount := completedFrameCount + 1.U
+      timestampDequeueIndex := nextTimestampIndex(timestampDequeueIndex)
+    }
+    when(timestampEnqueue =/= timestampDequeue) {
+      timestampCount := Mux(timestampEnqueue, timestampCount + 1.U, timestampCount - 1.U)
+    }
+  }
 
   def applyWriteStrobes(current: UInt, data: UInt, strobe: UInt): UInt =
     Cat((0 until 4).reverse.map { byte =>
@@ -166,7 +218,10 @@ class HjpegKv260AxiLiteTop(c: HjpegConfig = HjpegConfig(), axiLiteAddrBits: Int 
         HjpegAxiLiteRegisters.XSize.U -> xsize.pad(32),
         HjpegAxiLiteRegisters.YSize.U -> ysize.pad(32),
         HjpegAxiLiteRegisters.Quality.U -> quality.pad(32),
-        HjpegAxiLiteRegisters.RestartInterval.U -> restartInterval.pad(32)
+        HjpegAxiLiteRegisters.RestartInterval.U -> restartInterval.pad(32),
+        HjpegAxiLiteRegisters.LastFrameCyclesLow.U -> lastFrameCycles(31, 0),
+        HjpegAxiLiteRegisters.LastFrameCyclesHigh.U -> lastFrameCycles(63, 32),
+        HjpegAxiLiteRegisters.CompletedFrameCount.U -> completedFrameCount
       )
     )
     readResponseValid := true.B

@@ -110,10 +110,12 @@ if {[catch {
   mwr [expr {$hjpeg_base + 0x00}] $control
 
   set status_before [read32 [expr {$hjpeg_base + 0x04}]]
+  set completed_before [read32 [expr {$hjpeg_base + 0x20}]]
   puts $f [format "HJPEG_CONFIG control=0x%08X status=0x%08X width=%d height=%d quality=%d restart=%d chroma_subsample=%d emit_jfif=%d input_bytes=%d output_capacity=%d" \
     [read32 [expr {$hjpeg_base + 0x00}]] $status_before $width $height \
     $quality $restart_interval $chroma_subsample $emit_jfif $input_bytes $output_capacity]
   if {$status_before != 0} { error "hjpeg was not idle before transfer" }
+  if {$completed_before != 0} { error "completed-frame counter was not reset by PL programming" }
 
   # Arm S2MM first so the encoder never sees output backpressure at startup.
   mwr [expr {$dma_base + 0x30}] 0x00000001
@@ -144,9 +146,20 @@ if {[catch {
   }
   set mm2s_length [read32 [expr {$dma_base + 0x28}]]
   set s2mm_length [read32 [expr {$dma_base + 0x58}]]
+  set frame_cycles_low [read32 [expr {$hjpeg_base + 0x18}]]
+  set frame_cycles_high [read32 [expr {$hjpeg_base + 0x1C}]]
+  set completed_after [read32 [expr {$hjpeg_base + 0x20}]]
+  set frame_cycles [expr {wide($frame_cycles_low) | (wide($frame_cycles_high) << 32)}]
+  if {$completed_after != 1 || $frame_cycles <= 0} {
+    error "hjpeg frame-cycle evidence is missing or inconsistent"
+  }
+  set frame_ms_100mhz [expr {double($frame_cycles) / 100000.0}]
+  set frame_fps_100mhz [expr {100000000.0 / double($frame_cycles)}]
   puts $f [format "DMA_COMPLETE complete=%d elapsed_ms=%.3f mm2s_sr=0x%08X s2mm_sr=0x%08X hjpeg_status=0x%08X mm2s_length=%d s2mm_length=%d" \
     $complete $elapsed_ms $mm2s_status $s2mm_status $hjpeg_status \
     $mm2s_length $s2mm_length]
+  puts $f [format "FRAME_TIMING cycles=%d milliseconds_at_100mhz=%.6f fps_at_100mhz=%.6f completed_frames=%d" \
+    $frame_cycles $frame_ms_100mhz $frame_fps_100mhz $completed_after]
 
   if {!$complete} { error "DMA transfer timed out" }
   if {(($mm2s_status | $s2mm_status) & 0x00000770) != 0} {

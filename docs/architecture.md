@@ -174,7 +174,11 @@ set.
 interval, chroma mode, and JFIF emission, plus busy and sticky protocol-error
 status. AXI-Lite write-address and write-data channels are accepted
 independently, writable registers honor byte strobes, and responses remain
-stable under host backpressure.
+stable under host backpressure. Read-only offsets `0x18`/`0x1c` hold the last
+completed frame's 64-bit latency in PL cycles and `0x20` counts completed output
+frames. A three-entry timestamp FIFO pairs first accepted input beats with
+accepted output TLAST beats in frame order, matching the maximum three in-flight
+frames.
 
 The RTL tops are integration boundaries, not complete board designs. Platform
 clocking, reset synchronization, PS configuration, DMA, address assignment,
@@ -231,7 +235,8 @@ without those Linux devices. After PS clocks and DDR are initialized, it stops
 A53 #0, programs the PL, loads packed RGB into DDR, drives AXI-Lite and simple
 DMA registers through JTAG, and reads exactly the S2MM-reported JPEG bytes back.
 It is useful for deterministic physical validation, but debugger polling is not
-a precise performance timer.
+a precise performance timer. The runner instead reports the hardware cycle
+registers as `FRAME_TIMING`, which is independent of JTAG polling overhead.
 
 Hardware evidence connects four boundaries: the source PPM and packed RGB
 stream, the requested encoder configuration, AXI-Lite status observations, and
@@ -252,4 +257,7 @@ timed for the target part. Completion additionally requires a physical KV260
 run that transfers a known image through DMA, captures the encoder's bytes, and
 opens the result with an ordinary JPEG decoder. The 2026-07-12 KV260 evidence
 meets this functional boundary for both a small padded/restart frame and a
-1920x1080 4:2:0 frame. Precise 1080p30 measurement remains a performance gate.
+1920x1080 frame in both chroma modes. At 100 MHz the quality-85 deterministic
+benchmark measures 45.23 fps in 4:2:0 and 31.01 fps in 4:4:4. A seeded-random
+quality-90 stress frame measures 45.22 and 26.78 fps respectively, so the
+30-fps result is a defined-benchmark claim, not a content-independent bound.

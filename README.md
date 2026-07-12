@@ -14,15 +14,19 @@ files, streaming RTL shells, elaboration entry points, and simulator tests.
 - KV260-oriented top-level elaboration target
 - Incremental test fixtures for each pipeline stage
 
-The provisional performance target is decoder-valid 1920x1080 at 30 fps in
-both 4:4:4 and 4:2:0 modes at a 100 MHz PL clock. The four-lane DCT/quantizer,
+The performance target is decoder-valid 1920x1080 at 30 fps in both 4:4:4 and
+4:2:0 modes at a 100 MHz PL clock for the deterministic quality-85
+gradient/checker benchmark. The four-lane DCT/quantizer,
 four-coefficient AC scanner, and two-slot raster collector meet their measured
 stage budgets in simulation. A 256x64 seeded-random quality-90 4:4:4 trace
 accepts input at 1.522 cycles/pixel, and a two-frame capture accepts at 1.594,
-both within the 1.61-cycle/pixel budget. A physical KV260 has now encoded and
-DMA-captured decoder-valid 17x13 and 1920x1080 4:2:0 frames. The debugger-polled
-1080p interval is not precise enough to establish 30 fps. Current implementation
-closes 100 MHz timing and uses 55.00% of CLBs and 52.78% of block RAM; see
+both within the 1.61-cycle/pixel budget. A physical KV260 has encoded and
+DMA-captured decoder-valid 17x13 and 1920x1080 frames. PL counters measure the
+quality-85 benchmark at 45.23 fps in 4:2:0 and 31.01 fps in 4:4:4. A
+quality-90 seeded-random stress frame measures 45.22 fps in 4:2:0 and 26.78 fps
+in 4:4:4, documenting that 1080p30 is content-dependent rather than a worst-case
+guarantee. Current implementation closes 100 MHz timing and uses 56.17% of CLBs
+and 52.78% of block RAM; see
 [`docs/performance-targets.md`](docs/performance-targets.md) for cycle budgets,
 evidence levels, and the optimization direction.
 
@@ -68,7 +72,8 @@ RGB word recovery, plus early-TLAST and late-TLAST recovery.
 
 The AXI-Lite control wrapper accepts independent AW and W channel handshakes,
 honors byte write strobes on writable registers, and holds read/write responses
-stable under host backpressure.
+stable under host backpressure. Read-only registers expose the last completed
+frame's 64-bit PL-cycle latency and a completed-frame count.
 
 Frame configuration is sampled on the first accepted input pixel. Up to three
 frames with the exact same configuration may overlap through the encoder and
@@ -435,7 +440,9 @@ The final two arguments enable 4:2:0 and JFIF. The tracked block design uses a
 in one MM2S transaction and TLAST coincides with the frame boundary.
 
 `make-test-ppm` writes a deterministic non-flat binary P6 PPM pattern for
-repeatable board bring-up. `pack-ppm` accepts binary P6 PPM and writes one
+repeatable board bring-up. Pass `--pattern seeded-random` to reproduce the
+entropy-heavy performance fixture; the default is `gradient-checker`.
+`pack-ppm` accepts binary P6 PPM and writes one
 32-bit little-endian stream beat per pixel: R, G, B, and one ignored zero byte.
 By default, host-side input preparation and hardware configuration reject frames
 outside the default RTL top's `1920x1080` limit; pass `--max-width` and

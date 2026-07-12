@@ -44,8 +44,8 @@ run while the bit packer emits a byte. The raster stores use two ping-pong
 slots in banked synchronous block RAM, so collection of the next stripe or band
 overlaps processing of the current one. 4:4:4 loads eight samples per cycle,
 while 4:2:0 loads four luma samples or one 2x2 chroma footprint per cycle.
-Current Vivado implementation closes 100 MHz timing at setup WNS `+0.106 ns`
-and hold WHS `+0.011 ns`, uses 55.00% of CLBs and 52.78% of BRAM tiles, and
+Current Vivado implementation closes 100 MHz timing at setup WNS `+0.097 ns`
+and hold WHS `+0.010 ns`, uses 56.17% of CLBs and 52.78% of BRAM tiles, and
 passes the provisional resource target. Current
 high-entropy traces no longer show sustained entropy backpressure. A 256x64
 seeded-random quality-90 4:4:4 trace accepts input at 1.522 cycles/pixel; a
@@ -68,8 +68,12 @@ handshaked and writable registers honor byte strobes. The tracked Vivado flow
 packages this top and builds a routed KV260 PS/AXI DMA/SmartConnect design. AXI
 DMA uses a 26-bit length field so a packed 1920x1080 frame fits in one MM2S
 transaction. A physical KV260 has produced decoder-valid 17x13 and 1920x1080
-JPEGs through this DMA path. A production Linux driver/image integration and
-precise 1080p30 measurement remain platform work.
+JPEGs through this DMA path. PL cycle counters measure first-input through
+output-TLAST latency independently of JTAG polling. At 100 MHz, deterministic
+quality-85 1920x1080 gradient/checker frames measure 45.23 fps in 4:2:0 and
+31.01 fps in 4:4:4. A quality-90 seeded-random stress frame measures 45.22 fps
+in 4:2:0 and 26.78 fps in 4:4:4, so 1080p30 is not a content-independent
+guarantee. Production Linux driver/image integration remains platform work.
 
 The AXI-stream wrapper snapshots `FrameConfig` on the first accepted input pixel
 and holds it until all JPEGs using that snapshot complete. Frames whose entire
@@ -215,7 +219,8 @@ files. Drivers that use ioctls or descriptor queues should reuse the same
 packing/register/validation helpers and add a separate backend.
 `run_kv260_xsdb_dma.tcl` is the intrusive JTAG lab backend when PS clocks/DDR
 are initialized but Linux DMA endpoints are unavailable. It stops A53 #0, so
-do not use it as a production coexistence path or a precise elapsed-time timer.
+do not use it as a production coexistence path. Its debugger elapsed time is
+not precise; use the reported PL `FRAME_TIMING` cycle count for throughput.
 
 For new encoder stages, add focused tests before frame-level tests. Good early
 fixtures are all-zero blocks, constant-color 8x8 images, one nonzero AC

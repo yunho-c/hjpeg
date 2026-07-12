@@ -127,6 +127,8 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
     xsdbDma must include("mwr [expr {$dma_base + 0x28}] $input_bytes")
     xsdbDma must include("if {$mm2s_length != $input_bytes}")
     xsdbDma must include("if {$s2mm_length <= 0 || $s2mm_length >= $output_capacity}")
+    xsdbDma must include("FRAME_TIMING cycles=%d milliseconds_at_100mhz=%.6f fps_at_100mhz=%.6f")
+    xsdbDma must include("if {$completed_after != 1 || $frame_cycles <= 0}")
     blockDesign must include("validate_bd_design")
     blockDesign must include("save_bd_design")
     blockDesign must include("make_wrapper")

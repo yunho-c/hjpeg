@@ -1595,6 +1595,32 @@ class HjpegHostTest(unittest.TestCase):
             image = hjpeg_host.read_ppm(ppm)
             self.assertEqual((image.width, image.height), (3, 2))
 
+    def test_make_test_ppm_cli_seeded_random_matches_performance_fixture(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ppm = Path(tmp) / "seeded-random.ppm"
+
+            self.assertEqual(
+                hjpeg_host.main(
+                    [
+                        "make-test-ppm",
+                        str(ppm),
+                        "--width",
+                        "3",
+                        "--height",
+                        "2",
+                        "--pattern",
+                        "seeded-random",
+                    ]
+                ),
+                0,
+            )
+
+            image = hjpeg_host.read_ppm(ppm)
+            self.assertEqual(
+                image.rgb,
+                bytes.fromhex("4160d66040d20320de2200dac5e0c6e4c0c2"),
+            )
+
     def test_make_test_ppm_cli_rejects_default_oversize_frame(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             ppm = Path(tmp) / "too-wide.ppm"

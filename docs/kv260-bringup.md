@@ -190,12 +190,11 @@ Latest local Vivado 2026.1 evidence:
   `hjpeg_kv260.xsa`, and `post_impl.dcp`.
 - `check_reports.py` passed on post-synthesis and post-implementation timing
   and utilization reports.
-- Current two-slot banked-block-RAM, four-lane transform, and four-coefficient
-  entropy post-implementation timing is setup WNS `+0.106 ns` and hold WHS
-  `+0.011 ns` at the 100 MHz target clock.
-- Current post-implementation utilization is 35,583 CLB LUTs (30.38%), 690
-  LUTRAMs (1.20%), 54,686 registers (23.35%), 76 BRAM tiles (52.78%), 127 DSPs
-  (10.18%), and 8,052 CLBs (55.00%). The complete twelve-record report set
+- Current instrumented post-implementation timing is setup WNS `+0.097 ns` and
+  hold WHS `+0.010 ns` at the 100 MHz target clock.
+- Current post-implementation utilization is 35,885 CLB LUTs (30.64%), 690
+  LUTRAMs (1.20%), 55,074 registers (23.51%), 76 BRAM tiles (52.78%), 127 DSPs
+  (10.18%), and 8,224 CLBs (56.17%). The complete twelve-record report set
   passes the default checker and the project's provisional 70% resource
   ceiling.
 
@@ -203,6 +202,7 @@ Latest local Vivado 2026.1 evidence:
 
 ```sh
 python3 scripts/host/hjpeg_host.py make-test-ppm input.ppm --width WIDTH --height HEIGHT --json
+# Add --pattern seeded-random for the entropy-heavy stress fixture.
 python3 scripts/host/hjpeg_host.py pack-ppm input.ppm input.rgb --json
 ```
 
@@ -586,39 +586,46 @@ Expected evidence:
 
 ## Current Physical KV260 Evidence (2026-07-12)
 
-The current routed image was programmed over the on-board FTDI JTAG cable into
-a physical KV260 revB / K26 target. Its bitstream is 7,797,910 bytes with SHA-256
-`127e2f5fe19d0b0b9b37322d398d2e7e148f93d4fef5cd0f35386ed1bed72fb8`.
+The exact instrumented routed image was programmed over the on-board FTDI JTAG
+cable into a physical KV260 revB / K26 target. Artifact evidence is:
+
+- bitstream: 7,797,910 bytes, SHA-256
+  `f42f9ad1861999a37636bf10a675bf7fa02206bdcadad73e086452b522205b8f`;
+- XSA SHA-256
+  `b9a06f2ec04f1df5fb9c42f7c142e1c4f46c67b397e335dac7aa4343a132863f`;
+- post-implementation DCP SHA-256
+  `9ba795a8da4cd1cfb225ace129f207299eed0b07b6487129ffd1012540e664a8`.
+
 The matching strict Vivado evidence contains 12 passing records, zero failing
-records, zero unrouted nets, and zero routing errors.
+records, zero unrouted nets, and zero routing errors. The read-only frame timer
+at `0x18`/`0x1c` measures from the first accepted input beat through accepted
+output TLAST; `0x20` confirms one completed frame. JTAG polling time is recorded
+separately and is not used for FPS.
 
-Two JTAG-driven AXI DMA runs passed:
+Five exact-image JTAG-driven AXI DMA runs passed structural validation and
+FFmpeg decoding:
 
-- A 17x13 quality-85 4:2:0 frame with restart interval 1 transferred 884 packed
-  RGB bytes and captured a 738-byte JPEG. The JPEG SHA-256 is
-  `41c0a8470992dd07469005a7fd11a1ea15af47bc46f18828ebf054aaa690b959`.
-  Validation found JFIF, DRI=1, `RST0`, two MCUs, three stuffed `0xff` bytes,
-  standard DQT/DHT payloads, non-empty entropy data, and terminal EOI. FFmpeg
-  decoded it at 17x13 `yuvj420p`.
-- A deterministic non-flat/color 1920x1080 quality-85 4:2:0 frame transferred
-  all 8,294,400 packed RGB bytes in one MM2S transaction and captured a
-  151,020-byte JPEG. The input PPM/RGB SHA-256 values are
-  `c6aa316e2b2dbc2ad39f5e23c83420d44d116ed4d4b8d8748af38375af4bd771`
-  and `ad3ff48774e62e0ddc0e8778c8dd651b7d628fa57769f8e05f0132fd745f6f0e`;
-  the JPEG SHA-256 is
-  `be9217b91465ccad42822d8eb87cb0f278a3f9f0182ac32e1d44129a1d50f461`.
-  Validation found 8,160 MCUs, 148,434 entropy bytes, 1,961 stuffed `0xff`
-  bytes, standard tables, JFIF, SOI through EOI marker order, and no DRI/RST as
-  configured. FFmpeg decoded it at 1920x1080 `yuvj420p`; comparison with the
-  source pattern measured 41.68 dB average PSNR.
+| Fixture | Mode | Cycles | FPS at 100 MHz | JPEG bytes | JPEG SHA-256 |
+| --- | --- | ---: | ---: | ---: | --- |
+| 17x13 q85, restart 1 | 4:2:0 | 2,178 | 45,913.68 | 738 | `41c0a8470992dd07469005a7fd11a1ea15af47bc46f18828ebf054aaa690b959` |
+| 1920x1080 gradient/checker q85 | 4:2:0 | 2,210,885 | 45.230756 | 151,020 | `be9217b91465ccad42822d8eb87cb0f278a3f9f0182ac32e1d44129a1d50f461` |
+| 1920x1080 gradient/checker q85 | 4:4:4 | 3,224,557 | 31.012012 | 168,562 | `9b8d511c658e2342880a924976e8e4dc52e44a03a90fa14882faffb9332bd029` |
+| 1920x1080 seeded-random q90 | 4:2:0 | 2,211,207 | 45.224169 | 1,702,123 | `0b4a541059adfa349a9ad4a95e7208863b4305f33fe0629d7d8700c60b6d128a` |
+| 1920x1080 seeded-random q90 | 4:4:4 | 3,734,574 | 26.776816 | 3,021,074 | `1be4e57d71e6a5ac66f82ac688253beb2407cb4e1e6da26d6af14d06a415c4c2` |
 
-For both runs, MM2S and S2MM ended at status `0x00001002` (IOC plus idle), the
-encoder returned to status `0x00000000`, and no DMA or protocol error was
-reported. The debugger-polled 1080p interval was 47.490 ms. XSDB/JTAG polling
-adds large, variable latency (the 17x13 runner itself observes about 31 ms), so
-that number proves completion but is not an accurate 100 MHz frame-cycle or
-30-fps measurement. Use an on-device or RTL cycle counter for the throughput
-claim.
+The gradient/checker PPM and packed RGB SHA-256 values are
+`c6aa316e2b2dbc2ad39f5e23c83420d44d116ed4d4b8d8748af38375af4bd771`
+and `ad3ff48774e62e0ddc0e8778c8dd651b7d628fa57769f8e05f0132fd745f6f0e`.
+The seeded-random values are
+`cb1544b0e93b0f59a26fe500ab9715c4048d7fb40e20ec0e39fd9809260530ee`
+and `bb79cfd6aa684f98f6d15090059caef6664045583823f8d3d27713cd9374b791`.
+For every run, MM2S and S2MM ended at `0x00001002` (IOC plus idle), encoder
+status returned to `0x00000000`, completed-frame count was one, and no DMA or
+protocol error was reported.
+
+The defined q85 gradient/checker benchmark clears 1080p30 in both modes. The
+q90 seeded-random 4:4:4 stress result does not; JPEG entropy work and byte count
+are content-dependent, so the target is not a universal worst-case guarantee.
 
 ## Completion Bar
 
@@ -632,6 +639,7 @@ Do not mark the project complete until the repo has current evidence for:
 - A real KV260 run producing at least one decodable JPEG through AXI DMA.
 - Host-side validation passing for that hardware-produced JPEG.
 
-All functional completion items above have current evidence. The provisional
-1920x1080-at-30-fps target remains a separate performance claim and still needs
-a debugger-independent cycle/elapsed-time measurement in both chroma modes.
+All functional completion items and the defined 1920x1080-at-30-fps benchmark
+have current evidence. Production Linux DMA/driver coexistence and higher-entropy
+4:4:4 throughput are documented follow-on integration/performance work rather
+than unproven completion claims.

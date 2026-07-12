@@ -11,6 +11,7 @@ import org.scalatest.matchers.must.Matchers
 
 class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim {
   private val OutputDrainTimeoutCycles = JpegHeaderBytes.MaxHeaderLength + 32768
+  private case class FrameEmission(bytes: Seq[Int], cycles: Int)
 
   private def init(dut: HjpegKv260AxiLiteTop): Unit = {
     dut.io.sAxiLite.awaddr.poke(0.U)
@@ -132,7 +133,11 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
     }
   }
 
-  private def emitFrame(dut: HjpegKv260AxiLiteTop, width: Int, height: Int, inputKeep: Int = 0xf): Seq[Int] = {
+  private def emitFrameWithCycles(
+      dut: HjpegKv260AxiLiteTop,
+      width: Int,
+      height: Int,
+      inputKeep: Int = 0xf): FrameEmission = {
     val bytes = scala.collection.mutable.ArrayBuffer.empty[Int]
     val pixels = width * height
     var nextPixel = 0
@@ -162,8 +167,11 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
       cycles += 1
     }
     dut.io.sAxisRgb.valid.poke(false.B)
-    bytes.toSeq
+    FrameEmission(bytes.toSeq, cycles)
   }
+
+  private def emitFrame(dut: HjpegKv260AxiLiteTop, width: Int, height: Int, inputKeep: Int = 0xf): Seq[Int] =
+    emitFrameWithCycles(dut, width, height, inputKeep).bytes
 
   "HjpegKv260AxiLiteTop should expose control and status registers" in {
     simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
@@ -180,6 +188,34 @@ class HjpegKv260AxiLiteTopSpec extends AnyFreeSpec with Matchers with ChiselSim 
       readReg(dut, HjpegAxiLiteRegisters.RestartInterval) mustBe 0
       readReg(dut, HjpegAxiLiteRegisters.Control) mustBe 0x6
       readReg(dut, HjpegAxiLiteRegisters.Status) mustBe 0
+      readReg(dut, HjpegAxiLiteRegisters.LastFrameCyclesLow) mustBe 0
+      readReg(dut, HjpegAxiLiteRegisters.LastFrameCyclesHigh) mustBe 0
+      readReg(dut, HjpegAxiLiteRegisters.CompletedFrameCount) mustBe 0
+    }
+  }
+
+  "HjpegKv260AxiLiteTop should report exact completed-frame PL cycles" in {
+    simulate(new HjpegKv260AxiLiteTop(HjpegConfig(maxFrameWidth = 32, maxFrameHeight = 32))) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+      init(dut)
+      configure(dut, width = 8, height = 8, subsample = false)
+
+      val first = emitFrameWithCycles(dut, width = 8, height = 8)
+      val firstCycles =
+        readReg(dut, HjpegAxiLiteRegisters.LastFrameCyclesLow) |
+          (readReg(dut, HjpegAxiLiteRegisters.LastFrameCyclesHigh) << 32)
+      firstCycles mustBe first.cycles
+      readReg(dut, HjpegAxiLiteRegisters.CompletedFrameCount) mustBe 1
+
+      val second = emitFrameWithCycles(dut, width = 8, height = 8)
+      val secondCycles =
+        readReg(dut, HjpegAxiLiteRegisters.LastFrameCyclesLow) |
+          (readReg(dut, HjpegAxiLiteRegisters.LastFrameCyclesHigh) << 32)
+      secondCycles mustBe second.cycles
+      secondCycles mustBe firstCycles
+      readReg(dut, HjpegAxiLiteRegisters.CompletedFrameCount) mustBe 2
     }
   }
 
