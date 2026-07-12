@@ -206,6 +206,10 @@ registers (24.21%), 99 BRAM tiles (68.75%), and 194 DSPs (15.54%), with setup
 WNS `+1.103 ns`. Relative to the three-transform checkpoint, the schedule adds
 623 LUTs and 10 registers while BRAM and DSP use remain unchanged.
 
+The exact committed pre-overlap boundary passes 145/145 Scala/Chisel tests
+across 27 suites. Together with the unchanged Python totals above, this makes
+commit `24eeadb` the rollback point for the upcoming cross-MCU state split.
+
 ## Remaining Architecture
 
 Implementation order is:

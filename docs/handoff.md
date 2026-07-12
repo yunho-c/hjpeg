@@ -10,9 +10,10 @@
 > raster reads. This is
 > resource/ingress evidence, not 4K60 throughput proof; cross-MCU pipeline
 > overlap, parallel entropy, routed 150 MHz, and physical
-> decoder-valid measurements remain outstanding. The last complete vector
-> checkpoint passed 145/145 Scala/Chisel tests; rerun the full suite before
-> treating the newer transform slice as a completed regression boundary.
+> decoder-valid measurements remain outstanding. Commit `24eeadb` passes
+> 145/145 Scala/Chisel tests across 27 suites, plus 5 capacity-model, 235
+> host-flow, and 59 Vivado-report parser tests, and is the pre-overlap rollback
+> boundary.
 
 This document is for a new agent or developer picking up `hjpeg` without the
 conversation history. Treat the current checkout as authoritative, but use this
