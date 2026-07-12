@@ -1,5 +1,15 @@
 # hjpeg Continuation Handoff
 
+> **4K60 branch note:** The active target on branch `4k60` is 3840x2160 at
+> 60 fps in both chroma modes. Start with `docs/4k60-architecture.md`. The first
+> UHD slice adds an explicit elaboration target and replaces duplicated raster
+> stores/transforms with `JpegUnifiedRasterToMcuStage`. Post-synthesis use is
+> 97 BRAM tiles, 64 DSPs, 21,036 LUTs, and 31,405 registers with `+1.103 ns`
+> WNS at 100 MHz. This is resource-enabling evidence, not 4K60 throughput proof;
+> four-pixel ingress, parallel transforms/entropy, routed 150 MHz, and physical
+> decoder-valid measurements remain outstanding. Exact-current verification is
+> 142/142 Scala tests across 27 suites plus five capacity-model tests.
+
 This document is for a new agent or developer picking up `hjpeg` without the
 conversation history. Treat the current checkout as authoritative, but use this
 as the fastest map of what has been built, what has been verified, and what

@@ -29,6 +29,7 @@ class HjpegElaborationSpec extends AnyFreeSpec with Matchers {
     ChiselStage.emitSystemVerilog(new JpegHeaderStage()) must include("module JpegHeaderStage")
     ChiselStage.emitSystemVerilog(new JpegRasterToMcuStage()) must include("module JpegRasterToMcuStage")
     ChiselStage.emitSystemVerilog(new JpegRasterToSubsampledMcuStage()) must include("module JpegRasterToSubsampledMcuStage")
+    ChiselStage.emitSystemVerilog(new JpegUnifiedRasterToMcuStage()) must include("module JpegUnifiedRasterToMcuStage")
     ChiselStage.emitSystemVerilog(new JpegRgb8x8ToMcuStage()) must include("module JpegRgb8x8ToMcuStage")
     ChiselStage.emitSystemVerilog(new JpegSingleMcuEncoderStage()) must include("module JpegSingleMcuEncoderStage")
     ChiselStage.emitSystemVerilog(new JpegMcuStreamEncoderStage()) must include("module JpegMcuStreamEncoderStage")
@@ -59,8 +60,8 @@ class HjpegElaborationSpec extends AnyFreeSpec with Matchers {
     listedFiles must contain("HjpegKv260AxiLiteTop.sv")
     listedFiles must contain("HjpegAxiStreamCore.sv")
     listedFiles must contain("HjpegCore.sv")
-    listedFiles must contain("mem_3840x9.sv")
     listedFiles must contain("mem_7680x9.sv")
+    listedFiles must not contain ("mem_3840x9.sv")
     listedFiles must not contain ("mem_1920x9.sv")
     listedFiles must not contain ("mem_15360x9.sv")
     listedFiles must not contain ("mem_30720x9.sv")
@@ -71,5 +72,28 @@ class HjpegElaborationSpec extends AnyFreeSpec with Matchers {
       targetDir.resolve(rtl).normalize().startsWith(targetDir) mustBe true
       Files.isRegularFile(targetDir.resolve(rtl)) mustBe true
     }
+  }
+
+  "KV260 4K60 AXI-Lite elaboration should use UHD raster memories" in {
+    HjpegTargetConfigs.Kv260Uhd4k.maxFrameWidth mustBe 3840
+    HjpegTargetConfigs.Kv260Uhd4k.maxFrameHeight mustBe 2160
+
+    val targetDir = Files.createTempDirectory("hjpeg-kv260-4k60-axi-lite-elab-")
+    HjpegElaboration.emitSystemVerilogFile(
+      new HjpegKv260AxiLiteTop(HjpegTargetConfigs.Kv260Uhd4k),
+      targetDir.toString)
+
+    val listedFiles = Files
+      .readString(targetDir.resolve("filelist.f"))
+      .linesIterator
+      .map(_.trim)
+      .filter(_.nonEmpty)
+      .toSeq
+
+    listedFiles must contain("mem_15360x9.sv")
+    listedFiles must not contain ("mem_7680x9.sv")
+    listedFiles must not contain ("mem_3840x9.sv")
+    listedFiles must not contain ("mem_30720x9.sv")
+    listedFiles.last mustBe "HjpegKv260AxiLiteTop.sv"
   }
 }

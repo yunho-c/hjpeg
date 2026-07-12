@@ -4,6 +4,11 @@ This document turns the project's general throughput goal into measurable
 engineering targets and records the current simulation, routed, and physical
 evidence.
 
+The active `4k60` branch target is 3840x2160 at 60 fps in both sampling modes.
+Its contract, capacity calculations, and UHD evidence live in
+[`4k60-architecture.md`](4k60-architecture.md). The Full-HD target and results
+below remain the correctness/performance baseline, not proof of 4K60.
+
 ## Primary Target
 
 The minimum benchmark target is:

@@ -18,6 +18,13 @@ correctly with ordinary JPEG decoders.
 
 ## Current RTL State
 
+On branch `4k60`, the active continuation target is decoder-valid 3840x2160 at
+60 fps in both 4:4:4 and 4:2:0 for the documented quality-85 benchmark. Read
+`docs/4k60-architecture.md` before changing the production datapath. The UHD
+target uses `HjpegTargetConfigs.Kv260Uhd4k` and
+`ElaborateKv2604k60AxiLiteTop`; it must not weaken the Full-HD correctness
+regressions or reuse Full-HD physical evidence as proof of 4K60.
+
 Important entry points:
 
 - `README.md` and `docs/architecture.md` describe the intended shape.
@@ -32,6 +39,13 @@ JPEG byte stream. It supports arbitrary nonzero frame dimensions within
 optional JFIF APP0 emission, marker assembly, restart intervals, entropy
 packing, byte stuffing, ready/valid flow control, and sticky protocol-error
 reporting.
+
+The active core now uses `JpegUnifiedRasterToMcuStage`: one two-slot 16-row
+banked store and one transform serve both chroma modes. It emits two ordered
+8-row stripes for 4:4:4 or one 16-row band for 4:2:0. UHD post-synthesis BRAM
+fell from 144/144 tiles to 97/144 and DSP use from 127 to 64. Four-pixel ingress,
+parallel transforms/entropy, 150 MHz routed closure, and physical 4K60 evidence
+remain required.
 
 The active `JpegBlockTransformStage` uses bit-exact four-lane DCT and quantizer
 stages. Both sustain a 16-cycle block interval in deterministic simulation; the
@@ -177,6 +191,12 @@ Generate the KV260 AXI-Lite control top with:
 
 ```sh
 sbt 'runMain hjpeg.ElaborateKv260AxiLiteTop'
+```
+
+Generate the branch-specific UHD top with:
+
+```sh
+sbt 'runMain hjpeg.ElaborateKv2604k60AxiLiteTop'
 ```
 
 When Vivado is available, run the synthesis/IP packaging entry points with:

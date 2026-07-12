@@ -17,6 +17,14 @@ case class HjpegConfig(
   require(maxFrameHeight > 0, "maxFrameHeight must be positive")
 }
 
+/** Named target configurations keep board elaboration limits explicit instead
+  * of changing the simulation-friendly default for every module and test.
+  */
+object HjpegTargetConfigs {
+  val Kv260FullHd: HjpegConfig = HjpegConfig(maxFrameWidth = 1920, maxFrameHeight = 1080)
+  val Kv260Uhd4k: HjpegConfig = HjpegConfig(maxFrameWidth = 3840, maxFrameHeight = 2160)
+}
+
 object HjpegConstants {
   val BlockDim = 8
   val BlockSize = BlockDim * BlockDim

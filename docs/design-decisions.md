@@ -1,5 +1,29 @@
 # hjpeg Design Decisions
 
+## Share raster storage and transforms across runtime chroma modes
+
+**Status:** Accepted on `4k60`
+
+**Decision:** Use one two-slot, 16-row banked raster store and one block
+transform for both 4:4:4 and 4:2:0. Emit two ordered 8-row stripes from each
+stored band in 4:4:4 and one 16-row MCU band in 4:2:0.
+
+**Context:** Simply elaborating both prior raster stages at 3840 pixels consumes
+all 144 K26 BRAM tiles and duplicates the transform. Runtime mode selection is
+still required, so mode-specific builds would narrow the target rather than fix
+the architecture.
+
+**Consequences:**
+
+- Exact UHD synthesis drops BRAM from 144 to 97 tiles and DSPs from 127 to 64.
+- Complete JPEG regressions remain decoder-valid in both modes.
+- 4:4:4 loader latency increases because the shared banks return four adjacent
+  samples per cycle. Multi-pixel collection and parallel downstream processing
+  are explicit next steps, not hidden by deeper buffering.
+
+**Revisit when:** A proven multi-lane store needs a different bank geometry, but
+do not reintroduce duplicated full-width mode buffers.
+
 This document records the reasoning behind architectural choices that are not
 obvious from the RTL alone. It is not a changelog or an exhaustive interface
 specification. Register maps, commands, generated artifacts, and validation

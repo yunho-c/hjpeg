@@ -2,6 +2,11 @@
 
 Hardware-accelerated JPEG encoder in Chisel.
 
+The `4k60` branch is developing a 3840x2160-at-60-fps KV260 architecture while
+preserving the verified Full-HD implementation as its correctness baseline.
+See [`docs/4k60-architecture.md`](docs/4k60-architecture.md) for the exact target,
+capacity model, current UHD synthesis evidence, and remaining gates.
+
 The initial target platform is the AMD/Xilinx Kria KV260. The current tree
 contains a functional baseline JPEG encoder datapath with Scala/Chisel build
 files, streaming RTL shells, elaboration entry points, and simulator tests.
@@ -174,6 +179,12 @@ Generate the KV260 AXI-Lite control top:
 
 ```sh
 sbt 'runMain hjpeg.ElaborateKv260AxiLiteTop'
+```
+
+Generate the UHD-capacity top on branch `4k60`:
+
+```sh
+sbt 'runMain hjpeg.ElaborateKv2604k60AxiLiteTop'
 ```
 
 Generate module hierarchy and dependency graphs from the elaborated

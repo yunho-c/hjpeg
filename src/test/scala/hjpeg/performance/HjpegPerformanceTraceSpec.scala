@@ -69,70 +69,22 @@ private class HjpegPerformanceHarness(c: HjpegConfig = HjpegConfig()) extends Mo
     result
   }
 
-  private def selectBoundary(
-      normalValid: Bool,
-      normalReady: Bool,
-      subsampledValid: Bool,
-      subsampledReady: Bool): PerformanceBoundaryProbe = {
-    val normal = boreBoundary(normalValid, normalReady)
-    val subsampled = boreBoundary(subsampledValid, subsampledReady)
-    Mux(io.config.enableChromaSubsample, subsampled, normal)
-  }
+  private val transform = core.rasterToMcu.transform
 
-  private val normalTransform = core.rasterToMcu.transform
-  private val subsampledTransform = core.rasterToSubsampledMcu.transform
-
-  io.performance.rasterPhase := Mux(
-    io.config.enableChromaSubsample,
-    BoringUtils.bore(core.rasterToSubsampledMcu.state),
-    BoringUtils.bore(core.rasterToMcu.state))
+  io.performance.rasterPhase := BoringUtils.bore(core.rasterToMcu.state)
   io.performance.encoderPhase := BoringUtils.bore(core.encoder.state)
 
-  io.performance.transformInput := selectBoundary(
-    normalTransform.io.input.valid,
-    normalTransform.io.input.ready,
-    subsampledTransform.io.input.valid,
-    subsampledTransform.io.input.ready)
-  io.performance.dctInput := selectBoundary(
-    normalTransform.dct.io.input.valid,
-    normalTransform.dct.io.input.ready,
-    subsampledTransform.dct.io.input.valid,
-    subsampledTransform.dct.io.input.ready)
-  io.performance.dctOutput := selectBoundary(
-    normalTransform.dct.io.output.valid,
-    normalTransform.dct.io.output.ready,
-    subsampledTransform.dct.io.output.valid,
-    subsampledTransform.dct.io.output.ready)
-  io.performance.quantizeInput := selectBoundary(
-    normalTransform.quantize.io.input.valid,
-    normalTransform.quantize.io.input.ready,
-    subsampledTransform.quantize.io.input.valid,
-    subsampledTransform.quantize.io.input.ready)
-  io.performance.quantizeOutput := selectBoundary(
-    normalTransform.quantize.io.output.valid,
-    normalTransform.quantize.io.output.ready,
-    subsampledTransform.quantize.io.output.valid,
-    subsampledTransform.quantize.io.output.ready)
-  io.performance.zigZagInput := selectBoundary(
-    normalTransform.zigZag.io.input.valid,
-    normalTransform.zigZag.io.input.ready,
-    subsampledTransform.zigZag.io.input.valid,
-    subsampledTransform.zigZag.io.input.ready)
-  io.performance.zigZagOutput := selectBoundary(
-    normalTransform.zigZag.io.output.valid,
-    normalTransform.zigZag.io.output.ready,
-    subsampledTransform.zigZag.io.output.valid,
-    subsampledTransform.zigZag.io.output.ready)
-  io.performance.transformOutput := selectBoundary(
-    normalTransform.io.output.valid,
-    normalTransform.io.output.ready,
-    subsampledTransform.io.output.valid,
-    subsampledTransform.io.output.ready)
-  io.performance.mcuOutput := selectBoundary(
+  io.performance.transformInput := boreBoundary(transform.io.input.valid, transform.io.input.ready)
+  io.performance.dctInput := boreBoundary(transform.dct.io.input.valid, transform.dct.io.input.ready)
+  io.performance.dctOutput := boreBoundary(transform.dct.io.output.valid, transform.dct.io.output.ready)
+  io.performance.quantizeInput := boreBoundary(transform.quantize.io.input.valid, transform.quantize.io.input.ready)
+  io.performance.quantizeOutput := boreBoundary(transform.quantize.io.output.valid, transform.quantize.io.output.ready)
+  io.performance.zigZagInput := boreBoundary(transform.zigZag.io.input.valid, transform.zigZag.io.input.ready)
+  io.performance.zigZagOutput := boreBoundary(transform.zigZag.io.output.valid, transform.zigZag.io.output.ready)
+  io.performance.transformOutput := boreBoundary(transform.io.output.valid, transform.io.output.ready)
+  io.performance.mcuOutput := boreBoundary(
     core.rasterToMcu.io.output.valid,
-    core.rasterToMcu.io.output.ready,
-    core.rasterToSubsampledMcu.io.output.valid,
-    core.rasterToSubsampledMcu.io.output.ready)
+    core.rasterToMcu.io.output.ready)
   io.performance.entropyBlockInput := boreBoundary(
     core.encoder.blockEncoder.io.input.valid,
     core.encoder.blockEncoder.io.input.ready)
