@@ -65,14 +65,14 @@ following latency from an accepted boundary to output validity:
 
 | Boundary | Observed cycles | Regression ceiling |
 | --- | ---: | ---: |
-| Four-lane 8x8 DCT block latency | 36 | 36 |
+| Four-lane 8x8 DCT block latency | 38 | 38 |
 | Consecutive DCT block initiation | 16 | 16 |
 | Four-lane 64-coefficient quantization | 23 | 23 |
-| Complete DCT/quantize/zig-zag block latency | 59 | 59 |
+| Complete DCT/quantize/zig-zag block latency | 61 | 61 |
 | Four-block transform initiation intervals | 16/16/16 | 17 maximum |
-| First 4:4:4 MCU after stripe ownership handoff | 102 | 103 |
-| First 4:2:0 MCU after band ownership handoff | 270 | 270 |
-| Complete 16x16 4:4:4 test frame | 2,032 | 2,300 |
+| First 4:4:4 MCU after stripe ownership handoff | 104 | 104 |
+| First 4:2:0 MCU after band ownership handoff | 272 | 272 |
+| Complete 16x16 4:4:4 test frame | 2,036 | 2,300 |
 
 The block and MCU measurements use quality 50 and deterministic fixtures. The
 transform latency is fixed by the current state machines; entropy and complete
@@ -82,8 +82,9 @@ frame time can also depend on coefficient content and emitted byte count.
 matrix. Four `x0 +/- x7` through `x3 +/- x4` butterflies feed four frequency
 lanes; even frequencies use the sums and odd frequencies use the differences.
 Each output therefore needs four products rather than eight, with no arithmetic
-change. Pair formation and the four-product column sums are registered, row
-and column engines overlap through three banked transpose buffers, and two result banks absorb output
+change. Pair formation and exact two-product partial sums are registered before
+the final add, row and column engines overlap through three banked transpose
+buffers, and two result banks absorb output
 backpressure. There is no intermediate rounding: the final Q28 value retains
 nearest rounding with halves away from zero. Deterministic varied blocks match
 the prior fixed-point reference coefficient-for-coefficient.
@@ -100,8 +101,8 @@ quality clamping, sustained traffic, and ordered backpressure.
 `JpegBlockTransformStage` uses the new stages with an eight-entry ordered
 metadata queue. Across varied luminance/chrominance blocks it sustains a
 16-cycle block interval, below the 34.3-cycle 4:4:4 budget. Relative to the
-previous production path, DCT latency fell from 129 to 36 cycles, quantization
-from 66 to 23, and complete transform latency from 196 to 59. First-MCU
+previous production path, DCT latency fell from 129 to 38 cycles, quantization
+from 66 to 23, and complete transform latency from 196 to 61. First-MCU
 processing first fell from 398 to 154 cycles for 4:4:4 and from 1,050 to 650
 for 4:2:0 with the pipelined transform and synchronous scalar reads. Banked
 reads reduced those measurements further to 98 and 266 cycles. Adding the
@@ -109,8 +110,8 @@ ping-pong ownership handoff first made the observed boundaries 99 and 267
 cycles while allowing collection to continue in the other slot. The 16x16
 frame fixture first fell from 2,364 to 2,252 cycles; entropy lookahead reduced
 it to 2,146 cycles, and collection overlap first reduced it to 2,020 cycles.
-The current timing-register depth makes the isolated boundaries 102 and 270
-cycles and the complete frame fixture 2,032 cycles.
+The current timing-register depth makes the isolated boundaries 104 and 272
+cycles and the complete frame fixture 2,036 cycles.
 
 The last pre-BRAM quick 32x16 trace completed in 3,275 cycles for 4:4:4 and
 3,106 for 4:2:0. Within-MCU block intervals are 16 cycles; steady same-stripe

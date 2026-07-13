@@ -11,11 +11,14 @@ The `4k60` branch targets:
 - decoder-valid dimensions, marker/table structure, entropy stuffing, and
   recognizable content before throughput counts;
 - a 150 MHz architectural clock goal with four packed RGB pixels accepted per
-  cycle, subject to routed Vivado proof; and
+  cycle; and
 - no tracked fabric resource above the existing project evidence ceiling.
 
 Quality-90 `seeded-random` remains a stress case, not a content-independent
 60-fps guarantee. Performance evidence must name the fixture and sampling mode.
+The integrated default Vivado flow now closes 150 MHz. The existing 70%
+resource ceiling and physical decoder-valid 4K60 measurements remain open, so
+this timing result is not by itself a completed 4K60 claim.
 
 ## Reproducible Capacity Budget
 
@@ -131,7 +134,7 @@ Create the matching 128-bit DMA design with:
 vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl \
   -tclargs generated-kv260-4k60-axi-lite-top build/vivado/ip_repo-4k60
 vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl \
-  -tclargs build/vivado/ip_repo-4k60 build/vivado/hjpeg-kv260-4k60-bd 128
+  -tclargs build/vivado/ip_repo-4k60 build/vivado/hjpeg-kv260-4k60-bd 128 150
 ```
 
 Vivado 2026.1 successfully packaged this UHD IP and validated the 128-bit DMA
@@ -290,63 +293,65 @@ The retained buffered-entropy implementation passes the complete 146/146
 Scala/Chisel regression across 28 suites. Python verification remains 5/5
 capacity-model, 235/235 host-flow, and 59/59 Vivado-report parser tests.
 
-## 150 MHz Timing-Closure Slice
+## 150 MHz Timing Closure
 
-The first timing pass adds registers at the four longest synthesized
-boundaries without changing arithmetic or ordering:
+Timing closure required explicit boundaries at the longest physical paths,
+without changing coefficient arithmetic, JPEG ordering, or throughput:
 
-- the DCT registers each 51-bit four-product column sum before rounding;
+- the DCT registers two-product partial sums in both row and column dot
+  products, then performs a short exact final add before the existing column
+  rounding boundary;
 - the quantizer registers both reciprocal lookup and the 21-bit scaled-table
   numerator before their downstream multiply/divide logic;
 - each AC scanner inserts a one-entry pipelined event queue before Huffman
-  selection; and
-- the unified raster loader registers all 24 component-bank responses before
-  bank selection and destination-block assembly.
+  selection;
+- RGB conversion is registered before raster-bank writes; and
+- the unified raster loader registers bank read requests and all 24 component
+  responses before bank selection and destination-block assembly.
 
-The transform changes preserve the 16-cycle block initiation interval. Focused
-simulation observes 36-cycle DCT, 23-cycle quantizer, and 59-cycle complete
-transform latency; the AC scanner has one fill cycle and then sustains one
-ordered event per cycle. The raster response boundary adds one cycle per load
-burst without changing issued reads. Both unified-raster modes and the complete
-decoder-backed core suite remain exact; the 16x16 4:4:4 fixture is 2,032 cycles
-against its 2,300-cycle ceiling.
+The DCT remains bit-exact and sustains a 16-cycle block initiation interval.
+Focused simulation observes 38-cycle DCT, 23-cycle quantizer, and 61-cycle
+complete-transform latency. The AC scanner has one fill cycle and then sustains
+one ordered event per cycle. Raster requests still issue one eight-sample group
+per cycle. The complete decoder-backed core and AXI suites remain exact; the
+16x16 4:4:4 fixture is 2,036 cycles against its 2,300-cycle ceiling.
 
-Exact current UHD post-synthesis evidence at a 10 ns reporting constraint is
-47,530 CLB LUTs (40.58%), 75,097 registers (32.06%), 99 BRAM tiles (68.75%),
-and 194 DSPs (15.54%). Setup WNS is `+4.107 ns`, an estimated 5.893 ns critical
-period or 169.7 MHz. The current synthesized critical path is the registered
-DCT column reduction; the new raster-response registers do not lengthen it.
+Standalone UHD synthesis at a 10 ns reporting constraint uses 49,990 CLB LUTs,
+76,612 registers, 99 BRAM tiles, and 194 DSPs. Setup WNS is `+4.198 ns`; the
+worst data path is 5.504 ns and has moved out of the DCT reduction.
 
-A complete pre-raster-response implementation requested 150 MHz from the PS
-and produced an actual 149.998505 MHz clock, a fully routed design, bitstream,
-and bitstream-bearing XSA. It did not close setup: final WNS was `-0.211 ns`,
-TNS was `-26.487 ns` across 472 endpoints, while hold passed at `+0.007 ns` and
-route status had zero errors or unrouted nets. The failing path crossed a
-three-RAMB36-deep Cr raster bank, bank selection, and block assembly. Final
-utilization was 51,169 CLB LUTs, 82,155 registers, 102.5 BRAM tiles, and 194
-DSPs; physical CLB occupancy was 83.53%. This is useful construction evidence,
-not timing closure or 4K60 proof. The response-register change directly targets
-that routed failure and requires a fresh implementation report.
+The integrated default implementation requests 150 MHz from the PS and reports
+an actual 6.666 ns period, or 150.015 MHz. It is fully routed and meets every
+timing constraint: setup WNS is `+0.025 ns`, TNS is `0`, there are no failing
+setup endpoints, and hold WHS is `+0.010 ns`. All 127,037 routable nets are
+fully routed with zero routing errors. DRC has warnings but no Error or Critical
+Warning violations. The flow emits a nonempty bitstream, bitstream-bearing XSA,
+and routed checkpoint.
 
-The timing-closure source passes 146/146 Scala/Chisel tests across 28 suites,
-plus 5/5 capacity-model, 235/235 host-flow, and 59/59 Vivado-report parser
-tests.
+Post-implementation use is 53,544 CLB LUTs (45.72%), 83,647 registers (35.71%),
+102.5 BRAM tiles (71.18%), and 194 DSPs (15.54%). Physical CLB occupancy is
+11,494/14,640, or 78.51%. The complete twelve-record Vivado evidence gate passes
+with an explicit 80% utilization cap. It does not pass the existing provisional
+70% project ceiling because both physical CLB occupancy and BRAM use exceed it;
+that headroom decision remains open rather than being hidden by the timing pass.
+
+Current verification is 146/146 Scala/Chisel tests across 28 suites. The Python
+side passes 5 capacity-model, 10 ChiselSim-environment, 11 design-graph, 11
+performance-trace, 59 Vivado-report, and 235 host-flow tests.
 
 ## Remaining Architecture
 
 Implementation order is:
 
-1. Re-run routed 150 MHz implementation with the raster-response boundary and
-   resolve any replacement setup path.
-2. Reduce or explicitly resolve the provisional routed 70% CLB/BRAM headroom
+1. Reduce or explicitly resolve the provisional routed 70% CLB/BRAM headroom
    gate; post-synthesis primitive percentages alone are insufficient.
-3. Add ordered multi-run drain/packing or widen JPEG output only if the q85
+2. Add ordered multi-run drain/packing or widen JPEG output only if the q85
    target trace demonstrates that entropy traffic still misses the frame
    budget after timing closure.
-4. After routed timing and resource closure,
+3. After routed timing and resource closure,
    measure first-input through output-TLAST cycles on a physical KV260 and
    decode both modes with standard software.
 
-Do not claim 4K60 from capacity arithmetic or post-synthesis reports. Completion
-requires routed 150 MHz evidence and physical decoder-valid DMA measurements in
-both sampling modes.
+Do not claim completed 4K60 from capacity arithmetic or routed timing alone.
+Completion still requires an explicit resource-headroom decision and physical
+decoder-valid DMA measurements in both sampling modes.

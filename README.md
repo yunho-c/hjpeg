@@ -6,6 +6,11 @@ The `4k60` branch is developing a 3840x2160-at-60-fps KV260 architecture while
 preserving the verified Full-HD implementation as its correctness baseline.
 See [`docs/4k60-architecture.md`](docs/4k60-architecture.md) for the exact target,
 capacity model, current UHD synthesis evidence, and remaining gates.
+The integrated 128-bit DMA design now routes at 150.015 MHz with setup WNS
+`+0.025 ns` and hold WHS `+0.010 ns`. It uses 78.51% of physical CLBs and 71.18%
+of BRAM, so it passes the complete Vivado evidence checker at an explicit 80%
+cap but not the existing provisional 70% resource ceiling. Physical
+decoder-valid 4K60 DMA measurements in both chroma modes are still required.
 
 The initial target platform is the AMD/Xilinx Kria KV260. The current tree
 contains a functional baseline JPEG encoder datapath with Scala/Chisel build
@@ -294,9 +299,9 @@ Create the first KV260 block-design project around the packaged IP:
 vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl
 ```
 
-The block-design script accepts optional `ip_repo_dir`, `project_dir`, and
-MM2S stream-width arguments. Pass `128` for the four-pixel UHD IP; the default
-is `32` for the scalar top.
+The block-design script accepts optional `ip_repo_dir`, `project_dir`, MM2S
+stream-width, and PS PL-clock-MHz arguments. Pass `128 150` for the four-pixel
+UHD target; the defaults are `32 100` for the scalar top.
 
 Build the block design through bitstream generation and export an XSA:
 

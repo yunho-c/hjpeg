@@ -62,12 +62,13 @@ input block.
 `PipelinedDct8x8Stage` is the production separable transform. Exact even/odd
 symmetry in the Q14 cosine matrix reduces each eight-term dot product to four
 products of `x0 +/- x7` through `x3 +/- x4`. Four frequency lanes issue four
-coefficients per cycle. Pair formation is registered; row and column passes
-overlap through three banked transpose buffers, and two output banks absorb
-backpressure. A registered 51-bit column-sum boundary separates the four
-DSP products from final signed rounding. No rounding occurs between passes,
-and the final Q28 rounding is bit-identical to the original transform. It has
-36-cycle single-block latency and a 16-cycle sustained block interval.
+coefficients per cycle. Pair formation and exact two-product partial sums are
+registered; a short final add completes each four-term dot product. Row and
+column passes overlap through three banked transpose buffers, and two output
+banks absorb backpressure. A registered 51-bit column-sum boundary separates
+the final add from signed rounding. No rounding occurs between passes, and the
+final Q28 rounding is bit-identical to the original transform. It has 38-cycle
+single-block latency and a 16-cycle sustained block interval.
 
 `PipelinedQuantizeBlockStage` handles four adjacent coefficients per cycle
 through registered table lookup, floor-reciprocal multiplication, and exact
@@ -84,7 +85,8 @@ only when the quantizer accepts both, preventing later in-flight blocks from
 changing the table selection of an earlier result. The former single-lane
 `Dct8x8Stage` and `QuantizeBlockStage` remain independently tested as
 reference/fallback implementations but are not instantiated by the active
-block transform.
+block transform. The combined DCT/quantize/zig-zag latency is 61 cycles, while
+the sustained block interval remains 16 cycles.
 
 After quantization, coefficients are reordered into JPEG zig-zag order. The
 entropy stages difference DC coefficients per component, encode AC zero runs

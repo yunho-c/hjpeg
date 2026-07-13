@@ -1,19 +1,17 @@
 # hjpeg Continuation Handoff
 
 > **4K60 branch note:** The active target on branch `4k60` is 3840x2160 at
-> 60 fps in both chroma modes. Start with `docs/4k60-architecture.md`. The first
-> UHD slice adds an explicit elaboration target and replaces duplicated raster
-> stores/transforms with `JpegUnifiedRasterToMcuStage`. The next slice accepts
-> four adjacent RGB pixels in each 128-bit DMA beat. UHD post-synthesis use is
-> post-synthesis use is 99 BRAM tiles, 194 DSPs, 47,530 CLB LUTs, and 75,097
-> registers with `+4.107 ns` WNS at a 10 ns reporting constraint after adding
-> explicit DCT, quantizer, AC-event, and raster-memory response registers.
-> Transform initiation remains 16 cycles. The first complete 150 MHz build was
-> fully routed and generated a bitstream/XSA, but failed setup at `-0.211 ns`
-> on the raster BRAM-to-block path; the current response register targets that
-> path and has not yet been re-routed. Physical CLB occupancy was also 83.53%,
-> above the provisional 70% gate. This is not 4K60 proof; fresh routed closure,
-> resource resolution, and physical decoder-valid measurements remain required.
+> 60 fps in both chroma modes. Start with `docs/4k60-architecture.md`. The UHD
+> path accepts four adjacent RGB pixels per 128-bit DMA beat, uses one unified
+> banked raster store, processes three component blocks in parallel, and scans
+> six MCU blocks concurrently. The integrated default Vivado flow now closes
+> its actual 6.666 ns / 150.015 MHz clock: setup WNS is `+0.025 ns`, TNS is zero,
+> hold WHS is `+0.010 ns`, and bitstream/XSA/checkpoint artifacts are present.
+> Post-implementation use is 53,544 CLB LUTs, 83,647 registers, 102.5 BRAM
+> tiles, and 194 DSPs; physical CLB occupancy is 78.51%. Complete evidence passes
+> at an explicit 80% cap but not the provisional 70% CLB/BRAM ceiling. This is
+> routed timing closure, not completed 4K60 proof: resource resolution and
+> physical decoder-valid measurements in both modes remain required.
 
 This document is for a new agent or developer picking up `hjpeg` without the
 conversation history. Treat the current checkout as authoritative, but use this
@@ -163,13 +161,14 @@ padded frame has 48,960 blocks and a 68.1-cycle block budget. These are
 initiation-interval budgets; transform latency may be longer if blocks overlap.
 
 The production block transform now uses bit-exact four-lane DCT and quantizer
-stages. It has 59-cycle complete latency and sustains a 16-cycle input/output
+stages. It has 61-cycle complete latency and sustains a 16-cycle input/output
 block interval, below the 34.3-cycle 4:4:4 budget. The DCT exploits exact
 even/odd symmetry in the existing Q14 matrix, registers pair butterflies and
-column sums, and overlaps row/column work through three transpose banks. The
-quantizer shares pipelined quality scaling across four exact
-reciprocal/correction lanes and uses two banks. The prior single-lane stages remain independently tested but are no
-longer instantiated by `JpegBlockTransformStage`.
+two-product partial sums, and overlaps row/column work through three transpose
+banks. The quantizer shares pipelined quality scaling across four exact
+reciprocal/correction lanes and uses two banks. The prior single-lane stages
+remain independently tested but are no longer instantiated by
+`JpegBlockTransformStage`.
 
 The profiler extension is now implemented. The quick profile remains the
 default; `--profile steady-state` selects a 24-case, 64x64 matrix spanning both
@@ -576,16 +575,20 @@ results.
 overlapped DCT blocks retain their original luminance/chrominance table
 selection. Metadata and coefficient blocks advance into quantization together.
 
-The current simulation contracts are 36 cycles of DCT latency with 16-cycle
-DCT initiation, 23 cycles for the four-lane quantizer, 59-cycle complete block
+The current simulation contracts are 38 cycles of DCT latency with 16-cycle
+DCT initiation, 23 cycles for the four-lane quantizer, 61-cycle complete block
 latency, at most 17 cycles between accepted blocks in the four-block transform
-fixture, at most 103/270 cycles for the measured 4:4:4/4:2:0 MCU boundaries,
+fixture, at most 104/272 cycles for the measured 4:4:4/4:2:0 MCU boundaries,
 and fewer than 2,300 cycles for the 16x16 4:4:4 frame fixture. The MCU ceilings
-are 103/270 cycles (observed 102/270 with the timing registers), and the frame
-fixture is currently 2,032 cycles. The transform, isolated loaders, measured high-entropy
-scanner rate, and stripe/band transition gaps meet their mode budgets. See
-`docs/performance-targets.md`. Current Vivado evidence closes 100 MHz timing and
-passes the resource target at 56.17% CLB and 52.78% BRAM occupancy.
+are 104/272 cycles (both observed at the ceiling with the current timing
+registers), and the frame fixture is currently 2,036 cycles. Transform
+initiation, measured high-entropy scanner rate, and stripe/band transition gaps
+meet their mode budgets. The isolated 4:4:4 first-MCU latency is 1.1 cycles
+above its average budget, but collection and the three-lane transform overlap
+in the active pipeline. See `docs/performance-targets.md`. Current UHD Vivado
+evidence closes 150.015 MHz timing at `+0.025 ns` setup WNS and `+0.010 ns` hold
+WHS. It uses 78.51% of physical CLBs and 71.18% of BRAM, so it passes the
+complete checker at an explicit 80% cap but not the provisional 70% target.
 
 `JpegHeaderStage` was also changed from a one-byte-per-cycle combinational
 header mux into a small byte-generation FSM. Static marker bytes still emit in
@@ -743,12 +746,14 @@ meaningless gate values.
 
 ## Last Known Local Verification
 
-The current checkout has fresh full Vivado construction evidence for the
-four-lane RTL. It proves that the design packages, routes, closes 100 MHz timing,
-emits a bitstream/XSA, and passes the resource gate at 56.17% routed CLB
-occupancy. The physical evidence below separately proves board behavior.
+The current checkout has fresh full Vivado construction evidence for the UHD
+four-pixel RTL. It proves that the design packages, routes, closes the actual
+150.015 MHz clock, and emits a bitstream/XSA/checkpoint. The complete checker
+passes at an explicit 80% cap, while the existing provisional 70% resource gate
+remains open. The physical evidence below is for the Full-HD build and must not
+be reused as proof of UHD behavior.
 
-The 2026-07-12 software baseline is green. Current RTL validation used the
+The 2026-07-13 software baseline is green. Current RTL validation used the
 pinned Docker JDK 21/sbt/Verilator toolchain on Windows:
 
 ```sh
@@ -759,6 +764,7 @@ python3 scripts/vivado/check_reports_test.py
 python3 scripts/dev/check_chiselsim_env_test.py
 python3 scripts/dev/generate_design_graphs_test.py
 python3 scripts/dev/generate_performance_trace_test.py
+python3 scripts/dev/analyze_4k60_capacity_test.py
 ./scripts/dev/generate-performance-trace
 python3 -m py_compile \
   scripts/host/hjpeg_host.py \
@@ -767,7 +773,7 @@ python3 -m py_compile \
   scripts/dev/generate_performance_trace.py
 ```
 
-The latest exact-current full-suite result is 139/139 Scala tests across 26
+The latest exact-current full-suite result is 146/146 Scala tests across 28
 suites through the pinned Docker sbt/Verilator toolchain. The exact-current
 21-test AXI-Lite top suite passes, including exact frame-cycle accounting for
 sequential frames. All three core/KV260 SystemVerilog elaboration entry points
@@ -775,9 +781,8 @@ pass.
 The generated-design-graph smoke run finds 27 reachable module types and 38
 instances with no missing focus modules. The most recent maintained Python
 suite results are 235 host tests, 59 Vivado-report tests, 10
-ChiselSim-environment tests, 11 design-graph helper tests, and 9
-performance-trace renderer tests on the preceding profiler revision; the
-current schema-3 profiler has 11 passing helper tests. Current 256x64 single-
+ChiselSim-environment tests, 11 design-graph helper tests, 11
+performance-trace renderer tests, and 5 4K60-capacity tests. Current 256x64 single-
 and two-frame scenarios produced strict JSON/CSV evidence and decoder-validated
 all three outputs. The normal local Mill daemon did not launch inside the
 restricted execution environment;
@@ -849,10 +854,20 @@ Known local limitations:
   `$(shell pwd)` and replay pipelines.
 - The native Windows/MSYS simulator path remains incompatible, but the pinned
   Docker flow runs the complete suite against the same checkout. The latest
-  exact-current result is 139 passing tests across 26 suites, including 21
+  exact-current result is 146 passing tests across 28 suites, including 21
   AXI-Lite top tests and exact frame-cycle accounting.
-- Current two-slot banked-block-RAM, four-lane transform, and four-coefficient
-  entropy Vivado construction emits the bitstream, XSA, and
+- Current UHD construction emits the bitstream, XSA, and post-implementation
+  checkpoint for the 128-bit DMA / 150 MHz block design. Integrated
+  post-synthesis setup WNS is `+0.760 ns`; post-implementation setup WNS is
+  `+0.025 ns`, TNS is zero, and hold WHS is `+0.010 ns`. Utilization is 53,544
+  CLB LUTs (45.72%), 83,647 registers (35.71%), 102.5 BRAM tiles (71.18%), 194
+  DSPs (15.54%), and 11,494 physical CLBs (78.51%). All 127,037 routable nets
+  are routed with zero errors. The complete twelve-record checker passes at an
+  explicit 80% cap and fails the provisional 70% resource policy. The generated
+  bitstream SHA-256 is
+  `3b3ac3119e16044c37fa4751d50c354ad244cbf28fb2df7f5b809060c9800876`.
+- The historical Full-HD two-slot banked-block-RAM, four-lane transform, and
+  four-coefficient entropy Vivado construction emits the bitstream, XSA, and
   post-implementation checkpoint. Post-synthesis setup WNS is `+1.291 ns`;
   post-implementation setup WNS is `+0.097 ns` and hold WHS is `+0.010 ns`.
   Post-implementation utilization is 35,885 CLB LUTs (30.64%), 690 LUTRAMs
@@ -1239,10 +1254,12 @@ object-shaped transcript.
 - The default 32x16 profiler fixture is intentionally quick and exaggerates the
   once-per-frame header. Use `--profile steady-state`, or selected 64x64 matrix
   scenarios, before declaring entropy safe or bottlenecked.
-- The transform, isolated loader, and high-entropy scanner-rate deficits are
-  resolved in simulation:
-  first-MCU processing is 99 cycles for 4:4:4 against a 102.9-cycle budget and
-  267 cycles for 4:2:0 against a 408.5-cycle budget. Collection now overlaps
+- The transform and high-entropy scanner-rate deficits are resolved in
+  simulation. Isolated first-MCU processing is 104 cycles for 4:4:4 against a
+  102.9-cycle average budget and 272 cycles for 4:2:0 against a 408.5-cycle
+  budget. The isolated 4:4:4 latency is slightly above that average per-MCU
+  budget, while the active three-transform pipeline retains a 16-cycle block
+  initiation interval and routed 150 MHz capacity. Collection overlaps
   processing through two BRAM-backed slots. Four-coefficient scanning plus
   packer overlap reduces entropy work to 30.28/31.28 cycles per block and
   removes repeated MCU-output backpressure from both seeded-random quality-90
@@ -1257,6 +1274,19 @@ object-shaped transcript.
   RST0.
 
 ## Suggested Next Work
+
+For the active `4k60` target:
+
+1. Reduce physical CLB/BRAM use below the provisional 70% ceiling, or document
+   and approve a revised UHD-specific headroom policy; do not silently use the
+   80% evidence-check command as a policy change.
+2. Program the current 150 MHz bitstream on a KV260 and run the documented q85
+   gradient/checker fixture at 3840x2160 in both 4:4:4 and 4:2:0.
+3. Require first-input through output-TLAST to fit the 2,500,000-cycle frame
+   budget at 150 MHz, confirm one 33,177,600-byte MM2S transfer, preserve DMA and
+   protocol status, and decode each JPEG with ordinary software.
+4. Save strict run evidence and hashes. Full-HD captures are a correctness
+   baseline, not proof of UHD throughput or output.
 
 If the exact RTL or target changes and the new PC has Vivado:
 
