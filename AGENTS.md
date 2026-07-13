@@ -41,14 +41,17 @@ packing, byte stuffing, ready/valid flow control, and sticky protocol-error
 reporting.
 
 The active core now uses `JpegUnifiedRasterToMcuStage`: one two-slot 16-row
-banked store and one transform serve both chroma modes. It emits two ordered
-8-row stripes for 4:4:4 or one 16-row band for 4:2:0. UHD post-synthesis BRAM
-fell from 144/144 tiles to 97/144. The UHD top accepts four adjacent pixels per
-128-bit DMA beat. Three ordered transform lanes now process Y/Cb/Cr together
-for 4:4:4 and two three-block batches for 4:2:0. UHD post-synthesis use is 99
+banked store and one transform subsystem serve both chroma modes. It emits two
+ordered 8-row stripes for 4:4:4 or one 16-row band for 4:2:0. UHD
+post-synthesis BRAM fell from 144/144 tiles to 97/144. The UHD top accepts four
+adjacent pixels per 128-bit DMA beat. Three ordered transform lanes now process
+Y/Cb/Cr together for 4:4:4 and two three-block batches for 4:2:0. UHD
+post-synthesis use is 99
 BRAM tiles, 194 DSPs, 39,351 logic LUTs, and 56,720 registers after widening
-raster reads to eight samples per cycle without adding storage; WNS is `+1.103
-ns` at 100 MHz. Cross-MCU pipeline overlap, parallel entropy, 150 MHz routed
+raster reads to eight samples per cycle without adding storage. The separate
+`JpegParallelMcuTransformStage` overlaps raw loading with in-flight transforms;
+current UHD use is 99 BRAM tiles, 194 DSPs, 39,722 logic LUTs, and 63,241
+registers, with WNS `+1.103 ns` at 100 MHz. Parallel entropy, 150 MHz routed
 closure, and physical 4K60 evidence remain required.
 
 The active `JpegBlockTransformStage` uses bit-exact four-lane DCT and quantizer

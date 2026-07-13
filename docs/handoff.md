@@ -5,15 +5,14 @@
 > UHD slice adds an explicit elaboration target and replaces duplicated raster
 > stores/transforms with `JpegUnifiedRasterToMcuStage`. The next slice accepts
 > four adjacent RGB pixels in each 128-bit DMA beat. UHD post-synthesis use is
-> 99 BRAM tiles, 194 DSPs, 39,351 logic LUTs, and 56,720 registers with `+1.103
-> ns` WNS at 100 MHz after adding three ordered transform lanes and eight-sample
-> raster reads. This is
-> resource/ingress evidence, not 4K60 throughput proof; cross-MCU pipeline
-> overlap, parallel entropy, routed 150 MHz, and physical
-> decoder-valid measurements remain outstanding. Commit `24eeadb` passes
-> 145/145 Scala/Chisel tests across 27 suites, plus 5 capacity-model, 235
-> host-flow, and 59 Vivado-report parser tests, and is the pre-overlap rollback
-> boundary.
+> 99 BRAM tiles, 194 DSPs, 39,722 logic LUTs, and 63,241 registers with `+1.103
+> ns` WNS at 100 MHz after adding three ordered transform lanes, eight-sample
+> raster reads, and cross-MCU transform overlap. Every measured 4:4:4 transform
+> initiation interval is now 16 cycles. This is not 4K60 throughput proof;
+> parallel entropy, routed 150 MHz, and physical decoder-valid measurements
+> remain outstanding. Exact-current verification is 146/146 Scala/Chisel tests
+> across 28 suites, plus 5 capacity-model, 235 host-flow, and 59 Vivado-report
+> parser tests.
 
 This document is for a new agent or developer picking up `hjpeg` without the
 conversation history. Treat the current checkout as authoritative, but use this

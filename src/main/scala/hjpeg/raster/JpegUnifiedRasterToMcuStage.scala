@@ -57,8 +57,6 @@ class JpegUnifiedRasterToMcuStage(
   val loadReadSample = Reg(UInt(6.W))
   val loadReadBanks = Reg(Vec(ReadLanes, UInt(BankIndexBits.W)))
   val loadAllIssued = RegInit(false.B)
-  val issueBlock = RegInit(0.U(3.W))
-  val captureBlock = RegInit(0.U(3.W))
 
   val ySampleBanks = Seq.fill(BankCount)(SyncReadMem(BankSamples, SInt(sampleBits.W)))
   val cbSampleBanks = Seq.fill(BankCount)(SyncReadMem(BankSamples, SInt(sampleBits.W)))
@@ -69,12 +67,6 @@ class JpegUnifiedRasterToMcuStage(
   val y3Block = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
   val cbBlock = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
   val crBlock = Reg(Vec(HjpegConstants.BlockSize, SInt(sampleBits.W)))
-  val y0Coefficients = Reg(new ZigZagCoefficientBlock(coefficientBits))
-  val y1Coefficients = Reg(new ZigZagCoefficientBlock(coefficientBits))
-  val y2Coefficients = Reg(new ZigZagCoefficientBlock(coefficientBits))
-  val y3Coefficients = Reg(new ZigZagCoefficientBlock(coefficientBits))
-  val cbCoefficients = Reg(new ZigZagCoefficientBlock(coefficientBits))
-  val crCoefficients = Reg(new ZigZagCoefficientBlock(coefficientBits))
 
   val subsampled = io.config.enableChromaSubsample
   val laneWriteBanks = Wire(Vec(inputLanes, UInt(BankIndexBits.W)))
@@ -143,8 +135,6 @@ class JpegUnifiedRasterToMcuStage(
     loadPhase := 0.U
     loadSample := 0.U
     loadAllIssued := false.B
-    issueBlock := 0.U
-    captureBlock := 0.U
     state := sLoad
   }
 
@@ -272,7 +262,7 @@ class JpegUnifiedRasterToMcuStage(
   }
 
   when(state === sLoad && loadReadValid) {
-      when(subsampled) {
+    when(subsampled) {
       when(loadReadPhase < 4.U) {
         for (lane <- 0 until ReadLanes) {
           val blockIndex = Cat(
@@ -309,8 +299,6 @@ class JpegUnifiedRasterToMcuStage(
         }
         when(loadReadSample === ((HjpegConstants.BlockSize / 2) - 1).U) {
           state := sTransform
-          issueBlock := 0.U
-          captureBlock := 0.U
         }
       }
     }.otherwise {
@@ -326,78 +314,7 @@ class JpegUnifiedRasterToMcuStage(
       }
       when(loadReadSample === ((HjpegConstants.BlockSize / ReadLanes) - 1).U) {
         state := sTransform
-        issueBlock := 0.U
-        captureBlock := 0.U
       }
-    }
-  }
-
-  // Three lockstep transform lanes preserve component order while matching the
-  // 4:4:4 capacity floor. 4:4:4 issues Y/Cb/Cr together; 4:2:0 issues
-  // Y0/Y1/Y2 followed by Y3/Cb/Cr. Atomic ready/valid gating prevents a batch
-  // from being accepted or retired by only a subset of lanes.
-  val transform = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
-  val transform1 = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
-  val transform2 = Module(new JpegBlockTransformStage(sampleBits, coefficientBits))
-  val transforms = Seq(transform, transform1, transform2)
-  val transformBatches = Mux(subsampled, 2.U, 1.U)
-  val transformBatchPending = state === sTransform && issueBlock < transformBatches
-  val transformInputReadies = VecInit(transforms.map(_.io.input.ready))
-
-  for ((laneTransform, lane) <- transforms.zipWithIndex) {
-    laneTransform.io.quality := io.config.quality
-    laneTransform.io.isLuminance := Mux(
-      subsampled,
-      if (lane == 0) true.B else issueBlock === 0.U,
-      (lane == 0).B)
-    laneTransform.io.input.valid :=
-      transformBatchPending && (0 until transforms.length).filter(_ != lane).map(transformInputReadies(_)).reduce(_ && _)
-
-    for (sample <- 0 until HjpegConstants.BlockSize) {
-      val sample420 = lane match {
-        case 0 => Mux(issueBlock === 0.U, y0Block(sample), y3Block(sample))
-        case 1 => Mux(issueBlock === 0.U, y1Block(sample), cbBlock(sample))
-        case _ => Mux(issueBlock === 0.U, y2Block(sample), crBlock(sample))
-      }
-      val sample444 = lane match {
-        case 0 => y0Block(sample)
-        case 1 => cbBlock(sample)
-        case _ => crBlock(sample)
-      }
-      laneTransform.io.input.bits.samples(sample) := Mux(subsampled, sample420, sample444)
-    }
-  }
-
-  when(transformBatchPending && transformInputReadies.asUInt.andR) {
-    issueBlock := issueBlock + 1.U
-  }
-
-  val transformOutputValids = VecInit(transforms.map(_.io.output.valid))
-  for ((laneTransform, lane) <- transforms.zipWithIndex) {
-    laneTransform.io.output.ready :=
-      state === sTransform &&
-        (0 until transforms.length).filter(_ != lane).map(transformOutputValids(_)).reduce(_ && _)
-  }
-  val transformBatchOutputFire = state === sTransform && transformOutputValids.asUInt.andR
-
-  when(transformBatchOutputFire) {
-    when(subsampled) {
-      when(captureBlock === 0.U) {
-        y0Coefficients := transform.io.output.bits
-        y1Coefficients := transform1.io.output.bits
-        y2Coefficients := transform2.io.output.bits
-        captureBlock := 1.U
-      }.otherwise {
-        y3Coefficients := transform.io.output.bits
-        cbCoefficients := transform1.io.output.bits
-        crCoefficients := transform2.io.output.bits
-        state := sEmit
-      }
-    }.otherwise {
-      y0Coefficients := transform.io.output.bits
-      cbCoefficients := transform1.io.output.bits
-      crCoefficients := transform2.io.output.bits
-      state := sEmit
     }
   }
 
@@ -406,17 +323,22 @@ class JpegUnifiedRasterToMcuStage(
   val hasBottomStripe = lastRowInBand >= HjpegConstants.BlockDim.U
   val finalStripeInBand = subsampled || stripeHalf || !hasBottomStripe
 
-  io.output.valid := state === sEmit
-  io.output.bits.mcu.yBlockCount := Mux(subsampled, 4.U, 1.U)
-  io.output.bits.mcu.y := y0Coefficients
-  io.output.bits.mcu.y1 := Mux(subsampled, y1Coefficients, y0Coefficients)
-  io.output.bits.mcu.y2 := Mux(subsampled, y2Coefficients, y0Coefficients)
-  io.output.bits.mcu.y3 := Mux(subsampled, y3Coefficients, y0Coefficients)
-  io.output.bits.mcu.cb := cbCoefficients
-  io.output.bits.mcu.cr := crCoefficients
-  io.output.bits.last := lastMcuInRow && finalStripeInBand && currentBandLast
+  val mcuTransform = Module(new JpegParallelMcuTransformStage(sampleBits, coefficientBits))
+  mcuTransform.io.input.valid := state === sTransform
+  mcuTransform.io.input.bits.mcu.yBlockCount := Mux(subsampled, 4.U, 1.U)
+  mcuTransform.io.input.bits.mcu.quality := io.config.quality
+  mcuTransform.io.input.bits.mcu.y.samples := y0Block
+  mcuTransform.io.input.bits.mcu.y1.samples := y1Block
+  mcuTransform.io.input.bits.mcu.y2.samples := y2Block
+  mcuTransform.io.input.bits.mcu.y3.samples := y3Block
+  mcuTransform.io.input.bits.mcu.cb.samples := cbBlock
+  mcuTransform.io.input.bits.mcu.cr.samples := crBlock
+  mcuTransform.io.input.bits.last := lastMcuInRow && finalStripeInBand && currentBandLast
+  io.output <> mcuTransform.io.output
 
-  when(io.output.fire) {
+  // The raster loader advances when raw samples have been copied into the
+  // independent transform pipeline, not when transformed coefficients leave.
+  when(mcuTransform.io.input.fire) {
     when(lastMcuInRow) {
       when(!subsampled && !stripeHalf && hasBottomStripe) {
         blockX := 0.U
@@ -424,8 +346,6 @@ class JpegUnifiedRasterToMcuStage(
         loadPhase := 0.U
         loadSample := 0.U
         loadAllIssued := false.B
-        issueBlock := 0.U
-        captureBlock := 0.U
         state := sLoad
       }.otherwise {
         bufferReady(activeReadBuffer) := false.B
@@ -439,8 +359,6 @@ class JpegUnifiedRasterToMcuStage(
       loadPhase := 0.U
       loadSample := 0.U
       loadAllIssued := false.B
-      issueBlock := 0.U
-      captureBlock := 0.U
       state := sLoad
     }
   }

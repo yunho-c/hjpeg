@@ -37,6 +37,7 @@ class HjpegElaborationSpec extends AnyFreeSpec with Matchers {
     ChiselStage.emitSystemVerilog(new QuantizeBlockStage()) must include("module QuantizeBlockStage")
     ChiselStage.emitSystemVerilog(new PipelinedQuantizeBlockStage()) must include("module PipelinedQuantizeBlockStage")
     ChiselStage.emitSystemVerilog(new ZigZagBlockStage()) must include("module ZigZagBlockStage")
+    ChiselStage.emitSystemVerilog(new JpegParallelMcuTransformStage()) must include("module JpegParallelMcuTransformStage")
     ChiselStage.emitSystemVerilog(new HjpegGroupedCore(inputLanes = 4)) must include("module HjpegGroupedCore")
     ChiselStage.emitSystemVerilog(new HjpegCore()) must include("module HjpegCore")
     ChiselStage.emitSystemVerilog(new HjpegAxiStreamCore()) must include("module HjpegAxiStreamCore")

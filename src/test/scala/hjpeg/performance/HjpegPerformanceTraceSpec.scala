@@ -70,7 +70,7 @@ private class HjpegPerformanceHarness(c: HjpegConfig = HjpegConfig()) extends Mo
   }
 
   private val groupedCore = core.grouped
-  private val transform = groupedCore.rasterToMcu.transform
+  private val transform = groupedCore.rasterToMcu.mcuTransform.transform
 
   io.performance.rasterPhase := BoringUtils.bore(groupedCore.rasterToMcu.state)
   io.performance.encoderPhase := BoringUtils.bore(groupedCore.encoder.state)

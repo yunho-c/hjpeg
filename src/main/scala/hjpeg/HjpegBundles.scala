@@ -46,6 +46,22 @@ class LevelShiftedSampleBlock(val sampleBits: Int = 9) extends Bundle {
   val samples = Vec(HjpegConstants.BlockSize, SInt(sampleBits.W))
 }
 
+class LevelShiftedMinimumCodedUnit(val sampleBits: Int = 9) extends Bundle {
+  val yBlockCount = UInt(3.W)
+  val quality = UInt(7.W)
+  val y = new LevelShiftedSampleBlock(sampleBits)
+  val y1 = new LevelShiftedSampleBlock(sampleBits)
+  val y2 = new LevelShiftedSampleBlock(sampleBits)
+  val y3 = new LevelShiftedSampleBlock(sampleBits)
+  val cb = new LevelShiftedSampleBlock(sampleBits)
+  val cr = new LevelShiftedSampleBlock(sampleBits)
+}
+
+class LevelShiftedMinimumCodedUnitPacket(val sampleBits: Int = 9) extends Bundle {
+  val mcu = new LevelShiftedMinimumCodedUnit(sampleBits)
+  val last = Bool()
+}
+
 class DctCoefficientBlock(val coefficientBits: Int = 16) extends Bundle {
   val coefficients = Vec(HjpegConstants.BlockSize, SInt(coefficientBits.W))
 }

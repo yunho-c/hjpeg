@@ -210,19 +210,51 @@ The exact committed pre-overlap boundary passes 145/145 Scala/Chisel tests
 across 27 suites. Together with the unchanged Python totals above, this makes
 commit `24eeadb` the rollback point for the upcoming cross-MCU state split.
 
+## Cross-MCU Transform Overlap Slice
+
+`JpegParallelMcuTransformStage` now owns the three block-transform pipelines,
+an independently held raw MCU, an eight-entry batch-metadata queue, a partial
+4:2:0 assembly slot, and one ordered coefficient-MCU output slot. The raster
+loader advances as soon as raw samples are copied into this stage. It no longer
+waits for the 56-cycle block-transform latency or for coefficient output to be
+consumed.
+
+The stage can replace its raw MCU in the cycle that the prior MCU's final batch
+enters all three transforms. Metadata identifies 4:4:4's single batch versus
+4:2:0's first/final batches, preserves frame-final status, and remains aligned
+while output is backpressured. A dedicated overlap test retires four 4:4:4 MCUs
+at exact 16-cycle intervals. Decoder-backed vector tests pass in both chroma
+modes, and the stalled-output test produces byte-identical JPEG data.
+
+The quick profiler now measures every 4:4:4 block-transform initiation interval
+at exactly 16 cycles (minimum, median, 95th percentile, and maximum). The tiny
+32x16 4:4:4 frame falls from 2,605 to 2,574 cycles. Its complete-frame change is
+small because JPEG header and entropy traffic dominate that fixture; the
+transform schedule, not the quick-frame total, is the capacity evidence. For
+4:2:0, batches within one MCU are 16 cycles apart and the measured gap to the
+next MCU is 50 cycles, consistent with its now-dominant 64-cycle raw loader.
+
+Exact UHD post-synthesis use at 100 MHz is 39,722 logic LUTs (33.92%), 28 LUTRAM
+cells, 63,241 registers (27.00%), 99 BRAM tiles (68.75%), and 194 DSPs (15.54%),
+with setup WNS `+1.103 ns`. The overlap storage therefore costs 371 logic LUTs
+and 6,521 registers relative to `24eeadb`, without adding BRAM or DSPs.
+
+Exact-current verification is 146/146 Scala/Chisel tests across 28 suites,
+plus the unchanged 5 capacity-model, 235 host-flow, and 59 Vivado-report parser
+tests. The added stage-level regression proves four ordered 4:4:4 MCU outputs
+at exact 16-cycle intervals.
+
 ## Remaining Architecture
 
 Implementation order is:
 
-1. Pipeline MCU loading, transform batches, and ordered output assembly across
-   separate slots so transform latency does not serialize consecutive MCUs.
-2. Parallelize entropy by independently encoded restart intervals with ordered
+1. Parallelize entropy by independently encoded restart intervals with ordered
    byte-aligned merge, or demonstrate another design that meets the same rate
    without changing decoder-visible coefficient order.
-3. Widen the JPEG AXI stream if measured entropy traffic approaches the
+2. Widen the JPEG AXI stream if measured entropy traffic approaches the
    byte-oriented clock limit; the q85 benchmark's scaled output rate alone does
    not require it.
-4. Close routed 150 MHz timing/resources, then
+3. Close routed 150 MHz timing/resources, then
    measure first-input through output-TLAST cycles on a physical KV260 and
    decode both modes with standard software.
 
