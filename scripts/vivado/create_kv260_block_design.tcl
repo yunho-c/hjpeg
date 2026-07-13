@@ -3,15 +3,17 @@
 # Usage from the repository root, after RTL generation and IP packaging:
 #
 #   vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl \
-#     -tclargs build/vivado/ip_repo build/vivado/hjpeg-kv260-bd 32
+#     -tclargs build/vivado/ip_repo build/vivado/hjpeg-kv260-bd 32 100
 #
 # The first argument is the Vivado IP repository containing
 # hjpeg_kv260_axi_lite. The second argument is the Vivado project directory to
 # create. The optional third argument selects the AXI DMA MM2S stream width in
-# bits; use 32 for the scalar top and 128 for the four-pixel 4K60 top. This
-# script builds a reusable block design with Zynq UltraScale+ PS, AXI DMA, and
-# the hjpeg encoder IP. Board constraints, image packaging, and on-board
-# validation remain separate platform steps.
+# bits; use 32 for the scalar top and 128 for the four-pixel 4K60 top. The
+# optional fourth argument selects the requested PS pl_clk0 frequency in MHz;
+# use 150 for the 4K60 implementation target. This script builds a reusable
+# block design with Zynq UltraScale+ PS, AXI DMA, and the hjpeg encoder IP.
+# Board constraints, image packaging, and on-board validation remain separate
+# platform steps.
 
 set script_dir [file dirname [file normalize [info script]]]
 set repo_root [file normalize [file join $script_dir ../..]]
@@ -19,9 +21,10 @@ set repo_root [file normalize [file join $script_dir ../..]]
 set ip_repo_dir [file normalize [file join $repo_root build/vivado/ip_repo]]
 set project_dir [file normalize [file join $repo_root build/vivado/hjpeg-kv260-bd]]
 set mm2s_data_width 32
+set pl_clock_mhz 100
 
-if {$argc > 3} {
-  error "Expected at most 3 arguments: ip_repo_dir project_dir mm2s_data_width"
+if {$argc > 4} {
+  error "Expected at most 4 arguments: ip_repo_dir project_dir mm2s_data_width pl_clock_mhz"
 }
 if {$argc >= 1} {
   set ip_repo_dir [file normalize [lindex $argv 0]]
@@ -32,8 +35,14 @@ if {$argc >= 2} {
 if {$argc >= 3} {
   set mm2s_data_width [lindex $argv 2]
 }
+if {$argc >= 4} {
+  set pl_clock_mhz [lindex $argv 3]
+}
 if {$mm2s_data_width ni {32 128}} {
   error "AXI DMA MM2S stream width must be 32 or 128 bits, got: $mm2s_data_width"
+}
+if {![regexp {^[1-9][0-9]*$} $pl_clock_mhz]} {
+  error "PS pl_clk0 frequency must be a positive integer in MHz, got: $pl_clock_mhz"
 }
 
 set part_name xck26-sfvc784-2LV-c
@@ -99,6 +108,7 @@ set_property -dict [list \
   CONFIG.PSU__USE__M_AXI_GP0 {1} \
   CONFIG.PSU__USE__S_AXI_GP2 {1} \
   CONFIG.PSU__USE__IRQ0 {1} \
+  CONFIG.PSU__CRL_APB__PL0_REF_CTRL__FREQMHZ $pl_clock_mhz \
 ] [get_bd_cells ps]
 
 create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:* reset_pl0

@@ -290,17 +290,60 @@ The retained buffered-entropy implementation passes the complete 146/146
 Scala/Chisel regression across 28 suites. Python verification remains 5/5
 capacity-model, 235/235 host-flow, and 59/59 Vivado-report parser tests.
 
+## 150 MHz Timing-Closure Slice
+
+The first timing pass adds registers at the four longest synthesized
+boundaries without changing arithmetic or ordering:
+
+- the DCT registers each 51-bit four-product column sum before rounding;
+- the quantizer registers both reciprocal lookup and the 21-bit scaled-table
+  numerator before their downstream multiply/divide logic;
+- each AC scanner inserts a one-entry pipelined event queue before Huffman
+  selection; and
+- the unified raster loader registers all 24 component-bank responses before
+  bank selection and destination-block assembly.
+
+The transform changes preserve the 16-cycle block initiation interval. Focused
+simulation observes 36-cycle DCT, 23-cycle quantizer, and 59-cycle complete
+transform latency; the AC scanner has one fill cycle and then sustains one
+ordered event per cycle. The raster response boundary adds one cycle per load
+burst without changing issued reads. Both unified-raster modes and the complete
+decoder-backed core suite remain exact; the 16x16 4:4:4 fixture is 2,032 cycles
+against its 2,300-cycle ceiling.
+
+Exact current UHD post-synthesis evidence at a 10 ns reporting constraint is
+47,530 CLB LUTs (40.58%), 75,097 registers (32.06%), 99 BRAM tiles (68.75%),
+and 194 DSPs (15.54%). Setup WNS is `+4.107 ns`, an estimated 5.893 ns critical
+period or 169.7 MHz. The current synthesized critical path is the registered
+DCT column reduction; the new raster-response registers do not lengthen it.
+
+A complete pre-raster-response implementation requested 150 MHz from the PS
+and produced an actual 149.998505 MHz clock, a fully routed design, bitstream,
+and bitstream-bearing XSA. It did not close setup: final WNS was `-0.211 ns`,
+TNS was `-26.487 ns` across 472 endpoints, while hold passed at `+0.007 ns` and
+route status had zero errors or unrouted nets. The failing path crossed a
+three-RAMB36-deep Cr raster bank, bank selection, and block assembly. Final
+utilization was 51,169 CLB LUTs, 82,155 registers, 102.5 BRAM tiles, and 194
+DSPs; physical CLB occupancy was 83.53%. This is useful construction evidence,
+not timing closure or 4K60 proof. The response-register change directly targets
+that routed failure and requires a fresh implementation report.
+
+The timing-closure source passes 146/146 Scala/Chisel tests across 28 suites,
+plus 5/5 capacity-model, 235/235 host-flow, and 59/59 Vivado-report parser
+tests.
+
 ## Remaining Architecture
 
 Implementation order is:
 
-1. Add ordered multi-run drain/packing, or another timing-safe mechanism, if
-   the q85 target trace still exceeds its MCU/frame budget after the buffered
-   block scanners.
-2. Widen the JPEG AXI stream if measured q85 entropy traffic approaches the
-   byte-oriented clock limit; the q85 benchmark's scaled output rate alone does
-   not require it.
-3. Close routed 150 MHz timing/resources, then
+1. Re-run routed 150 MHz implementation with the raster-response boundary and
+   resolve any replacement setup path.
+2. Reduce or explicitly resolve the provisional routed 70% CLB/BRAM headroom
+   gate; post-synthesis primitive percentages alone are insufficient.
+3. Add ordered multi-run drain/packing or widen JPEG output only if the q85
+   target trace demonstrates that entropy traffic still misses the frame
+   budget after timing closure.
+4. After routed timing and resource closure,
    measure first-input through output-TLAST cycles on a physical KV260 and
    decode both modes with standard software.
 

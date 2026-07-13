@@ -153,7 +153,8 @@ class JpegAcBlockRunLengthStageSpec extends AnyFreeSpec with Matchers with Chise
       dut.io.output.ready.poke(true.B)
       loadBlock(dut, coefficients.toSeq)
 
-      for (_ <- 0 until 3) {
+      // Three four-zero scan advances plus the registered event boundary.
+      for (_ <- 0 until 4) {
         dut.io.output.valid.expect(false.B)
         dut.clock.step()
       }
@@ -197,7 +198,8 @@ class JpegAcBlockRunLengthStageSpec extends AnyFreeSpec with Matchers with Chise
         )
       )
 
-      cycles mustBe 5
+      // One fill cycle followed by five consecutive event cycles.
+      cycles mustBe 6
       dut.io.busy.expect(false.B)
     }
   }
@@ -239,6 +241,9 @@ class JpegAcBlockRunLengthStageSpec extends AnyFreeSpec with Matchers with Chise
       dut.io.output.ready.poke(false.B)
       loadBlock(dut, coefficients.toSeq)
 
+      // Run detection is registered before the externally held event.
+      dut.io.output.valid.expect(false.B)
+      dut.clock.step()
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.runLength.expect(0.U)
       dut.io.output.bits.coefficient.expect(3.S)

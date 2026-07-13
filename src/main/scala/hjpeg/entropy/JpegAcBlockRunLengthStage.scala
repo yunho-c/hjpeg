@@ -23,13 +23,18 @@ class JpegAcBlockRunLengthStage(coefficientBits: Int = 16) extends Module {
   private val ScanLanes = 4
 
   val block = Reg(Vec(HjpegConstants.BlockSize, SInt(coefficientBits.W)))
+  val events = Module(new Queue(new JpegAcRunLengthEvent(coefficientBits), entries = 1, pipe = true))
   val scanIndex = RegInit(1.U(6.W))
   val zeroRun = RegInit(0.U(4.W))
   val hasAcNonzero = RegInit(false.B)
   val lastNonzeroIndex = RegInit(0.U(6.W))
   val scanning = RegInit(false.B)
 
-  io.input.ready := !scanning
+  // Do not mix a new block with the final buffered event from the old block.
+  // The one-entry pipelined queue can retire and replace an event in the same
+  // cycle, preserving the scanner's one-event-per-cycle contract while cutting
+  // the run-detection path before Huffman encoding.
+  io.input.ready := !scanning && !events.io.deq.valid
 
   val acNonzeroMask = VecInit(
     (1 until HjpegConstants.BlockSize).map(index => io.input.bits.coefficients(index) =/= 0.S)).asUInt
@@ -86,16 +91,17 @@ class JpegAcBlockRunLengthStage(coefficientBits: Int = 16) extends Module {
     eventFound = eventFound || emitEvent
   }
 
-  io.output.valid := scanning && eventFound
-  io.output.bits.runLength := eventRunLength
-  io.output.bits.coefficient := eventCoefficient
-  io.output.bits.emitEndOfBlock := eventEndOfBlock
-  io.output.bits.emitZeroRunLength := eventZeroRunLength
+  events.io.enq.valid := scanning && eventFound
+  events.io.enq.bits.runLength := eventRunLength
+  events.io.enq.bits.coefficient := eventCoefficient
+  events.io.enq.bits.emitEndOfBlock := eventEndOfBlock
+  events.io.enq.bits.emitZeroRunLength := eventZeroRunLength
+  io.output <> events.io.deq
   io.busy := scanning
 
   when(scanning) {
     when(eventFound) {
-      when(io.output.fire) {
+      when(events.io.enq.fire) {
         when(eventFinishesBlock) {
           scanning := false.B
           scanIndex := 1.U

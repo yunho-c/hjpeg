@@ -16,10 +16,12 @@ import chisel3.util._
   * Four frequency lanes are issued per cycle. Row and column passes operate
   * concurrently through three banked transpose buffers; two output banks hold
   * completed blocks under downstream backpressure. Pair formation is
-  * registered before the multiply/add tree. No rounding occurs between passes;
-  * the final Q28 value uses nearest rounding with halves away from zero, exactly
-  * matching [[Dct8x8Stage]]. With an unstalled consumer, blocks are accepted at
-  * a 16-cycle interval after the first input.
+  * registered before the multiply/add tree. The column sums are also registered
+  * before final rounding so the second pass does not combine the DSP reduction
+  * tree and signed-rounding logic in one timing path. No rounding occurs between
+  * passes; the final Q28 value uses nearest rounding with halves away from zero,
+  * exactly matching [[Dct8x8Stage]]. With an unstalled consumer, blocks are
+  * accepted at a 16-cycle interval after the first input.
   */
 class PipelinedDct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) extends Module {
   val io = IO(new Bundle {
@@ -132,6 +134,13 @@ class PipelinedDct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) exten
   val columnPairGroup = Reg(UInt(4.W))
   val columnPairs = Reg(Vec(Lanes, Vec(Lanes, SInt(33.W))))
 
+  // A 33x16-bit product is 49 bits. Two widening add-tree levels require 51
+  // bits, matching the unregistered balancedSum result exactly.
+  val columnSumValid = RegInit(false.B)
+  val columnSumOutputBank = Reg(UInt(1.W))
+  val columnSumGroup = Reg(UInt(4.W))
+  val columnSums = Reg(Vec(Lanes, SInt(51.W)))
+
   val columnCanStart =
     !columnActive &&
       rowStates(columnReadBank) === rowComplete &&
@@ -174,20 +183,30 @@ class PipelinedDct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) exten
     columnAllocateOutputBank := ~columnAllocateOutputBank
   }
 
+  columnSumValid := columnPairValid
   when(columnPairValid) {
-    val outputColumn = columnPairGroup(3, 1)
+    columnSumOutputBank := columnPairOutputBank
+    columnSumGroup := columnPairGroup
     val frequencyBase = Cat(columnPairGroup(0), 0.U(2.W))
     for (lane <- 0 until Lanes) {
       val frequency = frequencyBase + lane.U
-      val sum = balancedSum((0 until Lanes).map { term =>
+      columnSums(lane) := balancedSum((0 until Lanes).map { term =>
         (columnPairs(lane)(term) * cosine(frequency)(term)).asSInt
       })
-      val rounded = roundShiftSigned(sum, Dct8x8Constants.FractionBits * 2)
-      outputBuffers(columnPairOutputBank)(Cat(frequency, outputColumn)) :=
+    }
+  }
+
+  when(columnSumValid) {
+    val outputColumn = columnSumGroup(3, 1)
+    val frequencyBase = Cat(columnSumGroup(0), 0.U(2.W))
+    for (lane <- 0 until Lanes) {
+      val frequency = frequencyBase + lane.U
+      val rounded = roundShiftSigned(columnSums(lane), Dct8x8Constants.FractionBits * 2)
+      outputBuffers(columnSumOutputBank)(Cat(frequency, outputColumn)) :=
         rounded(coefficientBits - 1, 0).asSInt
     }
-    when(columnPairGroup === 15.U) {
-      outputStates(columnPairOutputBank) := outputComplete
+    when(columnSumGroup === 15.U) {
+      outputStates(columnSumOutputBank) := outputComplete
     }
   }
 

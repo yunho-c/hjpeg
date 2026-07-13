@@ -95,7 +95,7 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
     }
 
     blockDesign must include("hjpeg_kv260_axi_lite_1_0")
-    blockDesign must include("Expected at most 3 arguments: ip_repo_dir project_dir mm2s_data_width")
+    blockDesign must include("Expected at most 4 arguments: ip_repo_dir project_dir mm2s_data_width pl_clock_mhz")
     blockDesign must include("component.xml")
     blockDesign must include("xilinx.com:ip:zynq_ultra_ps_e")
     blockDesign must include("xilinx.com:ip:axi_dma")
@@ -108,6 +108,10 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
     blockDesign must include("set mm2s_data_width 32")
     blockDesign must include("set mm2s_data_width [lindex $argv 2]")
     blockDesign must include("AXI DMA MM2S stream width must be 32 or 128 bits")
+    blockDesign must include("set pl_clock_mhz 100")
+    blockDesign must include("set pl_clock_mhz [lindex $argv 3]")
+    blockDesign must include("PS pl_clk0 frequency must be a positive integer in MHz")
+    blockDesign must include("CONFIG.PSU__CRL_APB__PL0_REF_CTRL__FREQMHZ $pl_clock_mhz")
     blockDesign must include("CONFIG.c_m_axis_mm2s_tdata_width $mm2s_data_width")
     blockDesign must include("CONFIG.c_s_axis_s2mm_tdata_width {8}")
     blockDesign must include("hjpeg_0/s_axis_rgb")

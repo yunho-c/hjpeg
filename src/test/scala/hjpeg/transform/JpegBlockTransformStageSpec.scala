@@ -47,7 +47,7 @@ class JpegBlockTransformStageSpec extends AnyFreeSpec with Matchers with ChiselS
 
       val cycles = waitForOutput(dut)
       info(s"complete block-transform latency: $cycles cycles")
-      cycles must be <= 57
+      cycles must be <= 59
       dut.io.output.valid.expect(true.B)
       dut.io.output.bits.coefficients(0).expect(16.S)
       for (index <- 1 until HjpegConstants.BlockSize) {

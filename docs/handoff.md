@@ -5,14 +5,15 @@
 > UHD slice adds an explicit elaboration target and replaces duplicated raster
 > stores/transforms with `JpegUnifiedRasterToMcuStage`. The next slice accepts
 > four adjacent RGB pixels in each 128-bit DMA beat. UHD post-synthesis use is
-> 99 BRAM tiles, 194 DSPs, 49,959 logic LUTs, 172 LUTRAM cells, and 73,845
-> registers with `+1.707 ns` WNS at 100 MHz after adding transform overlap and
-> six buffered, ordered block-entropy encoders. Every measured 4:4:4 transform
-> initiation interval is 16 cycles; quick steady MCU spacing is 55.3 cycles.
-> This is not 4K60 throughput proof; timing-safe multi-run packing, routed 150
-> MHz, and physical decoder-valid measurements remain outstanding. Exact-current
-> verification is 146/146 Scala/Chisel tests across 28 suites, plus 5
-> capacity-model, 235 host-flow, and 59 Vivado-report parser tests.
+> post-synthesis use is 99 BRAM tiles, 194 DSPs, 47,530 CLB LUTs, and 75,097
+> registers with `+4.107 ns` WNS at a 10 ns reporting constraint after adding
+> explicit DCT, quantizer, AC-event, and raster-memory response registers.
+> Transform initiation remains 16 cycles. The first complete 150 MHz build was
+> fully routed and generated a bitstream/XSA, but failed setup at `-0.211 ns`
+> on the raster BRAM-to-block path; the current response register targets that
+> path and has not yet been re-routed. Physical CLB occupancy was also 83.53%,
+> above the provisional 70% gate. This is not 4K60 proof; fresh routed closure,
+> resource resolution, and physical decoder-valid measurements remain required.
 
 This document is for a new agent or developer picking up `hjpeg` without the
 conversation history. Treat the current checkout as authoritative, but use this
@@ -162,12 +163,12 @@ padded frame has 48,960 blocks and a 68.1-cycle block budget. These are
 initiation-interval budgets; transform latency may be longer if blocks overlap.
 
 The production block transform now uses bit-exact four-lane DCT and quantizer
-stages. It has 55-cycle complete latency and sustains a 16-cycle input/output
+stages. It has 59-cycle complete latency and sustains a 16-cycle input/output
 block interval, below the 34.3-cycle 4:4:4 budget. The DCT exploits exact
-even/odd symmetry in the existing Q14 matrix, registers pair butterflies, and
-overlaps row/column work through three transpose banks. The quantizer shares
-quality scaling across four exact reciprocal/correction lanes and uses two
-banks. The prior single-lane stages remain independently tested but are no
+even/odd symmetry in the existing Q14 matrix, registers pair butterflies and
+column sums, and overlaps row/column work through three transpose banks. The
+quantizer shares pipelined quality scaling across four exact
+reciprocal/correction lanes and uses two banks. The prior single-lane stages remain independently tested but are no
 longer instantiated by `JpegBlockTransformStage`.
 
 The profiler extension is now implemented. The quick profile remains the
@@ -562,8 +563,9 @@ Exact cosine symmetry turns every eight-term Q14 dot product into four products
 of registered pair sums or differences. Three row/transpose banks overlap row
 and column work; two output banks retain ordered results under backpressure.
 `PipelinedQuantizeBlockStage` processes four coefficients per cycle through
-registered table lookup, floor-reciprocal estimate, and exact multiply-back
-correction. Its four lanes share quality scaling and use two banks. The raster
+registered table lookup, reciprocal and scaled-numerator pipeline registers,
+floor-reciprocal estimate, and exact multiply-back correction. Its four lanes
+share quality scaling and use two banks. The raster
 stages issue the next component DCT while the previous component is being
 quantized, retaining ordered results and block metadata.
 Exhaustive arithmetic checks cover every supported reciprocal numerator/divisor
@@ -574,13 +576,13 @@ results.
 overlapped DCT blocks retain their original luminance/chrominance table
 selection. Metadata and coefficient blocks advance into quantization together.
 
-The current simulation contracts are 35 cycles of DCT latency with 16-cycle
-DCT initiation, 21 cycles for the four-lane quantizer, 55-cycle complete block
+The current simulation contracts are 36 cycles of DCT latency with 16-cycle
+DCT initiation, 23 cycles for the four-lane quantizer, 59-cycle complete block
 latency, at most 17 cycles between accepted blocks in the four-block transform
-fixture, at most 100/270 cycles for the measured 4:4:4/4:2:0 MCU boundaries,
+fixture, at most 103/270 cycles for the measured 4:4:4/4:2:0 MCU boundaries,
 and fewer than 2,300 cycles for the 16x16 4:4:4 frame fixture. The MCU ceilings
-are 100/270 cycles (observed 99/267 after slot ownership handoff), and the frame
-fixture is 2,020 cycles. The transform, isolated loaders, measured high-entropy
+are 103/270 cycles (observed 102/270 with the timing registers), and the frame
+fixture is currently 2,032 cycles. The transform, isolated loaders, measured high-entropy
 scanner rate, and stripe/band transition gaps meet their mode budgets. See
 `docs/performance-targets.md`. Current Vivado evidence closes 100 MHz timing and
 passes the resource target at 56.17% CLB and 52.78% BRAM occupancy.

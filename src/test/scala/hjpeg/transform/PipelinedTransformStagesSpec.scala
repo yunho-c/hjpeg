@@ -215,7 +215,7 @@ class PipelinedTransformStagesSpec extends AnyFreeSpec with Matchers with Chisel
       val firstLatency = emittedAt.head - acceptedAt.head
       info(s"four-lane quantizer first-block latency: $firstLatency cycles")
       info(s"four-lane quantizer output intervals: ${outputIntervals.mkString(", ")}")
-      firstLatency must be <= 22
+      firstLatency must be <= 23
       outputIntervals.toSet mustBe Set(16)
     }
   }
@@ -266,8 +266,11 @@ class PipelinedTransformStagesSpec extends AnyFreeSpec with Matchers with Chisel
 
       val inputIntervals = acceptedAt.sliding(2).map(pair => pair(1) - pair(0)).toSeq
       val outputIntervals = emittedAt.sliding(2).map(pair => pair(1) - pair(0)).toSeq
+      val firstLatency = emittedAt.head - acceptedAt.head
+      info(s"complete pipelined transform first-block latency: $firstLatency cycles")
       info(s"pipelined transform input intervals: ${inputIntervals.mkString(", ")}")
       info(s"pipelined transform output intervals: ${outputIntervals.mkString(", ")}")
+      firstLatency must be <= 59
       inputIntervals.toSet mustBe Set(16)
       outputIntervals.toSet mustBe Set(16)
 

@@ -52,18 +52,22 @@ raster reads to eight samples per cycle without adding storage. The separate
 `JpegParallelMcuTransformStage` overlaps raw loading with in-flight transforms;
 current UHD use is 99 BRAM tiles, 194 DSPs, 39,722 logic LUTs, and 63,241
 registers, with WNS `+1.103 ns` at 100 MHz. Six buffered block-entropy encoders
-now scan each MCU in parallel and drain runs in JPEG order; current UHD use is
-99 BRAM tiles, 194 DSPs, 49,959 logic LUTs, 172 LUTRAM cells, and 73,845
-registers, with WNS `+1.707 ns` at 100 MHz. Timing-safe multi-run packing, 150
-MHz routed closure, and physical 4K60 evidence remain required. AC scanner
-lookahead trials at eight and sixteen coefficients failed 100 MHz timing and
-were reverted; keep the four-coefficient scanner unless it is pipelined.
+now scan each MCU in parallel and drain runs in JPEG order. Timing registers at
+the DCT column reduction, quantizer reciprocal/scale paths, AC-event boundary,
+and raster-bank response produce current UHD post-synthesis use of 99 BRAM
+tiles, 194 DSPs, 47,530 CLB LUTs, and 75,097 registers, with WNS `+4.107 ns` at
+a 10 ns constraint. The first routed 150 MHz build missed setup by `0.211 ns`
+on the now-registered raster-memory path and used 83.53% of physical CLBs; a
+fresh route, resource resolution, and physical 4K60 evidence remain required.
+AC scanner lookahead trials at eight and sixteen coefficients failed 100 MHz
+timing and were reverted; keep the four-coefficient scanner unless it is
+pipelined.
 
 The active `JpegBlockTransformStage` uses bit-exact four-lane DCT and quantizer
 stages. Both sustain a 16-cycle block interval in deterministic simulation; the
-DCT uses registered even/odd butterflies with three transpose banks, and the
-quantizer shares quality scaling across four reciprocal/correction lanes with
-two banks. The earlier single-lane stages remain independently tested but are
+DCT uses registered even/odd butterflies, registered column sums, and three
+transpose banks. The quantizer shares pipelined quality scaling across four
+reciprocal/correction lanes with two banks. The earlier single-lane stages remain independently tested but are
 not in the active encoder datapath. The entropy path examines four ordered AC
 coefficients per cycle, emits at most one run event per cycle, and can accept a
 run while the bit packer emits a byte. The raster stores use two ping-pong

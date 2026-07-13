@@ -56,6 +56,9 @@ class JpegUnifiedRasterToMcuStage(
   val loadReadPhase = Reg(UInt(3.W))
   val loadReadSample = Reg(UInt(6.W))
   val loadReadBanks = Reg(Vec(ReadLanes, UInt(BankIndexBits.W)))
+  val loadResponsePhase = Reg(UInt(3.W))
+  val loadResponseSample = Reg(UInt(6.W))
+  val loadResponseBanks = Reg(Vec(ReadLanes, UInt(BankIndexBits.W)))
   val loadAllIssued = RegInit(false.B)
 
   val ySampleBanks = Seq.fill(BankCount)(SyncReadMem(BankSamples, SInt(sampleBits.W)))
@@ -212,9 +215,9 @@ class JpegUnifiedRasterToMcuStage(
   }
 
   val loadReadEnable = state === sLoad && !loadAllIssued
-  val yBankReadData = Wire(Vec(BankCount, SInt(sampleBits.W)))
-  val cbBankReadData = Wire(Vec(BankCount, SInt(sampleBits.W)))
-  val crBankReadData = Wire(Vec(BankCount, SInt(sampleBits.W)))
+  val yBankReadRaw = Wire(Vec(BankCount, SInt(sampleBits.W)))
+  val cbBankReadRaw = Wire(Vec(BankCount, SInt(sampleBits.W)))
+  val crBankReadRaw = Wire(Vec(BankCount, SInt(sampleBits.W)))
   for (bank <- 0 until BankCount) {
     val laneMatches = VecInit((0 until ReadLanes).map(lane => selectedLaneReadBanks(lane) === bank.U))
     val bankReadEnable = loadReadEnable && laneMatches.asUInt.orR
@@ -227,11 +230,28 @@ class JpegUnifiedRasterToMcuStage(
           "same-bank raster reads must use an identical replicated-edge address")
       }
     }
-    yBankReadData(bank) := ySampleBanks(bank).read(bankReadAddress, bankReadEnable)
-    cbBankReadData(bank) := cbSampleBanks(bank).read(bankReadAddress, bankReadEnable)
-    crBankReadData(bank) := crSampleBanks(bank).read(bankReadAddress, bankReadEnable)
+    yBankReadRaw(bank) := ySampleBanks(bank).read(bankReadAddress, bankReadEnable)
+    cbBankReadRaw(bank) := cbSampleBanks(bank).read(bankReadAddress, bankReadEnable)
+    crBankReadRaw(bank) := crSampleBanks(bank).read(bankReadAddress, bankReadEnable)
   }
   val loadReadValid = RegNext(loadReadEnable, false.B)
+
+  // Register every bank response before selecting lanes and assembling the
+  // destination blocks. The UHD memories are three BRAM36 primitives deep;
+  // this boundary prevents that cascade, the bank mux, and block write logic
+  // from sharing one timing path. Reads still issue on every cycle.
+  val yBankReadData = Reg(Vec(BankCount, SInt(sampleBits.W)))
+  val cbBankReadData = Reg(Vec(BankCount, SInt(sampleBits.W)))
+  val crBankReadData = Reg(Vec(BankCount, SInt(sampleBits.W)))
+  when(loadReadValid) {
+    yBankReadData := yBankReadRaw
+    cbBankReadData := cbBankReadRaw
+    crBankReadData := crBankReadRaw
+    loadResponsePhase := loadReadPhase
+    loadResponseSample := loadReadSample
+    loadResponseBanks := loadReadBanks
+  }
+  val loadResponseValid = RegNext(loadReadValid, false.B)
 
   when(loadReadEnable) {
     loadReadPhase := loadPhase
@@ -261,17 +281,17 @@ class JpegUnifiedRasterToMcuStage(
     }
   }
 
-  when(state === sLoad && loadReadValid) {
+  when(state === sLoad && loadResponseValid) {
     when(subsampled) {
-      when(loadReadPhase < 4.U) {
+      when(loadResponsePhase < 4.U) {
         for (lane <- 0 until ReadLanes) {
           val blockIndex = Cat(
-            loadReadSample(2, 1),
+            loadResponseSample(2, 1),
             (lane / ColumnBankCount).U(1.W),
-            loadReadSample(0),
+            loadResponseSample(0),
             (lane % ColumnBankCount).U(ColumnBankBits.W))
-          val yLoadSample = yBankReadData(loadReadBanks(lane))
-          switch(loadReadPhase) {
+          val yLoadSample = yBankReadData(loadResponseBanks(lane))
+          switch(loadResponsePhase) {
             is(0.U) { y0Block(blockIndex) := yLoadSample }
             is(1.U) { y1Block(blockIndex) := yLoadSample }
             is(2.U) { y2Block(blockIndex) := yLoadSample }
@@ -282,8 +302,8 @@ class JpegUnifiedRasterToMcuStage(
         val cbLoadSamples = Wire(Vec(ReadLanes, SInt(sampleBits.W)))
         val crLoadSamples = Wire(Vec(ReadLanes, SInt(sampleBits.W)))
         for (lane <- 0 until ReadLanes) {
-          cbLoadSamples(lane) := cbBankReadData(loadReadBanks(lane))
-          crLoadSamples(lane) := crBankReadData(loadReadBanks(lane))
+          cbLoadSamples(lane) := cbBankReadData(loadResponseBanks(lane))
+          crLoadSamples(lane) := crBankReadData(loadResponseBanks(lane))
         }
         for (output <- 0 until 2) {
           val base = output * 4
@@ -293,26 +313,26 @@ class JpegUnifiedRasterToMcuStage(
           val crSum =
             (crLoadSamples(base) +& crLoadSamples(base + 1)) +&
               (crLoadSamples(base + 2) +& crLoadSamples(base + 3))
-          val outputIndex = Cat(loadReadSample(4, 0), output.U(1.W))
+          val outputIndex = Cat(loadResponseSample(4, 0), output.U(1.W))
           cbBlock(outputIndex) := (cbSum >> 2).asSInt
           crBlock(outputIndex) := (crSum >> 2).asSInt
         }
-        when(loadReadSample === ((HjpegConstants.BlockSize / 2) - 1).U) {
+        when(loadResponseSample === ((HjpegConstants.BlockSize / 2) - 1).U) {
           state := sTransform
         }
       }
     }.otherwise {
       for (lane <- 0 until ReadLanes) {
         val blockIndex = Cat(
-          loadReadSample(2, 1),
+          loadResponseSample(2, 1),
           (lane / ColumnBankCount).U(1.W),
-          loadReadSample(0),
+          loadResponseSample(0),
           (lane % ColumnBankCount).U(ColumnBankBits.W))
-        y0Block(blockIndex) := yBankReadData(loadReadBanks(lane))
-        cbBlock(blockIndex) := cbBankReadData(loadReadBanks(lane))
-        crBlock(blockIndex) := crBankReadData(loadReadBanks(lane))
+        y0Block(blockIndex) := yBankReadData(loadResponseBanks(lane))
+        cbBlock(blockIndex) := cbBankReadData(loadResponseBanks(lane))
+        crBlock(blockIndex) := crBankReadData(loadResponseBanks(lane))
       }
-      when(loadReadSample === ((HjpegConstants.BlockSize / ReadLanes) - 1).U) {
+      when(loadResponseSample === ((HjpegConstants.BlockSize / ReadLanes) - 1).U) {
         state := sTransform
       }
     }

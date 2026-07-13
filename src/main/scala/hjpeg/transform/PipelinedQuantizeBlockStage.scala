@@ -20,9 +20,10 @@ private[hjpeg] object QuantizeQualityScale {
   * constant ROM for the seven-bit input; registered scaling, numerator, and
   * reciprocal stages keep the combinational timing cones short. Two banks
   * allow the next block to be captured and processed while the previous result
-  * is waiting at the output. Under normal flow the processing engine starts one
-  * block every 16 cycles and preserves input order under arbitrary output
-  * backpressure.
+  * is waiting at the output. The variable reciprocal-table lookup is registered
+  * before the quotient multiply so its selection cone does not share a timing
+  * path with the DSP. Under normal flow the processing engine starts one block
+  * every 16 cycles and preserves input order under arbitrary output backpressure.
   */
 class PipelinedQuantizeBlockStage(coefficientBits: Int = 16) extends Module {
   val io = IO(new Bundle {
@@ -111,27 +112,45 @@ class PipelinedQuantizeBlockStage(coefficientBits: Int = 16) extends Module {
     }
   }
 
-  // Stage 2 performs quality scaling. The division is by the constant 100;
-  // registering its result keeps the multiply/constant-divide cone separate
-  // from coefficient selection and reciprocal multiplication.
+  // Stage 2 forms the exact quality-scale numerator. Registering after the
+  // multiply/add keeps the DSP path separate from the constant division and
+  // saturation logic in the following stage.
+  val scaleValid = RegInit(false.B)
+  val scaleBank = Reg(UInt(1.W))
+  val scaleGroup = Reg(UInt(4.W))
+  val scaleCoefficients = Reg(Vec(Lanes, SInt(coefficientBits.W)))
+  val scaleNumerators = Reg(Vec(Lanes, UInt(21.W)))
+
+  scaleValid := tableValid
+  when(tableValid) {
+    scaleBank := tableBank
+    scaleGroup := tableGroup
+    for (lane <- 0 until Lanes) {
+      scaleCoefficients(lane) := tableCoefficients(lane)
+      scaleNumerators(lane) := (tableBases(lane) * tableQualityScale) + 50.U
+    }
+  }
+
+  // Stage 3 divides by the exact constant 100 and applies the baseline JPEG
+  // quantizer's [1, 255] clamp.
   val divisorValid = RegInit(false.B)
   val divisorBank = Reg(UInt(1.W))
   val divisorGroup = Reg(UInt(4.W))
   val divisorCoefficients = Reg(Vec(Lanes, SInt(coefficientBits.W)))
   val divisors = Reg(Vec(Lanes, UInt(8.W)))
 
-  divisorValid := tableValid
-  when(tableValid) {
-    divisorBank := tableBank
-    divisorGroup := tableGroup
+  divisorValid := scaleValid
+  when(scaleValid) {
+    divisorBank := scaleBank
+    divisorGroup := scaleGroup
     for (lane <- 0 until Lanes) {
-      val scaled = ((tableBases(lane) * tableQualityScale) + 50.U) / 100.U
-      divisorCoefficients(lane) := tableCoefficients(lane)
+      val scaled = scaleNumerators(lane) / 100.U
+      divisorCoefficients(lane) := scaleCoefficients(lane)
       divisors(lane) := Mux(scaled === 0.U, 1.U, Mux(scaled > 255.U, 255.U, scaled(7, 0)))
     }
   }
 
-  // Stage 3 forms the rounded unsigned numerators.
+  // Stage 4 forms the rounded unsigned numerators.
   val lookupValid = RegInit(false.B)
   val lookupBank = Reg(UInt(1.W))
   val lookupGroup = Reg(UInt(4.W))
@@ -154,6 +173,30 @@ class PipelinedQuantizeBlockStage(coefficientBits: Int = 16) extends Module {
     }
   }
 
+  // Stage 5 registers the variable reciprocal lookup independently from the
+  // multiplier. All metadata and operands advance with the selected constant.
+  val reciprocalValid = RegInit(false.B)
+  val reciprocalBank = Reg(UInt(1.W))
+  val reciprocalGroup = Reg(UInt(4.W))
+  val reciprocalNumerators = Reg(Vec(Lanes, UInt(numeratorBits.W)))
+  val reciprocalDivisors = Reg(Vec(Lanes, UInt(8.W)))
+  val reciprocalNegatives = Reg(Vec(Lanes, Bool()))
+  val reciprocalValues = Reg(Vec(Lanes, UInt(reciprocalBits.W)))
+
+  reciprocalValid := lookupValid
+  when(lookupValid) {
+    reciprocalBank := lookupBank
+    reciprocalGroup := lookupGroup
+    for (lane <- 0 until Lanes) {
+      reciprocalNumerators(lane) := lookupNumerators(lane)
+      reciprocalDivisors(lane) := lookupDivisors(lane)
+      reciprocalNegatives(lane) := lookupNegatives(lane)
+      reciprocalValues(lane) := reciprocals(lookupDivisors(lane))
+    }
+  }
+
+  // Stage 6 multiplies by the selected reciprocal and retains the inputs used
+  // for the exact multiply-back correction in the following cycle.
   val estimateValid = RegInit(false.B)
   val estimateBank = Reg(UInt(1.W))
   val estimateGroup = Reg(UInt(4.W))
@@ -162,15 +205,15 @@ class PipelinedQuantizeBlockStage(coefficientBits: Int = 16) extends Module {
   val estimateNegatives = Reg(Vec(Lanes, Bool()))
   val estimateQuotients = Reg(Vec(Lanes, UInt(numeratorBits.W)))
 
-  estimateValid := lookupValid
-  when(lookupValid) {
-    estimateBank := lookupBank
-    estimateGroup := lookupGroup
+  estimateValid := reciprocalValid
+  when(reciprocalValid) {
+    estimateBank := reciprocalBank
+    estimateGroup := reciprocalGroup
     for (lane <- 0 until Lanes) {
-      val reciprocalProduct = lookupNumerators(lane) * reciprocals(lookupDivisors(lane))
-      estimateNumerators(lane) := lookupNumerators(lane)
-      estimateDivisors(lane) := lookupDivisors(lane)
-      estimateNegatives(lane) := lookupNegatives(lane)
+      val reciprocalProduct = reciprocalNumerators(lane) * reciprocalValues(lane)
+      estimateNumerators(lane) := reciprocalNumerators(lane)
+      estimateDivisors(lane) := reciprocalDivisors(lane)
+      estimateNegatives(lane) := reciprocalNegatives(lane)
       estimateQuotients(lane) :=
         reciprocalProduct(reciprocalFractionBits + numeratorBits - 1, reciprocalFractionBits)
     }

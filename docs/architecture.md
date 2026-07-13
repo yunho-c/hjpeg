@@ -64,15 +64,18 @@ symmetry in the Q14 cosine matrix reduces each eight-term dot product to four
 products of `x0 +/- x7` through `x3 +/- x4`. Four frequency lanes issue four
 coefficients per cycle. Pair formation is registered; row and column passes
 overlap through three banked transpose buffers, and two output banks absorb
-backpressure. No rounding occurs between passes, and the final Q28 rounding is
-bit-identical to the original transform. It has 35-cycle single-block latency
-and a 16-cycle sustained block interval.
+backpressure. A registered 51-bit column-sum boundary separates the four
+DSP products from final signed rounding. No rounding occurs between passes,
+and the final Q28 rounding is bit-identical to the original transform. It has
+36-cycle single-block latency and a 16-cycle sustained block interval.
 
 `PipelinedQuantizeBlockStage` handles four adjacent coefficients per cycle
 through registered table lookup, floor-reciprocal multiplication, and exact
-multiply-back correction. Two banks overlap capture, processing, and output
+multiply-back correction. The reciprocal lookup and the 21-bit scaled-table
+numerator each have dedicated registers so neither division path feeds a DSP
+in the same timing stage. Two banks overlap capture, processing, and output
 holding. All lanes share one constant-ROM quality-scale lookup, while retaining
-exact nearest rounding with halves away from zero. It has 21-cycle first-block
+exact nearest rounding with halves away from zero. It has 23-cycle first-block
 latency and a 16-cycle sustained block interval.
 
 `JpegBlockTransformStage` carries quality and luminance/chrominance selection
@@ -89,7 +92,9 @@ with EOB and ZRL handling, select the baseline Huffman codes, pack variable
 length codes into bytes, and apply `0xff` byte stuffing. AC scanning examines
 four ordered coefficients per cycle while emitting at most one ordered event;
 captured last-nonzero metadata terminates trailing-zero scans without a wide
-remaining-block reduction. The packer can accept the next run while an output
+remaining-block reduction. A one-entry pipelined queue registers the detected
+run before Huffman selection while sustaining one event per cycle after its
+single fill cycle. The packer can accept the next run while an output
 byte transfers when its post-transfer buffer has capacity.
 
 `JpegHeaderStage` emits marker bytes through a small output state machine. It
