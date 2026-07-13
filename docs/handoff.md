@@ -3,15 +3,17 @@
 > **4K60 branch note:** The active target on branch `4k60` is 3840x2160 at
 > 60 fps in both chroma modes. Start with `docs/4k60-architecture.md`. The UHD
 > path accepts four adjacent RGB pixels per 128-bit DMA beat, uses one unified
-> banked raster store, processes three component blocks in parallel, and scans
-> six MCU blocks concurrently. The integrated default Vivado flow now closes
-> its actual 6.666 ns / 150.015 MHz clock: setup WNS is `+0.025 ns`, TNS is zero,
+> banked raster store, processes three component blocks in parallel, and reuses
+> three buffered entropy slots across two ordered 4:2:0 waves. The integrated
+> default Vivado flow now closes its actual 6.666 ns / 150.015 MHz clock: setup
+> WNS is `+0.232 ns`, TNS is zero,
 > hold WHS is `+0.010 ns`, and bitstream/XSA/checkpoint artifacts are present.
-> Post-implementation use is 53,544 CLB LUTs, 83,647 registers, 102.5 BRAM
-> tiles, and 194 DSPs; physical CLB occupancy is 78.51%. Complete evidence passes
-> at an explicit 80% cap but not the provisional 70% CLB/BRAM ceiling. This is
-> routed timing closure, not completed 4K60 proof: resource resolution and
-> physical decoder-valid measurements in both modes remain required.
+> Post-implementation use is 48,674 CLB LUTs, 80,343 registers, 99.5 BRAM
+> tiles, and 194 DSPs; physical CLB occupancy is 78.18%. Complete evidence passes
+> the documented 70% independent-resource ceiling. Physical CLB spread remains
+> informational placement evidence and routing/timing are clean. This is routed
+> implementation closure, not completed 4K60 proof: physical decoder-valid
+> measurements in both modes remain required.
 
 This document is for a new agent or developer picking up `hjpeg` without the
 conversation history. Treat the current checkout as authoritative, but use this
@@ -198,14 +200,14 @@ the same 5,862/3,428 byte counts as the preceding baseline. Input acceptance is
 1.78 cycles/pixel for this small 4:4:4 frame and 1.37 for 4:2:0, so only the
 4:2:0 fixture currently meets the provisional 1.61-cycle/pixel target.
 
-The larger 256x64 seeded-random quality-90 4:4:4 scenario completes in 29,455
-cycles, emits a 22,882-byte decoder-valid JPEG, and accepts input at 1.522
-cycles/pixel. Steady MCU mean/p95/max are 100.65/103/105 cycles; stripe
-transitions are at most 102 cycles. A two-frame version completes in 56,763
-cycles, or 28,381.5 cycles/frame, and accepts input at 1.594 cycles/pixel. Its
-frame transition is 105 cycles and both 22,882-byte JPEGs decode independently.
-This resolves the larger-frame input-rate question without justifying another
-raster slot.
+The current three-slot entropy implementation's 256x64 seeded-random quality-90
+4:4:4 scenario completes in 28,474 cycles, emits a 22,882-byte decoder-valid
+JPEG, and accepts input at 1.240 cycles/pixel. Steady MCU mean/p95/max are
+88.93/95/96 cycles. A two-frame version completes in 52,776 cycles, or 26,388
+cycles/frame, and accepts input at 1.361 cycles/pixel. Its frame-transition MCU
+interval is 103 cycles and both JPEGs decode independently. Relative to six
+physical encoders, reusing three slots costs only 29 cycles on the single-frame
+fixture while retaining the 1.61-cycle/pixel target.
 
 Recommended next sprint, in order:
 
@@ -564,7 +566,8 @@ and column work; two output banks retain ordered results under backpressure.
 `PipelinedQuantizeBlockStage` processes four coefficients per cycle through
 registered table lookup, reciprocal and scaled-numerator pipeline registers,
 floor-reciprocal estimate, and exact multiply-back correction. Its four lanes
-share quality scaling and use two banks. The raster
+share quality scaling, use two banks, and read one explicit four-port
+distributed reciprocal ROM. The raster
 stages issue the next component DCT while the previous component is being
 quantized, retaining ordered results and block metadata.
 Exhaustive arithmetic checks cover every supported reciprocal numerator/divisor
@@ -586,9 +589,11 @@ initiation, measured high-entropy scanner rate, and stripe/band transition gaps
 meet their mode budgets. The isolated 4:4:4 first-MCU latency is 1.1 cycles
 above its average budget, but collection and the three-lane transform overlap
 in the active pipeline. See `docs/performance-targets.md`. Current UHD Vivado
-evidence closes 150.015 MHz timing at `+0.025 ns` setup WNS and `+0.010 ns` hold
-WHS. It uses 78.51% of physical CLBs and 71.18% of BRAM, so it passes the
-complete checker at an explicit 80% cap but not the provisional 70% target.
+evidence closes 150.015 MHz timing at `+0.232 ns` setup WNS and `+0.010 ns` hold
+WHS. It uses 41.56% of CLB LUTs, 34.30% of registers, 69.10% of BRAM, and
+15.54% of DSPs, so it passes the documented 70% independent-resource gate.
+Timing-driven placement touches 78.18% of CLBs; that aggregate row remains
+informational while route status, DRC, and routed timing are hard gates.
 
 `JpegHeaderStage` was also changed from a one-byte-per-cycle combinational
 header mux into a small byte-generation FSM. Static marker bytes still emit in
@@ -735,8 +740,9 @@ control apertures must be unique and non-overlapping when high addresses are
 reported. Use
 `--hold-timing` for post-implementation timing reports; post-synthesis hold can
 be negative before implementation fixes it. The utilization parser handles Vivado's
-`Prohibited` column and records hard-system rows such as `PS8` without gating
-them against the fabric utilization threshold. The DRC gate fails Error and
+`Prohibited` column and records aggregate `CLB` placement plus hard-system rows
+such as `PS8` without gating them against the independent fabric-resource
+threshold. The DRC gate fails Error and
 Critical Warning violations, the route-status gate fails nonzero unrouted or
 routing-error counts, positive floorplan placed-cell counts, and clock-utilization/address-map/floorplan reports are required
 and recorded as review evidence. The checker rejects non-finite timing thresholds,
@@ -748,9 +754,8 @@ meaningless gate values.
 
 The current checkout has fresh full Vivado construction evidence for the UHD
 four-pixel RTL. It proves that the design packages, routes, closes the actual
-150.015 MHz clock, and emits a bitstream/XSA/checkpoint. The complete checker
-passes at an explicit 80% cap, while the existing provisional 70% resource gate
-remains open. The physical evidence below is for the Full-HD build and must not
+150.015 MHz clock, stays within the 70% independent-resource ceiling, and emits
+a bitstream/XSA/checkpoint. The physical evidence below is for the Full-HD build and must not
 be reused as proof of UHD behavior.
 
 The 2026-07-13 software baseline is green. Current RTL validation used the
@@ -773,7 +778,7 @@ python3 -m py_compile \
   scripts/dev/generate_performance_trace.py
 ```
 
-The latest exact-current full-suite result is 146/146 Scala tests across 28
+The latest exact-current full-suite result is 148/148 Scala tests across 29
 suites through the pinned Docker sbt/Verilator toolchain. The exact-current
 21-test AXI-Lite top suite passes, including exact frame-cycle accounting for
 sequential frames. All three core/KV260 SystemVerilog elaboration entry points
@@ -854,18 +859,19 @@ Known local limitations:
   `$(shell pwd)` and replay pipelines.
 - The native Windows/MSYS simulator path remains incompatible, but the pinned
   Docker flow runs the complete suite against the same checkout. The latest
-  exact-current result is 146 passing tests across 28 suites, including 21
+  exact-current result is 148 passing tests across 29 suites, including 21
   AXI-Lite top tests and exact frame-cycle accounting.
 - Current UHD construction emits the bitstream, XSA, and post-implementation
   checkpoint for the 128-bit DMA / 150 MHz block design. Integrated
   post-synthesis setup WNS is `+0.760 ns`; post-implementation setup WNS is
-  `+0.025 ns`, TNS is zero, and hold WHS is `+0.010 ns`. Utilization is 53,544
-  CLB LUTs (45.72%), 83,647 registers (35.71%), 102.5 BRAM tiles (71.18%), 194
-  DSPs (15.54%), and 11,494 physical CLBs (78.51%). All 127,037 routable nets
-  are routed with zero errors. The complete twelve-record checker passes at an
-  explicit 80% cap and fails the provisional 70% resource policy. The generated
+  `+0.232 ns`, TNS is zero, and hold WHS is `+0.010 ns`. Utilization is 48,674
+  CLB LUTs (41.56%), 80,343 registers (34.30%), 99.5 BRAM tiles (69.10%), 194
+  DSPs (15.54%), and 11,446 physical CLBs (78.18%). All 119,201 routable nets
+  are routed with zero errors. The complete twelve-record checker passes the
+  documented 70% independent-resource policy; aggregate CLB spread is
+  informational. The generated
   bitstream SHA-256 is
-  `3b3ac3119e16044c37fa4751d50c354ad244cbf28fb2df7f5b809060c9800876`.
+  `ccd23d32aded07cc6c3dcdb3485e15dea143e695992322f222af907cedf52eb1`.
 - The historical Full-HD two-slot banked-block-RAM, four-lane transform, and
   four-coefficient entropy Vivado construction emits the bitstream, XSA, and
   post-implementation checkpoint. Post-synthesis setup WNS is `+1.291 ns`;
@@ -1277,15 +1283,12 @@ object-shaped transcript.
 
 For the active `4k60` target:
 
-1. Reduce physical CLB/BRAM use below the provisional 70% ceiling, or document
-   and approve a revised UHD-specific headroom policy; do not silently use the
-   80% evidence-check command as a policy change.
-2. Program the current 150 MHz bitstream on a KV260 and run the documented q85
+1. Program the current 150 MHz bitstream on a KV260 and run the documented q85
    gradient/checker fixture at 3840x2160 in both 4:4:4 and 4:2:0.
-3. Require first-input through output-TLAST to fit the 2,500,000-cycle frame
+2. Require first-input through output-TLAST to fit the 2,500,000-cycle frame
    budget at 150 MHz, confirm one 33,177,600-byte MM2S transfer, preserve DMA and
    protocol status, and decode each JPEG with ordinary software.
-4. Save strict run evidence and hashes. Full-HD captures are a correctness
+3. Save strict run evidence and hashes. Full-HD captures are a correctness
    baseline, not proof of UHD throughput or output.
 
 If the exact RTL or target changes and the new PC has Vivado:

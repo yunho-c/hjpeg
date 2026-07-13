@@ -29,6 +29,10 @@ Timing must have nonnegative setup WNS and hold WHS at 100 MHz. DRC and route
 status must pass the gates in [`kv260-bringup.md`](kv260-bringup.md). The 70%
 resource ceiling is provisional and applies independently to LUTs, LUTRAM,
 flip-flops, BRAM, and DSPs where Vivado reports a meaningful fabric total.
+Vivado's aggregate physical `CLB` occupancy is recorded for placement review
+but is not a separate resource gate: it double-counts LUT/register use and
+timing-driven placement can intentionally spread logic. Clean routing, DRC,
+and nonnegative routed setup/hold slack are the corresponding physical gates.
 
 The frame-rate target is subordinate to correctness: frames that are fast but
 malformed, truncated, dimensionally wrong, or visually collapsed do not count.
@@ -142,18 +146,17 @@ transition gaps fall to 100/268 cycles, while steady MCU intervals remain
 99/267. Measured input acceptance is 1.78 cycles/pixel for this small 4:4:4
 frame and 1.37 for 4:2:0; only the latter is within the 1.61-cycle/pixel target.
 
-A 256x64 seeded-random quality-90 4:4:4 capture separates fixed startup from
-sustained behavior more clearly. It completes in 29,455 cycles, emits a
-22,882-byte decoder-valid JPEG, and accepts 16,384 pixels at 1.522 cycles/pixel.
-Steady MCU intervals have mean/p95/max 100.65/103/105 cycles and stripe
-transitions are at most 102 cycles. The average MCU rate and input acceptance
-both fit their provisional budgets; the maximum remains useful diagnostic
+A current 256x64 seeded-random quality-90 4:4:4 capture separates fixed startup
+from sustained behavior more clearly. It completes in 28,474 cycles, emits a
+22,882-byte decoder-valid JPEG, and accepts 16,384 pixels at 1.240 cycles/pixel.
+Steady MCU intervals have mean/p95/max 88.93/95/96 cycles. The average MCU rate
+and input acceptance both fit their provisional budgets; the maximum remains useful diagnostic
 evidence but is not compared against an explicitly average budget.
 
 With identical-config frame overlap enabled, two repeated 256x64 frames
-complete in 56,763 cycles, or 28,381.5 cycles/frame, and accept input at 1.594
+complete in 52,776 cycles, or 26,388 cycles/frame, and accept input at 1.361
 cycles/pixel. Both 22,882-byte JPEGs decode independently, and the inter-frame
-MCU transition is 105 cycles. The finite capture still averages 1.732 total
+MCU transition is 103 cycles. The finite capture averages 1.611 total
 cycles per pixel from first input through second output; header and final-tail
 costs are not a direct 1080p estimate. Physical full-HD DMA and PL-cycle results
 below now supersede extrapolation for the benchmark claim.

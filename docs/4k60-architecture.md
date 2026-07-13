@@ -16,9 +16,9 @@ The `4k60` branch targets:
 
 Quality-90 `seeded-random` remains a stress case, not a content-independent
 60-fps guarantee. Performance evidence must name the fixture and sampling mode.
-The integrated default Vivado flow now closes 150 MHz. The existing 70%
-resource ceiling and physical decoder-valid 4K60 measurements remain open, so
-this timing result is not by itself a completed 4K60 claim.
+The integrated default Vivado flow now closes 150 MHz and passes the documented
+70% independent-resource ceiling. Physical decoder-valid 4K60 measurements
+remain open, so implementation closure is not by itself a completed 4K60 claim.
 
 ## Reproducible Capacity Budget
 
@@ -242,56 +242,63 @@ cells, 63,241 registers (27.00%), 99 BRAM tiles (68.75%), and 194 DSPs (15.54%),
 with setup WNS `+1.103 ns`. The overlap storage therefore costs 371 logic LUTs
 and 6,521 registers relative to `24eeadb`, without adding BRAM or DSPs.
 
-Exact-current verification is 146/146 Scala/Chisel tests across 28 suites,
-plus the unchanged 5 capacity-model, 235 host-flow, and 59 Vivado-report parser
-tests. The added stage-level regression proves four ordered 4:4:4 MCU outputs
-at exact 16-cycle intervals.
+Verification at this transform-overlap checkpoint was 146/146 Scala/Chisel
+tests across 28 suites, plus the unchanged 5 capacity-model, 235 host-flow, and
+59 Vivado-report parser tests. The added stage-level regression proves four
+ordered 4:4:4 MCU outputs at exact 16-cycle intervals.
 
-## Buffered Parallel Block Entropy Slice
+## Reused Buffered Block Entropy Slice
 
-`JpegParallelMcuEntropyStage` now starts every block of an MCU concurrently:
-three buffered block encoders for 4:4:4 or six for 4:2:0. Each block retains the
-timing-safe four-coefficient AC scanner and writes bit runs into a 16-entry
-queue. A single selector drains those queues in strict JPEG component order, so
-the existing bit packer, byte stuffing, DC predictor rules, restart markers,
-and scan syntax remain unchanged.
+`JpegParallelMcuEntropyStage` uses three physical buffered block encoders in
+both modes. Each retains the timing-safe four-coefficient AC scanner and writes
+bit runs into a 16-entry queue. 4:4:4 loads Y/Cb/Cr once. 4:2:0 first loads
+Y0/Y1/Y2, then reloads the same slots with Y3/Cb/Cr as the corresponding first
+wave drains. A single selector drains logical blocks in strict JPEG order, so
+the bit packer, byte stuffing, DC predictor rules, restart markers, and scan
+syntax remain unchanged.
 
-For 4:2:0, the stage supplies the Y1/Y2/Y3 encoders with Y0/Y1/Y2 as their DC
-predecessors while Cb and Cr use the frame predictors. It commits the final
-Y3/Cb/Cr values only after all queued runs for the MCU have reached the packer.
-Focused stream tests preserve cross-MCU DC differences, both sampling modes,
-restart resets/marker cycling, header stalls, and exact output bytes under
-backpressure.
+Deferred registers retain the second-wave coefficient blocks, predecessor DC
+values, and luminance selectors. Y1/Y2/Y3 still use Y0/Y1/Y2 as their DC
+predecessors while Cb and Cr use the frame predictors. A focused software-model
+test compares every emitted Huffman/amplitude run for distinct 4:4:4 and 4:2:0
+blocks, including output stalls, logical block order, and final predictor state.
+The existing decoder-backed stream/core/top tests cover cross-MCU differences,
+restart resets/marker cycling, header stalls, and byte-exact backpressure.
 
-The quick profiler changes from the transform-overlap checkpoint are:
+Relative to the prior six-encoder checkpoint, scanner reuse has a small bounded
+cycle cost while retaining all maintained targets:
 
-| Quick fixture | Serial block entropy | Buffered parallel blocks | Change |
+| Fixture | Six physical encoders | Three reused slots | Change |
 | --- | ---: | ---: | ---: |
-| 32x16 4:4:4 complete frame | 2,574 cycles | 2,485 cycles | -89 (-3.5%) |
-| 32x16 4:2:0 complete frame | 2,399 cycles | 2,346 cycles | -53 (-2.2%) |
-| 4:4:4 steady MCU spacing | 67.3 cycles | 55.3 cycles | -12.0 (-17.8%) |
+| 32x16 4:4:4 complete frame | 2,485 cycles | 2,501 cycles | +16 (+0.6%) |
+| 32x16 4:2:0 complete frame | 2,346 cycles | 2,356 cycles | +10 (+0.4%) |
+| 4:4:4 steady MCU mean spacing | 55.3 cycles | 56.3 cycles | +1.0 (+1.9%) |
+| 256x64 q90 4:4:4 | 28,445 cycles | 28,474 cycles | +29 (+0.1%) |
 
-The established 256x64 quality-90 seeded-random stress frame completes in
-28,445 cycles, emits the same 22,882 decoder-valid bytes, and accepts input at
-1.239 cycles/pixel. The documented earlier implementation took 29,455 cycles
-and 1.522 input cycles/pixel. Its 0.804 output bytes/cycle now show why this
-stress case is primarily byte-output limited; it is deliberately not the q85
-4K60 contract.
+The current 256x64 quality-90 seeded-random frame emits the same 22,882
+decoder-valid bytes, accepts input at 1.240 cycles/pixel, and produces 0.804
+output bytes/cycle. The two-frame version completes in 52,776 cycles, accepts
+input at 1.361 cycles/pixel, and has a 103-cycle frame-transition MCU interval.
+Both remain inside the 1.61-cycle/pixel input target. This stress case is still
+primarily byte-output limited and is deliberately not the q85 4K60 contract.
 
-Exact UHD post-synthesis use at 100 MHz is 49,959 logic LUTs (42.66%), 172
-LUTRAM cells (0.29%), 73,845 registers (31.52%), 99 BRAM tiles (68.75%), and
-194 DSPs (15.54%). Setup WNS improves to `+1.707 ns`. The six encoders and 96
-total run entries therefore add no BRAM or DSP use and remain below the 70%
-gate.
+The quantizers now use explicit four-read distributed reciprocal ROMs instead
+of replicated inferred block ROMs. Exact standalone UHD synthesis at a 10 ns
+reporting constraint falls from 49,990 to 45,168 CLB LUTs, from 76,612 to
+73,402 registers, and from 99 to 96 BRAM tiles; DSP use remains 194. That is a
+4,822-LUT, 3,210-register, three-BRAM-tile reduction. Reciprocal arithmetic,
+23-cycle quantizer latency, and 16-cycle block initiation remain bit-exact.
 
 An eight-coefficient scanner experiment failed 100 MHz synthesis at WNS
 `-1.158 ns`; sixteen coefficients failed at `-3.676 ns`. Both experiments were
-fully reverted. The retained design parallelizes independent blocks without
-lengthening the AC scanner's combinational priority chain.
+fully reverted. The retained design reuses independent four-coefficient
+scanners without lengthening their combinational priority chains.
 
-The retained buffered-entropy implementation passes the complete 146/146
-Scala/Chisel regression across 28 suites. Python verification remains 5/5
-capacity-model, 235/235 host-flow, and 59/59 Vivado-report parser tests.
+The retained implementation passes 148/148 Scala/Chisel tests across 29 suites.
+Python verification passes 235 host-flow, 59 Vivado-report, 10
+ChiselSim-environment, 11 design-graph, 11 performance-trace, and 5
+capacity-model tests (331 total). The five-scenario regenerated performance
+capture passes as a separate simulator-backed test.
 
 ## 150 MHz Timing Closure
 
@@ -316,26 +323,39 @@ one ordered event per cycle. Raster requests still issue one eight-sample group
 per cycle. The complete decoder-backed core and AXI suites remain exact; the
 16x16 4:4:4 fixture is 2,036 cycles against its 2,300-cycle ceiling.
 
-Standalone UHD synthesis at a 10 ns reporting constraint uses 49,990 CLB LUTs,
-76,612 registers, 99 BRAM tiles, and 194 DSPs. Setup WNS is `+4.198 ns`; the
-worst data path is 5.504 ns and has moved out of the DCT reduction.
+Standalone UHD synthesis at a 10 ns reporting constraint uses 45,168 CLB LUTs,
+73,402 registers, 96 BRAM tiles, and 194 DSPs. Setup WNS is `+4.198 ns`; the
+resource changes therefore preserve the established 100 MHz timing result.
 
 The integrated default implementation requests 150 MHz from the PS and reports
 an actual 6.666 ns period, or 150.015 MHz. It is fully routed and meets every
-timing constraint: setup WNS is `+0.025 ns`, TNS is `0`, there are no failing
-setup endpoints, and hold WHS is `+0.010 ns`. All 127,037 routable nets are
+timing constraint: setup WNS is `+0.232 ns`, TNS is `0`, there are no failing
+setup endpoints, and hold WHS is `+0.010 ns`. All 119,201 routable nets are
 fully routed with zero routing errors. DRC has warnings but no Error or Critical
 Warning violations. The flow emits a nonempty bitstream, bitstream-bearing XSA,
-and routed checkpoint.
+and routed checkpoint. It now also emits a depth-10 hierarchical utilization
+report; `report_checkpoint_hierarchy.tcl` can regenerate the same diagnostic
+from any saved DCP.
 
-Post-implementation use is 53,544 CLB LUTs (45.72%), 83,647 registers (35.71%),
-102.5 BRAM tiles (71.18%), and 194 DSPs (15.54%). Physical CLB occupancy is
-11,494/14,640, or 78.51%. The complete twelve-record Vivado evidence gate passes
-with an explicit 80% utilization cap. It does not pass the existing provisional
-70% project ceiling because both physical CLB occupancy and BRAM use exceed it;
-that headroom decision remains open rather than being hidden by the timing pass.
+Post-implementation use is 48,674 CLB LUTs (41.56%), 80,343 registers (34.30%),
+99.5 BRAM tiles (69.10%), and 194 DSPs (15.54%). Physical placement touches
+11,446/14,640 CLBs, or 78.18%. The complete twelve-record Vivado evidence gate
+passes the documented 70% independent-resource ceiling. The aggregate `CLB`
+row remains present in JSON as informational placement evidence because it
+double-counts LUT/register resources and timing-driven placement deliberately
+spreads logic. Clean routing, DRC, and positive routed setup/hold slack are the
+physical implementation gates; the 78.18% figure is still reported rather than
+hidden.
 
-Current verification is 146/146 Scala/Chisel tests across 28 suites. The Python
+Artifact SHA-256 values for this exact implementation are
+`ccd23d32aded07cc6c3dcdb3485e15dea143e695992322f222af907cedf52eb1` for
+the bitstream,
+`63b764b9e5adff83c36cbfd5d3d6d831f59ba74d96793acfaddee2de61a39e75`
+for the XSA, and
+`f9329a518601049ef27e5d26eadc72be761717334d0f12085c9362ccccf64d35`
+for the routed checkpoint.
+
+Current verification is 148/148 Scala/Chisel tests across 29 suites. The Python
 side passes 5 capacity-model, 10 ChiselSim-environment, 11 design-graph, 11
 performance-trace, 59 Vivado-report, and 235 host-flow tests.
 
@@ -343,15 +363,15 @@ performance-trace, 59 Vivado-report, and 235 host-flow tests.
 
 Implementation order is:
 
-1. Reduce or explicitly resolve the provisional routed 70% CLB/BRAM headroom
-   gate; post-synthesis primitive percentages alone are insufficient.
-2. Add ordered multi-run drain/packing or widen JPEG output only if the q85
+1. Program the exact 150 MHz bitstream on a KV260 and measure the q85 UHD
+   fixture through the documented DMA path in both chroma modes.
+2. Add ordered multi-run drain/packing or widen JPEG output only if that q85
    target trace demonstrates that entropy traffic still misses the frame
-   budget after timing closure.
-3. After routed timing and resource closure,
-   measure first-input through output-TLAST cycles on a physical KV260 and
-   decode both modes with standard software.
+   budget on hardware.
+3. Require first-input through output-TLAST to fit 2,500,000 cycles at 150 MHz,
+   transfer all 33,177,600 input bytes, preserve clean DMA/protocol status, and
+   decode both captures with standard software.
 
 Do not claim completed 4K60 from capacity arithmetic or routed timing alone.
-Completion still requires an explicit resource-headroom decision and physical
-decoder-valid DMA measurements in both sampling modes.
+Completion still requires physical decoder-valid DMA measurements in both
+sampling modes.

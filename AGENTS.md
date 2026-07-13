@@ -46,20 +46,24 @@ ordered 8-row stripes for 4:4:4 or one 16-row band for 4:2:0. UHD
 post-synthesis BRAM fell from 144/144 tiles to 97/144. The UHD top accepts four
 adjacent pixels per 128-bit DMA beat. Three ordered transform lanes now process
 Y/Cb/Cr together for 4:4:4 and two three-block batches for 4:2:0. UHD
-post-synthesis use is 99 BRAM tiles, 194 DSPs, 39,351 logic LUTs, and 56,720
-registers after widening raster reads to eight samples per cycle without adding
-storage. The separate `JpegParallelMcuTransformStage` overlaps raw loading with
-in-flight transforms, and six buffered block-entropy encoders scan each MCU in
-parallel before draining runs in JPEG order. Registers now cut RGB writes,
+post-synthesis use is 96 BRAM tiles, 194 DSPs, 45,168 CLB LUTs, and 73,402
+registers after the latest resource slice. The separate
+`JpegParallelMcuTransformStage` overlaps raw loading with in-flight transforms.
+Three buffered block-entropy slots scan Y/Cb/Cr once for 4:4:4; 4:2:0 reuses
+those slots in ordered Y0/Y1/Y2 then Y3/Cb/Cr waves. Each production quantizer
+uses a four-read distributed reciprocal ROM instead of two RAMB18s. Registers
+now cut RGB writes,
 raster-bank requests/responses, two-product DCT reductions, quantizer
 reciprocal/scale paths, and the AC-event boundary. The integrated default Vivado
-flow closes its actual 6.666 ns / 150.015 MHz clock with setup WNS `+0.025 ns`,
+flow closes its actual 6.666 ns / 150.015 MHz clock with setup WNS `+0.232 ns`,
 zero TNS/failing endpoints, hold WHS `+0.010 ns`, and a fully routed bitstream,
-XSA, and checkpoint. Post-implementation use is 53,544 CLB LUTs, 83,647
-registers, 102.5 BRAM tiles, and 194 DSPs; physical CLB occupancy is 78.51%.
-The complete evidence checker passes at an explicit 80% cap but the existing
-provisional 70% CLB/BRAM ceiling does not, so resource resolution and physical
-decoder-valid 4K60 evidence remain required.
+XSA, and checkpoint. Post-implementation use is 48,674 CLB LUTs, 80,343
+registers, 99.5 BRAM tiles, and 194 DSPs; physical CLB occupancy is 78.18%.
+The complete twelve-record evidence checker passes the documented 70%
+independent-resource ceiling. Aggregate physical CLB occupancy is retained as
+informational placement evidence because it double-counts LUT/register use;
+route status, DRC, and routed setup/hold timing remain hard gates. Physical
+decoder-valid 4K60 evidence is still required.
 AC scanner lookahead trials at eight and sixteen coefficients failed 100 MHz
 timing and were reverted; keep the four-coefficient scanner unless it is
 pipelined.
@@ -70,7 +74,8 @@ DCT uses registered even/odd butterflies, registered two-product row/column
 partial sums, registered column sums, and three transpose banks. Its latency is
 38 cycles, and the complete transform latency is 61 cycles. The quantizer
 shares pipelined quality scaling across four reciprocal/correction lanes with
-two banks. The earlier single-lane stages remain independently tested but are
+two banks and maps its four-read reciprocal lookup to distributed ROM. The
+earlier single-lane stages remain independently tested but are
 not in the active encoder datapath. The entropy path examines four ordered AC
 coefficients per cycle, emits at most one run event per cycle, and can accept a
 run while the bit packer emits a byte. The raster stores use two ping-pong
@@ -81,9 +86,11 @@ The separate Full-HD baseline implementation closes 100 MHz timing at setup WNS 
 and hold WHS `+0.010 ns`, uses 56.17% of CLBs and 52.78% of BRAM tiles, and
 passes the provisional resource target. Current
 high-entropy traces no longer show sustained entropy backpressure. A 256x64
-seeded-random quality-90 4:4:4 trace accepts input at 1.522 cycles/pixel; a
-two-frame trace with the same configuration accepts at 1.594 cycles/pixel,
-both within the 1.61-cycle/pixel budget.
+seeded-random quality-90 4:4:4 trace accepts input at 1.240 cycles/pixel; a
+two-frame trace with the same configuration accepts at 1.361 cycles/pixel,
+both within the 1.61-cycle/pixel budget. Exact-current verification is 148/148
+Scala/Chisel tests across 29 suites and 331/331 Python tests across the host,
+Vivado-report, environment, graph, trace, and capacity helpers.
 
 `HjpegAxiStreamCore` is the current hardware-facing shell. It accepts one to
 four raster RGB pixels per AXI4-Stream-shaped beat, generates lane coordinates,

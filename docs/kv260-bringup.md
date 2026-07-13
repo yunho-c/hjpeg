@@ -111,6 +111,8 @@ Expected evidence:
 - `post_synth_utilization.rpt`
 - `post_synth_timing_summary.rpt`
 - `post_impl_utilization.rpt`
+- `post_impl_hierarchical_utilization.rpt` (hierarchy diagnostic; not a
+  separate complete-evidence category)
 - `post_impl_timing_summary.rpt`
 - `post_impl_drc.rpt`
 - `post_impl_route_status.rpt`
@@ -129,6 +131,10 @@ Pass criteria:
 - The DRC report has no Error or Critical Warning violations, and route status
   reports zero unrouted nets and zero routing errors.
 - Resource use leaves enough headroom for the intended KV260 platform shell.
+- The utilization ceiling applies to independent fabric resources. Preserve
+  aggregate physical `CLB` occupancy in the evidence for placement review, but
+  do not gate it as a second copy of the LUT/register budgets; use route status,
+  DRC, and routed setup/hold timing as the physical-implementation gates.
 - `check_reports.py` exits successfully for the generated timing, utilization,
   DRC, route-status, clock-utilization, floorplan, and address-map reports, with
   hold timing gated on the post-implementation timing report.

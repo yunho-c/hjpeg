@@ -7,10 +7,13 @@ preserving the verified Full-HD implementation as its correctness baseline.
 See [`docs/4k60-architecture.md`](docs/4k60-architecture.md) for the exact target,
 capacity model, current UHD synthesis evidence, and remaining gates.
 The integrated 128-bit DMA design now routes at 150.015 MHz with setup WNS
-`+0.025 ns` and hold WHS `+0.010 ns`. It uses 78.51% of physical CLBs and 71.18%
-of BRAM, so it passes the complete Vivado evidence checker at an explicit 80%
-cap but not the existing provisional 70% resource ceiling. Physical
-decoder-valid 4K60 DMA measurements in both chroma modes are still required.
+`+0.232 ns` and hold WHS `+0.010 ns`. Post-implementation use is 48,674 CLB
+LUTs (41.56%), 80,343 registers (34.30%), 99.5 BRAM tiles (69.10%), and 194
+DSPs (15.54%). The complete twelve-record Vivado evidence checker passes the
+documented 70% independent-resource ceiling. Timing-driven placement touches
+78.18% of physical CLB sites; that aggregate placement statistic remains
+reported but is not an independent LUT/register budget. Physical decoder-valid
+4K60 DMA measurements in both chroma modes are still required.
 
 The initial target platform is the AMD/Xilinx Kria KV260. The current tree
 contains a functional baseline JPEG encoder datapath with Scala/Chisel build
@@ -29,7 +32,7 @@ The performance target is decoder-valid 1920x1080 at 30 fps in both 4:4:4 and
 gradient/checker benchmark. The four-lane DCT/quantizer,
 four-coefficient AC scanner, and two-slot raster collector meet their measured
 stage budgets in simulation. A 256x64 seeded-random quality-90 4:4:4 trace
-accepts input at 1.522 cycles/pixel, and a two-frame capture accepts at 1.594,
+accepts input at 1.240 cycles/pixel, and a two-frame capture accepts at 1.361,
 both within the 1.61-cycle/pixel budget. A physical KV260 has encoded and
 DMA-captured decoder-valid 17x13 and 1920x1080 frames. PL counters measure the
 quality-85 benchmark at 45.23 fps in 4:2:0 and 31.01 fps in 4:4:4. A
@@ -363,6 +366,12 @@ counts, checked/passed/failed path lists, a
 including strict JSON integer checked, passing, and failing category counts,
 complete-evidence required/missing/failing lists, and pass/fail state in
 machine-readable build evidence.
+The utilization ceiling gates independent programmable-logic resources such as
+LUTs, LUTRAM, registers, BRAM, DSPs, carry chains, and muxes. The aggregate
+physical `CLB` row and hard `PS8` row remain present in JSON with
+`checked: false`: CLB occupancy double-counts LUT/register resources and may
+increase when timing-driven placement deliberately spreads logic. Route status,
+DRC, and post-route timing remain mandatory physical-implementation gates.
 Required evidence category presence is based on at least one passing record in
 that category, not just a requested input path. Complete Vivado evidence also
 requires every supplied required evidence category and required `.bit`/`.xsa`/
@@ -398,6 +407,16 @@ vivado -mode batch -source scripts/vivado/write_kv260_floorplan_report.tcl
 The script accepts optional project and artifact directories after `-tclargs`
 and writes `build/vivado/hjpeg-kv260-artifacts/post_impl_floorplan.rpt` from the
 completed `impl_1` run.
+
+The normal bitstream flow also emits
+`post_impl_hierarchical_utilization.rpt`. To inspect a saved checkpoint at a
+different hierarchy depth without rebuilding, run:
+
+```sh
+vivado -mode batch -source scripts/vivado/report_checkpoint_hierarchy.tcl \
+  -tclargs build/vivado/hjpeg-kv260-artifacts/post_impl.dcp \
+    build/vivado/hjpeg-kv260-artifacts/post_impl_hierarchical_utilization.rpt 8
+```
 
 These Vivado scripts consume `generated-kv260-axi-lite-top/filelist.f`. Generate
 the AXI-Lite top first. The IP packaging script maps the generated clock, reset,

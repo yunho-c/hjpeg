@@ -75,9 +75,11 @@ through registered table lookup, floor-reciprocal multiplication, and exact
 multiply-back correction. The reciprocal lookup and the 21-bit scaled-table
 numerator each have dedicated registers so neither division path feeds a DSP
 in the same timing stage. Two banks overlap capture, processing, and output
-holding. All lanes share one constant-ROM quality-scale lookup, while retaining
-exact nearest rounding with halves away from zero. It has 23-cycle first-block
-latency and a 16-cycle sustained block interval.
+holding. All lanes share one constant-ROM quality-scale lookup and one
+four-read, 256-entry reciprocal ROM with an explicit distributed-memory style;
+the latter prevents the three production quantizers from consuming six
+RAMB18s. Exact nearest rounding with halves away from zero is unchanged. The
+stage has 23-cycle first-block latency and a 16-cycle sustained block interval.
 
 `JpegBlockTransformStage` carries quality and luminance/chrominance selection
 through an eight-entry ordered metadata queue. DCT output and metadata dequeue
@@ -98,6 +100,12 @@ remaining-block reduction. A one-entry pipelined queue registers the detected
 run before Huffman selection while sustaining one event per cycle after its
 single fill cycle. The packer can accept the next run while an output
 byte transfers when its post-transfer buffer has capacity.
+
+At MCU level, three buffered block-entropy slots hold independent scanners and
+run queues. 4:4:4 loads Y/Cb/Cr once. 4:2:0 first loads Y0/Y1/Y2, then reuses
+the same physical slots for Y3/Cb/Cr as the first wave drains. Logical block
+order, DC predecessor selection, restart behavior, and the single ordered
+packer stream remain unchanged while avoiding three duplicate scanners.
 
 `JpegHeaderStage` emits marker bytes through a small output state machine. It
 prepares quality-scaled DQT payload bytes over multiple cycles rather than
