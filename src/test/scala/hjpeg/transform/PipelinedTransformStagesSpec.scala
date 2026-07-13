@@ -125,7 +125,7 @@ class PipelinedTransformStagesSpec extends AnyFreeSpec with Matchers with Chisel
       info(s"four-lane DCT first-block latency: $firstLatency cycles")
       info(s"four-lane DCT input intervals: ${inputIntervals.mkString(", ")}")
       info(s"four-lane DCT output intervals: ${outputIntervals.mkString(", ")}")
-      firstLatency must be <= 36
+      firstLatency must be <= 38
       inputIntervals.toSet mustBe Set(16)
       outputIntervals.toSet mustBe Set(16)
 
@@ -270,7 +270,7 @@ class PipelinedTransformStagesSpec extends AnyFreeSpec with Matchers with Chisel
       info(s"complete pipelined transform first-block latency: $firstLatency cycles")
       info(s"pipelined transform input intervals: ${inputIntervals.mkString(", ")}")
       info(s"pipelined transform output intervals: ${outputIntervals.mkString(", ")}")
-      firstLatency must be <= 59
+      firstLatency must be <= 61
       inputIntervals.toSet mustBe Set(16)
       outputIntervals.toSet mustBe Set(16)
 

@@ -16,9 +16,9 @@ import chisel3.util._
   * Four frequency lanes are issued per cycle. Row and column passes operate
   * concurrently through three banked transpose buffers; two output banks hold
   * completed blocks under downstream backpressure. Pair formation is
-  * registered before the multiply/add tree. The column sums are also registered
-  * before final rounding so the second pass does not combine the DSP reduction
-  * tree and signed-rounding logic in one timing path. No rounding occurs between
+  * registered before the multiply/add tree. Each four-term dot product is split
+  * into registered two-term partial sums and a short final add; the column sums
+  * are also registered before final rounding. No rounding occurs between
   * passes; the final Q28 value uses nearest rounding with halves away from zero,
   * exactly matching [[Dct8x8Stage]]. With an unstalled consumer, blocks are
   * accepted at a 16-cycle interval after the first input.
@@ -32,14 +32,11 @@ class PipelinedDct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) exten
   private val Lanes = 4
   private val RowBanks = 3
   private val OutputBanks = 2
+  private val CosineBits = 16
+  private val RowPartialBits = sampleBits + 1 + CosineBits + 1
+  private val ColumnPartialBits = 33 + CosineBits + 1
   private val constants = Dct8x8Constants.CosineQ14
-  private val cosine = VecInit(constants.map(row => VecInit(row.map(_.S(16.W)))))
-
-  private def balancedSum(values: Seq[SInt]): SInt = {
-    require(values.nonEmpty && (values.length & (values.length - 1)) == 0)
-    if (values.length == 1) values.head
-    else balancedSum(values.grouped(2).map(pair => pair.head +& pair(1)).toSeq)
-  }
+  private val cosine = VecInit(constants.map(row => VecInit(row.map(_.S(CosineBits.W)))))
 
   private def roundShiftSigned(value: SInt, shift: Int): SInt = {
     val negative = value < 0.S
@@ -68,6 +65,11 @@ class PipelinedDct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) exten
   val rowPairBank = Reg(UInt(2.W))
   val rowPairGroup = Reg(UInt(4.W))
   val rowPairs = Reg(Vec(Lanes, Vec(Lanes, SInt((sampleBits + 1).W))))
+
+  val rowPartialValid = RegInit(false.B)
+  val rowPartialBank = Reg(UInt(2.W))
+  val rowPartialGroup = Reg(UInt(4.W))
+  val rowPartialSums = Reg(Vec(Lanes, Vec(2, SInt(RowPartialBits.W))))
 
   val canAcceptInput = rowStates(rowAllocateBank) === rowFree && (!rowActive || rowGroup === 15.U)
   io.input.ready := canAcceptInput
@@ -107,18 +109,32 @@ class PipelinedDct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) exten
     rowActive := true.B
   }
 
+  rowPartialValid := rowPairValid
   when(rowPairValid) {
-    val outputRow = rowPairGroup(3, 1)
+    rowPartialBank := rowPairBank
+    rowPartialGroup := rowPairGroup
     val frequencyBase = Cat(rowPairGroup(0), 0.U(2.W))
     for (lane <- 0 until Lanes) {
       val frequency = frequencyBase + lane.U
-      val sum = balancedSum((0 until Lanes).map { term =>
-        (rowPairs(lane)(term) * cosine(frequency)(term)).asSInt
-      })
-      rowBuffers(rowPairBank)(Cat(outputRow, frequency)) := sum
+      for (partial <- 0 until 2) {
+        val firstTerm = partial * 2
+        val firstProduct = (rowPairs(lane)(firstTerm) * cosine(frequency)(firstTerm)).asSInt
+        val secondProduct = (rowPairs(lane)(firstTerm + 1) * cosine(frequency)(firstTerm + 1)).asSInt
+        rowPartialSums(lane)(partial) := firstProduct +& secondProduct
+      }
     }
-    when(rowPairGroup === 15.U) {
-      rowStates(rowPairBank) := rowComplete
+  }
+
+  when(rowPartialValid) {
+    val outputRow = rowPartialGroup(3, 1)
+    val frequencyBase = Cat(rowPartialGroup(0), 0.U(2.W))
+    for (lane <- 0 until Lanes) {
+      val frequency = frequencyBase + lane.U
+      val sum = rowPartialSums(lane)(0) +& rowPartialSums(lane)(1)
+      rowBuffers(rowPartialBank)(Cat(outputRow, frequency)) := sum
+    }
+    when(rowPartialGroup === 15.U) {
+      rowStates(rowPartialBank) := rowComplete
     }
   }
 
@@ -134,8 +150,13 @@ class PipelinedDct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) exten
   val columnPairGroup = Reg(UInt(4.W))
   val columnPairs = Reg(Vec(Lanes, Vec(Lanes, SInt(33.W))))
 
-  // A 33x16-bit product is 49 bits. Two widening add-tree levels require 51
-  // bits, matching the unregistered balancedSum result exactly.
+  val columnPartialValid = RegInit(false.B)
+  val columnPartialOutputBank = Reg(UInt(1.W))
+  val columnPartialGroup = Reg(UInt(4.W))
+  val columnPartialSums = Reg(Vec(Lanes, Vec(2, SInt(ColumnPartialBits.W))))
+
+  // A 33x16-bit product is 49 bits. The registered pair sums are 50 bits and
+  // the final widening add is 51 bits, exactly matching the full dot product.
   val columnSumValid = RegInit(false.B)
   val columnSumOutputBank = Reg(UInt(1.W))
   val columnSumGroup = Reg(UInt(4.W))
@@ -183,16 +204,28 @@ class PipelinedDct8x8Stage(sampleBits: Int = 9, coefficientBits: Int = 16) exten
     columnAllocateOutputBank := ~columnAllocateOutputBank
   }
 
-  columnSumValid := columnPairValid
+  columnPartialValid := columnPairValid
   when(columnPairValid) {
-    columnSumOutputBank := columnPairOutputBank
-    columnSumGroup := columnPairGroup
+    columnPartialOutputBank := columnPairOutputBank
+    columnPartialGroup := columnPairGroup
     val frequencyBase = Cat(columnPairGroup(0), 0.U(2.W))
     for (lane <- 0 until Lanes) {
       val frequency = frequencyBase + lane.U
-      columnSums(lane) := balancedSum((0 until Lanes).map { term =>
-        (columnPairs(lane)(term) * cosine(frequency)(term)).asSInt
-      })
+      for (partial <- 0 until 2) {
+        val firstTerm = partial * 2
+        val firstProduct = (columnPairs(lane)(firstTerm) * cosine(frequency)(firstTerm)).asSInt
+        val secondProduct = (columnPairs(lane)(firstTerm + 1) * cosine(frequency)(firstTerm + 1)).asSInt
+        columnPartialSums(lane)(partial) := firstProduct +& secondProduct
+      }
+    }
+  }
+
+  columnSumValid := columnPartialValid
+  when(columnPartialValid) {
+    columnSumOutputBank := columnPartialOutputBank
+    columnSumGroup := columnPartialGroup
+    for (lane <- 0 until Lanes) {
+      columnSums(lane) := columnPartialSums(lane)(0) +& columnPartialSums(lane)(1)
     }
   }
 
