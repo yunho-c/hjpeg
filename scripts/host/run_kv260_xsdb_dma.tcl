@@ -8,7 +8,12 @@
 #   xsdb scripts/host/run_kv260_xsdb_dma.tcl \
 #     BITSTREAM INPUT_RGB OUTPUT_JPEG WIDTH HEIGHT QUALITY RESTART \
 #     CHROMA_SUBSAMPLE EMIT_JFIF \
-#     ?INPUT_ADDR? ?OUTPUT_ADDR? ?OUTPUT_CAPACITY? ?HW_SERVER_URL? ?TRANSCRIPT?
+#     ?INPUT_ADDR? ?OUTPUT_ADDR? ?OUTPUT_CAPACITY? ?HW_SERVER_URL? ?TRANSCRIPT? \
+#     ?PL_CLOCK_HZ? ?MAX_FRAME_CYCLES?
+#
+# Set the environment variable `HJPEG_XSDB_PREFLIGHT_ONLY=1` to validate all
+# arguments, files, frame sizes, DMA limits, and DDR buffer ranges without
+# connecting to hw_server or modifying a board.
 
 proc parse_unsigned {name text maximum} {
   if {![regexp {^(0[xX][0-9a-fA-F]+|[0-9]+)$} $text]} {
@@ -25,15 +30,15 @@ proc read32 {address} {
   return [lindex [mrd -value $address] 0]
 }
 
-if {$argc < 9 || $argc > 14} {
-  error "Expected 9 to 14 arguments: bitstream input_rgb output_jpeg width height quality restart chroma_subsample emit_jfif ?input_addr? ?output_addr? ?output_capacity? ?hw_server_url? ?transcript?"
+if {$argc < 9 || $argc > 16} {
+  error "Expected 9 to 16 arguments: bitstream input_rgb output_jpeg width height quality restart chroma_subsample emit_jfif ?input_addr? ?output_addr? ?output_capacity? ?hw_server_url? ?transcript? ?pl_clock_hz? ?max_frame_cycles?"
 }
 
 set bitstream [file normalize [lindex $argv 0]]
 set input_rgb [file normalize [lindex $argv 1]]
 set output_jpeg [file normalize [lindex $argv 2]]
-set width [parse_unsigned width [lindex $argv 3] 1920]
-set height [parse_unsigned height [lindex $argv 4] 1080]
+set width [parse_unsigned width [lindex $argv 3] 3840]
+set height [parse_unsigned height [lindex $argv 4] 2160]
 set quality [parse_unsigned quality [lindex $argv 5] 100]
 set restart_interval [parse_unsigned restart_interval [lindex $argv 6] 65535]
 set chroma_subsample [parse_unsigned chroma_subsample [lindex $argv 7] 1]
@@ -49,10 +54,13 @@ if {![file exists $input_rgb] || [file size $input_rgb] == 0} {
 }
 
 set input_addr [expr {$argc >= 10 ? [parse_unsigned input_addr [lindex $argv 9] 0xFFFFFFFF] : 0x60000000}]
-set output_addr [expr {$argc >= 11 ? [parse_unsigned output_addr [lindex $argv 10] 0xFFFFFFFF] : 0x61000000}]
-set output_capacity [expr {$argc >= 12 ? [parse_unsigned output_capacity [lindex $argv 11] 0x03FFFFFF] : 0x02000000}]
+set output_addr [expr {$argc >= 11 ? [parse_unsigned output_addr [lindex $argv 10] 0xFFFFFFFF] : 0x64000000}]
+set output_capacity [expr {$argc >= 12 ? [parse_unsigned output_capacity [lindex $argv 11] 0x03FFFFFF] : 0x03FFFFFF}]
 set hw_server_url [expr {$argc >= 13 ? [lindex $argv 12] : "tcp:localhost:3121"}]
 set transcript [file normalize [expr {$argc >= 14 ? [lindex $argv 13] : "${output_jpeg}.xsdb.txt"}]]
+set pl_clock_hz [expr {$argc >= 15 ? [parse_unsigned pl_clock_hz [lindex $argv 14] 1000000000] : 100000000}]
+set max_frame_cycles [expr {$argc >= 16 ? [parse_unsigned max_frame_cycles [lindex $argv 15] 0x7FFFFFFFFFFFFFFF] : 0}]
+if {$pl_clock_hz == 0} { error "pl_clock_hz must be nonzero" }
 
 set input_bytes [file size $input_rgb]
 set expected_input_bytes [expr {$width * $height * 4}]
@@ -74,6 +82,13 @@ if {$input_end > $ddr_limit || $output_end > $ddr_limit} {
 }
 if {$input_addr < $output_end && $output_addr < $input_end} {
   error "input and output DMA buffers overlap"
+}
+
+if {[info exists ::env(HJPEG_XSDB_PREFLIGHT_ONLY)] && $::env(HJPEG_XSDB_PREFLIGHT_ONLY) eq "1"} {
+  puts [format "PREFLIGHT_OK width=%d height=%d input_bytes=%d input_addr=0x%08X input_end=0x%08X output_addr=0x%08X output_capacity=%d output_end=0x%08X pl_clock_hz=%d max_frame_cycles=%d" \
+    $width $height $input_bytes $input_addr $input_end $output_addr \
+    $output_capacity $output_end $pl_clock_hz $max_frame_cycles]
+  exit
 }
 
 file mkdir [file dirname $output_jpeg]
@@ -155,11 +170,17 @@ if {[catch {
   }
   set frame_ms_100mhz [expr {double($frame_cycles) / 100000.0}]
   set frame_fps_100mhz [expr {100000000.0 / double($frame_cycles)}]
+  set frame_ms [expr {double($frame_cycles) * 1000.0 / double($pl_clock_hz)}]
+  set frame_fps [expr {double($pl_clock_hz) / double($frame_cycles)}]
+  set frame_target_required [expr {$max_frame_cycles > 0}]
+  set frame_target_met [expr {!$frame_target_required || $frame_cycles <= $max_frame_cycles}]
   puts $f [format "DMA_COMPLETE complete=%d elapsed_ms=%.3f mm2s_sr=0x%08X s2mm_sr=0x%08X hjpeg_status=0x%08X mm2s_length=%d s2mm_length=%d" \
     $complete $elapsed_ms $mm2s_status $s2mm_status $hjpeg_status \
     $mm2s_length $s2mm_length]
-  puts $f [format "FRAME_TIMING cycles=%d milliseconds_at_100mhz=%.6f fps_at_100mhz=%.6f completed_frames=%d" \
-    $frame_cycles $frame_ms_100mhz $frame_fps_100mhz $completed_after]
+  puts $f [format "FRAME_TIMING cycles=%d milliseconds_at_100mhz=%.6f fps_at_100mhz=%.6f clock_hz=%d milliseconds=%.6f fps=%.6f max_frame_cycles=%d target_required=%d target_met=%d completed_frames=%d" \
+    $frame_cycles $frame_ms_100mhz $frame_fps_100mhz $pl_clock_hz \
+    $frame_ms $frame_fps $max_frame_cycles $frame_target_required \
+    $frame_target_met $completed_after]
 
   if {!$complete} { error "DMA transfer timed out" }
   if {(($mm2s_status | $s2mm_status) & 0x00000770) != 0} {
@@ -176,6 +197,9 @@ if {[catch {
   }
 
   mrd -size b -bin -file $output_jpeg $output_addr $s2mm_length
+  if {!$frame_target_met} {
+    error "frame latency $frame_cycles cycles exceeds target $max_frame_cycles cycles"
+  }
 } result options]} {
   puts $f "RUN_ERROR: $result"
   puts $f "RUN_OPTIONS: $options"

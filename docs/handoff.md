@@ -785,7 +785,7 @@ sequential frames. All three core/KV260 SystemVerilog elaboration entry points
 pass.
 The generated-design-graph smoke run finds 27 reachable module types and 38
 instances with no missing focus modules. The most recent maintained Python
-suite results are 235 host tests, 59 Vivado-report tests, 10
+suite results are 239 host tests, 59 Vivado-report tests, 10
 ChiselSim-environment tests, 11 design-graph helper tests, 11
 performance-trace renderer tests, and 5 4K60-capacity tests. Current 256x64 single-
 and two-frame scenarios produced strict JSON/CSV evidence and decoder-validated
@@ -1290,6 +1290,13 @@ For the active `4k60` target:
    protocol status, and decode each JPEG with ordinary software.
 3. Save strict run evidence and hashes. Full-HD captures are a correctness
    baseline, not proof of UHD throughput or output.
+
+The board runner is now UHD-ready: it accepts 3840x2160, uses non-overlapping
+default DDR buffers for every legal 26-bit input length, supports a no-board
+preflight, reports timing at an explicit PL clock, and can hard-gate the
+2,500,000-cycle target after preserving a failing capture for diagnosis. The
+Linux host utility has a matching `frame-timing` command. Exact commands and
+acceptance fields are in `docs/4k60-architecture.md`.
 
 If the exact RTL or target changes and the new PC has Vivado:
 

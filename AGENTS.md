@@ -64,6 +64,11 @@ independent-resource ceiling. Aggregate physical CLB occupancy is retained as
 informational placement evidence because it double-counts LUT/register use;
 route status, DRC, and routed setup/hold timing remain hard gates. Physical
 decoder-valid 4K60 evidence is still required.
+The XSDB runner accepts UHD dimensions, uses non-overlapping default buffers for
+the full 26-bit DMA length range, supports no-board preflight, and can gate an
+explicit PL clock/frame-cycle target. The Linux helper's `frame-timing` command
+reads the same split 64-bit PL counter safely. Use the exact q85 commands in
+`docs/4k60-architecture.md` for physical acceptance.
 AC scanner lookahead trials at eight and sixteen coefficients failed 100 MHz
 timing and were reverted; keep the four-coefficient scanner unless it is
 pipelined.

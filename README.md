@@ -454,6 +454,8 @@ python3 scripts/host/hjpeg_host.py make-test-ppm input.ppm --width 640 --height 
 python3 scripts/host/hjpeg_host.py pack-ppm input.ppm input.rgb --json
 python3 scripts/host/hjpeg_host.py config --base-addr 0xa0000000 --width 640 --height 480 --json
 python3 scripts/host/hjpeg_host.py status --base-addr 0xa0000000 --json
+python3 scripts/host/hjpeg_host.py frame-timing --base-addr 0xa0000000 \
+  --clock-hz 100000000 --expected-completed-frames 1 --json
 python3 scripts/host/hjpeg_host.py clear-error --base-addr 0xa0000000 --json
 python3 scripts/host/hjpeg_host.py run-stream-devices \
   --base-addr 0xa0000000 \
@@ -478,8 +480,15 @@ xsdb scripts/host/run_kv260_xsdb_dma.tcl \
 ```
 
 The final two arguments enable 4:2:0 and JFIF. The tracked block design uses a
-26-bit DMA length field so a packed 1920x1080 frame (8,294,400 bytes) transfers
-in one MM2S transaction and TLAST coincides with the frame boundary.
+26-bit DMA length field, so both a packed 1920x1080 frame (8,294,400 bytes) and
+a packed 3840x2160 frame (33,177,600 bytes) transfer in one MM2S transaction and
+TLAST coincides with the frame boundary. The XSDB runner accepts dimensions up
+to 3840x2160. Its default input buffer begins at `0x60000000`; its default
+maximum-length output buffer begins at `0x64000000`, so the buffers cannot
+overlap for any permitted 26-bit input length. Optional trailing arguments set
+the PL clock and a hard maximum frame-cycle target. Set
+`HJPEG_XSDB_PREFLIGHT_ONLY=1` to validate the exact files, transfer length, and
+DDR ranges without connecting to or modifying a board.
 
 `make-test-ppm` writes a deterministic non-flat binary P6 PPM pattern for
 repeatable board bring-up. Pass `--pattern seeded-random` to reproduce the
@@ -501,6 +510,14 @@ dimensions, quality-matched DQT payloads, standard DHT payloads, and non-empty
 scan data. DMA
 drivers that use ioctls or buffer queues still need a small adapter around the
 same host-side packing and validation helpers.
+
+`frame-timing` reads the idle/protocol status, the split 64-bit last-frame cycle
+counter, and the completed-frame count. Pass `--max-frame-cycles` to make a
+target miss fail and `--expected-completed-frames` when the programmed image's
+counter history is known. The JSON output reports the clock, milliseconds,
+frames per second, target result, status result, and completed-frame check.
+The read brackets the split counter with completed-frame-count samples so a
+concurrent frame completion cannot produce a torn record.
 
 To fold a standard decoder into the validation transcript, pass a command with
 `--decoder-command`. The helper replaces `{jpeg}` with the output path, or

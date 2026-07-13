@@ -42,6 +42,9 @@ REG_XSIZE = 0x08
 REG_YSIZE = 0x0C
 REG_QUALITY = 0x10
 REG_RESTART_INTERVAL = 0x14
+REG_LAST_FRAME_CYCLES_LOW = 0x18
+REG_LAST_FRAME_CYCLES_HIGH = 0x1C
+REG_COMPLETED_FRAME_COUNT = 0x20
 
 CONTROL_CLEAR_PROTOCOL_ERROR = 1 << 0
 CONTROL_ENABLE_CHROMA_SUBSAMPLE = 1 << 1
@@ -5029,6 +5032,87 @@ def require_idle_status(regs: AxiLiteWindow, context: str = "status") -> None:
     require_idle_status_value(regs.read32(REG_STATUS), context)
 
 
+def read_frame_timing_registers(regs: AxiLiteWindow) -> tuple[int, int]:
+    """Read the frame counters without accepting an in-flight update."""
+    for _ in range(4):
+        completed_before = regs.read32(REG_COMPLETED_FRAME_COUNT)
+        high_before = regs.read32(REG_LAST_FRAME_CYCLES_HIGH)
+        low = regs.read32(REG_LAST_FRAME_CYCLES_LOW)
+        high_after = regs.read32(REG_LAST_FRAME_CYCLES_HIGH)
+        completed_after = regs.read32(REG_COMPLETED_FRAME_COUNT)
+        if high_before == high_after and completed_before == completed_after:
+            cycles = (high_after << 32) | low
+            return cycles, completed_after
+    raise RuntimeError("frame timing registers changed during every read attempt")
+
+
+def frame_timing_evidence_record(
+    device: Path,
+    base_address: int,
+    status: int,
+    cycles: int,
+    completed_frames: int,
+    clock_hz: int,
+    max_frame_cycles: int | None = None,
+    expected_completed_frames: int | None = None,
+) -> dict[str, object]:
+    if type(clock_hz) is not int or clock_hz <= 0:
+        raise ValueError("clock Hz must be a positive integer")
+    if max_frame_cycles is not None and (
+        type(max_frame_cycles) is not int or max_frame_cycles <= 0
+    ):
+        raise ValueError("maximum frame cycles must be a positive integer")
+    if expected_completed_frames is not None and (
+        type(expected_completed_frames) is not int or expected_completed_frames <= 0
+    ):
+        raise ValueError("expected completed frames must be a positive integer")
+
+    cycles_valid = type(cycles) is int and cycles > 0
+    completed_frames_valid = type(completed_frames) is int and completed_frames > 0
+    status_idle = (status & STATUS_BUSY) == 0
+    protocol_error_clear = (status & STATUS_PROTOCOL_ERROR) == 0
+    target_required = max_frame_cycles is not None
+    target_met = cycles_valid and (
+        not target_required or cycles <= max_frame_cycles
+    )
+    completed_frames_match = (
+        completed_frames_valid
+        and (
+            expected_completed_frames is None
+            or completed_frames == expected_completed_frames
+        )
+    )
+    passed = (
+        status_idle
+        and protocol_error_clear
+        and cycles_valid
+        and completed_frames_valid
+        and target_met
+        and completed_frames_match
+    )
+
+    return {
+        "axi_lite": axi_lite_target_record(device, base_address),
+        "status": status_record(status),
+        "clock_hz": clock_hz,
+        "clock_mhz": clock_hz / 1_000_000.0,
+        "last_frame_cycles": cycles,
+        "last_frame_cycles_positive": cycles_valid,
+        "completed_frames": completed_frames,
+        "completed_frames_positive": completed_frames_valid,
+        "expected_completed_frames": expected_completed_frames,
+        "completed_frames_match_expected": completed_frames_match,
+        "milliseconds": cycles * 1000.0 / clock_hz if cycles_valid else None,
+        "frames_per_second": clock_hz / cycles if cycles_valid else None,
+        "max_frame_cycles": max_frame_cycles,
+        "target_required": target_required,
+        "target_met": target_met,
+        "status_idle": status_idle,
+        "protocol_error_clear": protocol_error_clear,
+        "passed": passed,
+    }
+
+
 def clear_protocol_error(regs: AxiLiteWindow) -> int:
     current_control = regs.read32(REG_CONTROL)
     persistent_control = current_control & (
@@ -5190,6 +5274,17 @@ def build_parser() -> argparse.ArgumentParser:
     status.add_argument("--dev", type=Path, default=Path("/dev/mem"))
     status.add_argument("--base-addr", type=_nonnegative_int, required=True)
     status.add_argument("--json", action="store_true", help="print status evidence as JSON")
+
+    timing = subparsers.add_parser(
+        "frame-timing",
+        help="read the last completed frame's PL-cycle timing evidence",
+    )
+    timing.add_argument("--dev", type=Path, default=Path("/dev/mem"))
+    timing.add_argument("--base-addr", type=_nonnegative_int, required=True)
+    timing.add_argument("--clock-hz", type=_positive_int, required=True)
+    timing.add_argument("--max-frame-cycles", type=_positive_int)
+    timing.add_argument("--expected-completed-frames", type=_positive_int)
+    timing.add_argument("--json", action="store_true", help="print timing evidence as JSON")
 
     clear = subparsers.add_parser("clear-error", help="pulse the protocol-error clear bit")
     clear.add_argument("--dev", type=Path, default=Path("/dev/mem"))
@@ -6237,6 +6332,32 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         print(f"0x{status:08x} {status_text(status)}")
         return 0
+
+    if args.command == "frame-timing":
+        with AxiLiteWindow(args.dev, args.base_addr) as regs:
+            status = regs.read32(REG_STATUS)
+            cycles, completed_frames = read_frame_timing_registers(regs)
+        record = frame_timing_evidence_record(
+            args.dev,
+            args.base_addr,
+            status,
+            cycles,
+            completed_frames,
+            args.clock_hz,
+            args.max_frame_cycles,
+            args.expected_completed_frames,
+        )
+        if args.json:
+            print(strict_json_dumps(record, sort_keys=True))
+        else:
+            result = "PASS" if record["passed"] else "FAIL"
+            print(
+                f"{result}: cycles={cycles} clock_hz={args.clock_hz} "
+                f"milliseconds={record['milliseconds']} "
+                f"fps={record['frames_per_second']} "
+                f"completed_frames={completed_frames}"
+            )
+        return 0 if record["passed"] else 1
 
     if args.command == "clear-error":
         with AxiLiteWindow(args.dev, args.base_addr) as regs:

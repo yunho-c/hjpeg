@@ -236,6 +236,7 @@ design. It can:
 
 - generate deterministic P6 PPM fixtures and pack them into the DMA RGB layout;
 - configure and inspect the AXI-Lite registers through `/dev/mem`;
+- read and gate the last completed frame's PL-cycle timing registers;
 - drive byte-stream DMA endpoints and capture the JPEG output;
 - validate JPEG structure, configured frame properties, standard tables,
   restart behavior, and external-decoder compatibility; and
@@ -252,7 +253,11 @@ A53 #0, programs the PL, loads packed RGB into DDR, drives AXI-Lite and simple
 DMA registers through JTAG, and reads exactly the S2MM-reported JPEG bytes back.
 It is useful for deterministic physical validation, but debugger polling is not
 a precise performance timer. The runner instead reports the hardware cycle
-registers as `FRAME_TIMING`, which is independent of JTAG polling overhead.
+registers as `FRAME_TIMING`, which is independent of JTAG polling overhead. It
+supports a no-board preflight, UHD-safe non-overlapping DDR defaults, an explicit
+PL clock, and an optional maximum frame-cycle gate. The Linux-side
+`frame-timing` command reads the same registers with a stable high/low/high
+sequence bracketed by completed-frame-count samples.
 
 Hardware evidence connects four boundaries: the source PPM and packed RGB
 stream, the requested encoder configuration, AXI-Lite status observations, and

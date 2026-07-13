@@ -8928,6 +8928,113 @@ class HjpegHostTest(unittest.TestCase):
             self.assertTrue(record["protocol_error"])
             self.assertEqual(record["text"], "busy,protocol_error")
 
+    def test_frame_timing_cli_can_gate_4k60_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            mem = Path(tmp) / "mem.bin"
+            mem.write_bytes(bytes(hjpeg_host.AXI_LITE_APERTURE_BYTES))
+
+            cycles = 2_400_000
+            with hjpeg_host.AxiLiteWindow(mem, 0) as regs:
+                regs.write32(hjpeg_host.REG_LAST_FRAME_CYCLES_LOW, cycles)
+                regs.write32(hjpeg_host.REG_LAST_FRAME_CYCLES_HIGH, 0)
+                regs.write32(hjpeg_host.REG_COMPLETED_FRAME_COUNT, 1)
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "frame-timing",
+                            "--dev",
+                            str(mem),
+                            "--base-addr",
+                            "0",
+                            "--clock-hz",
+                            "150000000",
+                            "--max-frame-cycles",
+                            "2500000",
+                            "--expected-completed-frames",
+                            "1",
+                            "--json",
+                        ]
+                    ),
+                    0,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertTrue(record["passed"])
+            self.assertTrue(record["target_required"])
+            self.assertTrue(record["target_met"])
+            self.assertTrue(record["completed_frames_match_expected"])
+            self.assertEqual(record["last_frame_cycles"], cycles)
+            self.assertEqual(record["clock_hz"], 150_000_000)
+            self.assertEqual(record["milliseconds"], 16.0)
+            self.assertEqual(record["frames_per_second"], 62.5)
+
+    def test_frame_timing_cli_reports_target_miss_as_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            mem = Path(tmp) / "mem.bin"
+            mem.write_bytes(bytes(hjpeg_host.AXI_LITE_APERTURE_BYTES))
+
+            with hjpeg_host.AxiLiteWindow(mem, 0) as regs:
+                regs.write32(hjpeg_host.REG_LAST_FRAME_CYCLES_LOW, 2_500_001)
+                regs.write32(hjpeg_host.REG_COMPLETED_FRAME_COUNT, 1)
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    hjpeg_host.main(
+                        [
+                            "frame-timing",
+                            "--dev",
+                            str(mem),
+                            "--base-addr",
+                            "0",
+                            "--clock-hz",
+                            "150000000",
+                            "--max-frame-cycles",
+                            "2500000",
+                            "--expected-completed-frames",
+                            "1",
+                            "--json",
+                        ]
+                    ),
+                    1,
+                )
+
+            record = json.loads(stdout.getvalue())
+            self.assertFalse(record["passed"])
+            self.assertFalse(record["target_met"])
+            self.assertEqual(record["last_frame_cycles"], 2_500_001)
+
+    def test_frame_timing_evidence_rejects_invalid_targets(self) -> None:
+        with self.assertRaisesRegex(ValueError, "clock Hz"):
+            hjpeg_host.frame_timing_evidence_record(
+                Path("/dev/mem"), 0, 0, 1, 1, 0
+            )
+        with self.assertRaisesRegex(ValueError, "maximum frame cycles"):
+            hjpeg_host.frame_timing_evidence_record(
+                Path("/dev/mem"), 0, 0, 1, 1, 100_000_000, 0
+            )
+
+    def test_frame_timing_evidence_reports_status_and_count_failures(self) -> None:
+        record = hjpeg_host.frame_timing_evidence_record(
+            Path("/dev/mem"),
+            0,
+            hjpeg_host.STATUS_BUSY | hjpeg_host.STATUS_PROTOCOL_ERROR,
+            2_400_000,
+            2,
+            150_000_000,
+            2_500_000,
+            1,
+        )
+
+        self.assertFalse(record["passed"])
+        self.assertFalse(record["status_idle"])
+        self.assertFalse(record["protocol_error_clear"])
+        self.assertFalse(record["completed_frames_match_expected"])
+        self.assertTrue(record["target_met"])
+
     def test_clear_error_preserves_persistent_control_bits(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             mem = Path(tmp) / "mem.bin"

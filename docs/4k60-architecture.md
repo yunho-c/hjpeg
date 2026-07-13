@@ -295,9 +295,9 @@ fully reverted. The retained design reuses independent four-coefficient
 scanners without lengthening their combinational priority chains.
 
 The retained implementation passes 148/148 Scala/Chisel tests across 29 suites.
-Python verification passes 235 host-flow, 59 Vivado-report, 10
+Python verification passes 239 host-flow, 59 Vivado-report, 10
 ChiselSim-environment, 11 design-graph, 11 performance-trace, and 5
-capacity-model tests (331 total). The five-scenario regenerated performance
+capacity-model tests (335 total). The five-scenario regenerated performance
 capture passes as a separate simulator-backed test.
 
 ## 150 MHz Timing Closure
@@ -357,7 +357,94 @@ for the routed checkpoint.
 
 Current verification is 148/148 Scala/Chisel tests across 29 suites. The Python
 side passes 5 capacity-model, 10 ChiselSim-environment, 11 design-graph, 11
-performance-trace, 59 Vivado-report, and 235 host-flow tests.
+performance-trace, 59 Vivado-report, and 239 host-flow tests.
+
+## Physical Validation Commands
+
+Generate the exact deterministic benchmark once:
+
+```sh
+mkdir -p build/4k60-hardware
+python3 scripts/host/hjpeg_host.py make-test-ppm \
+  build/4k60-hardware/gradient-checker-3840x2160.ppm \
+  --width 3840 --height 2160 --max-width 3840 --max-height 2160 --json
+python3 scripts/host/hjpeg_host.py pack-ppm \
+  build/4k60-hardware/gradient-checker-3840x2160.ppm \
+  build/4k60-hardware/gradient-checker-3840x2160.rgb \
+  --max-width 3840 --max-height 2160 --json
+```
+
+The PPM must contain 24,883,200 RGB payload bytes and the packed DMA file must
+contain exactly 33,177,600 bytes. For the current deterministic generator, the
+complete PPM SHA-256 is
+`90f60458344d93e7b10e6b6c86f5a02817a6c0d7db41f9e37460180c4aeb6d06` and
+the packed RGB SHA-256 is
+`d5e8ec5febdcc909aadb7b33d31da9160fc92c88b35f026a81f2fb72c7e2edae`.
+Before touching a board, preflight either live command by prefixing it with
+`HJPEG_XSDB_PREFLIGHT_ONLY=1`. The exact XSDB
+arguments after `emit_jfif` are the input address, output address, output
+capacity, hw_server URL, transcript path, PL clock in Hz, and maximum frame
+cycles. Run 4:4:4 with:
+
+```sh
+xsdb scripts/host/run_kv260_xsdb_dma.tcl \
+  build/vivado/hjpeg-kv260-4k60-artifacts-150-resource-slots3-distrom/hjpeg_kv260.bit \
+  build/4k60-hardware/gradient-checker-3840x2160.rgb \
+  build/4k60-hardware/gradient-checker-q85-444.jpg \
+  3840 2160 85 0 0 1 \
+  0x60000000 0x64000000 0x03ffffff tcp:localhost:3121 \
+  build/4k60-hardware/gradient-checker-q85-444.xsdb.txt \
+  150000000 2500000
+```
+
+Run 4:2:0 by changing the chroma argument from `0` to `1` and using separate
+output/transcript paths:
+
+```sh
+xsdb scripts/host/run_kv260_xsdb_dma.tcl \
+  build/vivado/hjpeg-kv260-4k60-artifacts-150-resource-slots3-distrom/hjpeg_kv260.bit \
+  build/4k60-hardware/gradient-checker-3840x2160.rgb \
+  build/4k60-hardware/gradient-checker-q85-420.jpg \
+  3840 2160 85 0 1 1 \
+  0x60000000 0x64000000 0x03ffffff tcp:localhost:3121 \
+  build/4k60-hardware/gradient-checker-q85-420.xsdb.txt \
+  150000000 2500000
+```
+
+Each command must end with `RUN_OK`. `DMA_COMPLETE` must report both channels
+idle without error, the full 33,177,600-byte MM2S length, a positive S2MM byte
+count, and zero encoder status. `FRAME_TIMING` must report one completed frame,
+`target_required=1`, `target_met=1`, and no more than 2,500,000 cycles. Validate
+the captures independently with standard table checks and an ordinary decoder:
+
+```sh
+python3 scripts/host/hjpeg_host.py validate-jpeg \
+  build/4k60-hardware/gradient-checker-q85-444.jpg \
+  --width 3840 --height 2160 --restart-interval 0 \
+  --check-chroma-mode --expect-jfif present --quality 85 \
+  --require-standard-huffman \
+  --decoder-command 'ffmpeg -v error -i {jpeg} -f null -' --json
+python3 scripts/host/hjpeg_host.py validate-jpeg \
+  build/4k60-hardware/gradient-checker-q85-420.jpg \
+  --width 3840 --height 2160 --restart-interval 0 \
+  --chroma-subsample --check-chroma-mode --expect-jfif present --quality 85 \
+  --require-standard-huffman \
+  --decoder-command 'ffmpeg -v error -i {jpeg} -f null -' --json
+```
+
+For a Linux byte-stream-device backend, pass `--max-width 3840`,
+`--max-height 2160`, and `--max-output-bytes 67108863` to
+`run-stream-devices`, then record the PL result with:
+
+```sh
+python3 scripts/host/hjpeg_host.py frame-timing \
+  --base-addr 0xa0000000 --clock-hz 150000000 \
+  --max-frame-cycles 2500000 --expected-completed-frames 1 --json
+```
+
+Host elapsed time includes driver and scheduling overhead and is not the 4K60
+acceptance timer. The PL counter measures first accepted input through accepted
+output TLAST.
 
 ## Remaining Architecture
 

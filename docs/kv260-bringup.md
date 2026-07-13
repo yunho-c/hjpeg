@@ -279,7 +279,13 @@ encoder status, verifies the full MM2S length, and writes exactly the S2MM
 reported byte count. It therefore disrupts a running Linux system and is a lab
 validation path, not a production driver. The block design configures a 26-bit
 DMA length field; the prior 14-bit default could not carry a packed 1080p frame
-without an early TLAST.
+without an early TLAST. Current defaults reserve `0x60000000..0x63ffffff` for
+the largest permitted MM2S input and begin the maximum-length S2MM buffer at
+`0x64000000`, so UHD input cannot overlap the output buffer. The runner accepts
+optional trailing PL-clock-Hz and maximum-frame-cycle arguments, and
+`HJPEG_XSDB_PREFLIGHT_ONLY=1` validates all files, lengths, and DDR ranges
+without connecting to hardware. See `4k60-architecture.md` for the exact
+3840x2160 q85 commands and 2,500,000-cycle gate.
 
 Expected evidence:
 
@@ -576,6 +582,12 @@ Expected evidence:
   time and finite positive derived input and output byte rates. Use hardware
   counters or driver timestamps before
   making final throughput claims.
+- `frame-timing --clock-hz CLOCK --max-frame-cycles LIMIT --json` records the
+  split 64-bit PL counter, completed-frame count, clean idle/protocol status,
+  derived time/FPS, and a machine-readable target result. Its stable
+  completed-count/high/low/high/completed-count read avoids accepting a torn
+  counter value. The command exits nonzero on a target, status, or
+  completed-frame check failure.
 - For `run-stream-devices --json`, the helper records the AXI-Lite status
   checkpoints enforced after configuration, before transfer, and after
   validation, including the AXI-Lite target sampled for each checkpoint, the
