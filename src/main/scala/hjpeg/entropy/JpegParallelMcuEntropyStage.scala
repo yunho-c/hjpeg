@@ -44,12 +44,19 @@ class JpegBufferedBlockEntropyStage(coefficientBits: Int = 16, queueEntries: Int
   }
 }
 
-/** Scans every block of one MCU in parallel and drains bit runs in JPEG order. */
+/** Scans one MCU through three buffered entropy slots and drains runs in JPEG order.
+  *
+  * 4:4:4 occupies all three slots once. 4:2:0 first loads Y0/Y1/Y2, then
+  * reuses those slots for Y3/Cb/Cr as the first wave drains. The second wave
+  * overlaps the remaining first-wave drain, retaining the ordered streaming
+  * throughput without duplicating six complete AC scanners.
+  */
 class JpegParallelMcuEntropyStage(
     coefficientBits: Int = 16,
     queueEntriesPerBlock: Int = 16)
     extends Module {
   private val MaxBlocks = 6
+  private val EncoderSlots = 3
 
   val io = IO(new Bundle {
     val input = Flipped(Decoupled(new ZigZagMinimumCodedUnit(coefficientBits)))
@@ -60,17 +67,22 @@ class JpegParallelMcuEntropyStage(
     val busy = Output(Bool())
   })
 
-  val blockEncoders = Seq.fill(MaxBlocks)(
+  val blockEncoders = Seq.fill(EncoderSlots)(
     Module(new JpegBufferedBlockEntropyStage(coefficientBits, queueEntriesPerBlock)))
   val active = RegInit(false.B)
+  val activeSubsampled = RegInit(false.B)
   val blockCount = RegInit(3.U(3.W))
   val drainBlock = RegInit(0.U(3.W))
   val nextDc = Reg(Vec(HjpegConstants.Components, SInt(coefficientBits.W)))
+  val deferredBlocks = Reg(Vec(EncoderSlots, new ZigZagCoefficientBlock(coefficientBits)))
+  val deferredPreviousDc = Reg(Vec(EncoderSlots, SInt(coefficientBits.W)))
+  val deferredIsLuminance = Reg(Vec(EncoderSlots, Bool()))
+  val reloadPending = RegInit(VecInit(Seq.fill(EncoderSlots)(false.B)))
 
   val subsampledInput = io.input.bits.yBlockCount === 4.U
-  val inputBlockCount = Mux(subsampledInput, 6.U, 3.U)
+  val inputBlockCount = Mux(subsampledInput, MaxBlocks.U, EncoderSlots.U)
   val allInputsReady = VecInit(blockEncoders.map(_.io.input.ready)).asUInt.andR
-  io.input.ready := !active && allInputsReady
+  io.input.ready := !active && !reloadPending.asUInt.orR && allInputsReady
   val inputFire = io.input.valid && io.input.ready
 
   val y0Dc = io.input.bits.y.coefficients(0)
@@ -79,44 +91,63 @@ class JpegParallelMcuEntropyStage(
   val y3Dc = io.input.bits.y3.coefficients(0)
 
   for ((blockEncoder, index) <- blockEncoders.zipWithIndex) {
-    val selectedBlock = index match {
+    val initialBlock = index match {
       case 0 => io.input.bits.y
       case 1 => Mux(subsampledInput, io.input.bits.y1, io.input.bits.cb)
-      case 2 => Mux(subsampledInput, io.input.bits.y2, io.input.bits.cr)
-      case 3 => io.input.bits.y3
-      case 4 => io.input.bits.cb
-      case _ => io.input.bits.cr
+      case _ => Mux(subsampledInput, io.input.bits.y2, io.input.bits.cr)
     }
-    val previous = index match {
+    val initialPrevious = index match {
       case 0 => io.previousDc(0)
       case 1 => Mux(subsampledInput, y0Dc, io.previousDc(1))
-      case 2 => Mux(subsampledInput, y1Dc, io.previousDc(2))
-      case 3 => y2Dc
-      case 4 => io.previousDc(1)
-      case _ => io.previousDc(2)
+      case _ => Mux(subsampledInput, y1Dc, io.previousDc(2))
     }
+    val reloadValid = active && reloadPending(index)
 
-    blockEncoder.io.input.valid := inputFire && index.U < inputBlockCount
-    blockEncoder.io.input.bits := selectedBlock
-    blockEncoder.io.previousDc := previous
-    blockEncoder.io.isLuminance := index.U === 0.U || (subsampledInput && index.U < 4.U)
-    blockEncoder.io.output.ready := active && drainBlock === index.U && io.output.ready
+    blockEncoder.io.input.valid := inputFire || reloadValid
+    blockEncoder.io.input.bits := Mux(reloadValid, deferredBlocks(index), initialBlock)
+    blockEncoder.io.previousDc := Mux(reloadValid, deferredPreviousDc(index), initialPrevious)
+    blockEncoder.io.isLuminance := Mux(
+      reloadValid,
+      deferredIsLuminance(index),
+      index.U === 0.U || subsampledInput)
+
+    when(reloadValid && blockEncoder.io.input.ready) {
+      reloadPending(index) := false.B
+    }
   }
 
   when(inputFire) {
     active := true.B
+    activeSubsampled := subsampledInput
     blockCount := inputBlockCount
     drainBlock := 0.U
+    reloadPending.foreach(_ := false.B)
+
+    deferredBlocks(0) := io.input.bits.y3
+    deferredBlocks(1) := io.input.bits.cb
+    deferredBlocks(2) := io.input.bits.cr
+    deferredPreviousDc(0) := y2Dc
+    deferredPreviousDc(1) := io.previousDc(1)
+    deferredPreviousDc(2) := io.previousDc(2)
+    deferredIsLuminance(0) := true.B
+    deferredIsLuminance(1) := false.B
+    deferredIsLuminance(2) := false.B
+
     nextDc(0) := Mux(subsampledInput, y3Dc, y0Dc)
     nextDc(1) := io.input.bits.cb.coefficients(0)
     nextDc(2) := io.input.bits.cr.coefficients(0)
   }
 
-  val selectedOutputValid = MuxLookup(drainBlock, false.B)(
+  val drainSlot = Mux(drainBlock >= EncoderSlots.U, drainBlock - EncoderSlots.U, drainBlock)(1, 0)
+  for ((blockEncoder, index) <- blockEncoders.zipWithIndex) {
+    blockEncoder.io.output.ready := active && drainSlot === index.U && io.output.ready
+  }
+
+  val selectedOutputValid = MuxLookup(drainSlot, false.B)(
     blockEncoders.zipWithIndex.map { case (encoder, index) => index.U -> encoder.io.output.valid })
-  val selectedOutputBits = MuxLookup(drainBlock, blockEncoders.head.io.output.bits)(
+  val selectedOutputBits = MuxLookup(drainSlot, blockEncoders.head.io.output.bits)(
     blockEncoders.zipWithIndex.map { case (encoder, index) => index.U -> encoder.io.output.bits })
-  val selectedDone = MuxLookup(drainBlock, false.B)(
+  val selectedDone = MuxLookup(drainSlot, false.B)(
     blockEncoders.zipWithIndex.map { case (encoder, index) => index.U -> encoder.io.done })
 
   io.output.valid := active && selectedOutputValid
@@ -125,6 +156,9 @@ class JpegParallelMcuEntropyStage(
   io.done := finalBlockDone
 
   when(active && selectedDone) {
+    when(activeSubsampled && drainBlock < EncoderSlots.U) {
+      reloadPending(drainSlot) := true.B
+    }
     when(drainBlock === blockCount - 1.U) {
       active := false.B
       drainBlock := 0.U
