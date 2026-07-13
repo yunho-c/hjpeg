@@ -22,15 +22,11 @@ class JpegMcuStreamEncoderStage(coefficientBits: Int = 16) extends Module {
 
   val sIdle :: sHeader :: sWaitMcu :: sStartBlock :: sBlock :: sRestartFlush :: sRestartHigh :: sRestartLow :: sFlush :: sEoiHigh :: sEoiLow :: Nil = Enum(11)
   val state = RegInit(sIdle)
-  val component = RegInit(0.U(3.W))
   val currentMcuLast = RegInit(false.B)
   val currentMcu = Reg(new ZigZagMinimumCodedUnit(coefficientBits))
   val previousDc = RegInit(VecInit(Seq.fill(HjpegConstants.Components)(0.S(coefficientBits.W))))
   val restartMcuCount = RegInit(0.U(16.W))
   val restartMarker = RegInit(0.U(3.W))
-  val yBlockCount = Mux(currentMcu.yBlockCount === 0.U, 1.U, currentMcu.yBlockCount)
-  val cbComponent = yBlockCount
-  val crComponent = yBlockCount + 1.U
   val restartEnabled = io.config.restartInterval =/= 0.U
   val nextRestartMcuCount = restartMcuCount + 1.U
   val restartDueAfterCurrentMcu = restartEnabled && nextRestartMcuCount >= io.config.restartInterval
@@ -41,7 +37,6 @@ class JpegMcuStreamEncoderStage(coefficientBits: Int = 16) extends Module {
   when(io.input.fire) {
     currentMcu := io.input.bits.mcu
     currentMcuLast := io.input.bits.last
-    component := 0.U
     when(state === sIdle) {
       previousDc.foreach(_ := 0.S)
       restartMcuCount := 0.U
@@ -56,28 +51,18 @@ class JpegMcuStreamEncoderStage(coefficientBits: Int = 16) extends Module {
   header.io.config := io.config
   header.io.start := acceptingFirstMcu && io.input.ready
 
-  val blockEncoder = Module(new JpegBlockEntropyStage(coefficientBits))
-  blockEncoder.io.input.valid := state === sStartBlock
-  val isLuminance = component < yBlockCount
-  val predictorIndex = Mux(isLuminance, 0.U, Mux(component === cbComponent, 1.U, 2.U))
-  blockEncoder.io.previousDc := previousDc(predictorIndex)
-  blockEncoder.io.isLuminance := isLuminance
-  blockEncoder.io.input.bits := MuxCase(
-    currentMcu.y,
-    Seq(
-      (component === cbComponent) -> currentMcu.cb,
-      (component === crComponent) -> currentMcu.cr,
-      (component === 1.U) -> currentMcu.y1,
-      (component === 2.U) -> currentMcu.y2,
-      (component === 3.U) -> currentMcu.y3
-    )
-  )
+  val mcuEntropy = Module(new JpegParallelMcuEntropyStage(coefficientBits))
+  mcuEntropy.io.input.valid := state === sStartBlock
+  mcuEntropy.io.input.bits := currentMcu
+  mcuEntropy.io.previousDc := previousDc
+  // Test-only performance probes retain the established lane-zero name.
+  val blockEncoder = mcuEntropy.blockEncoders.head.encoder
 
   val packer = Module(new JpegBitRunPacker())
-  packer.io.input.valid := state === sBlock && blockEncoder.io.output.valid
-  packer.io.input.bits := blockEncoder.io.output.bits
+  packer.io.input.valid := state === sBlock && mcuEntropy.io.output.valid
+  packer.io.input.bits := mcuEntropy.io.output.bits
   packer.io.flush := state === sFlush || state === sRestartFlush
-  blockEncoder.io.output.ready := state === sBlock && packer.io.input.ready
+  mcuEntropy.io.output.ready := state === sBlock && packer.io.input.ready
 
   val outputValid = WireDefault(false.B)
   val outputByte = WireDefault(0.U(8.W))
@@ -122,22 +107,17 @@ class JpegMcuStreamEncoderStage(coefficientBits: Int = 16) extends Module {
 
   when(state === sHeader && header.io.done) {
     state := sStartBlock
-  }.elsewhen(state === sStartBlock && blockEncoder.io.input.fire) {
+  }.elsewhen(state === sStartBlock && mcuEntropy.io.input.fire) {
     state := sBlock
-  }.elsewhen(state === sBlock && !blockEncoder.io.busy && !blockEncoder.io.output.valid) {
-    previousDc(predictorIndex) := blockEncoder.io.currentDc
-    when(component === crComponent) {
-      when(currentMcuLast) {
-        state := sFlush
-      }.elsewhen(restartDueAfterCurrentMcu) {
-        state := sRestartFlush
-      }.otherwise {
-        restartMcuCount := nextRestartMcuCount
-        state := sWaitMcu
-      }
+  }.elsewhen(state === sBlock && mcuEntropy.io.done) {
+    previousDc := mcuEntropy.io.nextDc
+    when(currentMcuLast) {
+      state := sFlush
+    }.elsewhen(restartDueAfterCurrentMcu) {
+      state := sRestartFlush
     }.otherwise {
-      component := component + 1.U
-      state := sStartBlock
+      restartMcuCount := nextRestartMcuCount
+      state := sWaitMcu
     }
   }.elsewhen(state === sRestartFlush && packer.io.idle) {
     state := sRestartHigh

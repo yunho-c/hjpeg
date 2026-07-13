@@ -51,8 +51,13 @@ BRAM tiles, 194 DSPs, 39,351 logic LUTs, and 56,720 registers after widening
 raster reads to eight samples per cycle without adding storage. The separate
 `JpegParallelMcuTransformStage` overlaps raw loading with in-flight transforms;
 current UHD use is 99 BRAM tiles, 194 DSPs, 39,722 logic LUTs, and 63,241
-registers, with WNS `+1.103 ns` at 100 MHz. Parallel entropy, 150 MHz routed
-closure, and physical 4K60 evidence remain required.
+registers, with WNS `+1.103 ns` at 100 MHz. Six buffered block-entropy encoders
+now scan each MCU in parallel and drain runs in JPEG order; current UHD use is
+99 BRAM tiles, 194 DSPs, 49,959 logic LUTs, 172 LUTRAM cells, and 73,845
+registers, with WNS `+1.707 ns` at 100 MHz. Timing-safe multi-run packing, 150
+MHz routed closure, and physical 4K60 evidence remain required. AC scanner
+lookahead trials at eight and sixteen coefficients failed 100 MHz timing and
+were reverted; keep the four-coefficient scanner unless it is pipelined.
 
 The active `JpegBlockTransformStage` uses bit-exact four-lane DCT and quantizer
 stages. Both sustain a 16-cycle block interval in deterministic simulation; the

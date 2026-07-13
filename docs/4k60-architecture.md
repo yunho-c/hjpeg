@@ -244,14 +244,60 @@ plus the unchanged 5 capacity-model, 235 host-flow, and 59 Vivado-report parser
 tests. The added stage-level regression proves four ordered 4:4:4 MCU outputs
 at exact 16-cycle intervals.
 
+## Buffered Parallel Block Entropy Slice
+
+`JpegParallelMcuEntropyStage` now starts every block of an MCU concurrently:
+three buffered block encoders for 4:4:4 or six for 4:2:0. Each block retains the
+timing-safe four-coefficient AC scanner and writes bit runs into a 16-entry
+queue. A single selector drains those queues in strict JPEG component order, so
+the existing bit packer, byte stuffing, DC predictor rules, restart markers,
+and scan syntax remain unchanged.
+
+For 4:2:0, the stage supplies the Y1/Y2/Y3 encoders with Y0/Y1/Y2 as their DC
+predecessors while Cb and Cr use the frame predictors. It commits the final
+Y3/Cb/Cr values only after all queued runs for the MCU have reached the packer.
+Focused stream tests preserve cross-MCU DC differences, both sampling modes,
+restart resets/marker cycling, header stalls, and exact output bytes under
+backpressure.
+
+The quick profiler changes from the transform-overlap checkpoint are:
+
+| Quick fixture | Serial block entropy | Buffered parallel blocks | Change |
+| --- | ---: | ---: | ---: |
+| 32x16 4:4:4 complete frame | 2,574 cycles | 2,485 cycles | -89 (-3.5%) |
+| 32x16 4:2:0 complete frame | 2,399 cycles | 2,346 cycles | -53 (-2.2%) |
+| 4:4:4 steady MCU spacing | 67.3 cycles | 55.3 cycles | -12.0 (-17.8%) |
+
+The established 256x64 quality-90 seeded-random stress frame completes in
+28,445 cycles, emits the same 22,882 decoder-valid bytes, and accepts input at
+1.239 cycles/pixel. The documented earlier implementation took 29,455 cycles
+and 1.522 input cycles/pixel. Its 0.804 output bytes/cycle now show why this
+stress case is primarily byte-output limited; it is deliberately not the q85
+4K60 contract.
+
+Exact UHD post-synthesis use at 100 MHz is 49,959 logic LUTs (42.66%), 172
+LUTRAM cells (0.29%), 73,845 registers (31.52%), 99 BRAM tiles (68.75%), and
+194 DSPs (15.54%). Setup WNS improves to `+1.707 ns`. The six encoders and 96
+total run entries therefore add no BRAM or DSP use and remain below the 70%
+gate.
+
+An eight-coefficient scanner experiment failed 100 MHz synthesis at WNS
+`-1.158 ns`; sixteen coefficients failed at `-3.676 ns`. Both experiments were
+fully reverted. The retained design parallelizes independent blocks without
+lengthening the AC scanner's combinational priority chain.
+
+The retained buffered-entropy implementation passes the complete 146/146
+Scala/Chisel regression across 28 suites. Python verification remains 5/5
+capacity-model, 235/235 host-flow, and 59/59 Vivado-report parser tests.
+
 ## Remaining Architecture
 
 Implementation order is:
 
-1. Parallelize entropy by independently encoded restart intervals with ordered
-   byte-aligned merge, or demonstrate another design that meets the same rate
-   without changing decoder-visible coefficient order.
-2. Widen the JPEG AXI stream if measured entropy traffic approaches the
+1. Add ordered multi-run drain/packing, or another timing-safe mechanism, if
+   the q85 target trace still exceeds its MCU/frame budget after the buffered
+   block scanners.
+2. Widen the JPEG AXI stream if measured q85 entropy traffic approaches the
    byte-oriented clock limit; the q85 benchmark's scaled output rate alone does
    not require it.
 3. Close routed 150 MHz timing/resources, then
