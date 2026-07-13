@@ -27,6 +27,7 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
     val blockDesign = read("scripts/vivado/create_kv260_block_design.tcl")
     val bitstream = read("scripts/vivado/build_kv260_bitstream.tcl")
     val floorplan = read("scripts/vivado/write_kv260_floorplan_report.tcl")
+    val hierarchy = read("scripts/vivado/report_checkpoint_hierarchy.tcl")
     val xsdbDma = read("scripts/host/run_kv260_xsdb_dma.tcl")
 
     for (script <- Seq(synth, packageIp)) {
@@ -155,6 +156,8 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
     bitstream must include("post_synth_utilization.rpt")
     bitstream must include("post_synth_timing_summary.rpt")
     bitstream must include("post_impl_utilization.rpt")
+    bitstream must include("post_impl_hierarchical_utilization.rpt")
+    bitstream must include("report_utilization -hierarchical -hierarchical_depth 10")
     bitstream must include("post_impl_timing_summary.rpt")
     bitstream must include("post_impl_drc.rpt")
     bitstream must include("post_impl_route_status.rpt")
@@ -185,5 +188,11 @@ class VivadoScriptsSpec extends AnyFreeSpec with Matchers {
     floorplan must include("Placed Cell Count")
     floorplan must include("post_impl_floorplan.rpt")
     floorplan must include("require_nonempty_file $floorplan_report")
+
+    hierarchy must include("Expected at most 3 arguments: checkpoint output_report depth")
+    hierarchy must include("Hierarchy depth must be a positive integer")
+    hierarchy must include("open_checkpoint $checkpoint")
+    hierarchy must include("report_utilization -hierarchical -hierarchical_depth $depth")
+    hierarchy must include("Hierarchical utilization report was not written")
   }
 }

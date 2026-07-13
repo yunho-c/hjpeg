@@ -103,18 +103,21 @@ if {![string match "*write_bitstream Complete!*" [get_property STATUS [get_runs 
 
 open_run impl_1
 set post_impl_utilization [file join $artifacts_dir post_impl_utilization.rpt]
+set post_impl_hierarchical_utilization [file join $artifacts_dir post_impl_hierarchical_utilization.rpt]
 set post_impl_timing [file join $artifacts_dir post_impl_timing_summary.rpt]
 set post_impl_drc [file join $artifacts_dir post_impl_drc.rpt]
 set post_impl_route_status [file join $artifacts_dir post_impl_route_status.rpt]
 set post_impl_clock_utilization [file join $artifacts_dir post_impl_clock_utilization.rpt]
 set post_impl_floorplan [file join $artifacts_dir post_impl_floorplan.rpt]
 report_utilization -file $post_impl_utilization
+report_utilization -hierarchical -hierarchical_depth 10 -file $post_impl_hierarchical_utilization
 report_timing_summary -file $post_impl_timing
 report_drc -file $post_impl_drc
 report_route_status -file $post_impl_route_status
 report_clock_utilization -file $post_impl_clock_utilization
 write_floorplan_report $post_impl_floorplan
 require_nonempty_file $post_impl_utilization "post-implementation utilization report"
+require_nonempty_file $post_impl_hierarchical_utilization "post-implementation hierarchical utilization report"
 require_nonempty_file $post_impl_timing "post-implementation timing report"
 require_nonempty_file $post_impl_drc "post-implementation DRC report"
 require_nonempty_file $post_impl_route_status "post-implementation route-status report"
