@@ -5,6 +5,50 @@ package hjpeg
 import chisel3._
 import chisel3.util._
 
+private[hjpeg] class QuantizeReciprocalDistributedRom(coefficientBits: Int = 16) extends ExtModule {
+  private val reciprocalBits = QuantizeReciprocal.fractionBits(coefficientBits) + 1
+  private val moduleName = s"QuantizeReciprocalDistributedRom$coefficientBits"
+
+  override def desiredName: String = moduleName
+
+  val address0 = IO(Input(UInt(8.W)))
+  val address1 = IO(Input(UInt(8.W)))
+  val address2 = IO(Input(UInt(8.W)))
+  val address3 = IO(Input(UInt(8.W)))
+  val value0 = IO(Output(UInt(reciprocalBits.W)))
+  val value1 = IO(Output(UInt(reciprocalBits.W)))
+  val value2 = IO(Output(UInt(reciprocalBits.W)))
+  val value3 = IO(Output(UInt(reciprocalBits.W)))
+
+  private val tableInitialization = (0 to 255).map { divisor =>
+    val reciprocal = if (divisor == 0) 0 else QuantizeReciprocal.value(divisor, coefficientBits)
+    s"    rom[$divisor] = ${reciprocalBits}'d$reciprocal;"
+  }.mkString("\n")
+
+  setInline(
+    s"$moduleName.sv",
+    s"""module $moduleName(
+       |  input  wire [7:0] address0,
+       |  input  wire [7:0] address1,
+       |  input  wire [7:0] address2,
+       |  input  wire [7:0] address3,
+       |  output wire [${reciprocalBits - 1}:0] value0,
+       |  output wire [${reciprocalBits - 1}:0] value1,
+       |  output wire [${reciprocalBits - 1}:0] value2,
+       |  output wire [${reciprocalBits - 1}:0] value3
+       |);
+       |  (* rom_style = "distributed" *) logic [${reciprocalBits - 1}:0] rom [0:255];
+       |  initial begin
+       |$tableInitialization
+       |  end
+       |  assign value0 = rom[address0];
+       |  assign value1 = rom[address1];
+       |  assign value2 = rom[address2];
+       |  assign value3 = rom[address3];
+       |endmodule
+       |""".stripMargin)
+}
+
 private[hjpeg] object QuantizeQualityScale {
   def value(quality: Int): Int = {
     val clamped = quality.max(1).min(100)
@@ -88,9 +132,20 @@ class PipelinedQuantizeBlockStage(coefficientBits: Int = 16) extends Module {
   val luminanceTable = VecInit(JpegTables.StandardLuminanceQuant.map(_.U(8.W)))
   val chrominanceTable = VecInit(JpegTables.StandardChrominanceQuant.map(_.U(8.W)))
   val qualityScales = VecInit((0 until 128).map(quality => QuantizeQualityScale.value(quality).U(13.W)))
-  val reciprocals = VecInit((0 to 255).map { divisor =>
-    (if (divisor == 0) 0 else QuantizeReciprocal.value(divisor, coefficientBits)).U(reciprocalBits.W)
-  })
+  // Twelve independent reciprocal reads are active across the three production
+  // quantizers. Keep these small constant tables in distributed ROM so the
+  // complete DMA design does not spend six RAMB18s on replicated lookups.
+  val reciprocalRom = Module(new QuantizeReciprocalDistributedRom(coefficientBits))
+  val reciprocalAddresses = Seq(
+    reciprocalRom.address0,
+    reciprocalRom.address1,
+    reciprocalRom.address2,
+    reciprocalRom.address3)
+  val reciprocalResults = Seq(
+    reciprocalRom.value0,
+    reciprocalRom.value1,
+    reciprocalRom.value2,
+    reciprocalRom.value3)
 
   // Stage 1 selects the banked coefficients and constant table/quality values.
   val tableValid = RegInit(false.B)
@@ -184,6 +239,9 @@ class PipelinedQuantizeBlockStage(coefficientBits: Int = 16) extends Module {
   val reciprocalValues = Reg(Vec(Lanes, UInt(reciprocalBits.W)))
 
   reciprocalValid := lookupValid
+  for (lane <- 0 until Lanes) {
+    reciprocalAddresses(lane) := lookupDivisors(lane)
+  }
   when(lookupValid) {
     reciprocalBank := lookupBank
     reciprocalGroup := lookupGroup
@@ -191,7 +249,7 @@ class PipelinedQuantizeBlockStage(coefficientBits: Int = 16) extends Module {
       reciprocalNumerators(lane) := lookupNumerators(lane)
       reciprocalDivisors(lane) := lookupDivisors(lane)
       reciprocalNegatives(lane) := lookupNegatives(lane)
-      reciprocalValues(lane) := reciprocals(lookupDivisors(lane))
+      reciprocalValues(lane) := reciprocalResults(lane)
     }
   }
 

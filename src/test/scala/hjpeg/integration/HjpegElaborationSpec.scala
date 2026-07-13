@@ -58,10 +58,12 @@ class HjpegElaborationSpec extends AnyFreeSpec with Matchers {
       .linesIterator
       .map(_.trim)
       .filter(_.nonEmpty)
+      .map(_.stripPrefix("./"))
       .toSeq
 
     listedFiles must contain("HjpegKv260AxiLiteTop.sv")
     listedFiles must contain("HjpegAxiStreamCore.sv")
+    listedFiles must contain("QuantizeReciprocalDistributedRom16.sv")
     listedFiles must contain("HjpegGroupedCore.sv")
     listedFiles must not contain ("HjpegCore.sv")
     listedFiles must contain("mem_7680x9.sv")
@@ -92,17 +94,21 @@ class HjpegElaborationSpec extends AnyFreeSpec with Matchers {
       .linesIterator
       .map(_.trim)
       .filter(_.nonEmpty)
+      .map(_.stripPrefix("./"))
       .toSeq
 
     listedFiles must contain("mem_15360x9.sv")
     listedFiles must contain("HjpegGroupedCore.sv")
+    listedFiles must contain("QuantizeReciprocalDistributedRom16.sv")
     listedFiles must not contain ("mem_7680x9.sv")
     listedFiles must not contain ("mem_3840x9.sv")
     listedFiles must not contain ("mem_30720x9.sv")
     listedFiles.last mustBe "HjpegKv260AxiLiteTop.sv"
 
     val topSystemVerilog = Files.readString(targetDir.resolve("HjpegKv260AxiLiteTop.sv"))
+    val reciprocalRom = Files.readString(targetDir.resolve("QuantizeReciprocalDistributedRom16.sv"))
     topSystemVerilog must include("input  [127:0] io_sAxisRgb_bits_data")
     topSystemVerilog must include("input  [15:0]  io_sAxisRgb_bits_keep")
+    reciprocalRom must include("(* rom_style = \"distributed\" *)")
   }
 }
