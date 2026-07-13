@@ -379,14 +379,22 @@ class CheckReportsTest(unittest.TestCase):
             },
         )
 
-    def test_check_utilization_ignores_expected_hard_system_rows(self) -> None:
+    def test_check_utilization_keeps_non_budget_rows_informational(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             report = Path(tmp) / "util.rpt"
             report.write_text(
                 "| Site Type | Used | Fixed | Prohibited | Available | Util% |\n"
+                "| CLB | 95 | 0 | 0 | 100 | 95.00 |\n"
                 "| PS8 | 1 | 0 | 0 | 1 | 100.00 |\n"
             )
             self.assertEqual(check_reports.check_utilization(report, max_percent=90.0), [])
+
+            record, failures = check_reports.utilization_record(report, max_percent=90.0)
+            self.assertEqual(failures, [])
+            self.assertEqual(
+                {row["name"]: row["checked"] for row in record["rows"]},
+                {"CLB": False, "PS8": False},
+            )
 
     def test_check_timing_reports_negative_slack(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

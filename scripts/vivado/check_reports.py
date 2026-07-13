@@ -42,7 +42,12 @@ FLOORPLAN_COUNT_RE = re.compile(
     re.IGNORECASE,
 )
 HEX_ADDRESS_RE = re.compile(r"0x[0-9a-fA-F_]+")
-IGNORED_UTILIZATION_ROWS = {"PS8"}
+# These rows are useful evidence but are not independent programmable-logic
+# resource budgets. PS8 is a hard system block. CLB is the number of physical
+# sites touched by placement and double-counts the LUT/register resources that
+# are checked independently; timing-driven placement may deliberately spread
+# otherwise lightly used CLBs.
+INFORMATIONAL_UTILIZATION_ROWS = {"CLB", "PS8"}
 REQUIRED_ADDRESS_MAP_INTERFACES = (
     ("hjpeg_0", "s_axi_lite"),
     ("axi_dma_0", "s_axi_lite"),
@@ -452,7 +457,7 @@ def check_utilization(path: Path, max_percent: float) -> list[str]:
 
     failures = []
     for row in rows:
-        if row.name in IGNORED_UTILIZATION_ROWS:
+        if row.name in INFORMATIONAL_UTILIZATION_ROWS:
             continue
         if row.available > 0 and row.percent > max_percent:
             failures.append(
@@ -630,7 +635,7 @@ def utilization_record(path: Path, max_percent: float) -> tuple[dict[str, object
 
     row_records = []
     for row in rows:
-        checked = row.name not in IGNORED_UTILIZATION_ROWS
+        checked = row.name not in INFORMATIONAL_UTILIZATION_ROWS
         passed = not checked or row.available == 0 or row.percent <= max_percent
         row_record = {
             "name": row.name,
