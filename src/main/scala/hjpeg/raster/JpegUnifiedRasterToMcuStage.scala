@@ -56,6 +56,9 @@ class JpegUnifiedRasterToMcuStage(
   val loadReadPhase = Reg(UInt(3.W))
   val loadReadSample = Reg(UInt(6.W))
   val loadReadBanks = Reg(Vec(ReadLanes, UInt(BankIndexBits.W)))
+  val loadMemoryPhase = Reg(UInt(3.W))
+  val loadMemorySample = Reg(UInt(6.W))
+  val loadMemoryBanks = Reg(Vec(ReadLanes, UInt(BankIndexBits.W)))
   val loadResponsePhase = Reg(UInt(3.W))
   val loadResponseSample = Reg(UInt(6.W))
   val loadResponseBanks = Reg(Vec(ReadLanes, UInt(BankIndexBits.W)))
@@ -78,6 +81,16 @@ class JpegUnifiedRasterToMcuStage(
   val laneCb = Wire(Vec(inputLanes, SInt(sampleBits.W)))
   val laneCr = Wire(Vec(inputLanes, SInt(sampleBits.W)))
   val laneLastInBand = Wire(Vec(inputLanes, Bool()))
+  val colorWriteValid = RegInit(false.B)
+  val colorWriteBanks = Reg(Vec(inputLanes, UInt(BankIndexBits.W)))
+  val colorWriteAddresses = Reg(Vec(inputLanes, UInt(BankAddressBits.W)))
+  val colorWriteY = Reg(Vec(inputLanes, SInt(sampleBits.W)))
+  val colorWriteCb = Reg(Vec(inputLanes, SInt(sampleBits.W)))
+  val colorWriteCr = Reg(Vec(inputLanes, SInt(sampleBits.W)))
+  val colorWriteLastInBand = Reg(Bool())
+  val colorWriteLastPixelY = Reg(UInt(c.coordBits.W))
+  val colorWriteLastRowInBand = Reg(UInt(4.W))
+  val inputWriteBuffer = Mux(colorWriteValid && colorWriteLastInBand, ~writeBuffer, writeBuffer)
 
   for (lane <- 0 until inputLanes) {
     val pixel = io.input.bits.pixels(lane)
@@ -90,7 +103,7 @@ class JpegUnifiedRasterToMcuStage(
 
     laneWriteBanks(lane) := Cat(rowInBand(0), pixel.x(ColumnBankBits - 1, 0))
     laneWriteAddresses(lane) :=
-      (writeBuffer * BandBankSamples.U + writeLocalAddress)(BankAddressBits - 1, 0)
+      (inputWriteBuffer * BandBankSamples.U + writeLocalAddress)(BankAddressBits - 1, 0)
     laneY(lane) := (yComponent.zext - 128.S)(sampleBits - 1, 0).asSInt
     laneCb(lane) := (cbComponent.zext - 128.S)(sampleBits - 1, 0).asSInt
     laneCr(lane) := (crComponent.zext - 128.S)(sampleBits - 1, 0).asSInt
@@ -104,27 +117,44 @@ class JpegUnifiedRasterToMcuStage(
     (0 until inputLanes).map(lane => laneLastInBand(lane) -> io.input.bits.pixels(lane).y))
   val lastPixelRowInBand = lastPixelY(3, 0)
 
-  io.input.ready := !bufferReady(writeBuffer)
+  // RGB conversion is registered before the bank write. The previous routed
+  // critical path crossed the DMA output, conversion DSPs, and BRAM input in
+  // one cycle. When the staged beat closes a 16-row band, inputWriteBuffer
+  // looks ahead to the other slot so a same-config next band or frame can be
+  // accepted without a bubble.
+  io.input.ready := !bufferReady(inputWriteBuffer)
+  colorWriteValid := io.input.fire
 
   when(io.input.fire) {
+    colorWriteBanks := laneWriteBanks
+    colorWriteAddresses := laneWriteAddresses
+    colorWriteY := laneY
+    colorWriteCb := laneCb
+    colorWriteCr := laneCr
+    colorWriteLastInBand := lastPixelInBand
+    colorWriteLastPixelY := lastPixelY
+    colorWriteLastRowInBand := lastPixelRowInBand
+  }
+
+  when(colorWriteValid) {
     for (bank <- 0 until BankCount) {
-      val laneMatches = VecInit((0 until inputLanes).map(lane => laneWriteBanks(lane) === bank.U))
+      val laneMatches = VecInit((0 until inputLanes).map(lane => colorWriteBanks(lane) === bank.U))
       assert(PopCount(laneMatches) <= 1.U, "RGB input lanes must map to distinct raster banks")
       when(laneMatches.asUInt.orR) {
         val writeAddress = PriorityMux(
-          (0 until inputLanes).map(lane => laneMatches(lane) -> laneWriteAddresses(lane)))
-        val writeY = PriorityMux((0 until inputLanes).map(lane => laneMatches(lane) -> laneY(lane)))
-        val writeCb = PriorityMux((0 until inputLanes).map(lane => laneMatches(lane) -> laneCb(lane)))
-        val writeCr = PriorityMux((0 until inputLanes).map(lane => laneMatches(lane) -> laneCr(lane)))
+          (0 until inputLanes).map(lane => laneMatches(lane) -> colorWriteAddresses(lane)))
+        val writeY = PriorityMux((0 until inputLanes).map(lane => laneMatches(lane) -> colorWriteY(lane)))
+        val writeCb = PriorityMux((0 until inputLanes).map(lane => laneMatches(lane) -> colorWriteCb(lane)))
+        val writeCr = PriorityMux((0 until inputLanes).map(lane => laneMatches(lane) -> colorWriteCr(lane)))
         ySampleBanks(bank).write(writeAddress, writeY)
         cbSampleBanks(bank).write(writeAddress, writeCb)
         crSampleBanks(bank).write(writeAddress, writeCr)
       }
     }
-    when(lastPixelInBand) {
+    when(colorWriteLastInBand) {
       bufferReady(writeBuffer) := true.B
-      bufferLast(writeBuffer) := lastPixelY + 1.U >= io.config.ysize
-      bufferLastRow(writeBuffer) := lastPixelRowInBand
+      bufferLast(writeBuffer) := colorWriteLastPixelY + 1.U >= io.config.ysize
+      bufferLastRow(writeBuffer) := colorWriteLastRowInBand
       writeBuffer := ~writeBuffer
     }
   }
@@ -215,6 +245,8 @@ class JpegUnifiedRasterToMcuStage(
   }
 
   val loadReadEnable = state === sLoad && !loadAllIssued
+  val bankReadEnables = RegInit(VecInit(Seq.fill(BankCount)(false.B)))
+  val bankReadAddresses = Reg(Vec(BankCount, UInt(BankAddressBits.W)))
   val yBankReadRaw = Wire(Vec(BankCount, SInt(sampleBits.W)))
   val cbBankReadRaw = Wire(Vec(BankCount, SInt(sampleBits.W)))
   val crBankReadRaw = Wire(Vec(BankCount, SInt(sampleBits.W)))
@@ -223,6 +255,10 @@ class JpegUnifiedRasterToMcuStage(
     val bankReadEnable = loadReadEnable && laneMatches.asUInt.orR
     val bankReadAddress = PriorityMux(
       (0 until ReadLanes).map(lane => laneMatches(lane) -> selectedLaneReadAddresses(lane)))
+    bankReadEnables(bank) := bankReadEnable
+    when(bankReadEnable) {
+      bankReadAddresses(bank) := bankReadAddress
+    }
     for (lane <- 0 until ReadLanes) {
       when(bankReadEnable && laneMatches(lane)) {
         assert(
@@ -230,11 +266,21 @@ class JpegUnifiedRasterToMcuStage(
           "same-bank raster reads must use an identical replicated-edge address")
       }
     }
-    yBankReadRaw(bank) := ySampleBanks(bank).read(bankReadAddress, bankReadEnable)
-    cbBankReadRaw(bank) := cbSampleBanks(bank).read(bankReadAddress, bankReadEnable)
-    crBankReadRaw(bank) := crSampleBanks(bank).read(bankReadAddress, bankReadEnable)
+    yBankReadRaw(bank) := ySampleBanks(bank).read(bankReadAddresses(bank), bankReadEnables(bank))
+    cbBankReadRaw(bank) := cbSampleBanks(bank).read(bankReadAddresses(bank), bankReadEnables(bank))
+    crBankReadRaw(bank) := crSampleBanks(bank).read(bankReadAddresses(bank), bankReadEnables(bank))
   }
-  val loadReadValid = RegNext(loadReadEnable, false.B)
+  val loadMemoryValid = RegNext(loadReadEnable, false.B)
+  val loadReadValid = RegNext(loadMemoryValid, false.B)
+
+  // Register each bank request before the inferred BRAM. This cuts the routed
+  // block-coordinate/bank-selection path at the memory enable and address pins
+  // while preserving one eight-sample read issue per cycle.
+  when(loadMemoryValid) {
+    loadMemoryPhase := loadReadPhase
+    loadMemorySample := loadReadSample
+    loadMemoryBanks := loadReadBanks
+  }
 
   // Register every bank response before selecting lanes and assembling the
   // destination blocks. The UHD memories are three BRAM36 primitives deep;
@@ -247,9 +293,9 @@ class JpegUnifiedRasterToMcuStage(
     yBankReadData := yBankReadRaw
     cbBankReadData := cbBankReadRaw
     crBankReadData := crBankReadRaw
-    loadResponsePhase := loadReadPhase
-    loadResponseSample := loadReadSample
-    loadResponseBanks := loadReadBanks
+    loadResponsePhase := loadMemoryPhase
+    loadResponseSample := loadMemorySample
+    loadResponseBanks := loadMemoryBanks
   }
   val loadResponseValid = RegNext(loadReadValid, false.B)
 
