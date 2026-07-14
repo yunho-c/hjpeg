@@ -118,11 +118,15 @@ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_dma:* axi_dma_0
 # 26 bits covers one packed 3840x2160 RGB frame (33,177,600 bytes) in a single
 # MM2S transaction, so DMA emits TLAST only at the frame boundary. The packed
 # byte layout remains four bytes per pixel at either stream width.
+# Long DMA-side bursts sustain UHD ingress; MM2S store-and-forward exceeds the
+# project's BRAM ceiling and is unnecessary with SmartConnect buffering.
 set_property -dict [list \
   CONFIG.c_include_sg {0} \
   CONFIG.c_include_mm2s {1} \
   CONFIG.c_include_s2mm {1} \
   CONFIG.c_sg_length_width {26} \
+  CONFIG.c_include_mm2s_sf {0} \
+  CONFIG.c_mm2s_burst_size {256} \
   CONFIG.c_m_axis_mm2s_tdata_width $mm2s_data_width \
   CONFIG.c_s_axis_s2mm_tdata_width {8} \
 ] [get_bd_cells axi_dma_0]

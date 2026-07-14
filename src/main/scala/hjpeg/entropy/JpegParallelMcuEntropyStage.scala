@@ -170,3 +170,88 @@ class JpegParallelMcuEntropyStage(
   io.nextDc := nextDc
   io.busy := active
 }
+
+/** Two-entry ordered MCU entropy pipeline.
+  *
+  * Each entry owns one three-slot block scanner. The second MCU can therefore
+  * scan while the first MCU's runs drain into the shared bit packer. Runs and
+  * completion metadata always retire in input order. DC predictors advance at
+  * input acceptance from the raw DC coefficients; `seedPreviousDc` is used
+  * whenever the pipeline is empty, including frame and restart boundaries.
+  */
+class JpegPipelinedMcuEntropyStage(coefficientBits: Int = 16) extends Module {
+  private val EngineCount = 2
+
+  val io = IO(new Bundle {
+    val input = Flipped(Decoupled(new ZigZagMinimumCodedUnitPacket(coefficientBits)))
+    val seedPreviousDc = Input(Vec(HjpegConstants.Components, SInt(coefficientBits.W)))
+    val output = Decoupled(new JpegBitRun(32))
+    val completed = Output(Bool())
+    val completedLast = Output(Bool())
+    val completedNextDc = Output(Vec(HjpegConstants.Components, SInt(coefficientBits.W)))
+    val busy = Output(Bool())
+  })
+
+  val engines = Seq.fill(EngineCount)(Module(new JpegParallelMcuEntropyStage(coefficientBits)))
+  val occupied = RegInit(VecInit(Seq.fill(EngineCount)(false.B)))
+  val slotLast = Reg(Vec(EngineCount, Bool()))
+  val enqueueIndex = RegInit(0.U(1.W))
+  val drainIndex = RegInit(0.U(1.W))
+  val count = RegInit(0.U(2.W))
+  val enqueuePreviousDc = Reg(Vec(HjpegConstants.Components, SInt(coefficientBits.W)))
+
+  val targetReady = Mux(enqueueIndex === 0.U, engines(0).io.input.ready, engines(1).io.input.ready)
+  val targetOccupied = occupied(enqueueIndex)
+  io.input.ready := count =/= EngineCount.U && !targetOccupied && targetReady
+  val inputFire = io.input.fire
+  val previousDcForInput = Wire(Vec(HjpegConstants.Components, SInt(coefficientBits.W)))
+  previousDcForInput := Mux(count === 0.U, io.seedPreviousDc, enqueuePreviousDc)
+
+  for ((engine, index) <- engines.zipWithIndex) {
+    engine.io.input.valid := io.input.valid && count =/= EngineCount.U &&
+      !targetOccupied && enqueueIndex === index.U
+    engine.io.input.bits := io.input.bits.mcu
+    engine.io.previousDc := previousDcForInput
+  }
+
+  val inputSubsampled = io.input.bits.mcu.yBlockCount === 4.U
+  val inputNextDc = Wire(Vec(HjpegConstants.Components, SInt(coefficientBits.W)))
+  inputNextDc(0) := Mux(
+    inputSubsampled,
+    io.input.bits.mcu.y3.coefficients(0),
+    io.input.bits.mcu.y.coefficients(0))
+  inputNextDc(1) := io.input.bits.mcu.cb.coefficients(0)
+  inputNextDc(2) := io.input.bits.mcu.cr.coefficients(0)
+
+  val selectedOutputValid = Mux(drainIndex === 0.U, engines(0).io.output.valid, engines(1).io.output.valid)
+  val selectedOutputBits = Mux(drainIndex === 0.U, engines(0).io.output.bits, engines(1).io.output.bits)
+  val selectedDone = Mux(drainIndex === 0.U, engines(0).io.done, engines(1).io.done)
+  val selectedNextDc = Wire(Vec(HjpegConstants.Components, SInt(coefficientBits.W)))
+  selectedNextDc := Mux(drainIndex === 0.U, engines(0).io.nextDc, engines(1).io.nextDc)
+
+  for ((engine, index) <- engines.zipWithIndex) {
+    engine.io.output.ready := count =/= 0.U && drainIndex === index.U && io.output.ready
+  }
+  io.output.valid := count =/= 0.U && selectedOutputValid
+  io.output.bits := selectedOutputBits
+  io.completed := count =/= 0.U && selectedDone
+  io.completedLast := slotLast(drainIndex)
+  io.completedNextDc := selectedNextDc
+  io.busy := count =/= 0.U
+
+  when(inputFire) {
+    occupied(enqueueIndex) := true.B
+    slotLast(enqueueIndex) := io.input.bits.last
+    enqueueIndex := enqueueIndex ^ 1.U
+    enqueuePreviousDc := inputNextDc
+  }
+  when(io.completed) {
+    occupied(drainIndex) := false.B
+    drainIndex := drainIndex ^ 1.U
+  }
+
+  switch(Cat(inputFire, io.completed)) {
+    is("b10".U) { count := count + 1.U }
+    is("b01".U) { count := count - 1.U }
+  }
+}

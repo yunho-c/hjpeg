@@ -24,6 +24,62 @@ the architecture.
 **Revisit when:** A proven multi-lane store needs a different bank geometry, but
 do not reintroduce duplicated full-width mode buffers.
 
+## Overlap whole MCU entropy engines while retaining one ordered packer
+
+**Status:** Accepted on `4k60`
+
+**Decision:** Use two complete three-slot MCU entropy engines behind a two-entry
+ordered occupancy ring. Advance the component DC predictor chain when an MCU is
+accepted, but expose runs and completion only from the oldest occupied engine.
+Drain both engines before a restart marker.
+
+**Context:** Transform overlap can deliver a new coefficient MCU while the
+previous MCU is still scanning or draining. A single engine serialized those
+regions. Widening the four-coefficient AC priority chain had already failed
+timing, while an independent second engine preserves the timing-safe scanner and
+existing one-run bit-packer interface.
+
+**Consequences:**
+
+- Two MCUs may make entropy progress concurrently while all JPEG runs retire in
+  their original order.
+- DC differences remain serially correct across overlapped MCUs and reset only
+  after a drained restart boundary.
+- The design spends LUTs/registers on a second bounded engine, but the final
+  routed image remains inside the independent resource ceilings and meets the
+  physical UHD target.
+
+**Revisit when:** A separately defined high-entropy target proves that the
+single ordered run/byte output is the next bottleneck.
+
+## Use long MM2S bursts without DMA store-and-forward
+
+**Status:** Accepted on `4k60`
+
+**Decision:** Configure AXI DMA for 256-beat MM2S bursts and disable its optional
+MM2S store-and-forward buffer. Let SmartConnect adapt requests to the Zynq
+UltraScale+ PS HP port.
+
+**Context:** The first physical UHD image used four-beat DMA bursts and required
+about 4.329 million PL cycles in both chroma modes, identifying shared ingress
+transport rather than JPEG work as the limiting boundary. A 256-beat build
+removed that bottleneck. Enabling store-and-forward consumed 105.5 of 144 BRAM
+tiles (73.26%) and failed the project ceiling; disabling it used 97 tiles and
+retained the throughput improvement.
+
+**Consequences:**
+
+- The complete 33,177,600-byte packed UHD frame remains one MM2S transaction,
+  with more efficient burst traffic into the four-pixel encoder input.
+- The final physical benchmark clears 60 fps in both sampling modes without
+  changing JPEG bytes.
+- Block-design regressions pin both DMA properties, and the Vivado report parser
+  preserves fractional resource counts so half-BRAM use cannot evade the gate.
+
+**Revisit when:** The memory interconnect, PS port, DMA IP version, or target
+device changes; rerun block-design validation, implementation, and physical
+throughput evidence together.
+
 This document records the reasoning behind architectural choices that are not
 obvious from the RTL alone. It is not a changelog or an exhaustive interface
 specification. Register maps, commands, generated artifacts, and validation

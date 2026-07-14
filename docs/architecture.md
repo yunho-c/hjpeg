@@ -107,6 +107,13 @@ the same physical slots for Y3/Cb/Cr as the first wave drains. Logical block
 order, DC predecessor selection, restart behavior, and the single ordered
 packer stream remain unchanged while avoiding three duplicate scanners.
 
+The production stream encoder wraps two such MCU engines in
+`JpegPipelinedMcuEntropyStage`. A two-entry occupied ring permits the next MCU
+to scan while the older MCU emits runs, but only the oldest engine can drive the
+bit packer. Enqueue-time predictor bookkeeping maintains the serial component
+DC chain. Restart boundaries conservatively stop new admission, drain both
+engines, emit the marker, and seed the next interval with zero predictors.
+
 `JpegHeaderStage` emits marker bytes through a small output state machine. It
 prepares quality-scaled DQT payload bytes over multiple cycles rather than
 placing table arithmetic directly on the output-byte path. The stream encoder
@@ -213,6 +220,9 @@ elaborated RTL to a KV260 bitstream:
   a 26-bit buffer-length field so a packed 3840x2160 input fits in one MM2S
   transaction and produces exactly one frame-ending TLAST. Its optional stream
   width is 32 bits for the scalar top or 128 bits for the four-pixel UHD top.
+  MM2S requests use 256-beat bursts and omit the optional MM2S store-and-forward
+  buffer; SmartConnect adapts those requests to the PS HP port. This combination
+  provides the measured UHD ingress rate without exceeding the BRAM ceiling.
 - `build_kv260_bitstream.tcl` runs implementation, writes the bitstream and
   reports, and exports an XSA.
 - `write_kv260_floorplan_report.tcl` regenerates floorplan evidence from an
@@ -249,8 +259,12 @@ packing, register, JPEG validation, and evidence helpers.
 
 `scripts/host/run_kv260_xsdb_dma.tcl` is the intrusive lab backend for boards
 without those Linux devices. After PS clocks and DDR are initialized, it stops
-A53 #0, programs the PL, loads packed RGB into DDR, drives AXI-Lite and simple
-DMA registers through JTAG, and reads exactly the S2MM-reported JPEG bytes back.
+A53 #0, selects the aggregate APU debug target for physical DDR transfers,
+programs the PL, loads packed RGB into DDR, drives AXI-Lite and simple DMA
+registers through JTAG, and reads exactly the S2MM-reported JPEG bytes back.
+Cortex-A53 debug targets interpret addresses through their active MMU, so using
+the APU target avoids virtual-address translation faults at the reserved DDR
+buffers.
 It is useful for deterministic physical validation, but debugger polling is not
 a precise performance timer. The runner instead reports the hardware cycle
 registers as `FRAME_TIMING`, which is independent of JTAG polling overhead. It
@@ -282,3 +296,9 @@ meets this functional boundary for both a small padded/restart frame and a
 benchmark measures 45.23 fps in 4:2:0 and 31.01 fps in 4:4:4. A seeded-random
 quality-90 stress frame measures 45.22 and 26.78 fps respectively, so the
 30-fps result is a defined-benchmark claim, not a content-independent bound.
+
+The 2026-07-13 UHD evidence also meets the active branch performance boundary.
+With the exact 150 MHz routed image, one 33,177,600-byte MM2S transfer produces
+a decoder-valid 3840x2160 quality-85 JPEG in 2,090,494 cycles for 4:4:4 and
+2,219,916 cycles for 4:2:0. Both results are below the 2,500,000-cycle 4K60
+budget, both DMA channels finish IOC/idle, and encoder status returns to zero.

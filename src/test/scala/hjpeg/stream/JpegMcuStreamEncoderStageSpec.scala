@@ -114,6 +114,30 @@ class JpegMcuStreamEncoderStageSpec extends AnyFreeSpec with Matchers with Chise
     }
   }
 
+  "JpegMcuStreamEncoderStage should buffer two MCUs while the header is stalled" in {
+    simulate(new JpegMcuStreamEncoderStage()) { dut =>
+      dut.reset.poke(true.B)
+      dut.clock.step()
+      dut.reset.poke(false.B)
+
+      pokeConfig(dut, width = 24)
+      dut.io.output.ready.poke(false.B)
+
+      pokeMcu(dut, yDc = 1, last = false)
+      dut.io.input.valid.poke(true.B)
+      dut.io.input.ready.expect(true.B)
+      dut.clock.step()
+
+      pokeMcu(dut, yDc = 2, last = false)
+      dut.io.input.ready.expect(true.B)
+      dut.clock.step()
+
+      pokeMcu(dut, yDc = 3, last = true)
+      dut.io.input.ready.expect(false.B)
+      dut.io.input.valid.poke(false.B)
+    }
+  }
+
   "JpegMcuStreamEncoderStage should select 4:4:4 chroma blocks" in {
     simulate(new JpegMcuStreamEncoderStage()) { dut =>
       val bytes = emitMcus(

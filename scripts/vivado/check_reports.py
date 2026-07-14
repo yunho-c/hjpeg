@@ -17,7 +17,7 @@ TIMING_HEADER_RE = re.compile(r"WNS\(ns\)")
 NUMBER_RE = re.compile(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)")
 UTIL_ROW_RE = re.compile(
     r"^\|\s*(?P<name>[A-Za-z0-9_./ +()-]+?)\s*\|\s*"
-    r"(?P<used>\d+)\s*\|\s*(?P<fixed>\d+)\s*\|\s*"
+    r"(?P<used>\d+(?:\.\d+)?)\s*\|\s*(?P<fixed>\d+)\s*\|\s*"
     r"(?:(?P<prohibited>\d+)\s*\|\s*)?"
     r"(?P<available>\d+)\s*\|\s*(?P<percent>[0-9.]+)\s*\|"
 )
@@ -156,7 +156,7 @@ def clock_target_record(clock_period_ns: float) -> dict[str, object]:
 @dataclass(frozen=True)
 class UtilizationRow:
     name: str
-    used: int
+    used: int | float
     fixed: int
     prohibited: int
     available: int
@@ -217,10 +217,11 @@ def parse_utilization_rows(report: str) -> list[UtilizationRow]:
         match = UTIL_ROW_RE.match(line)
         if match is None:
             continue
+        used = float(match.group("used"))
         rows.append(
             UtilizationRow(
                 name=" ".join(match.group("name").split()),
-                used=int(match.group("used")),
+                used=int(used) if used.is_integer() else used,
                 fixed=int(match.group("fixed")),
                 prohibited=int(match.group("prohibited") or 0),
                 available=int(match.group("available")),

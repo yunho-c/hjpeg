@@ -3,6 +3,9 @@
 # The board must already have booted far enough to initialize PS clocks and DDR.
 # This script stops Cortex-A53 #0 and programs the PL, so it is intentionally an
 # intrusive lab test rather than a coexistence path for a running Linux image.
+# The packed frame is downloaded through the aggregate APU target: XSDB treats
+# Cortex-A53 core addresses as virtual when its MMU is active, while APU accesses
+# the physical DDR address expected by AXI DMA.
 #
 # Usage:
 #   xsdb scripts/host/run_kv260_xsdb_dma.tcl \
@@ -104,6 +107,7 @@ if {[catch {
 
   targets -set -filter {name == "Cortex-A53 #0"}
   catch {stop}
+  targets -set -filter {name == "APU"}
   dow -data $input_rgb $input_addr
 
   targets -set -filter {name == "PL"}

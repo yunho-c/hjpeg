@@ -3,17 +3,16 @@
 > **4K60 branch note:** The active target on branch `4k60` is 3840x2160 at
 > 60 fps in both chroma modes. Start with `docs/4k60-architecture.md`. The UHD
 > path accepts four adjacent RGB pixels per 128-bit DMA beat, uses one unified
-> banked raster store, processes three component blocks in parallel, and reuses
-> three buffered entropy slots across two ordered 4:2:0 waves. The integrated
-> default Vivado flow now closes its actual 6.666 ns / 150.015 MHz clock: setup
-> WNS is `+0.232 ns`, TNS is zero,
-> hold WHS is `+0.010 ns`, and bitstream/XSA/checkpoint artifacts are present.
-> Post-implementation use is 48,674 CLB LUTs, 80,343 registers, 99.5 BRAM
-> tiles, and 194 DSPs; physical CLB occupancy is 78.18%. Complete evidence passes
-> the documented 70% independent-resource ceiling. Physical CLB spread remains
-> informational placement evidence and routing/timing are clean. This is routed
-> implementation closure, not completed 4K60 proof: physical decoder-valid
-> measurements in both modes remain required.
+> banked raster store, processes three component blocks in parallel, and uses
+> two ordered three-slot MCU entropy engines. The final block design uses
+> 256-beat MM2S bursts with store-and-forward disabled. Routed setup WNS is
+> `+0.006 ns`, hold WHS is `+0.010 ns`, and the complete twelve-record evidence
+> gate passes. Post-implementation use is 58,899 CLB LUTs, 83,590 registers,
+> 97 BRAM tiles, and 194 DSPs. Physical decoder-valid q85 runs complete in
+> 2,090,494 cycles (71.75 fps) for 4:4:4 and 2,219,916 cycles (67.57 fps) for
+> 4:2:0 at 150 MHz. Both transfer all 33,177,600 input bytes, finish DMA/core
+> cleanly, and meet the 2,500,000-cycle target. The defined 4K60 benchmark is
+> complete in both modes.
 
 This document is for a new agent or developer picking up `hjpeg` without the
 conversation history. Treat the current checkout as authoritative, but use this
@@ -91,6 +90,14 @@ measures 45.22 fps in 4:2:0 and 26.78 fps in 4:4:4, documenting that the 30-fps
 claim is content-dependent rather than universal. Every run transferred the
 complete 8,294,400-byte input, ended both DMA channels IOC/idle, returned
 encoder status to zero, and passed FFmpeg decoding.
+
+Current UHD physical evidence uses the exact final 150 MHz bitstream and the
+deterministic 3840x2160 q85 gradient/checker input. The 4:4:4 and 4:2:0 runs
+measure 2,090,494 and 2,219,916 PL cycles, produce 609,217- and 529,549-byte
+decoder-valid JPEGs, and pass the 60-fps budget. Both transfer one complete
+33,177,600-byte input, finish MM2S/S2MM IOC/idle, and return encoder status zero.
+Exact artifact and capture hashes are in `docs/4k60-architecture.md` and
+`docs/kv260-bringup.md`.
 
 Follow-on work:
 
@@ -589,11 +596,10 @@ initiation, measured high-entropy scanner rate, and stripe/band transition gaps
 meet their mode budgets. The isolated 4:4:4 first-MCU latency is 1.1 cycles
 above its average budget, but collection and the three-lane transform overlap
 in the active pipeline. See `docs/performance-targets.md`. Current UHD Vivado
-evidence closes 150.015 MHz timing at `+0.232 ns` setup WNS and `+0.010 ns` hold
-WHS. It uses 41.56% of CLB LUTs, 34.30% of registers, 69.10% of BRAM, and
-15.54% of DSPs, so it passes the documented 70% independent-resource gate.
-Timing-driven placement touches 78.18% of CLBs; that aggregate row remains
-informational while route status, DRC, and routed timing are hard gates.
+evidence closes 150 MHz at `+0.006 ns` setup WNS and `+0.010 ns` hold WHS. It
+uses 50.29% of CLB LUTs, 35.69% of registers, 67.36% of BRAM, and 15.54% of
+DSPs, so it passes the documented 70% independent-resource gate. Route status,
+DRC, and routed timing are hard gates.
 
 `JpegHeaderStage` was also changed from a one-byte-per-cycle combinational
 header mux into a small byte-generation FSM. Static marker bytes still emit in
@@ -752,11 +758,11 @@ meaningless gate values.
 
 ## Last Known Local Verification
 
-The current checkout has fresh full Vivado construction evidence for the UHD
-four-pixel RTL. It proves that the design packages, routes, closes the actual
-150.015 MHz clock, stays within the 70% independent-resource ceiling, and emits
-a bitstream/XSA/checkpoint. The physical evidence below is for the Full-HD build and must not
-be reused as proof of UHD behavior.
+The current checkout has fresh full Vivado construction and physical evidence
+for the final UHD four-pixel RTL. It proves that the design packages, routes,
+closes 150 MHz, stays within the 70% independent-resource ceiling, emits a
+bitstream/XSA/checkpoint, transfers the complete UHD input on a KV260, meets the
+cycle target in both chroma modes, and produces decoder-valid JPEGs.
 
 The 2026-07-13 software baseline is green. Current RTL validation used the
 pinned Docker JDK 21/sbt/Verilator toolchain on Windows:
@@ -778,14 +784,14 @@ python3 -m py_compile \
   scripts/dev/generate_performance_trace.py
 ```
 
-The latest exact-current full-suite result is 148/148 Scala tests across 29
+The latest exact-current full-suite result is 150/150 Scala tests across 30
 suites through the pinned Docker sbt/Verilator toolchain. The exact-current
 21-test AXI-Lite top suite passes, including exact frame-cycle accounting for
 sequential frames. All three core/KV260 SystemVerilog elaboration entry points
 pass.
 The generated-design-graph smoke run finds 27 reachable module types and 38
 instances with no missing focus modules. The most recent maintained Python
-suite results are 239 host tests, 59 Vivado-report tests, 10
+suite results are 239 host tests, 61 Vivado-report tests, 10
 ChiselSim-environment tests, 11 design-graph helper tests, 11
 performance-trace renderer tests, and 5 4K60-capacity tests. Current 256x64 single-
 and two-frame scenarios produced strict JSON/CSV evidence and decoder-validated
@@ -859,19 +865,20 @@ Known local limitations:
   `$(shell pwd)` and replay pipelines.
 - The native Windows/MSYS simulator path remains incompatible, but the pinned
   Docker flow runs the complete suite against the same checkout. The latest
-  exact-current result is 148 passing tests across 29 suites, including 21
+  exact-current result is 150 passing tests across 30 suites, including 21
   AXI-Lite top tests and exact frame-cycle accounting.
 - Current UHD construction emits the bitstream, XSA, and post-implementation
-  checkpoint for the 128-bit DMA / 150 MHz block design. Integrated
-  post-synthesis setup WNS is `+0.760 ns`; post-implementation setup WNS is
-  `+0.232 ns`, TNS is zero, and hold WHS is `+0.010 ns`. Utilization is 48,674
-  CLB LUTs (41.56%), 80,343 registers (34.30%), 99.5 BRAM tiles (69.10%), 194
-  DSPs (15.54%), and 11,446 physical CLBs (78.18%). All 119,201 routable nets
-  are routed with zero errors. The complete twelve-record checker passes the
-  documented 70% independent-resource policy; aggregate CLB spread is
-  informational. The generated
+  checkpoint for the 128-bit DMA / 150 MHz block design. Post-implementation
+  setup WNS is `+0.006 ns` and hold WHS is `+0.010 ns`. Utilization is 58,899
+  CLB LUTs (50.29%), 83,590 registers (35.69%), 97 BRAM tiles (67.36%), and
+  194 DSPs (15.54%). Routing has zero errors and the complete twelve-record
+  checker passes the documented 70% independent-resource policy. The generated
   bitstream SHA-256 is
-  `ccd23d32aded07cc6c3dcdb3485e15dea143e695992322f222af907cedf52eb1`.
+  `6c8217d5ada789bf0701ec5142b955e99e4f628dffc800a9d1f13eb052131a24`.
+- Physical UHD runs of that exact bitstream transfer 33,177,600 bytes and
+  produce decoder-valid q85 JPEGs. 4:4:4 takes 2,090,494 cycles (71.75 fps) and
+  4:2:0 takes 2,219,916 cycles (67.57 fps). Both DMA status words are
+  `0x00001002`, encoder status is zero, and the 2,500,000-cycle gate passes.
 - The historical Full-HD two-slot banked-block-RAM, four-lane transform, and
   four-coefficient entropy Vivado construction emits the bitstream, XSA, and
   post-implementation checkpoint. Post-synthesis setup WNS is `+1.291 ns`;
@@ -1281,22 +1288,25 @@ object-shaped transcript.
 
 ## Suggested Next Work
 
-For the active `4k60` target:
+The active `4k60` benchmark is complete. The next useful work is platform and
+productization rather than another speculative datapath rewrite:
 
-1. Program the current 150 MHz bitstream on a KV260 and run the documented q85
-   gradient/checker fixture at 3840x2160 in both 4:4:4 and 4:2:0.
-2. Require first-input through output-TLAST to fit the 2,500,000-cycle frame
-   budget at 150 MHz, confirm one 33,177,600-byte MM2S transfer, preserve DMA and
-   protocol status, and decode each JPEG with ordinary software.
-3. Save strict run evidence and hashes. Full-HD captures are a correctness
-   baseline, not proof of UHD throughput or output.
+1. Add a production Linux DMA/driver backend that coexists with the application
+   processor and reuses the existing packing, timing, and validation helpers.
+2. Improve routed timing margin before unrelated feature growth; the final
+   implementation passes at `+0.006 ns` setup WNS, which is valid but narrow.
+3. Define a separate content/quality contract before optimizing high-entropy
+   throughput. The current 4K60 claim is intentionally the documented q85
+   gradient/checker benchmark.
+4. Re-run complete Vivado and physical evidence after any RTL, DMA, clock, or
+   target-part change; never reuse the current hashes for a modified image.
 
-The board runner is now UHD-ready: it accepts 3840x2160, uses non-overlapping
-default DDR buffers for every legal 26-bit input length, supports a no-board
-preflight, reports timing at an explicit PL clock, and can hard-gate the
-2,500,000-cycle target after preserving a failing capture for diagnosis. The
-Linux host utility has a matching `frame-timing` command. Exact commands and
-acceptance fields are in `docs/4k60-architecture.md`.
+The board runner accepts 3840x2160, uses non-overlapping default DDR buffers for
+every legal 26-bit input length, supports a no-board preflight, selects APU for
+physical DDR access, reports timing at an explicit PL clock, and hard-gates the
+2,500,000-cycle target. The Linux host utility has a matching `frame-timing`
+command. Exact commands, hashes, and acceptance fields are in
+`docs/4k60-architecture.md`.
 
 If the exact RTL or target changes and the new PC has Vivado:
 
@@ -1320,7 +1330,7 @@ If the new PC has KV260 access too:
    DMA device model.
 3. Use `run_kv260_xsdb_dma.tcl` for direct JTAG validation or the Linux stream
    backend when its DMA endpoints exist.
-4. Read `FRAME_TIMING` from the PL counters for 1920x1080 in both chroma modes;
+4. Read `FRAME_TIMING` from the PL counters for the target frame in both chroma modes;
    do not use the debugger-polled elapsed value as encoder latency.
 5. Validate each captured JPEG with strict marker/table settings and an
    ordinary decoder; preserve hashes and protocol/DMA status.

@@ -9,7 +9,39 @@ Its contract, capacity calculations, and UHD evidence live in
 [`4k60-architecture.md`](4k60-architecture.md). The Full-HD target and results
 below remain the correctness/performance baseline, not proof of 4K60.
 
-## Primary Target
+## Active UHD Target and Result
+
+The defined UHD benchmark is the deterministic 3840x2160 `gradient-checker` at
+quality 85, no restart interval, JFIF enabled, and runtime-selected 4:4:4 or
+4:2:0. At 150 MHz, 60 fps permits 2,500,000 PL cycles from the first accepted
+input beat through accepted JPEG TLAST. One frame is 8,294,400 pixels and one
+packed 128-bit-DMA input transfer is 33,177,600 bytes.
+
+The exact final routed image passes the complete twelve-record Vivado evidence
+gate with setup WNS `+0.006 ns`, hold WHS `+0.010 ns`, zero routing errors, and
+58,899 LUTs (50.29%), 83,590 registers (35.69%), 97 BRAM tiles (67.36%), and
+194 DSPs (15.54%). Physical KV260 measurements are:
+
+| Mode | Cycles | Time at 150 MHz | FPS | JPEG bytes | Result |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 4:4:4 | 2,090,494 | 13.936627 ms | 71.753375 | 609,217 | target/decoder pass |
+| 4:2:0 | 2,219,916 | 14.799440 ms | 67.570124 | 529,549 | target/decoder pass |
+
+Both runs transfer the complete input in one MM2S transaction, end MM2S and
+S2MM at IOC/idle, return encoder status to zero, pass strict marker/table/chroma
+validation, and decode with FFmpeg. Their SHA-256 values are respectively
+`75de142ca238e8e3d3803e79478872e7fe79aa77488af3355ded665c6643b360`
+and
+`6d9b73bdba60c617ce15c06ca08d677514fb70b6cd3c0fb44b269058aacf69ba`.
+
+Two architectural changes close the gap: ordered dual-MCU entropy engines
+overlap scanning/emission, and 256-beat MM2S bursts remove the shared physical
+ingress bottleneck. The DMA's optional MM2S store-and-forward buffer remains
+disabled because it is unnecessary and raises BRAM use above the 70% ceiling.
+The result proves this named q85 benchmark; quality and image entropy still make
+JPEG throughput content-dependent.
+
+## Historical Full-HD Target
 
 The minimum benchmark target is:
 

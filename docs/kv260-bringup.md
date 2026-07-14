@@ -62,6 +62,8 @@ Expected evidence:
   updated.
 - The design contains Zynq UltraScale+ PS, AXI DMA, SmartConnect, reset logic,
   interrupt concat, and one `hjpeg_kv260_axi_lite` instance.
+- The AXI DMA records a 256-beat MM2S burst size and disabled MM2S
+  store-and-forward. SmartConnect adapts requests to the PS HP port.
 
 ## 5. Build Bitstream and XSA
 
@@ -274,10 +276,14 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg \
 ```
 
 The last two XSDB arguments select 4:2:0 and JFIF. The runner stops Cortex-A53
-#0, programs the PL, uses reserved DDR buffers, checks both DMA status words and
+#0, selects the aggregate APU debug target for physical DDR reads/writes,
+programs the PL, uses reserved DDR buffers, checks both DMA status words and
 encoder status, verifies the full MM2S length, and writes exactly the S2MM
-reported byte count. It therefore disrupts a running Linux system and is a lab
-validation path, not a production driver. The block design configures a 26-bit
+reported byte count. The APU selection is required when Linux leaves the A53
+MMU enabled: Cortex-A53 debug targets otherwise interpret `dow -data` addresses
+as virtual and can fault on the reserved physical DDR addresses. The runner
+therefore disrupts a running Linux system and is a lab validation path, not a
+production driver. The block design configures a 26-bit
 DMA length field; the prior 14-bit default could not carry a packed 1080p frame
 without an early TLAST. Current defaults reserve `0x60000000..0x63ffffff` for
 the largest permitted MM2S input and begin the maximum-length S2MM buffer at
@@ -645,6 +651,43 @@ The defined q85 gradient/checker benchmark clears 1080p30 in both modes. The
 q90 seeded-random 4:4:4 stress result does not; JPEG entropy work and byte count
 are content-dependent, so the target is not a universal worst-case guarantee.
 
+## Current Physical 4K60 Evidence (2026-07-13)
+
+The final 128-bit-input, dual-MCU-entropy image was built with 256-beat MM2S
+bursts and MM2S store-and-forward disabled. The strict complete Vivado gate has
+twelve passing records. Routed setup WNS is `+0.006 ns`, hold WHS is
+`+0.010 ns`, and post-implementation utilization is 58,899 LUTs (50.29%),
+83,590 registers (35.69%), 97 BRAM tiles (67.36%), and 194 DSPs (15.54%).
+
+The exact artifact directory is
+`build/vivado/hjpeg-kv260-4k60-artifacts-150-dual-mcu-burst256-nomsf/`:
+
+- bitstream SHA-256:
+  `6c8217d5ada789bf0701ec5142b955e99e4f628dffc800a9d1f13eb052131a24`;
+- XSA SHA-256:
+  `f478eb04afc8d7915e84c6b5aa0b2d80903c1c3d9b792a89e2830f75383c413e`;
+- routed DCP SHA-256:
+  `411c3ea23eea12ccad5aab8bed13bc292966fccaa05c252b95cfce9983642d59`.
+
+The deterministic input PPM and packed RGB hashes are
+`90f60458344d93e7b10e6b6c86f5a02817a6c0d7db41f9e37460180c4aeb6d06`
+and
+`d5e8ec5febdcc909aadb7b33d31da9160fc92c88b35f026a81f2fb72c7e2edae`.
+Both physical runs transferred all 33,177,600 input bytes, ended MM2S and S2MM
+at `0x00001002`, returned encoder status `0x00000000`, counted one completed
+frame, ended with `RUN_OK`, passed the 2,500,000-cycle gate, and decoded with
+FFmpeg:
+
+| Fixture | Mode | Cycles | FPS at 150 MHz | JPEG bytes | JPEG SHA-256 |
+| --- | --- | ---: | ---: | ---: | --- |
+| 3840x2160 gradient/checker q85 | 4:4:4 | 2,090,494 | 71.753375 | 609,217 | `75de142ca238e8e3d3803e79478872e7fe79aa77488af3355ded665c6643b360` |
+| 3840x2160 gradient/checker q85 | 4:2:0 | 2,219,916 | 67.570124 | 529,549 | `6d9b73bdba60c617ce15c06ca08d677514fb70b6cd3c0fb44b269058aacf69ba` |
+
+The output hashes match captures from the earlier four-beat-DMA build, while
+the PL frame counts fell from roughly 4.329 million cycles. This isolates the
+improvement to ingress transport rather than JPEG contents. These runs complete
+the active branch's defined 4K60 benchmark contract in both sampling modes.
+
 ## Completion Bar
 
 Do not mark the project complete until the repo has current evidence for:
@@ -657,7 +700,7 @@ Do not mark the project complete until the repo has current evidence for:
 - A real KV260 run producing at least one decodable JPEG through AXI DMA.
 - Host-side validation passing for that hardware-produced JPEG.
 
-All functional completion items and the defined 1920x1080-at-30-fps benchmark
-have current evidence. Production Linux DMA/driver coexistence and higher-entropy
-4:4:4 throughput are documented follow-on integration/performance work rather
-than unproven completion claims.
+All functional completion items, the defined 1920x1080-at-30-fps baseline, and
+the defined 3840x2160-at-60-fps q85 benchmark in both sampling modes have
+current evidence. Production Linux DMA/driver coexistence and separately
+defined higher-entropy throughput are follow-on integration/performance work.

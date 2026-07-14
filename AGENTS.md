@@ -49,26 +49,30 @@ Y/Cb/Cr together for 4:4:4 and two three-block batches for 4:2:0. UHD
 post-synthesis use is 96 BRAM tiles, 194 DSPs, 45,168 CLB LUTs, and 73,402
 registers after the latest resource slice. The separate
 `JpegParallelMcuTransformStage` overlaps raw loading with in-flight transforms.
-Three buffered block-entropy slots scan Y/Cb/Cr once for 4:4:4; 4:2:0 reuses
-those slots in ordered Y0/Y1/Y2 then Y3/Cb/Cr waves. Each production quantizer
-uses a four-read distributed reciprocal ROM instead of two RAMB18s. Registers
-now cut RGB writes,
+Two ordered MCU entropy engines each use three buffered block-entropy slots.
+Within an engine, 4:4:4 scans Y/Cb/Cr once and 4:2:0 reuses the slots in ordered
+Y0/Y1/Y2 then Y3/Cb/Cr waves. The stream encoder can enqueue a second MCU while
+the first emits runs and still preserves DC predictor and restart ordering. Each
+production quantizer uses a four-read distributed reciprocal ROM instead of two
+RAMB18s. Registers now cut RGB writes,
 raster-bank requests/responses, two-product DCT reductions, quantizer
 reciprocal/scale paths, and the AC-event boundary. The integrated default Vivado
-flow closes its actual 6.666 ns / 150.015 MHz clock with setup WNS `+0.232 ns`,
-zero TNS/failing endpoints, hold WHS `+0.010 ns`, and a fully routed bitstream,
-XSA, and checkpoint. Post-implementation use is 48,674 CLB LUTs, 80,343
-registers, 99.5 BRAM tiles, and 194 DSPs; physical CLB occupancy is 78.18%.
+flow closes 150 MHz with setup WNS `+0.006 ns`, hold WHS `+0.010 ns`, and a
+fully routed bitstream, XSA, and checkpoint. Post-implementation use is 58,899
+CLB LUTs, 83,590 registers, 97 BRAM tiles, and 194 DSPs.
 The complete twelve-record evidence checker passes the documented 70%
-independent-resource ceiling. Aggregate physical CLB occupancy is retained as
-informational placement evidence because it double-counts LUT/register use;
-route status, DRC, and routed setup/hold timing remain hard gates. Physical
-decoder-valid 4K60 evidence is still required.
+independent-resource ceiling; route status, DRC, and routed setup/hold timing
+remain hard gates. The block design uses 256-beat MM2S bursts with MM2S
+store-and-forward disabled. Physical decoder-valid q85 UHD runs complete in
+2,090,494 cycles for 4:4:4 and 2,219,916 cycles for 4:2:0 at 150 MHz, meeting
+the 2,500,000-cycle target in both modes.
 The XSDB runner accepts UHD dimensions, uses non-overlapping default buffers for
 the full 26-bit DMA length range, supports no-board preflight, and can gate an
-explicit PL clock/frame-cycle target. The Linux helper's `frame-timing` command
-reads the same split 64-bit PL counter safely. Use the exact q85 commands in
-`docs/4k60-architecture.md` for physical acceptance.
+explicit PL clock/frame-cycle target. It selects the aggregate APU target for
+physical DDR transfers because Cortex-A53 targets interpret addresses through
+their active MMU. The Linux helper's `frame-timing` command reads the same split
+64-bit PL counter safely. Use the exact q85 commands and hashes in
+`docs/4k60-architecture.md` when reproducing physical acceptance.
 AC scanner lookahead trials at eight and sixteen coefficients failed 100 MHz
 timing and were reverted; keep the four-coefficient scanner unless it is
 pipelined.
@@ -93,8 +97,8 @@ passes the provisional resource target. Current
 high-entropy traces no longer show sustained entropy backpressure. A 256x64
 seeded-random quality-90 4:4:4 trace accepts input at 1.240 cycles/pixel; a
 two-frame trace with the same configuration accepts at 1.361 cycles/pixel,
-both within the 1.61-cycle/pixel budget. Exact-current verification is 148/148
-Scala/Chisel tests across 29 suites and 331/331 Python tests across the host,
+both within the 1.61-cycle/pixel budget. Exact-current verification is 150/150
+Scala/Chisel tests across 30 suites and 337/337 Python tests across the host,
 Vivado-report, environment, graph, trace, and capacity helpers.
 
 `HjpegAxiStreamCore` is the current hardware-facing shell. It accepts one to

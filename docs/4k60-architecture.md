@@ -16,9 +16,12 @@ The `4k60` branch targets:
 
 Quality-90 `seeded-random` remains a stress case, not a content-independent
 60-fps guarantee. Performance evidence must name the fixture and sampling mode.
-The integrated default Vivado flow now closes 150 MHz and passes the documented
-70% independent-resource ceiling. Physical decoder-valid 4K60 measurements
-remain open, so implementation closure is not by itself a completed 4K60 claim.
+The final integrated Vivado flow closes 150 MHz, passes the documented 70%
+independent-resource ceiling, and has been exercised on a physical KV260. The
+defined benchmark completes in 2,090,494 cycles for 4:4:4 and 2,219,916 cycles
+for 4:2:0, so both modes satisfy the 2,500,000-cycle frame budget and decode
+with FFmpeg. This is a benchmark-specific 4K60 result, not a content-independent
+quality/throughput guarantee.
 
 ## Reproducible Capacity Budget
 
@@ -282,6 +285,26 @@ input at 1.361 cycles/pixel, and has a 103-cycle frame-transition MCU interval.
 Both remain inside the 1.61-cycle/pixel input target. This stress case is still
 primarily byte-output limited and is deliberately not the q85 4K60 contract.
 
+## Ordered Dual-MCU Entropy Slice
+
+`JpegPipelinedMcuEntropyStage` places two complete three-slot MCU entropy
+engines behind a two-entry occupied ring. The stream encoder may enqueue the
+next coefficient MCU while the older MCU is still emitting runs, then drains
+the engines strictly in input order. Enqueue-time DC predictors are derived
+from each raw MCU's component DC coefficients, preserving the serial JPEG DC
+chain without waiting for the older engine to finish. At a restart boundary,
+input admission stops, the occupied engines drain, the restart marker is
+emitted, and zero predictors seed the next interval.
+
+A directed header-stall regression proves that exactly two MCUs can be buffered
+before backpressure. Existing decoder-backed core, AXI, restart, and output-
+stall regressions cover byte ordering, predictor resets, and stuffing. An exact
+four-pixel UHD-target simulation on a 512x128 quality-85 gradient/checker
+fixture measures 17.414 cycles per 4:4:4 MCU and 72.113 cycles per 4:2:0 MCU.
+Scaling those measured steady-state cadences plus fixed frame overhead projects
+2,259,010 and 2,338,715 cycles respectively for UHD. The projection is a
+capacity regression only; the physical results below are the acceptance proof.
+
 The quantizers now use explicit four-read distributed reciprocal ROMs instead
 of replicated inferred block ROMs. Exact standalone UHD synthesis at a 10 ns
 reporting constraint falls from 49,990 to 45,168 CLB LUTs, from 76,612 to
@@ -294,8 +317,8 @@ An eight-coefficient scanner experiment failed 100 MHz synthesis at WNS
 fully reverted. The retained design reuses independent four-coefficient
 scanners without lengthening their combinational priority chains.
 
-The retained implementation passes 148/148 Scala/Chisel tests across 29 suites.
-Python verification passes 239 host-flow, 59 Vivado-report, 10
+At this pre-dual-MCU checkpoint, verification passed 148/148 Scala/Chisel tests
+across 29 suites. Python verification passed 239 host-flow, 59 Vivado-report, 10
 ChiselSim-environment, 11 design-graph, 11 performance-trace, and 5
 capacity-model tests (335 total). The five-scenario regenerated performance
 capture passes as a separate simulator-backed test.
@@ -327,37 +350,44 @@ Standalone UHD synthesis at a 10 ns reporting constraint uses 45,168 CLB LUTs,
 73,402 registers, 96 BRAM tiles, and 194 DSPs. Setup WNS is `+4.198 ns`; the
 resource changes therefore preserve the established 100 MHz timing result.
 
-The integrated default implementation requests 150 MHz from the PS and reports
-an actual 6.666 ns period, or 150.015 MHz. It is fully routed and meets every
-timing constraint: setup WNS is `+0.232 ns`, TNS is `0`, there are no failing
-setup endpoints, and hold WHS is `+0.010 ns`. All 119,201 routable nets are
-fully routed with zero routing errors. DRC has warnings but no Error or Critical
-Warning violations. The flow emits a nonempty bitstream, bitstream-bearing XSA,
-and routed checkpoint. It now also emits a depth-10 hierarchical utilization
-report; `report_checkpoint_hierarchy.tcl` can regenerate the same diagnostic
-from any saved DCP.
+The final integrated implementation requests 150 MHz from the PS and is fully
+routed with setup WNS `+0.006 ns` and hold WHS `+0.010 ns`. The strict complete
+evidence gate passes all twelve required artifact, timing, utilization, DRC,
+routing, clock, floorplan, and address-map records with zero routing errors.
+Post-implementation use is 58,899 CLB LUTs (50.29%), 83,590 registers (35.69%),
+97 BRAM tiles (67.36%), and 194 DSPs (15.54%).
 
-Post-implementation use is 48,674 CLB LUTs (41.56%), 80,343 registers (34.30%),
-99.5 BRAM tiles (69.10%), and 194 DSPs (15.54%). Physical placement touches
-11,446/14,640 CLBs, or 78.18%. The complete twelve-record Vivado evidence gate
-passes the documented 70% independent-resource ceiling. The aggregate `CLB`
-row remains present in JSON as informational placement evidence because it
-double-counts LUT/register resources and timing-driven placement deliberately
-spreads logic. Clean routing, DRC, and positive routed setup/hold slack are the
-physical implementation gates; the 78.18% figure is still reported rather than
-hidden.
+The block design requests 256-beat MM2S bursts and disables the DMA MM2S
+store-and-forward buffer. The original four-beat DMA bursts made both chroma
+modes take about 4.329 million PL cycles even though the encoder simulation met
+its cadence budget. Increasing the burst length removed that shared ingress
+bottleneck. A first 256-beat build with store-and-forward used 105.5 BRAM tiles
+(73.26%) and was rejected; disabling that optional buffer recovered the final
+97-tile result. The utilization parser accepts fractional `Used` values so this
+resource gate cannot silently round a half-BRAM row down.
 
-Artifact SHA-256 values for this exact implementation are
-`ccd23d32aded07cc6c3dcdb3485e15dea143e695992322f222af907cedf52eb1` for
-the bitstream,
-`63b764b9e5adff83c36cbfd5d3d6d831f59ba74d96793acfaddee2de61a39e75`
+Rebuild the final project/artifact layout with:
+
+```sh
+sbt 'runMain hjpeg.ElaborateKv2604k60AxiLiteTop'
+vivado -mode batch -source scripts/vivado/package_kv260_axi_lite_ip.tcl \
+  -tclargs generated-kv260-4k60-axi-lite-top build/vivado/ip_repo-4k60
+vivado -mode batch -source scripts/vivado/create_kv260_block_design.tcl \
+  -tclargs build/vivado/ip_repo-4k60 \
+  build/vivado/hjpeg-kv260-4k60-bd-150-dual-mcu-burst256-nomsf 128 150
+vivado -mode batch -source scripts/vivado/build_kv260_bitstream.tcl \
+  -tclargs build/vivado/hjpeg-kv260-4k60-bd-150-dual-mcu-burst256-nomsf \
+  build/vivado/hjpeg-kv260-4k60-artifacts-150-dual-mcu-burst256-nomsf 4
+```
+
+Artifact SHA-256 values for the exact physical implementation under
+`build/vivado/hjpeg-kv260-4k60-artifacts-150-dual-mcu-burst256-nomsf/` are
+`6c8217d5ada789bf0701ec5142b955e99e4f628dffc800a9d1f13eb052131a24`
+for the bitstream,
+`f478eb04afc8d7915e84c6b5aa0b2d80903c1c3d9b792a89e2830f75383c413e`
 for the XSA, and
-`f9329a518601049ef27e5d26eadc72be761717334d0f12085c9362ccccf64d35`
+`411c3ea23eea12ccad5aab8bed13bc292966fccaa05c252b95cfce9983642d59`
 for the routed checkpoint.
-
-Current verification is 148/148 Scala/Chisel tests across 29 suites. The Python
-side passes 5 capacity-model, 10 ChiselSim-environment, 11 design-graph, 11
-performance-trace, 59 Vivado-report, and 239 host-flow tests.
 
 ## Physical Validation Commands
 
@@ -388,12 +418,12 @@ cycles. Run 4:4:4 with:
 
 ```sh
 xsdb scripts/host/run_kv260_xsdb_dma.tcl \
-  build/vivado/hjpeg-kv260-4k60-artifacts-150-resource-slots3-distrom/hjpeg_kv260.bit \
+  build/vivado/hjpeg-kv260-4k60-artifacts-150-dual-mcu-burst256-nomsf/hjpeg_kv260.bit \
   build/4k60-hardware/gradient-checker-3840x2160.rgb \
-  build/4k60-hardware/gradient-checker-q85-444.jpg \
+  build/4k60-hardware/gradient-checker-q85-444-burst256-nomsf.jpg \
   3840 2160 85 0 0 1 \
   0x60000000 0x64000000 0x03ffffff tcp:localhost:3121 \
-  build/4k60-hardware/gradient-checker-q85-444.xsdb.txt \
+  build/4k60-hardware/gradient-checker-q85-444-burst256-nomsf.xsdb.txt \
   150000000 2500000
 ```
 
@@ -402,12 +432,12 @@ output/transcript paths:
 
 ```sh
 xsdb scripts/host/run_kv260_xsdb_dma.tcl \
-  build/vivado/hjpeg-kv260-4k60-artifacts-150-resource-slots3-distrom/hjpeg_kv260.bit \
+  build/vivado/hjpeg-kv260-4k60-artifacts-150-dual-mcu-burst256-nomsf/hjpeg_kv260.bit \
   build/4k60-hardware/gradient-checker-3840x2160.rgb \
-  build/4k60-hardware/gradient-checker-q85-420.jpg \
+  build/4k60-hardware/gradient-checker-q85-420-burst256-nomsf.jpg \
   3840 2160 85 0 1 1 \
   0x60000000 0x64000000 0x03ffffff tcp:localhost:3121 \
-  build/4k60-hardware/gradient-checker-q85-420.xsdb.txt \
+  build/4k60-hardware/gradient-checker-q85-420-burst256-nomsf.xsdb.txt \
   150000000 2500000
 ```
 
@@ -419,13 +449,13 @@ the captures independently with standard table checks and an ordinary decoder:
 
 ```sh
 python3 scripts/host/hjpeg_host.py validate-jpeg \
-  build/4k60-hardware/gradient-checker-q85-444.jpg \
+  build/4k60-hardware/gradient-checker-q85-444-burst256-nomsf.jpg \
   --width 3840 --height 2160 --restart-interval 0 \
   --check-chroma-mode --expect-jfif present --quality 85 \
   --require-standard-huffman \
   --decoder-command 'ffmpeg -v error -i {jpeg} -f null -' --json
 python3 scripts/host/hjpeg_host.py validate-jpeg \
-  build/4k60-hardware/gradient-checker-q85-420.jpg \
+  build/4k60-hardware/gradient-checker-q85-420-burst256-nomsf.jpg \
   --width 3840 --height 2160 --restart-interval 0 \
   --chroma-subsample --check-chroma-mode --expect-jfif present --quality 85 \
   --require-standard-huffman \
@@ -446,19 +476,32 @@ Host elapsed time includes driver and scheduling overhead and is not the 4K60
 acceptance timer. The PL counter measures first accepted input through accepted
 output TLAST.
 
-## Remaining Architecture
+## Physical Acceptance Results
 
-Implementation order is:
+The exact bitstream and deterministic input above were exercised on a physical
+KV260 through one 33,177,600-byte MM2S transfer per mode. Both DMA status words
+ended at `0x00001002` (IOC and idle), encoder status returned to zero, and each
+run ended with `RUN_OK`:
 
-1. Program the exact 150 MHz bitstream on a KV260 and measure the q85 UHD
-   fixture through the documented DMA path in both chroma modes.
-2. Add ordered multi-run drain/packing or widen JPEG output only if that q85
-   target trace demonstrates that entropy traffic still misses the frame
-   budget on hardware.
-3. Require first-input through output-TLAST to fit 2,500,000 cycles at 150 MHz,
-   transfer all 33,177,600 input bytes, preserve clean DMA/protocol status, and
-   decode both captures with standard software.
+| Mode | PL cycles | Time at 150 MHz | FPS | JPEG bytes | JPEG SHA-256 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 4:4:4 | 2,090,494 | 13.936627 ms | 71.753375 | 609,217 | `75de142ca238e8e3d3803e79478872e7fe79aa77488af3355ded665c6643b360` |
+| 4:2:0 | 2,219,916 | 14.799440 ms | 67.570124 | 529,549 | `6d9b73bdba60c617ce15c06ca08d677514fb70b6cd3c0fb44b269058aacf69ba` |
 
-Do not claim completed 4K60 from capacity arithmetic or routed timing alone.
-Completion still requires physical decoder-valid DMA measurements in both
-sampling modes.
+Strict host validation confirms 3840x2160 SOF0 dimensions, the requested 4:4:4
+or 4:2:0 sampling factors, quality-85 standard quantization and Huffman tables,
+JFIF APP0, nonempty entropy scans, correct stuffing, and successful FFmpeg
+decoding. Visual inspection confirms the expected color gradient and checker
+texture in both captures. The output hashes are byte-identical to the captures
+from the slower four-beat-DMA build, showing that the DMA optimization changes
+transport throughput rather than JPEG contents.
+
+The 4K60 benchmark contract is therefore complete for both modes. Remaining
+platform work is a production Linux DMA/driver path that coexists with the
+application processor, plus any separately defined high-entropy or higher-
+quality throughput targets.
+
+Final software verification passes 150/150 Scala/Chisel tests across 30 suites,
+including the decoder-backed UHD capacity regression. Python verification
+passes 239 host-flow, 61 Vivado-report, 10 ChiselSim-environment, 11
+design-graph, 11 performance-trace, and 5 capacity-model tests (337 total).

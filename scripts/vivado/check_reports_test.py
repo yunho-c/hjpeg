@@ -42,6 +42,14 @@ VIVADO_UTILIZATION_TABLE = """
 | PS8 | 1 | 0 | 0 | 1 | 100.00 |
 """
 
+FRACTIONAL_UTILIZATION_TABLE = """
+2. BLOCKRAM
+-----------
+
+| Site Type | Used | Fixed | Prohibited | Available | Util% |
+| Block RAM Tile | 105.5 | 0 | 0 | 144 | 73.26 |
+"""
+
 DRC_CLEAN_REPORT = """
 Report DRC
 ----------
@@ -343,6 +351,13 @@ class CheckReportsTest(unittest.TestCase):
         self.assertEqual(rows[3].available, 1)
         self.assertEqual(rows[3].percent, 100.0)
 
+    def test_parse_fractional_utilization_used_value(self) -> None:
+        rows = check_reports.parse_utilization_rows(FRACTIONAL_UTILIZATION_TABLE)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].name, "Block RAM Tile")
+        self.assertEqual(rows[0].used, 105.5)
+        self.assertEqual(rows[0].percent, 73.26)
+
     def test_parse_drc_violations(self) -> None:
         violations, saw_zero_summary = check_reports.parse_drc_violations(DRC_VIOLATION_TABLE)
         self.assertFalse(saw_zero_summary)
@@ -426,6 +441,15 @@ class CheckReportsTest(unittest.TestCase):
             self.assertEqual(
                 check_reports.check_utilization(report, max_percent=90.0),
                 [f"{report}: LUT as Logic utilization 95.00% exceeds 90.00%"],
+            )
+
+    def test_check_utilization_reports_fractional_bram_over_threshold(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "util.rpt"
+            report.write_text(FRACTIONAL_UTILIZATION_TABLE)
+            self.assertEqual(
+                check_reports.check_utilization(report, max_percent=70.0),
+                [f"{report}: Block RAM Tile utilization 73.26% exceeds 70.00%"],
             )
 
     def test_check_drc_reports_blocking_violations(self) -> None:

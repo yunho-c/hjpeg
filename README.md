@@ -2,18 +2,19 @@
 
 Hardware-accelerated JPEG encoder in Chisel.
 
-The `4k60` branch is developing a 3840x2160-at-60-fps KV260 architecture while
-preserving the verified Full-HD implementation as its correctness baseline.
+The `4k60` branch implements and validates a 3840x2160-at-60-fps KV260
+architecture while preserving the verified Full-HD implementation as its
+correctness baseline.
 See [`docs/4k60-architecture.md`](docs/4k60-architecture.md) for the exact target,
-capacity model, current UHD synthesis evidence, and remaining gates.
-The integrated 128-bit DMA design now routes at 150.015 MHz with setup WNS
-`+0.232 ns` and hold WHS `+0.010 ns`. Post-implementation use is 48,674 CLB
-LUTs (41.56%), 80,343 registers (34.30%), 99.5 BRAM tiles (69.10%), and 194
-DSPs (15.54%). The complete twelve-record Vivado evidence checker passes the
-documented 70% independent-resource ceiling. Timing-driven placement touches
-78.18% of physical CLB sites; that aggregate placement statistic remains
-reported but is not an independent LUT/register budget. Physical decoder-valid
-4K60 DMA measurements in both chroma modes are still required.
+capacity model, final UHD implementation evidence, and physical results. The
+integrated 128-bit DMA design routes at 150 MHz with setup WNS `+0.006 ns` and
+hold WHS `+0.010 ns`. Post-implementation use is 58,899 CLB LUTs (50.29%),
+83,590 registers (35.69%), 97 BRAM tiles (67.36%), and 194 DSPs (15.54%). The
+complete twelve-record Vivado evidence checker passes the documented 70%
+independent-resource ceiling. On a physical KV260, the deterministic 3840x2160
+quality-85 benchmark completes in 2,090,494 cycles (71.75 fps) for 4:4:4 and
+2,219,916 cycles (67.57 fps) for 4:2:0. Both DMA captures are decoder-valid and
+byte-identical to the corresponding pre-DMA-optimization captures.
 
 The initial target platform is the AMD/Xilinx Kria KV260. The current tree
 contains a functional baseline JPEG encoder datapath with Scala/Chisel build
@@ -27,9 +28,10 @@ files, streaming RTL shells, elaboration entry points, and simulator tests.
 - KV260-oriented top-level elaboration target
 - Incremental test fixtures for each pipeline stage
 
-The performance target is decoder-valid 1920x1080 at 30 fps in both 4:4:4 and
-4:2:0 modes at a 100 MHz PL clock for the deterministic quality-85
-gradient/checker benchmark. The four-lane DCT/quantizer,
+The original performance baseline is decoder-valid 1920x1080 at 30 fps in both
+4:4:4 and 4:2:0 modes at a 100 MHz PL clock for the deterministic quality-85
+gradient/checker benchmark. The active `4k60` branch target is the UHD result
+summarized above. The four-lane DCT/quantizer,
 four-coefficient AC scanner, and two-slot raster collector meet their measured
 stage budgets in simulation. A 256x64 seeded-random quality-90 4:4:4 trace
 accepts input at 1.240 cycles/pixel, and a two-frame capture accepts at 1.361,
@@ -471,7 +473,8 @@ python3 scripts/host/hjpeg_host.py validate-jpeg output.jpg --width 640 --height
 
 When a board has initialized PS clocks and DDR but its Linux image does not
 expose DMA devices, the intrusive XSDB lab runner programs the PL, stops A53 #0,
-drives AXI DMA through JTAG, and captures the JPEG directly:
+uses the aggregate APU debug target for physical DDR transfers, drives AXI DMA
+through JTAG, and captures the JPEG directly:
 
 ```sh
 xsdb scripts/host/run_kv260_xsdb_dma.tcl \
@@ -489,6 +492,11 @@ overlap for any permitted 26-bit input length. Optional trailing arguments set
 the PL clock and a hard maximum frame-cycle target. Set
 `HJPEG_XSDB_PREFLIGHT_ONLY=1` to validate the exact files, transfer length, and
 DDR ranges without connecting to or modifying a board.
+
+The tracked block design requests 256-beat MM2S bursts and disables the optional
+MM2S store-and-forward buffer. SmartConnect splits those requests for the PS HP
+port while retaining long DMA-side bursts; this is required for the measured
+4K60 ingress rate and keeps BRAM below the project ceiling.
 
 `make-test-ppm` writes a deterministic non-flat binary P6 PPM pattern for
 repeatable board bring-up. Pass `--pattern seeded-random` to reproduce the
